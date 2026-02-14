@@ -30,13 +30,15 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
 
   // Improved Smart Source Detection Maps
   const COLUMN_ALIASES = {
-      name: ['name', 'first_name', 'full_name', 'lead_name', 'client_name', 'customer_name', 'firstname', 'fullname'],
-      phone: ['phone', 'mobile', 'contact', 'cell', 'phone_number', 'phonenumber', 'contact_number', 'mobile_number', 'whatsapp'],
+      name: ['name', 'first_name', 'full_name', 'lead_name', 'client_name', 'customer_name', 'firstname', 'fullname', 'full name'],
+      phone: ['phone', 'mobile', 'contact', 'cell', 'phone_number', 'phonenumber', 'contact_number', 'mobile_number', 'whatsapp', 'phone number'],
       budget: ['budget', 'price', 'range', 'amount', 'investment', 'आपका_बजट_कितना_है?', 'client_budget'],
+      email: ['email', 'e-mail', 'email_address', 'mail'],
       source: ['source', 'lead_source', 'platform'],
-      // Source clues
-      ad_clues: ['ad_name', 'campaign', 'adset_name'],
-      form_clues: ['form_id', 'form_name']
+      // Source clues for Facebook/Instagram/Google ads
+      ad_clues: ['ad_name', 'campaign', 'adset_name', 'campaign_name', 'ad name', 'campaign name'],
+      form_clues: ['form_id', 'form_name', 'form name'],
+      platform_clues: ['platform'] // fb, ig, google
   };
 
   const handleFileChange = (e) => {
@@ -55,26 +57,74 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: 'array' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
+        let rawData = e.target.result;
         
-        const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-        if (json.length < 2) {
-            toast({ title: "Error", description: "File is empty or missing headers.", variant: "destructive" });
-            return;
-        }
+        // Check if it's a CSV/TSV file by extension
+        const isCSV = file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.tsv');
+        
+        if (isCSV) {
+          // Handle CSV/TSV files (including Facebook Lead Ads format)
+          // Try to detect encoding and parse
+          Papa.parse(rawData, {
+            header: false,
+            skipEmptyLines: true,
+            delimiter: '', // Auto-detect (handles tabs and commas)
+            encoding: 'UTF-16LE', // Support UTF-16
+            complete: (results) => {
+              if (results.data && results.data.length >= 2) {
+                let headers = results.data[0];
+                let rows = results.data.slice(1);
+                
+                // Clean headers (remove BOM and extra spaces)
+                headers = headers.map(h => String(h).trim().replace(/^\uFEFF/, ''));
+                
+                // Filter out empty rows
+                rows = rows.filter(row => row.some(cell => cell && String(cell).trim()));
+                
+                if (rows.length === 0) {
+                  toast({ title: "Error", description: "No valid data rows found in file.", variant: "destructive" });
+                  return;
+                }
+                
+                processParsedData(headers, rows, 'File Import');
+              } else {
+                toast({ title: "Error", description: "File is empty or missing data.", variant: "destructive" });
+              }
+            },
+            error: (error) => {
+              console.error('Papa Parse Error:', error);
+              toast({ title: "Error", description: "Failed to parse CSV file.", variant: "destructive" });
+            }
+          });
+        } else {
+          // Handle Excel files (.xlsx, .xls)
+          const data = new Uint8Array(rawData);
+          const wb = XLSX.read(data, { type: 'array' });
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          
+          const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+          if (json.length < 2) {
+              toast({ title: "Error", description: "File is empty or missing headers.", variant: "destructive" });
+              return;
+          }
 
-        const headers = json[0].map(h => String(h).trim());
-        const rows = json.slice(1);
-        processParsedData(headers, rows, 'File Import');
+          const headers = json[0].map(h => String(h).trim());
+          const rows = json.slice(1);
+          processParsedData(headers, rows, 'File Import');
+        }
       } catch (err) {
-        console.error(err);
-        toast({ title: "Error", description: "Failed to parse file.", variant: "destructive" });
+        console.error('File Parse Error:', err);
+        toast({ title: "Error", description: "Failed to parse file. Please ensure it's a valid CSV or Excel file.", variant: "destructive" });
       }
     };
-    reader.readAsArrayBuffer(file);
+    
+    // Read as text for CSV, arraybuffer for Excel
+    if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.tsv')) {
+      reader.readAsText(file, 'UTF-16LE'); // Try UTF-16 first for Facebook files
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handlePasteParse = () => {
@@ -107,20 +157,37 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
   };
 
   const detectSource = (row, map, sourceDefault) => {
-      // 1. Check explicit source column
-      if (map.sourceIdx !== -1 && row[map.sourceIdx]) return row[map.sourceIdx];
+      // 1. Check explicit source/platform column
+      if (map.sourceIdx !== -1 && row[map.sourceIdx]) {
+        const platform = String(row[map.sourceIdx]).toLowerCase().trim();
+        if (platform === 'fb') return 'Facebook Ads';
+        if (platform === 'ig') return 'Instagram Ads';
+        if (platform === 'google') return 'Google Ads';
+        return row[map.sourceIdx];
+      }
       
-      // 2. Check Ad clues
+      // 2. Check platform clues column
+      if (map.platformClueIdx !== -1 && row[map.platformClueIdx]) {
+        const platform = String(row[map.platformClueIdx]).toLowerCase().trim();
+        if (platform === 'fb') return 'Facebook Ads';
+        if (platform === 'ig') return 'Instagram Ads';
+        if (platform === 'google') return 'Google Ads';
+      }
+      
+      // 3. Check Ad clues
       if (map.adClueIdx !== -1 && row[map.adClueIdx]) {
            const val = String(row[map.adClueIdx]).toLowerCase();
            if(val.includes('google')) return 'Google Ads';
+           if(val.includes('facebook') || val.includes('fb')) return 'Facebook Ads';
+           if(val.includes('instagram') || val.includes('ig')) return 'Instagram Ads';
+           // Default to Facebook Ads if ad_name exists
            return 'Facebook Ads';
       }
 
-      // 3. Check Form clues
+      // 4. Check Form clues
       if (map.formClueIdx !== -1 && row[map.formClueIdx]) return 'Website Form';
 
-      // 4. Fallback
+      // 5. Fallback
       return sourceDefault;
   };
 
@@ -130,19 +197,26 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
             nameIdx: getColumnIndex(headers, 'name'),
             phoneIdx: getColumnIndex(headers, 'phone'),
             budgetIdx: getColumnIndex(headers, 'budget'),
+            emailIdx: getColumnIndex(headers, 'email'),
             sourceIdx: getColumnIndex(headers, 'source'),
             adClueIdx: headers.findIndex(h => COLUMN_ALIASES.ad_clues.includes(String(h).toLowerCase())),
             formClueIdx: headers.findIndex(h => COLUMN_ALIASES.form_clues.includes(String(h).toLowerCase())),
+            platformClueIdx: headers.findIndex(h => COLUMN_ALIASES.platform_clues.includes(String(h).toLowerCase())),
         };
 
         const processed = rows.map((row, idx) => {
             const detectedSource = detectSource(row, map, sourceDefault);
             
+            // Clean phone number (remove 'p:', '+', extra spaces)
+            let phone = map.phoneIdx !== -1 ? String(row[map.phoneIdx]) : (row[1] || '');
+            phone = phone.replace(/^p:/, '').replace(/\+/g, '').trim();
+            
             const lead = {
                 id: idx,
-                name: map.nameIdx !== -1 ? row[map.nameIdx] : (row[0] || ''),
-                phone: map.phoneIdx !== -1 ? row[map.phoneIdx] : (row[1] || ''),
+                name: map.nameIdx !== -1 ? String(row[map.nameIdx]).trim() : (row[0] || ''),
+                phone: phone,
                 budget: map.budgetIdx !== -1 ? row[map.budgetIdx] : (row[2] || ''),
+                email: map.emailIdx !== -1 ? row[map.emailIdx] : '',
                 source: detectedSource,
                 isValid: true,
                 errors: []

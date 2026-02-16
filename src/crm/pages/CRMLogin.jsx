@@ -40,16 +40,19 @@ const CRMLogin = () => {
     // Default redirects
     switch (role) {
       case ROLES.SUPER_ADMIN:
-        navigate('/crm/admin/dashboard');
+        navigate('/crm/admin/dashboard', { replace: true });
         break;
       case ROLES.SUB_ADMIN:
-        navigate('/crm/admin/dashboard');
+        navigate('/crm/admin/dashboard', { replace: true });
+        break;
+      case ROLES.MANAGER:
+        navigate('/crm/admin/dashboard', { replace: true });
         break;
       case ROLES.SALES_EXECUTIVE:
-        navigate('/crm/sales/dashboard');
+        navigate('/crm/sales/dashboard', { replace: true });
         break;
       default:
-        navigate('/crm/sales/dashboard');
+        navigate('/crm/sales/dashboard', { replace: true });
     }
   };
 
@@ -67,19 +70,24 @@ const CRMLogin = () => {
     }
 
     setIsLoading(true);
-    
-    setTimeout(() => {
-      const result = login(username, password);
-      
+
+    try {
+      const result = await login(username, password);
+
       if (result.success) {
         toast({ title: 'Welcome Back!', description: `Logged in successfully` });
         handleRedirect(result.role);
       } else {
-        setError(result.message);
-        toast({ title: 'Login Failed', description: result.message, variant: 'destructive' });
+        setError(result.message || 'Invalid credentials');
+        toast({ title: 'Login Failed', description: result.message || 'Invalid credentials', variant: 'destructive' });
       }
+    } catch (error) {
+      console.error('[Login] Error:', error);
+      setError('Login failed. Please try again.');
+      toast({ title: 'Login Failed', description: 'An unexpected error occurred.', variant: 'destructive' });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const isFormValid = username.length >= 3 && password.length >= 6;

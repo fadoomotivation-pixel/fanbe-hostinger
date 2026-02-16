@@ -17,13 +17,15 @@ import EmployeeCredentialsModal from '@/crm/components/EmployeeCredentialsModal'
 import { v4 as uuidv4 } from 'uuid';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { hashPassword } from '@/lib/authUtils';
+import { addUser as firebaseAddUser } from '@/lib/authUtilsFirebase';
 
 const EmployeeManagement = () => {
   const { toast } = useToast();
-  const { deleteLead, addAuditLog } = useCRMData(); 
-  
+  const { deleteLead, addAuditLog } = useCRMData();
+
   // State
   const [employees, setEmployees] = useState([]);
+  const [isCreating, setIsCreating] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -93,45 +95,86 @@ const EmployeeManagement = () => {
       }));
   };
 
-  const handleAddEmployee = () => {
+  const handleAddEmployee = async () => {
     if (!newEmployee.firstName || !newEmployee.email || !newEmployee.role || usernameStatus !== 'valid') {
         toast({ title: "Validation Error", description: "Please fill all fields and ensure username is valid.", variant: "destructive" });
         return;
     }
-    
+
     if (employees.some(e => e.email === newEmployee.email)) {
         toast({ title: "Duplicate Email", description: "This email is already in use.", variant: "destructive" });
         return;
     }
-    
+
     const password = generatePassword();
-    const hashedPassword = hashPassword(password);
-    
-    const newEntry = {
-      id: uuidv4(),
-      name: `${newEmployee.firstName} ${newEmployee.lastName}`,
-      username: newEmployee.username,
-      email: newEmployee.email,
-      phone: newEmployee.phone,
-      role: newEmployee.role,
-      password: hashedPassword, 
-      status: 'Active',
-      createdAt: new Date().toISOString(),
-      lastLogin: 'Never'
+    const employeeName = `${newEmployee.firstName} ${newEmployee.lastName}`.trim();
+
+    // Map display role to Firebase role format
+    const roleMap = {
+      'Sales Executive': 'sales_executive',
+      'Team Lead': 'manager',
+      'Manager': 'manager'
     };
-    
-    const updatedList = [...employees, newEntry];
-    saveEmployees(updatedList);
-    
-    addAuditLog({ action: 'Employee Created', target: newEntry.username, details: 'Created via admin panel' });
-    
-    setCreatedEmployee(newEntry);
-    setCreatedCredentials({ password: password });
-    setIsAddModalOpen(false);
-    setIsCredentialsModalOpen(true);
-    
-    setNewEmployee({ firstName: '', lastName: '', email: '', phone: '', role: '', username: '', sendEmail: true });
-    setUsernameStatus('idle');
+    const firebaseRole = roleMap[newEmployee.role] || 'sales_executive';
+
+    setIsCreating(true);
+
+    try {
+      // Create user in Firebase Auth + Firestore
+      const firebaseResult = await firebaseAddUser({
+        username: newEmployee.username,
+        name: employeeName,
+        email: newEmployee.email,
+        phone: newEmployee.phone,
+        role: firebaseRole,
+        password: password
+      });
+
+      if (!firebaseResult.success) {
+        toast({ title: "Firebase Error", description: firebaseResult.message, variant: "destructive" });
+        setIsCreating(false);
+        return;
+      }
+
+      // Also save to localStorage for local display
+      const hashedPassword = hashPassword(password);
+      const newEntry = {
+        id: firebaseResult.userId || uuidv4(),
+        name: employeeName,
+        username: newEmployee.username,
+        email: newEmployee.email,
+        phone: newEmployee.phone,
+        role: newEmployee.role,
+        password: hashedPassword,
+        status: 'Active',
+        createdAt: new Date().toISOString(),
+        lastLogin: 'Never'
+      };
+
+      const updatedList = [...employees, newEntry];
+      saveEmployees(updatedList);
+
+      addAuditLog({ action: 'Employee Created', target: newEntry.username, details: 'Created via admin panel' });
+
+      setCreatedEmployee(newEntry);
+      setCreatedCredentials({ password: password });
+      setIsAddModalOpen(false);
+      setIsCredentialsModalOpen(true);
+
+      setNewEmployee({ firstName: '', lastName: '', email: '', phone: '', role: '', username: '', sendEmail: true });
+      setUsernameStatus('idle');
+
+      // Note: Firebase addUser signs out the admin session to avoid staying logged in as the new user.
+      // The admin may need to re-login after creating an employee.
+      if (firebaseResult.requiresReauth) {
+        toast({ title: "Employee Created!", description: "User saved to Firebase. You may need to re-login as admin.", variant: "default" });
+      }
+    } catch (error) {
+      console.error('Error creating employee:', error);
+      toast({ title: "Error", description: "Failed to create employee. Please try again.", variant: "destructive" });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleDeleteEmployeeSuccess = (id) => {
@@ -228,7 +271,9 @@ const EmployeeManagement = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleAddEmployee} disabled={usernameStatus !== 'valid'}>Create Account</Button>
+              <Button onClick={handleAddEmployee} disabled={usernameStatus !== 'valid' || isCreating}>
+                {isCreating ? 'Creating...' : 'Create Account'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

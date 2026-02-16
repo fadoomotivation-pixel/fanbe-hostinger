@@ -1,5 +1,5 @@
 // src/lib/authUtilsFirebase.js
-import { auth, db } from './firebase';
+import { auth, secondaryAuth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -152,31 +152,33 @@ const getUserByUsername = async (username) => {
 export const addUser = async (userData) => {
   try {
     console.log('[Firebase] Creating user:', userData.username);
-    
+
     // Check if username already exists
     const existingUser = await getUserByUsername(userData.username);
     if (existingUser) {
       console.error('[Firebase] Username already exists:', userData.username);
       return { success: false, message: 'Username already exists' };
     }
-    
-    // Store current admin user
+
+    // Store current admin user info for createdBy field
     const adminUser = auth.currentUser;
     console.log('[Firebase] Current admin:', adminUser?.email);
-    
-    // Step 1: Create Firebase Auth user
-    console.log('[Firebase] Step 1: Creating Auth user...');
+
+    // Step 1: Create Firebase Auth user using SECONDARY auth instance
+    // This prevents the admin's session from being disrupted, because
+    // createUserWithEmailAndPassword auto-signs-in as the new user.
+    console.log('[Firebase] Step 1: Creating Auth user (via secondary app)...');
     const userCredential = await createUserWithEmailAndPassword(
-      auth,
+      secondaryAuth,
       userData.email,
       userData.password
     );
-    console.log('[Firebase] ✅ Auth user created:', userCredential.user.uid);
-    
-    // Step 2: Create Firestore document
+    console.log('[Firebase] Auth user created:', userCredential.user.uid);
+
+    // Step 2: Create Firestore document (admin session is still active on primary auth)
     console.log('[Firebase] Step 2: Creating Firestore document...');
     const permissions = getDefaultPermissions(userData.role);
-    
+
     const userDoc = {
       id: userCredential.user.uid,
       username: userData.username.toLowerCase(),
@@ -207,18 +209,18 @@ export const addUser = async (userData) => {
       createdAt: new Date().toISOString(),
       createdBy: adminUser?.uid || 'system'
     };
-    
+
     await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
-    console.log('[Firebase] ✅ Firestore document created successfully!');
-    
-    // Step 3: Sign out the newly created user to restore admin session
-    console.log('[Firebase] Step 3: Signing out new user to restore admin session...');
-    await signOut(auth);
-    console.log('[Firebase] ✅ New user signed out');
-    console.log('[Firebase] ⚠️ Admin will need to refresh or re-authenticate');
-    
+    console.log('[Firebase] Firestore document created successfully!');
+
+    // Step 3: Sign out the new user from the secondary auth instance
+    console.log('[Firebase] Step 3: Signing out new user from secondary app...');
+    await signOut(secondaryAuth);
+    console.log('[Firebase] New user signed out from secondary app');
+    console.log('[Firebase] Admin session preserved on primary app');
+
     // Log credentials for admin
-    console.log('🔑 NEW USER CREDENTIALS:');
+    console.log('NEW USER CREDENTIALS:');
     console.log('==========================================');
     console.log('Name:', userData.name);
     console.log('Username:', userData.username);
@@ -226,20 +228,23 @@ export const addUser = async (userData) => {
     console.log('Password:', userData.password);
     console.log('Role:', userData.role);
     console.log('==========================================');
-    
+
     return {
       success: true,
       user: userDoc,
       plainPassword: userData.password,
       userId: userCredential.user.uid,
-      requiresReauth: true // Flag to indicate admin needs to login again
+      requiresReauth: false // Admin session is preserved, no re-auth needed
     };
-    
+
   } catch (error) {
-    console.error('[Firebase] ❌ Error creating user:', error);
+    console.error('[Firebase] Error creating user:', error);
     console.error('[Firebase] Error code:', error.code);
     console.error('[Firebase] Error message:', error.message);
-    
+
+    // Clean up secondary auth session on error
+    try { await signOut(secondaryAuth); } catch (e) { /* ignore */ }
+
     if (error.code === 'auth/email-already-in-use') {
       return { success: false, message: 'Email already in use' };
     }
@@ -252,7 +257,7 @@ export const addUser = async (userData) => {
     if (error.code === 'permission-denied') {
       return { success: false, message: 'Permission denied. Check Firestore rules.' };
     }
-    
+
     return { success: false, message: error.message || 'Failed to create user' };
   }
 };

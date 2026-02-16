@@ -162,9 +162,9 @@ const StaffManagement = () => {
         setGeneratedPass(tempPassword);
         
         // Show success with password
-        toast({ 
-          title: "✅ Employee Created Successfully!", 
-          description: `Username: ${newStaff.username}\nPassword: ${tempPassword}\n\n⚠️ Page will refresh in 3 seconds. Login again as admin.`,
+        toast({
+          title: "Employee Created Successfully!",
+          description: `Username: ${newStaff.username} | Password: ${tempPassword} — Save this password!`,
           duration: 25000
         });
         
@@ -193,13 +193,8 @@ const StaffManagement = () => {
         // Show credential card
         showCredentialCard(result.user.username, tempPassword, result.user.name);
         
-        // Check if re-authentication is needed
-        if (result.requiresReauth) {
-          setTimeout(() => {
-            alert('✅ User created successfully!\n\n⚠️ You will be logged out due to Firebase security.\n\nPlease login again as admin.');
-            window.location.href = '/crm/login?message=User created. Please login again.';
-          }, 3000);
-        }
+        // Reload the user list to show the new user
+        await loadUsersFromFirebase();
         
       } else {
         toast({ 

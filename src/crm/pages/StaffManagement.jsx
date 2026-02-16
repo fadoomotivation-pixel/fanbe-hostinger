@@ -1,190 +1,626 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+// src/crm/pages/StaffManagement.jsx
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, Key, Copy, Plus, MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { 
+  UserPlus, 
+  Edit, 
+  Trash2, 
+  Power, 
+  Search,
+  Mail,
+  Phone,
+  Building2,
+  Shield,
+  Copy,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
+import { 
+  addUser, 
+  getAllUsers, 
+  deleteUser, 
+  toggleUserStatus,
+  generateRandomPassword 
+} from '@/lib/authUtilsFirebase';
 
 const StaffManagement = () => {
   const { toast } = useToast();
-  
-  // Mock Data
-  const [staff, setStaff] = useState([
-    { id: 'EMP001', name: 'John Doe', username: 'johnd', email: 'john@fanbe.com', role: 'Sales Executive', status: 'Active', lastLogin: '2023-10-25 10:30 AM' },
-    { id: 'EMP002', name: 'Jane Smith', username: 'janes', email: 'jane@fanbe.com', role: 'Team Lead', status: 'Active', lastLogin: '2023-10-24 02:15 PM' },
-  ]);
-
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newStaff, setNewStaff] = useState({ name: '', email: '', username: '', role: '', sendEmail: true });
   const [generatedPass, setGeneratedPass] = useState('');
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    email: '',
+    username: '',
+    role: '',
+    phone: '',
+    department: ''
+  });
 
-  const generatePassword = () => {
-    return Math.random().toString(36).slice(-8).toUpperCase();
+  // Load users from Firebase on component mount
+  useEffect(() => {
+    loadUsersFromFirebase();
+  }, []);
+
+  const loadUsersFromFirebase = async () => {
+    try {
+      setLoading(true);
+      const users = await getAllUsers();
+      const staffList = users.map(u => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        status: u.status,
+        phone: u.phone || '',
+        department: u.department || 'Sales',
+        lastLogin: u.lastLogin || 'Never'
+      }));
+      setStaff(staffList);
+      console.log('✅ Loaded users from Firebase:', staffList.length);
+    } catch (error) {
+      console.error('❌ Error loading users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load users from database",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddStaff = () => {
-    if (!newStaff.name || !newStaff.username) return;
+  const handleAddStaff = async () => {
+    // Validation
+    if (!newStaff.name || !newStaff.username || !newStaff.role) {
+      toast({ 
+        title: "Error", 
+        description: "Please fill all required fields (Name, Username, Role)",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    // Validate username format (no spaces, lowercase)
+    if (!/^[a-z0-9._]+$/.test(newStaff.username.toLowerCase())) {
+      toast({ 
+        title: "Invalid Username", 
+        description: "Username can only contain lowercase letters, numbers, dots and underscores",
+        variant: "destructive" 
+      });
+      return;
+    }
     
-    const tempPass = generatePassword();
-    const newEntry = {
-      id: `EMP${String(staff.length + 1).padStart(3, '0')}`,
-      ...newStaff,
-      status: 'Active',
-      lastLogin: 'Never'
+    // Generate email if not provided
+    const email = newStaff.email || `${newStaff.username.toLowerCase()}@fanbegroup.com`;
+    
+    // Generate secure password
+    const tempPassword = generateRandomPassword();
+    
+    // Show loading
+    toast({ title: "Creating user...", description: "Please wait" });
+    
+    try {
+      // Add user to Firebase
+      const result = await addUser({
+        name: newStaff.name,
+        email: email,
+        username: newStaff.username.toLowerCase(),
+        role: newStaff.role,
+        password: tempPassword,
+        phone: newStaff.phone || '',
+        department: newStaff.department || 'Sales'
+      });
+      
+      if (result.success) {
+        // Update local state
+        const newEntry = {
+          id: result.userId,
+          name: result.user.name,
+          username: result.user.username,
+          email: result.user.email,
+          role: result.user.role,
+          status: result.user.status,
+          phone: result.user.phone,
+          department: result.user.department,
+          lastLogin: 'Never'
+        };
+        
+        setStaff([...staff, newEntry]);
+        setGeneratedPass(tempPassword);
+        
+        // Show success with password
+        toast({ 
+          title: "✅ Employee Created Successfully!", 
+          description: `Username: ${newStaff.username}\nPassword: ${tempPassword}\n\n⚠️ Save and share these credentials!`,
+          duration: 20000
+        });
+        
+        // Log credentials for admin reference
+        console.log('🔑 NEW USER CREDENTIALS:');
+        console.log('==========================================');
+        console.log('Name:', result.user.name);
+        console.log('Username:', result.user.username);
+        console.log('Email:', result.user.email);
+        console.log('Password:', tempPassword);
+        console.log('Role:', result.user.role);
+        console.log('==========================================');
+        console.log('⚠️ IMPORTANT: Save this password and share with employee!');
+        
+        // Reset form
+        setIsAddModalOpen(false);
+        setNewStaff({ 
+          name: '', 
+          email: '', 
+          username: '', 
+          role: '', 
+          phone: '', 
+          department: '' 
+        });
+        
+        // Show credential card
+        showCredentialCard(result.user.username, tempPassword, result.user.name);
+        
+      } else {
+        toast({ 
+          title: "❌ Error Creating User", 
+          description: result.message,
+          variant: "destructive",
+          duration: 10000
+        });
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({ 
+        title: "❌ Failed to Create User", 
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const showCredentialCard = (username, password, name) => {
+    // Create a temporary modal/alert with credentials
+    const credentialsHTML = `
+      <div style="background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 10px 0;">
+        <h3 style="color: #0c4a6e; margin: 0 0 15px 0;">🎉 Employee Created Successfully!</h3>
+        <p style="margin: 5px 0;"><strong>Share these login credentials with the employee:</strong></p>
+        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+          <p style="margin: 5px 0;"><strong>${name}</strong></p>
+          <p style="margin: 5px 0; color: #666;">Employee Access Card</p>
+          <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e5e7eb;"/>
+          <p style="margin: 8px 0;"><strong>Username:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">${username}</code></p>
+          <p style="margin: 8px 0;"><strong>Password:</strong> <code style="background: #fef3c7; padding: 2px 6px; border-radius: 3px; color: #92400e;">${password}</code></p>
+          <p style="margin: 8px 0;"><strong>Login URL:</strong> <a href="https://fanbegroup.com/crm/login" target="_blank">https://fanbegroup.com/crm/login</a></p>
+        </div>
+        <p style="margin: 10px 0; color: #dc2626; font-size: 14px;">⚠️ <strong>IMPORTANT:</strong> Copy these credentials now. Password cannot be retrieved later!</p>
+      </div>
+    `;
+    
+    // You can enhance this with a proper modal component
+    setGeneratedPass(password);
+  };
+
+  const handleDeleteStaff = async (id, username) => {
+    if (!window.confirm(`Are you sure you want to delete user: ${username}?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const result = await deleteUser(id);
+      
+      if (result.success) {
+        setStaff(staff.filter(s => s.id !== id));
+        toast({ 
+          title: "✅ Deleted", 
+          description: `User ${username} removed successfully` 
+        });
+      } else {
+        toast({ 
+          title: "❌ Error", 
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({ 
+        title: "❌ Failed to Delete", 
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleStatus = async (id, currentStatus, username) => {
+    try {
+      const result = await toggleUserStatus(id);
+      
+      if (result.success) {
+        setStaff(staff.map(s => 
+          s.id === id ? { ...s, status: result.status } : s
+        ));
+        
+        const action = result.status === 'Active' ? 'activated' : 'suspended';
+        toast({ 
+          title: "✅ Status Updated", 
+          description: `User ${username} ${action} successfully` 
+        });
+      } else {
+        toast({ 
+          title: "❌ Error", 
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling status:', error);
+      toast({ 
+        title: "❌ Failed to Update Status", 
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    toast({ 
+      title: "✅ Copied!", 
+      description: `${label} copied to clipboard` 
+    });
+  };
+
+  // Filter staff
+  const filteredStaff = staff.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         s.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         s.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === 'all' || s.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const getRoleBadge = (role) => {
+    const roleStyles = {
+      super_admin: 'bg-purple-100 text-purple-800',
+      manager: 'bg-blue-100 text-blue-800',
+      sales_executive: 'bg-green-100 text-green-800',
+      telecaller: 'bg-orange-100 text-orange-800'
     };
     
-    setStaff([...staff, newEntry]);
-    setGeneratedPass(tempPass);
-    // In real app, modal would stay open to show password or password shown in toast
-    toast({ title: "Staff Added", description: `Account created. Temp Password: ${tempPass}` });
-    setIsAddModalOpen(false);
-    setNewStaff({ name: '', email: '', username: '', role: '', sendEmail: true });
+    const roleNames = {
+      super_admin: 'Super Admin',
+      manager: 'Manager',
+      sales_executive: 'Sales Executive',
+      telecaller: 'Telecaller'
+    };
+    
+    return (
+      <Badge className={roleStyles[role] || 'bg-gray-100 text-gray-800'}>
+        {roleNames[role] || role}
+      </Badge>
+    );
   };
 
-  const handleDeleteStaff = (id) => {
-    setStaff(staff.filter(s => s.id !== id));
-    toast({ title: "Deleted", description: "Staff member removed successfully" });
+  const getStatusBadge = (status) => {
+    return status === 'Active' ? (
+      <Badge className="bg-green-100 text-green-800">
+        <CheckCircle className="w-3 h-3 mr-1" />
+        Active
+      </Badge>
+    ) : (
+      <Badge className="bg-red-100 text-red-800">
+        <XCircle className="w-3 h-3 mr-1" />
+        Suspended
+      </Badge>
+    );
   };
 
-  const handleToggleStatus = (id) => {
-    setStaff(staff.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' } : s));
-    toast({ title: "Updated", description: "Status updated successfully" });
-  };
-
-  const handleResetPassword = () => {
-    const newPass = generatePassword();
-    setGeneratedPass(newPass);
-    // Show password to admin
-    toast({ title: "Password Reset", description: `New Password: ${newPass}` });
-    setIsResetModalOpen(false);
-  };
+  if (loading) {
+    return (
+      <div className="p-8">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading staff data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-24 p-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Staff Management</h1>
-          <p className="text-gray-500">Manage employees, roles, and access.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
+          <p className="text-gray-500 mt-1">Manage your team members and access</p>
         </div>
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full md:w-auto"><Plus className="mr-2" size={16} /> Add New Staff</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Add New Staff Member</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <Input value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})} placeholder="e.g. John Doe" />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={newStaff.email} onChange={e => setNewStaff({...newStaff, email: e.target.value})} placeholder="john@example.com" />
-              </div>
-              <div className="space-y-2">
-                <Label>Username</Label>
-                <Input value={newStaff.username} onChange={e => setNewStaff({...newStaff, username: e.target.value})} placeholder="Unique username" />
-              </div>
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select onValueChange={v => setNewStaff({...newStaff, role: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Sales Executive">Sales Executive</SelectItem>
-                    <SelectItem value="Team Lead">Team Lead</SelectItem>
-                    <SelectItem value="Manager">Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch checked={newStaff.sendEmail} onCheckedChange={c => setNewStaff({...newStaff, sendEmail: c})} />
-                <Label>Send welcome email with credentials</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddStaff}>Create Account</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <UserPlus className="w-4 h-4 mr-2" />
+          Add Employee
+        </Button>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Total Staff</p>
+                <p className="text-2xl font-bold">{staff.length}</p>
+              </div>
+              <Shield className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Active</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {staff.filter(s => s.status === 'Active').length}
+                </p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Managers</p>
+                <p className="text-2xl font-bold">
+                  {staff.filter(s => s.role === 'manager').length}
+                </p>
+              </div>
+              <Building2 className="w-8 h-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Sales Team</p>
+                <p className="text-2xl font-bold">
+                  {staff.filter(s => s.role === 'sales_executive').length}
+                </p>
+              </div>
+              <UserPlus className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
       <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="hidden md:table-cell">Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Status</TableHead>
-                  <TableHead className="hidden lg:table-cell">Last Login</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {staff.map((employee) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-gray-900">{employee.name}</p>
-                        <p className="text-xs text-gray-500">{employee.email}</p>
-                        <p className="text-xs text-gray-400 md:hidden">{employee.role}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{employee.role}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${employee.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {employee.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-gray-500">{employee.lastLogin}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal size={16} /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => { setSelectedStaff(employee); setIsResetModalOpen(true); }}>
-                            <Key className="mr-2 h-4 w-4" /> Reset Password
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleToggleStatus(employee.id)}>
-                             {employee.status === 'Active' ? 'Deactivate' : 'Activate'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteStaff(employee.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  placeholder="Search by name, username, or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full md:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                <SelectItem value="telecaller">Telecaller</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reset Password Dialog */}
-      <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-        <DialogContent>
+      {/* Staff Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Team Members ({filteredStaff.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStaff.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    No staff members found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredStaff.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>
+                      <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                        {member.username}
+                      </code>
+                    </TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>{getRoleBadge(member.role)}</TableCell>
+                    <TableCell>{member.department || 'Sales'}</TableCell>
+                    <TableCell>{getStatusBadge(member.status)}</TableCell>
+                    <TableCell className="text-sm text-gray-500">
+                      {member.lastLogin === 'Never' ? 'Never' : new Date(member.lastLogin).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleStatus(member.id, member.status, member.username)}
+                          title={member.status === 'Active' ? 'Suspend User' : 'Activate User'}
+                        >
+                          <Power className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteStaff(member.id, member.username)}
+                          className="text-red-600 hover:text-red-700"
+                          title="Delete User"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Add Staff Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset Password for {selectedStaff?.name}</DialogTitle>
+            <DialogTitle>Add New Employee</DialogTitle>
+            <DialogDescription>
+              Create a new employee account. A secure password will be generated automatically.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-gray-500">This will generate a new random password. The user will need to use this to log in.</p>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name *</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Rajesh Kumar"
+                value={newStaff.name}
+                onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="username">Username *</Label>
+              <Input
+                id="username"
+                placeholder="e.g., rajesh.kumar"
+                value={newStaff.username}
+                onChange={(e) => setNewStaff({...newStaff, username: e.target.value.toLowerCase()})}
+              />
+              <p className="text-xs text-gray-500">Lowercase letters, numbers, dots and underscores only</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="e.g., rajesh@fanbegroup.com"
+                value={newStaff.email}
+                onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
+              />
+              <p className="text-xs text-gray-500">Optional - will auto-generate if empty</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select value={newStaff.role} onValueChange={(value) => setNewStaff({...newStaff, role: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                  <SelectItem value="telecaller">Telecaller</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Input
+                id="department"
+                placeholder="e.g., Sales"
+                value={newStaff.department}
+                onChange={(e) => setNewStaff({...newStaff, department: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                placeholder="e.g., +91-XXXXXXXXXX"
+                value={newStaff.phone}
+                onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
+              />
+            </div>
+          </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsResetModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleResetPassword} variant="destructive">Reset Password</Button>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddStaff} className="bg-blue-600 hover:bg-blue-700">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Employee
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

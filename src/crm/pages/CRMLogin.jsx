@@ -67,10 +67,10 @@ const CRMLogin = () => {
     }
 
     setIsLoading(true);
-    
-    setTimeout(() => {
-      const result = login(username, password);
-      
+
+    try {
+      const result = await login(username, password);
+
       if (result.success) {
         toast({ title: 'Welcome Back!', description: `Logged in successfully` });
         handleRedirect(result.role);
@@ -78,8 +78,12 @@ const CRMLogin = () => {
         setError(result.message);
         toast({ title: 'Login Failed', description: result.message, variant: 'destructive' });
       }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+      toast({ title: 'Login Failed', description: 'An unexpected error occurred', variant: 'destructive' });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const isFormValid = username.length >= 3 && password.length >= 6;

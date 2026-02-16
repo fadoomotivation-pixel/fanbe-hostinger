@@ -2,6 +2,8 @@
 import { staffData } from '@/crm/data/staffData';
 
 const USERS_KEY = 'crm_users';
+const DB_VERSION_KEY = 'crm_db_version';
+const CURRENT_DB_VERSION = '2.0'; // Updated version for new staff structure
 const SALT = 'FANBE_SECURE_SALT_v1';
 
 // --- Hashing Utilities (Simulation) ---
@@ -32,16 +34,29 @@ export const verifyPassword = (inputPassword, storedHash) => {
 
 // --- Database Initialization ---
 export const initializeUserDatabase = () => {
+  const existingVersion = localStorage.getItem(DB_VERSION_KEY);
   const existingUsers = localStorage.getItem(USERS_KEY);
   
-  if (!existingUsers) {
-    console.log('Initializing User Database with hashed credentials...');
+  // Force re-initialization if version changed or no users exist
+  if (!existingUsers || existingVersion !== CURRENT_DB_VERSION) {
+    console.log('Initializing/Updating User Database with hashed credentials...');
     const seededUsers = staffData.map(user => ({
       ...user,
       password: hashPassword(user.password) 
     }));
     localStorage.setItem(USERS_KEY, JSON.stringify(seededUsers));
+    localStorage.setItem(DB_VERSION_KEY, CURRENT_DB_VERSION);
+    console.log(`User database updated to version ${CURRENT_DB_VERSION}`);
   }
+};
+
+// Force reset database (for admin use)
+export const resetUserDatabase = () => {
+  console.log('Force resetting user database...');
+  localStorage.removeItem(USERS_KEY);
+  localStorage.removeItem(DB_VERSION_KEY);
+  initializeUserDatabase();
+  return true;
 };
 
 // --- User Management ---

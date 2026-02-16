@@ -164,8 +164,8 @@ const StaffManagement = () => {
         // Show success with password
         toast({ 
           title: "✅ Employee Created Successfully!", 
-          description: `Username: ${newStaff.username}\nPassword: ${tempPassword}\n\n⚠️ Save and share these credentials!`,
-          duration: 20000
+          description: `Username: ${newStaff.username}\nPassword: ${tempPassword}\n\n⚠️ Page will refresh in 3 seconds. Login again as admin.`,
+          duration: 25000
         });
         
         // Log credentials for admin reference
@@ -193,6 +193,14 @@ const StaffManagement = () => {
         // Show credential card
         showCredentialCard(result.user.username, tempPassword, result.user.name);
         
+        // Check if re-authentication is needed
+        if (result.requiresReauth) {
+          setTimeout(() => {
+            alert('✅ User created successfully!\n\n⚠️ You will be logged out due to Firebase security.\n\nPlease login again as admin.');
+            window.location.href = '/crm/login?message=User created. Please login again.';
+          }, 3000);
+        }
+        
       } else {
         toast({ 
           title: "❌ Error Creating User", 
@@ -212,24 +220,18 @@ const StaffManagement = () => {
   };
 
   const showCredentialCard = (username, password, name) => {
-    // Create a temporary modal/alert with credentials
-    const credentialsHTML = `
-      <div style="background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 20px; margin: 10px 0;">
-        <h3 style="color: #0c4a6e; margin: 0 0 15px 0;">🎉 Employee Created Successfully!</h3>
-        <p style="margin: 5px 0;"><strong>Share these login credentials with the employee:</strong></p>
-        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-          <p style="margin: 5px 0;"><strong>${name}</strong></p>
-          <p style="margin: 5px 0; color: #666;">Employee Access Card</p>
-          <hr style="margin: 10px 0; border: 0; border-top: 1px solid #e5e7eb;"/>
-          <p style="margin: 8px 0;"><strong>Username:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">${username}</code></p>
-          <p style="margin: 8px 0;"><strong>Password:</strong> <code style="background: #fef3c7; padding: 2px 6px; border-radius: 3px; color: #92400e;">${password}</code></p>
-          <p style="margin: 8px 0;"><strong>Login URL:</strong> <a href="https://fanbegroup.com/crm/login" target="_blank">https://fanbegroup.com/crm/login</a></p>
-        </div>
-        <p style="margin: 10px 0; color: #dc2626; font-size: 14px;">⚠️ <strong>IMPORTANT:</strong> Copy these credentials now. Password cannot be retrieved later!</p>
-      </div>
+    // Log credentials in a formatted way
+    const credentials = `
+╔════════════════════════════════════════════╗
+║     EMPLOYEE CREDENTIALS - SAVE THIS!      ║
+╠════════════════════════════════════════════╣
+║ Name:     ${name.padEnd(34)}║
+║ Username: ${username.padEnd(34)}║
+║ Password: ${password.padEnd(34)}║
+║ Login:    fanbegroup.com/crm/login${' '.repeat(8)}║
+╚════════════════════════════════════════════╝
     `;
-    
-    // You can enhance this with a proper modal component
+    console.log(credentials);
     setGeneratedPass(password);
   };
 
@@ -360,7 +362,6 @@ const StaffManagement = () => {
       </div>
     );
   }
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}

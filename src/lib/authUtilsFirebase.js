@@ -145,6 +145,9 @@ const getUserByUsername = async (username) => {
 
 /**
  * Add new user (Admin only)
+ * Creates user in Firebase Auth and Firestore
+ * Note: Creating a new user will temporarily sign them in,
+ * so we sign them out immediately to restore admin session
  */
 export const addUser = async (userData) => {
   try {
@@ -153,20 +156,27 @@ export const addUser = async (userData) => {
     // Check if username already exists
     const existingUser = await getUserByUsername(userData.username);
     if (existingUser) {
+      console.error('[Firebase] Username already exists:', userData.username);
       return { success: false, message: 'Username already exists' };
     }
     
-    // Create Firebase Auth user
+    // Store current admin user
+    const adminUser = auth.currentUser;
+    console.log('[Firebase] Current admin:', adminUser?.email);
+    
+    // Step 1: Create Firebase Auth user
+    console.log('[Firebase] Step 1: Creating Auth user...');
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       userData.email,
       userData.password
     );
+    console.log('[Firebase] ✅ Auth user created:', userCredential.user.uid);
     
-    // Get default permissions for role
+    // Step 2: Create Firestore document
+    console.log('[Firebase] Step 2: Creating Firestore document...');
     const permissions = getDefaultPermissions(userData.role);
     
-    // Create user document in Firestore
     const userDoc = {
       id: userCredential.user.uid,
       username: userData.username.toLowerCase(),
@@ -195,22 +205,40 @@ export const addUser = async (userData) => {
         darkMode: false
       },
       createdAt: new Date().toISOString(),
-      createdBy: auth.currentUser?.uid || 'system'
+      createdBy: adminUser?.uid || 'system'
     };
     
     await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
+    console.log('[Firebase] ✅ Firestore document created successfully!');
     
-    console.log('[Firebase] User created successfully:', userData.username);
+    // Step 3: Sign out the newly created user to restore admin session
+    console.log('[Firebase] Step 3: Signing out new user to restore admin session...');
+    await signOut(auth);
+    console.log('[Firebase] ✅ New user signed out');
+    console.log('[Firebase] ⚠️ Admin will need to refresh or re-authenticate');
+    
+    // Log credentials for admin
+    console.log('🔑 NEW USER CREDENTIALS:');
+    console.log('==========================================');
+    console.log('Name:', userData.name);
+    console.log('Username:', userData.username);
+    console.log('Email:', userData.email);
+    console.log('Password:', userData.password);
+    console.log('Role:', userData.role);
+    console.log('==========================================');
     
     return {
       success: true,
       user: userDoc,
       plainPassword: userData.password,
-      userId: userCredential.user.uid
+      userId: userCredential.user.uid,
+      requiresReauth: true // Flag to indicate admin needs to login again
     };
     
   } catch (error) {
-    console.error('[Firebase] Error creating user:', error);
+    console.error('[Firebase] ❌ Error creating user:', error);
+    console.error('[Firebase] Error code:', error.code);
+    console.error('[Firebase] Error message:', error.message);
     
     if (error.code === 'auth/email-already-in-use') {
       return { success: false, message: 'Email already in use' };
@@ -220,6 +248,9 @@ export const addUser = async (userData) => {
     }
     if (error.code === 'auth/weak-password') {
       return { success: false, message: 'Password too weak (min 6 characters)' };
+    }
+    if (error.code === 'permission-denied') {
+      return { success: false, message: 'Permission denied. Check Firestore rules.' };
     }
     
     return { success: false, message: error.message || 'Failed to create user' };

@@ -157,19 +157,19 @@ const StaffManagement = () => {
           department: result.user.department,
           lastLogin: 'Never'
         };
-        
+
         setStaff([...staff, newEntry]);
         setGeneratedPass(tempPassword);
-        
+
         // Show success with password
-        toast({ 
-          title: "✅ Employee Created Successfully!", 
-          description: `Username: ${newStaff.username}\nPassword: ${tempPassword}\n\n⚠️ Page will refresh in 3 seconds. Login again as admin.`,
+        toast({
+          title: "Employee Created Successfully!",
+          description: `Username: ${newStaff.username} | Password: ${tempPassword}`,
           duration: 25000
         });
-        
+
         // Log credentials for admin reference
-        console.log('🔑 NEW USER CREDENTIALS:');
+        console.log('NEW USER CREDENTIALS:');
         console.log('==========================================');
         console.log('Name:', result.user.name);
         console.log('Username:', result.user.username);
@@ -177,29 +177,20 @@ const StaffManagement = () => {
         console.log('Password:', tempPassword);
         console.log('Role:', result.user.role);
         console.log('==========================================');
-        console.log('⚠️ IMPORTANT: Save this password and share with employee!');
-        
+
         // Reset form
         setIsAddModalOpen(false);
-        setNewStaff({ 
-          name: '', 
-          email: '', 
-          username: '', 
-          role: '', 
-          phone: '', 
-          department: '' 
+        setNewStaff({
+          name: '',
+          email: '',
+          username: '',
+          role: '',
+          phone: '',
+          department: ''
         });
-        
+
         // Show credential card
         showCredentialCard(result.user.username, tempPassword, result.user.name);
-        
-        // Check if re-authentication is needed
-        if (result.requiresReauth) {
-          setTimeout(() => {
-            alert('✅ User created successfully!\n\n⚠️ You will be logged out due to Firebase security.\n\nPlease login again as admin.');
-            window.location.href = '/crm/login?message=User created. Please login again.';
-          }, 3000);
-        }
         
       } else {
         toast({ 

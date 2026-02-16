@@ -201,27 +201,28 @@ const HomePage = ({ onBookSiteVisit }) => {
             {/* Slide Background */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
             
-            {/* Slide Content */}
-            <div className="relative h-full container mx-auto px-4 flex items-center">
-              <div className="max-w-3xl text-white">
-                {/* Elegant Fanbe Group Branding */}
+            {/* Slide Content - CENTER ALIGNED */}
+            <div className="relative h-full container mx-auto px-4 flex items-center justify-center">
+              <div className="w-full max-w-4xl text-white text-center">
+                {/* Elegant Fanbe Group Branding - Centered */}
                 <motion.div
                   initial={{ y: -20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="mb-8"
+                  className="mb-6 md:mb-8"
                 >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-[#D4AF37] rounded-full flex items-center justify-center">
-                      <Building className="w-8 h-8 text-[#0F3A5F]" />
-                    </div>
-                    <div>
-                      <h1 className="text-5xl md:text-6xl font-serif font-bold tracking-wide">
-                        <span className="text-[#D4AF37]">Fanbe</span> Group
-                      </h1>
-                      <p className="text-xl text-gray-300 italic">Shaping Tomorrow Since 2012</p>
+                  <div className="flex items-center justify-center gap-3 md:gap-4 mb-4">
+                    {/* Building Icon Circle */}
+                    <div className="w-14 h-14 md:w-20 md:h-20 bg-[#D4AF37] rounded-full flex items-center justify-center flex-shrink-0 shadow-2xl">
+                      <Building className="w-7 h-7 md:w-10 md:h-10 text-[#0F3A5F]" />
                     </div>
                   </div>
+                  {/* Fanbe Group Text - Elegant & Centered */}
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-wide leading-tight mb-2">
+                    <span className="text-[#D4AF37]">Fanbe</span> <span className="text-white">Group</span>
+                  </h1>
+                  {/* Since 2012 - Subtle, smaller */}
+                  <p className="text-sm md:text-base text-gray-300 font-light">Since 2012</p>
                 </motion.div>
 
                 {/* Slide Title */}
@@ -229,7 +230,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="text-4xl md:text-5xl font-bold mb-4"
+                  className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4"
                 >
                   {slides[currentSlide].title}
                 </motion.h2>
@@ -238,7 +239,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5 }}
-                  className="text-xl md:text-2xl text-[#D4AF37] mb-6"
+                  className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6"
                 >
                   {slides[currentSlide].subtitle}
                 </motion.p>
@@ -249,12 +250,12 @@ const HomePage = ({ onBookSiteVisit }) => {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="space-y-3 mb-8"
+                    className="space-y-2 md:space-y-3 mb-6 md:mb-8 text-left max-w-2xl mx-auto"
                   >
                     {slides[currentSlide].points.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-3">
-                        <CheckCircle className="w-6 h-6 text-[#D4AF37] flex-shrink-0 mt-1" />
-                        <span className="text-lg">{point}</span>
+                      <li key={idx} className="flex items-start gap-2 md:gap-3">
+                        <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37] flex-shrink-0 mt-0.5 md:mt-1" />
+                        <span className="text-sm md:text-lg leading-tight text-left">{point}</span>
                       </li>
                     ))}
                   </motion.ul>
@@ -265,21 +266,21 @@ const HomePage = ({ onBookSiteVisit }) => {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.6 }}
-                    className="text-xl mb-8"
+                    className="text-base md:text-xl mb-6 md:mb-8"
                   >
                     {slides[currentSlide].description}
                   </motion.p>
                 )}
 
-                {/* CTAs */}
+                {/* CTAs - Centered */}
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.7 }}
-                  className="flex flex-wrap gap-4"
+                  className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center"
                 >
                   <Link to="/projects">
-                    <Button size="lg" className="bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-lg px-8 py-6">
+                    <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
                       Explore Projects
                       <ChevronRight className="ml-2" />
                     </Button>
@@ -287,7 +288,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                   <Button 
                     size="lg" 
                     variant="outline" 
-                    className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8 py-6"
+                    className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6"
                     onClick={() => window.open('https://wa.me/918076146988', '_blank')}
                   >
                     <Phone className="mr-2" />

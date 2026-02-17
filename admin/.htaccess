@@ -1,0 +1,19 @@
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Prevent directory browsing
+Options -Indexes
+
+# Protect config file
+<Files "config.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# PHP Settings
+php_flag display_errors Off
+php_flag log_errors On

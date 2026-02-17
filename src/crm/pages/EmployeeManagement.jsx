@@ -8,19 +8,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, Key, MoreHorizontal, Plus, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Key, MoreHorizontal, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import DeleteEmployeeModal from '@/crm/components/DeleteEmployeeModal';
 import ResetPasswordModal from '@/crm/components/ResetPasswordModal';
 import EmployeeCredentialsModal from '@/crm/components/EmployeeCredentialsModal';
-import { v4 as uuidv4 } from 'uuid';
-import { useCRMData } from '@/crm/hooks/useCRMData';
-import { hashPassword } from '@/lib/authUtils';
+import {
+  addUser,
+  deleteUser,
+  generateRandomPassword,
+  getAllUsers,
+  toggleUserStatus
+} from '@/lib/authUtilsFirebase';
 
 const EmployeeManagement = () => {
   const { toast } = useToast();
-  const { deleteLead, addAuditLog } = useCRMData(); 
   
   // State
   const [employees, setEmployees] = useState([]);
@@ -33,32 +35,35 @@ const EmployeeManagement = () => {
   const [createdEmployee, setCreatedEmployee] = useState(null);
   const [createdCredentials, setCreatedCredentials] = useState(null);
   
-  // Password Visibility State for Table
-  const [visiblePasswords, setVisiblePasswords] = useState({});
-
   // Form State
   const [newEmployee, setNewEmployee] = useState({ 
       firstName: '', lastName: '', email: '', phone: '', role: '', username: '', sendEmail: true 
   });
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, valid, invalid, taken
 
-  // Load from LocalStorage
+  // Load users from Firebase
   useEffect(() => {
-      const stored = localStorage.getItem('crm_users');
-      if (stored) {
-          setEmployees(JSON.parse(stored));
-      } else {
-          setEmployees([]); 
-      }
+      loadEmployees();
   }, []);
 
-  const saveEmployees = (updatedList) => {
-      setEmployees(updatedList);
-      localStorage.setItem('crm_users', JSON.stringify(updatedList));
+  const loadEmployees = async () => {
+    const users = await getAllUsers();
+    const mappedUsers = users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role,
+      status: user.status || 'Active',
+      lastLogin: user.lastLogin || 'Never'
+    }));
+
+    setEmployees(mappedUsers);
   };
 
   const generatePassword = () => {
-    return Math.random().toString(36).slice(-8).toUpperCase() + Math.floor(Math.random() * 100);
+    return generateRandomPassword();
   };
 
   const validateUsername = (u) => {
@@ -86,14 +91,7 @@ const EmployeeManagement = () => {
       handleUsernameChange(base);
   };
 
-  const togglePasswordVisibility = (id) => {
-      setVisiblePasswords(prev => ({
-          ...prev,
-          [id]: !prev[id]
-      }));
-  };
-
-  const handleAddEmployee = () => {
+  const handleAddEmployee = async () => {
     if (!newEmployee.firstName || !newEmployee.email || !newEmployee.role || usernameStatus !== 'valid') {
         toast({ title: "Validation Error", description: "Please fill all fields and ensure username is valid.", variant: "destructive" });
         return;
@@ -105,52 +103,64 @@ const EmployeeManagement = () => {
     }
     
     const password = generatePassword();
-    const hashedPassword = hashPassword(password);
-    
-    const newEntry = {
-      id: uuidv4(),
-      name: `${newEmployee.firstName} ${newEmployee.lastName}`,
+
+    const result = await addUser({
+      name: `${newEmployee.firstName} ${newEmployee.lastName}`.trim(),
       username: newEmployee.username,
       email: newEmployee.email,
-      phone: newEmployee.phone,
       role: newEmployee.role,
-      password: hashedPassword, 
-      status: 'Active',
-      createdAt: new Date().toISOString(),
+      password,
+      phone: newEmployee.phone,
+      department: 'Sales'
+    });
+
+    if (!result.success) {
+      toast({ title: "Failed to create employee", description: result.message, variant: "destructive" });
+      return;
+    }
+
+    const newEntry = {
+      id: result.userId,
+      ...result.user,
       lastLogin: 'Never'
     };
-    
-    const updatedList = [...employees, newEntry];
-    saveEmployees(updatedList);
-    
-    addAuditLog({ action: 'Employee Created', target: newEntry.username, details: 'Created via admin panel' });
-    
+
+    setEmployees((prev) => [...prev, newEntry]);
     setCreatedEmployee(newEntry);
-    setCreatedCredentials({ password: password });
+    setCreatedCredentials({ password });
     setIsAddModalOpen(false);
     setIsCredentialsModalOpen(true);
-    
+
     setNewEmployee({ firstName: '', lastName: '', email: '', phone: '', role: '', username: '', sendEmail: true });
     setUsernameStatus('idle');
   };
 
-  const handleDeleteEmployeeSuccess = (id) => {
+  const handleDeleteEmployeeSuccess = async (id) => {
+    const result = await deleteUser(id);
+    if (!result.success) {
+      toast({ title: 'Delete failed', description: result.message, variant: 'destructive' });
+      return;
+    }
+
     const updatedList = employees.filter(s => s.id !== id);
-    saveEmployees(updatedList);
-    addAuditLog({ action: 'Employee Deleted', target: id, details: 'Deleted via admin panel' });
-    toast({ title: "Employee Deleted", description: "Employee removed and leads unassigned successfully." });
+    setEmployees(updatedList);
+    toast({ title: "Employee Deleted", description: "Employee removed successfully from Firebase." });
     setIsDeleteModalOpen(false);
   };
 
-  const handlePasswordResetSuccess = (id, newHashedPassword) => {
-      const updatedList = employees.map(s => s.id === id ? { ...s, password: newHashedPassword } : s);
-      saveEmployees(updatedList);
-      addAuditLog({ action: 'Password Reset', target: id, details: 'Reset via admin panel' });
+  const handlePasswordResetSuccess = () => {
+    toast({ title: 'Password reset requested', description: 'Password has been updated.' });
   };
 
-  const handleToggleStatus = (id) => {
-    const updatedList = employees.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' } : s);
-    saveEmployees(updatedList);
+  const handleToggleStatus = async (id) => {
+    const result = await toggleUserStatus(id);
+    if (!result.success) {
+      toast({ title: 'Update failed', description: result.message, variant: 'destructive' });
+      return;
+    }
+
+    const updatedList = employees.map(s => s.id === id ? { ...s, status: result.status } : s);
+    setEmployees(updatedList);
     toast({ title: "Updated", description: "Employee status updated successfully" });
   };
 
@@ -243,7 +253,6 @@ const EmployeeManagement = () => {
                   <TableHead>Employee</TableHead>
                   <TableHead className="hidden md:table-cell">Username</TableHead>
                   <TableHead className="hidden md:table-cell">Role</TableHead>
-                  <TableHead className="hidden md:table-cell">Password</TableHead>
                   <TableHead className="hidden md:table-cell">Status</TableHead>
                   <TableHead className="hidden lg:table-cell">Last Login</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -251,7 +260,7 @@ const EmployeeManagement = () => {
               </TableHeader>
               <TableBody>
                 {employees.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-gray-500">No employees found. Add one to get started.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No employees found. Add one to get started.</TableCell></TableRow>
                 ) : (
                     employees.map((employee) => (
                     <TableRow key={employee.id}>
@@ -264,16 +273,6 @@ const EmployeeManagement = () => {
                         </TableCell>
                         <TableCell className="hidden md:table-cell font-mono text-xs">{employee.username}</TableCell>
                         <TableCell className="hidden md:table-cell">{employee.role}</TableCell>
-                        <TableCell className="hidden md:table-cell">
-                             <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs">
-                                    {visiblePasswords[employee.id] ? employee.password.substring(0, 10) + '...' : '••••••••'}
-                                </span>
-                                <button onClick={() => togglePasswordVisibility(employee.id)} className="text-gray-400 hover:text-gray-600">
-                                    {visiblePasswords[employee.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                             </div>
-                        </TableCell>
                         <TableCell className="hidden md:table-cell">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${employee.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {employee.status}

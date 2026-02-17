@@ -98,6 +98,9 @@ export const login = async (usernameOrEmail, password) => {
     if (error.code === 'auth/wrong-password') {
       return { success: false, message: 'Incorrect password' };
     }
+    if (error.code === 'auth/invalid-credential') {
+      return { success: false, message: 'Invalid email or password' };
+    }
     if (error.code === 'auth/invalid-email') {
       return { success: false, message: 'Invalid email format' };
     }

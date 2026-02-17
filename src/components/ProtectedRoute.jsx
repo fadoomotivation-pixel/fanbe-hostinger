@@ -18,9 +18,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     // Redirect logic if trying to access unauthorized area
     if (user.role === 'super_admin') return <Navigate to="/crm/admin/dashboard" replace />;
-    if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
+    if (user.role === 'sub_admin') return <Navigate to="/crm/admin/dashboard" replace />;
+    if (user.role === 'manager') return <Navigate to="/crm/admin/dashboard" replace />;
     if (user.role === 'sales_executive') return <Navigate to="/crm/sales/dashboard" replace />;
-    
+    if (user.role === 'telecaller') return <Navigate to="/crm/sales/dashboard" replace />;
+
     return <Navigate to="/crm/login" replace />;
   }
 

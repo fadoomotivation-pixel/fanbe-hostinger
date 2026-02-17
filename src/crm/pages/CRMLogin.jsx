@@ -37,7 +37,7 @@ const CRMLogin = () => {
       return;
     }
 
-    // Default redirects
+    // Default redirects based on role
     switch (role) {
       case ROLES.SUPER_ADMIN:
         navigate('/crm/admin/dashboard');
@@ -45,7 +45,13 @@ const CRMLogin = () => {
       case ROLES.SUB_ADMIN:
         navigate('/crm/admin/dashboard');
         break;
+      case ROLES.MANAGER:
+        navigate('/crm/admin/dashboard');
+        break;
       case ROLES.SALES_EXECUTIVE:
+        navigate('/crm/sales/dashboard');
+        break;
+      case ROLES.TELECALLER:
         navigate('/crm/sales/dashboard');
         break;
       default:
@@ -67,10 +73,10 @@ const CRMLogin = () => {
     }
 
     setIsLoading(true);
-    
-    setTimeout(() => {
-      const result = login(username, password);
-      
+
+    try {
+      const result = await login(username, password);
+
       if (result.success) {
         toast({ title: 'Welcome Back!', description: `Logged in successfully` });
         handleRedirect(result.role);
@@ -78,8 +84,13 @@ const CRMLogin = () => {
         setError(result.message);
         toast({ title: 'Login Failed', description: result.message, variant: 'destructive' });
       }
+    } catch (err) {
+      console.error('[CRMLogin] Login error:', err);
+      setError('Login failed. Please try again.');
+      toast({ title: 'Login Failed', description: 'An unexpected error occurred', variant: 'destructive' });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const isFormValid = username.length >= 3 && password.length >= 6;

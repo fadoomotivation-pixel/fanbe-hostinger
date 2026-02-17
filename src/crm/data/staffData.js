@@ -42,6 +42,37 @@ export const staffData = [
     }
   },
 
+  // ============== SUB ADMIN ==============
+  {
+    id: 'SUBADM001',
+    username: 'subadmin',
+    password: 'SubAdmin@2026',
+    name: 'Sub Administrator',
+    role: 'sub_admin',
+    email: 'subadmin@fanbegroup.com',
+    phone: '+91-9876543211',
+    department: 'Management',
+    joiningDate: '2024-01-15',
+    status: 'Active',
+    permissions: ['view_reports', 'view_analytics', 'manage_staff', 'view_leads'],
+    avatar: 'https://ui-avatars.com/api/?name=Sub+Admin&background=7c3aed&color=fff',
+    metrics: {
+      totalLeads: 0,
+      totalCalls: 0,
+      connectedCalls: 0,
+      siteVisits: 0,
+      bookings: 0,
+      conversionRate: 0,
+      revenue: 0
+    },
+    settings: {
+      notifications: true,
+      emailAlerts: true,
+      whatsappAlerts: true,
+      darkMode: false
+    }
+  },
+
   // ============== MANAGERS ==============
   {
     id: 'MGR001',
@@ -354,19 +385,23 @@ export const staffData = [
 
 /**
  * QUICK LOGIN CREDENTIALS REFERENCE
- * 
+ *
  * Super Admin:
  * Username: admin
  * Password: Admin@2026!Secure
- * 
+ *
+ * Sub Admin:
+ * Username: subadmin
+ * Password: SubAdmin@2026
+ *
  * Managers:
  * Username: rajesh.manager / priya.manager
  * Password: Manager@2026
- * 
- * Sales Executives (Mobile Users):
+ *
+ * Sales Executives (Mobile Users / Employees):
  * Username: amit.sales / neha.sales / rahul.sales / pooja.sales
  * Password: Sales@2026
- * 
+ *
  * Telecallers:
  * Username: sonia.caller / vikram.caller
  * Password: Caller@2026

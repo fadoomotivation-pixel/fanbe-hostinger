@@ -1,22 +1,23 @@
 // src/lib/authUtilsFirebase.js
 import { auth, db } from './firebase';
-import { 
-  signInWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  where,
   getDocs,
   updateDoc,
-  deleteDoc 
+  deleteDoc
 } from 'firebase/firestore';
+import { staffData } from '@/crm/data/staffData';
 
 // ==========================================
 // USER MANAGEMENT FUNCTIONS
@@ -32,49 +33,170 @@ export const initializeFirebaseAuth = () => {
 };
 
 /**
+ * Find a user in staffData by username or email
+ */
+const findStaffUser = (usernameOrEmail) => {
+  const search = usernameOrEmail.toLowerCase().trim();
+  return staffData.find(u =>
+    u.username.toLowerCase() === search ||
+    u.email.toLowerCase() === search
+  );
+};
+
+/**
+ * Provision a user from staffData into Firebase Auth + Firestore
+ * Returns the Firebase user credential on success
+ */
+const provisionFirebaseUser = async (staffUser) => {
+  console.log(`[Firebase] Auto-provisioning user: ${staffUser.username}`);
+
+  // Create in Firebase Auth
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    staffUser.email,
+    staffUser.password
+  );
+
+  // Build Firestore document
+  const permissions = getDefaultPermissions(staffUser.role);
+  const userDoc = {
+    id: userCredential.user.uid,
+    username: staffUser.username.toLowerCase(),
+    name: staffUser.name,
+    email: staffUser.email.toLowerCase(),
+    role: staffUser.role,
+    phone: staffUser.phone || '',
+    department: staffUser.department || 'Sales',
+    joiningDate: staffUser.joiningDate || new Date().toISOString(),
+    status: staffUser.status || 'Active',
+    permissions: staffUser.permissions || permissions,
+    avatar: staffUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser.name)}&background=0F3A5F&color=fff`,
+    metrics: staffUser.metrics || {},
+    settings: staffUser.settings || { notifications: true, darkMode: false },
+    createdAt: new Date().toISOString(),
+    createdBy: 'system-auto-provision'
+  };
+
+  await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
+  console.log(`[Firebase] User provisioned successfully: ${staffUser.username}`);
+
+  return { userCredential, userDoc };
+};
+
+/**
  * Login with username/email and password
  */
 export const login = async (usernameOrEmail, password) => {
   try {
     console.log(`[Firebase] Login attempt for: ${usernameOrEmail}`);
-    
-    // Check if input is email or username
+
+    // Resolve email from username if needed
     let email = usernameOrEmail;
-    
+    let staffUser = null;
+
     if (!usernameOrEmail.includes('@')) {
-      // It's a username, need to find the email
-      const userDoc = await getUserByUsername(usernameOrEmail);
-      if (!userDoc) {
-        return { success: false, message: 'Username not found' };
+      // It's a username - first try Firestore, then fall back to staffData
+      const firestoreUser = await getUserByUsername(usernameOrEmail);
+      if (firestoreUser) {
+        email = firestoreUser.email;
+      } else {
+        // User not in Firestore yet - check staffData
+        staffUser = findStaffUser(usernameOrEmail);
+        if (!staffUser) {
+          return { success: false, message: 'Username not found' };
+        }
+        email = staffUser.email;
       }
-      email = userDoc.email;
     }
-    
-    // Sign in with Firebase Auth
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    
+
+    // Attempt Firebase Auth sign-in
+    let userCredential;
+    try {
+      userCredential = await signInWithEmailAndPassword(auth, email, password);
+    } catch (signInError) {
+      // If user doesn't exist in Firebase Auth, auto-provision from staffData
+      if (
+        signInError.code === 'auth/user-not-found' ||
+        signInError.code === 'auth/invalid-credential'
+      ) {
+        // Look up in staffData if we haven't already
+        if (!staffUser) {
+          staffUser = findStaffUser(usernameOrEmail.includes('@') ? usernameOrEmail : email);
+        }
+
+        if (staffUser && staffUser.password === password) {
+          try {
+            const provisioned = await provisionFirebaseUser(staffUser);
+            // User is now signed in as the newly created user
+            userCredential = provisioned.userCredential;
+          } catch (provisionError) {
+            if (provisionError.code === 'auth/email-already-in-use') {
+              // User exists in Auth but maybe not in Firestore, or wrong password
+              return { success: false, message: 'Incorrect password' };
+            }
+            console.error('[Firebase] Provisioning error:', provisionError);
+            return { success: false, message: 'Login failed. Please try again.' };
+          }
+        } else if (staffUser) {
+          return { success: false, message: 'Incorrect password' };
+        } else {
+          return { success: false, message: 'User not found' };
+        }
+      } else {
+        throw signInError; // Re-throw other errors
+      }
+    }
+
     // Get user details from Firestore
     const userDetails = await getDoc(doc(db, 'users', userCredential.user.uid));
-    
+
     if (!userDetails.exists()) {
-      return { success: false, message: 'User data not found' };
+      // Edge case: Auth user exists but Firestore doc missing - recreate from staffData
+      if (!staffUser) {
+        staffUser = findStaffUser(email);
+      }
+      if (staffUser) {
+        const permissions = getDefaultPermissions(staffUser.role);
+        const userDoc = {
+          id: userCredential.user.uid,
+          username: staffUser.username.toLowerCase(),
+          name: staffUser.name,
+          email: staffUser.email.toLowerCase(),
+          role: staffUser.role,
+          phone: staffUser.phone || '',
+          department: staffUser.department || 'Sales',
+          joiningDate: staffUser.joiningDate || new Date().toISOString(),
+          status: staffUser.status || 'Active',
+          permissions: staffUser.permissions || permissions,
+          avatar: staffUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(staffUser.name)}&background=0F3A5F&color=fff`,
+          metrics: staffUser.metrics || {},
+          settings: staffUser.settings || { notifications: true, darkMode: false },
+          createdAt: new Date().toISOString(),
+          createdBy: 'system-auto-repair'
+        };
+        await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
+      } else {
+        return { success: false, message: 'User data not found' };
+      }
     }
-    
-    const userData = userDetails.data();
-    
+
+    // Re-fetch user details (in case we just created it)
+    const finalUserDetails = await getDoc(doc(db, 'users', userCredential.user.uid));
+    const userData = finalUserDetails.data();
+
     // Check if user is active
     if (userData.status !== 'Active') {
       await signOut(auth);
       return { success: false, message: 'Account is suspended. Contact admin.' };
     }
-    
+
     // Update last login
     await updateDoc(doc(db, 'users', userCredential.user.uid), {
       lastLogin: new Date().toISOString()
     });
-    
+
     console.log(`[Firebase] Login successful for ${userData.name}`);
-    
+
     return {
       success: true,
       user: {
@@ -88,14 +210,14 @@ export const login = async (usernameOrEmail, password) => {
       },
       role: userData.role
     };
-    
+
   } catch (error) {
     console.error('[Firebase] Login error:', error);
-    
+
     if (error.code === 'auth/user-not-found') {
       return { success: false, message: 'User not found' };
     }
-    if (error.code === 'auth/wrong-password') {
+    if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
       return { success: false, message: 'Incorrect password' };
     }
     if (error.code === 'auth/invalid-email') {
@@ -104,7 +226,7 @@ export const login = async (usernameOrEmail, password) => {
     if (error.code === 'auth/too-many-requests') {
       return { success: false, message: 'Too many attempts. Try again later.' };
     }
-    
+
     return { success: false, message: 'Login failed. Please try again.' };
   }
 };
@@ -363,6 +485,7 @@ export const sendPasswordReset = async (email) => {
 const getDefaultPermissions = (role) => {
   const permissions = {
     super_admin: ['all'],
+    sub_admin: ['view_reports', 'view_analytics', 'manage_staff', 'view_leads'],
     manager: ['manage_team', 'assign_leads', 'view_reports', 'manage_properties'],
     sales_executive: ['manage_leads', 'schedule_visits', 'create_bookings', 'make_calls'],
     telecaller: ['call_leads', 'update_status', 'schedule_appointments']

@@ -22,7 +22,16 @@ const CRMLayout = ({ children }) => {
     }
   }, [user, leads, employees]);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0F3A5F] mx-auto"></div>
+          <p className="mt-4 text-gray-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // --- Admin Layout (Super Admin & Sub Admin) ---
   if ([ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN].includes(user.role)) {

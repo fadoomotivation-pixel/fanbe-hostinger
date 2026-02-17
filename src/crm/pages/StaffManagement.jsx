@@ -44,12 +44,12 @@ import {
   XCircle
 } from 'lucide-react';
 import { 
-  addUser, 
+  createEmployee, 
   getAllUsers, 
   deleteUser, 
   toggleUserStatus,
   generateRandomPassword 
-} from '@/lib/authUtilsFirebase';
+} from '@/lib/authUtilsSupabase';
 
 const StaffManagement = () => {
   const { toast } = useToast();
@@ -68,12 +68,12 @@ const StaffManagement = () => {
     department: ''
   });
 
-  // Load users from Firebase on component mount
+  // Load users from Supabase on component mount
   useEffect(() => {
-    loadUsersFromFirebase();
+    loadUsersFromSupabase();
   }, []);
 
-  const loadUsersFromFirebase = async () => {
+  const loadUsersFromSupabase = async () => {
     try {
       setLoading(true);
       const users = await getAllUsers();
@@ -89,7 +89,7 @@ const StaffManagement = () => {
         lastLogin: u.lastLogin || 'Never'
       }));
       setStaff(staffList);
-      console.log('✅ Loaded users from Firebase:', staffList.length);
+      console.log('✅ Loaded users from Supabase:', staffList.length);
     } catch (error) {
       console.error('❌ Error loading users:', error);
       toast({
@@ -133,8 +133,8 @@ const StaffManagement = () => {
     toast({ title: "Creating user...", description: "Please wait" });
     
     try {
-      // Add user to Firebase
-      const result = await addUser({
+      // Add user to Supabase
+      const result = await createEmployee({
         name: newStaff.name,
         email: email,
         username: newStaff.username.toLowerCase(),
@@ -148,13 +148,13 @@ const StaffManagement = () => {
         // Update local state
         const newEntry = {
           id: result.userId,
-          name: result.user.name,
-          username: result.user.username,
-          email: result.user.email,
-          role: result.user.role,
-          status: result.user.status,
-          phone: result.user.phone,
-          department: result.user.department,
+          name: newStaff.name,
+          username: result.username || newStaff.username.toLowerCase(),
+          email: result.email || email,
+          role: newStaff.role,
+          status: 'Active',
+          phone: newStaff.phone || '',
+          department: newStaff.department || 'Sales',
           lastLogin: 'Never'
         };
         
@@ -171,11 +171,11 @@ const StaffManagement = () => {
         // Log credentials for admin reference
         console.log('🔑 NEW USER CREDENTIALS:');
         console.log('==========================================');
-        console.log('Name:', result.user.name);
-        console.log('Username:', result.user.username);
-        console.log('Email:', result.user.email);
+        console.log('Name:', newEntry.name);
+        console.log('Username:', newEntry.username);
+        console.log('Email:', newEntry.email);
         console.log('Password:', tempPassword);
-        console.log('Role:', result.user.role);
+        console.log('Role:', newEntry.role);
         console.log('==========================================');
         console.log('⚠️ IMPORTANT: Save this password and share with employee!');
         
@@ -191,10 +191,10 @@ const StaffManagement = () => {
         });
         
         // Show credential card
-        showCredentialCard(result.user.username, tempPassword, result.user.name);
+        showCredentialCard(newEntry.username, tempPassword, newEntry.name);
         
         // Reload the user list to show the new user
-        await loadUsersFromFirebase();
+        await loadUsersFromSupabase();
         
       } else {
         toast({ 
@@ -405,7 +405,7 @@ const StaffManagement = () => {
               <div>
                 <p className="text-sm text-gray-500">Managers</p>
                 <p className="text-2xl font-bold">
-                  {staff.filter(s => s.role === 'manager').length}
+                  {staff.filter(s => s.role === 'sales_manager').length}
                 </p>
               </div>
               <Building2 className="w-8 h-8 text-purple-500" />
@@ -450,7 +450,7 @@ const StaffManagement = () => {
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="super_admin">Super Admin</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
+                <SelectItem value="sales_manager">Sales Manager</SelectItem>
                 <SelectItem value="sales_executive">Sales Executive</SelectItem>
                 <SelectItem value="telecaller">Telecaller</SelectItem>
               </SelectContent>
@@ -581,7 +581,7 @@ const StaffManagement = () => {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="sales_manager">Sales Manager</SelectItem>
                   <SelectItem value="sales_executive">Sales Executive</SelectItem>
                   <SelectItem value="telecaller">Telecaller</SelectItem>
                 </SelectContent>

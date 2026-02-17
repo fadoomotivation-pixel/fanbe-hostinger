@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -14,21 +13,17 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/crm/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect logic if trying to access unauthorized area
     if (user.role === 'super_admin') return <Navigate to="/crm/admin/dashboard" replace />;
-    if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
-    if (user.role === 'sales_executive') return <Navigate to="/crm/sales/dashboard" replace />;
-    
+    if (user.role === 'sales_manager') return <Navigate to="/crm/manager/dashboard" replace />;
+    if (user.role === 'sales_executive') return <Navigate to="/crm/employee/dashboard" replace />;
     return <Navigate to="/crm/login" replace />;
   }
 
-  // Additional check using permission utility if needed
   if (!canAccessPage(user.role, location.pathname)) {
-     // Fallback redirects
-     if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
-     return <Navigate to="/crm/login" replace />;
+    if (user.role === 'sales_manager') return <Navigate to="/crm/manager/dashboard" replace />;
+    if (user.role === 'sales_executive') return <Navigate to="/crm/employee/dashboard" replace />;
+    return <Navigate to="/crm/login" replace />;
   }
 
   return children;

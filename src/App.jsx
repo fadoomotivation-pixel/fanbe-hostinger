@@ -115,7 +115,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                    {/* Super Admin Routes */}
                    <Route path="admin/dashboard" element={
-                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}>
+                      <ProtectedRoute allowedRoles={['super_admin', 'sales_manager']}>
                          <SmartDashboard />
                       </ProtectedRoute>
                    } />
@@ -175,23 +175,35 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                    {/* Sub Admin Specific Routes */}
                    <Route path="admin/staff-management" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><StaffManagementSubAdmin /></ProtectedRoute>
+                      <ProtectedRoute allowedRoles={['sales_manager', 'super_admin']}><StaffManagementSubAdmin /></ProtectedRoute>
                    } />
                    <Route path="admin/staff-performance" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><StaffPerformanceSubAdmin /></ProtectedRoute>
+                      <ProtectedRoute allowedRoles={['sales_manager', 'super_admin']}><StaffPerformanceSubAdmin /></ProtectedRoute>
                    } />
                    <Route path="admin/revenue-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><RevenueAnalytics /></ProtectedRoute>
+                      <ProtectedRoute allowedRoles={['sales_manager', 'super_admin']}><RevenueAnalytics /></ProtectedRoute>
                    } />
                    <Route path="admin/call-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><CallAnalytics /></ProtectedRoute>
+                      <ProtectedRoute allowedRoles={['sales_manager', 'super_admin']}><CallAnalytics /></ProtectedRoute>
                    } />
                    <Route path="admin/booking-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><BookingAnalytics /></ProtectedRoute>
+                      <ProtectedRoute allowedRoles={['sales_manager', 'super_admin']}><BookingAnalytics /></ProtectedRoute>
                    } />
 
                    {/* Sales Routes */}
                    <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
+                   <Route path="manager/dashboard" element={<SubAdminDashboard />} />
+                   <Route path="manager/team" element={<StaffManagementSubAdmin />} />
+                   <Route path="manager/leads" element={<LeadManagement />} />
+                   <Route path="manager/performance" element={<StaffPerformanceSubAdmin />} />
+                   <Route path="manager/daily-reports" element={<AdminDailyReports />} />
+                   <Route path="employee/dashboard" element={<SalesExecutiveDashboard />} />
+                   <Route path="employee/leads" element={<MyLeads />} />
+                   <Route path="employee/daily-calling" element={<DailyCalling />} />
+                   <Route path="employee/site-visits" element={<SiteVisits />} />
+                   <Route path="employee/bookings" element={<Bookings />} />
+                   <Route path="employee/tasks" element={<Tasks />} />
+                   <Route path="employee/eod-reports" element={<EODReports />} />
                    {/* Fallback to desktop dash if not mobile */}
                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
                    
@@ -240,7 +252,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 // Simple wrapper to serve correct dashboard
 const SmartDashboard = () => {
    const { user } = useAuth();
-   if (user?.role === 'sub_admin') return <SubAdminDashboard />;
+   if (user?.role === 'sales_manager') return <SubAdminDashboard />;
    return <CRMAdminDashboard />;
 }
 

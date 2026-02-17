@@ -1,13 +1,13 @@
 # Fanbe Real Estate Website
 
-A modern real estate website with integrated CRM system built with React and Vite.
+A modern real estate website with integrated CRM system built with React, Vite, and Supabase.
 
 ## Features
 
 - 🏠 Property listings and showcase
-- 📊 Integrated CRM system for sales team
+- 📊 Integrated CRM system for admin, sales manager, and sales executive roles
 - 📱 Fully responsive design
-- 🔐 Secure authentication system
+- 🔐 Supabase Auth + Row Level Security (RLS)
 - 📈 Analytics and reporting
 
 ## Tech Stack
@@ -17,8 +17,7 @@ A modern real estate website with integrated CRM system built with React and Vit
 - **Styling**: Tailwind CSS
 - **Routing**: React Router
 - **UI Components**: Radix UI
-- **Charts**: Recharts
-- **Animations**: Framer Motion
+- **Backend**: Supabase (Auth, Postgres, Edge Functions)
 
 ## Getting Started
 
@@ -30,24 +29,44 @@ A modern real estate website with integrated CRM system built with React and Vit
 ### Installation
 
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
-
-# Build for production
 npm run build
-
-# Preview production build
 npm run preview
 ```
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Add environment variables in `.env.local`:
+
+```bash
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+3. Deploy Edge Function:
+
+```bash
+supabase functions deploy create_employee
+```
+
+4. Set function secrets (dashboard or CLI):
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+
+5. Ensure DB has `profiles`, `leads`, `site_visits`, and `bookings` tables + RLS policies.
+
+## CRM Role Routes
+
+- **Super Admin**: `/crm/admin/*`
+- **Sales Manager**: `/crm/manager/*`
+- **Sales Executive**: `/crm/employee/*`
 
 ## Deployment
 
 This project is configured for deployment on Hostinger.
-
-### Hostinger Settings
 
 - **Framework**: Vite
 - **Node version**: 22.x
@@ -58,18 +77,19 @@ This project is configured for deployment on Hostinger.
 
 ```
 ├── src/
-│   ├── components/     # Reusable components
-│   ├── crm/           # CRM system
-│   ├── pages/         # Page components
-│   ├── lib/           # Utilities and helpers
-│   ├── data/          # Static data
-│   └── App.jsx        # Main app component
-├── public/            # Static assets
-├── index.html         # HTML entry point
-└── vite.config.js     # Vite configuration
+│   ├── components/
+│   ├── crm/
+│   ├── pages/
+│   ├── context/
+│   ├── lib/
+│   ├── data/
+│   └── App.jsx
+├── supabase/functions/create_employee/
+├── public/
+├── index.html
+└── vite.config.js
 ```
 
 ## License
 
-Private - All rights reserved
-# Trigger rebuild Tue Feb 17 11:42:27 IST 2026
+Private - All rights reserved.

@@ -14,12 +14,12 @@ import DeleteEmployeeModal from '@/crm/components/DeleteEmployeeModal';
 import ResetPasswordModal from '@/crm/components/ResetPasswordModal';
 import EmployeeCredentialsModal from '@/crm/components/EmployeeCredentialsModal';
 import {
-  addUser,
+  createEmployee,
   deleteUser,
   generateRandomPassword,
   getAllUsers,
   toggleUserStatus
-} from '@/lib/authUtilsFirebase';
+} from '@/lib/authUtilsSupabase';
 
 const EmployeeManagement = () => {
   const { toast } = useToast();
@@ -41,7 +41,7 @@ const EmployeeManagement = () => {
   });
   const [usernameStatus, setUsernameStatus] = useState('idle'); // idle, valid, invalid, taken
 
-  // Load users from Firebase
+  // Load users from Supabase
   useEffect(() => {
       loadEmployees();
   }, []);
@@ -92,22 +92,24 @@ const EmployeeManagement = () => {
   };
 
   const handleAddEmployee = async () => {
-    if (!newEmployee.firstName || !newEmployee.email || !newEmployee.role || usernameStatus !== 'valid') {
+    if (!newEmployee.firstName || !newEmployee.role || usernameStatus !== 'valid') {
         toast({ title: "Validation Error", description: "Please fill all fields and ensure username is valid.", variant: "destructive" });
         return;
     }
     
-    if (employees.some(e => e.email === newEmployee.email)) {
+    const employeeEmail = (newEmployee.email || `${newEmployee.username}@fanbegroup.com`).toLowerCase();
+
+    if (employees.some(e => (e.email || '').toLowerCase() === employeeEmail)) {
         toast({ title: "Duplicate Email", description: "This email is already in use.", variant: "destructive" });
         return;
     }
     
     const password = generatePassword();
 
-    const result = await addUser({
+    const result = await createEmployee({
       name: `${newEmployee.firstName} ${newEmployee.lastName}`.trim(),
       username: newEmployee.username,
-      email: newEmployee.email,
+      email: employeeEmail,
       role: newEmployee.role,
       password,
       phone: newEmployee.phone,
@@ -121,15 +123,26 @@ const EmployeeManagement = () => {
 
     const newEntry = {
       id: result.userId,
-      ...result.user,
+      name: `${newEmployee.firstName} ${newEmployee.lastName}`.trim(),
+      username: result.username || newEmployee.username,
+      email: result.email || employeeEmail,
+      phone: newEmployee.phone || '',
+      role: newEmployee.role,
+      status: 'Active',
       lastLogin: 'Never'
     };
 
-    setEmployees((prev) => [...prev, newEntry]);
+    setEmployees((prev) => [newEntry, ...prev]);
     setCreatedEmployee(newEntry);
     setCreatedCredentials({ password });
     setIsAddModalOpen(false);
     setIsCredentialsModalOpen(true);
+
+    toast({
+      title: '✅ Employee Created Successfully!',
+      description: `Username: ${newEntry.username}\nPassword: ${password}\n\n⚠️ SAVE THIS PASSWORD!`,
+      duration: 20000
+    });
 
     setNewEmployee({ firstName: '', lastName: '', email: '', phone: '', role: '', username: '', sendEmail: true });
     setUsernameStatus('idle');
@@ -144,7 +157,7 @@ const EmployeeManagement = () => {
 
     const updatedList = employees.filter(s => s.id !== id);
     setEmployees(updatedList);
-    toast({ title: "Employee Deleted", description: "Employee removed successfully from Firebase." });
+    toast({ title: "Employee Deleted", description: "Employee removed from Supabase profiles." });
     setIsDeleteModalOpen(false);
   };
 
@@ -215,9 +228,9 @@ const EmployeeManagement = () => {
                 <Select onValueChange={v => setNewEmployee({...newEmployee, role: v})}>
                   <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Sales Executive">Sales Executive</SelectItem>
-                    <SelectItem value="Team Lead">Team Lead</SelectItem>
-                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                    <SelectItem value="sales_manager">Sales Manager</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -42,14 +42,14 @@ const CRMLogin = () => {
       case ROLES.SUPER_ADMIN:
         navigate('/crm/admin/dashboard');
         break;
-      case ROLES.SUB_ADMIN:
-        navigate('/crm/admin/dashboard');
+      case ROLES.SALES_MANAGER:
+        navigate('/crm/manager/dashboard');
         break;
       case ROLES.SALES_EXECUTIVE:
-        navigate('/crm/sales/dashboard');
+        navigate('/crm/employee/dashboard');
         break;
       default:
-        navigate('/crm/sales/dashboard');
+        navigate('/crm/employee/dashboard');
     }
   };
 

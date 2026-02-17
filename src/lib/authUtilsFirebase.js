@@ -38,20 +38,31 @@ export const login = async (usernameOrEmail, password) => {
   try {
     console.log(`[Firebase] Login attempt for: ${usernameOrEmail}`);
     
-    // Check if input is email or username
-    let email = usernameOrEmail;
+    const loginIdentifier = usernameOrEmail.trim();
+    const emailCandidates = await resolveLoginEmails(loginIdentifier);
     
-    if (!usernameOrEmail.includes('@')) {
-      // It's a username, need to find the email
-      const userDoc = await getUserByUsername(usernameOrEmail);
-      if (!userDoc) {
-        return { success: false, message: 'Username not found' };
+    let userCredential = null;
+    let lastAuthError = null;
+    
+    for (const email of emailCandidates) {
+      try {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        break;
+      } catch (authError) {
+        lastAuthError = authError;
+        if (
+          authError.code !== 'auth/invalid-credential' &&
+          authError.code !== 'auth/user-not-found' &&
+          authError.code !== 'auth/wrong-password'
+        ) {
+          throw authError;
+        }
       }
-      email = userDoc.email;
     }
     
-    // Sign in with Firebase Auth
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    if (!userCredential) {
+      throw lastAuthError || new Error('Unable to authenticate user');
+    }
     
     // Get user details from Firestore
     const userDetails = await getDoc(doc(db, 'USERS', userCredential.user.uid));
@@ -98,6 +109,9 @@ export const login = async (usernameOrEmail, password) => {
     if (error.code === 'auth/wrong-password') {
       return { success: false, message: 'Incorrect password' };
     }
+    if (error.code === 'auth/invalid-credential') {
+      return { success: false, message: 'Invalid username/email or password' };
+    }
     if (error.code === 'auth/invalid-email') {
       return { success: false, message: 'Invalid email format' };
     }
@@ -139,8 +153,34 @@ const getUserByUsername = async (username) => {
     return querySnapshot.docs[0].data();
   } catch (error) {
     console.error('[Firebase] Error finding user:', error);
-    return null;
+    throw error;
   }
+};
+
+/**
+ * Resolve login email(s) from identifier.
+ * - Email input => single candidate
+ * - Username input => try Firestore mapping first, then domain fallback
+ */
+const resolveLoginEmails = async (identifier) => {
+  if (identifier.includes('@')) {
+    return [identifier.toLowerCase()];
+  }
+
+  const username = identifier.toLowerCase();
+
+  try {
+    const userDoc = await getUserByUsername(username);
+    if (userDoc?.email) {
+      return [userDoc.email.toLowerCase()];
+    }
+  } catch (error) {
+    // If login-time Firestore read is blocked by rules, continue with fallback.
+    console.warn('[Firebase] Username lookup blocked, using fallback:', error?.code || error?.message);
+  }
+
+  // Common fallback used by this CRM for username-based login
+  return [`${username}@fanbegroup.com`];
 };
 
 /**

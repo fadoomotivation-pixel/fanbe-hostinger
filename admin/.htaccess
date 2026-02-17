@@ -1,0 +1,20 @@
+# Fanbe CRM - Admin .htaccess
+# Deny access to sensitive files
+
+<FilesMatch "\.(sql|md|txt|log)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to config directly
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Directory listing off
+Options -Indexes
+
+# PHP error display off in production
+php_flag display_errors off
+php_flag log_errors on

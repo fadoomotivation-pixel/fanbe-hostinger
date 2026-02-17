@@ -54,7 +54,7 @@ export const login = async (usernameOrEmail, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     
     // Get user details from Firestore
-    const userDetails = await getDoc(doc(db, 'users', userCredential.user.uid));
+    const userDetails = await getDoc(doc(db, 'USERS', userCredential.user.uid));
     
     if (!userDetails.exists()) {
       return { success: false, message: 'User data not found' };
@@ -69,7 +69,7 @@ export const login = async (usernameOrEmail, password) => {
     }
     
     // Update last login
-    await updateDoc(doc(db, 'users', userCredential.user.uid), {
+    await updateDoc(doc(db, 'USERS', userCredential.user.uid), {
       lastLogin: new Date().toISOString()
     });
     
@@ -128,7 +128,7 @@ export const logout = async () => {
  */
 const getUserByUsername = async (username) => {
   try {
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'USERS');
     const q = query(usersRef, where('username', '==', username.toLowerCase()));
     const querySnapshot = await getDocs(q);
     
@@ -208,7 +208,7 @@ export const addUser = async (userData) => {
       createdBy: adminUser?.uid || 'system'
     };
     
-    await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
+    await setDoc(doc(db, 'USERS', userCredential.user.uid), userDoc);
     console.log('[Firebase] ✅ Firestore document created successfully!');
     
     // Step 3: Sign out the newly created user to restore admin session
@@ -262,7 +262,7 @@ export const addUser = async (userData) => {
  */
 export const getAllUsers = async () => {
   try {
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(db, 'USERS');
     const querySnapshot = await getDocs(usersRef);
     
     const users = [];
@@ -282,7 +282,7 @@ export const getAllUsers = async () => {
  */
 export const updateUser = async (userId, updates) => {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(db, 'USERS', userId);
     
     // Don't allow updating sensitive fields
     const { password, email, ...safeUpdates } = updates;
@@ -305,7 +305,7 @@ export const updateUser = async (userId, updates) => {
 export const deleteUser = async (userId) => {
   try {
     // Delete from Firestore
-    await deleteDoc(doc(db, 'users', userId));
+    await deleteDoc(doc(db, 'USERS', userId));
     
     // Note: Can't delete from Firebase Auth without admin SDK
     // In production, use Cloud Functions for this
@@ -322,7 +322,7 @@ export const deleteUser = async (userId) => {
  */
 export const toggleUserStatus = async (userId) => {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(db, 'USERS', userId);
     const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
@@ -401,7 +401,7 @@ export const isAuthenticated = () => {
  */
 export const getUserDetails = async (userId) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userDoc = await getDoc(doc(db, 'USERS', userId));
     
     if (!userDoc.exists()) {
       return null;

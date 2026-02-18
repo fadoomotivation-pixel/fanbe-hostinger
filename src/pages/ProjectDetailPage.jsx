@@ -154,7 +154,9 @@ const ProjectDetailPage = () => {
         <section className="py-20 bg-gray-50">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-center text-[#0F3A5F] mb-12">Pricing & Payment Plans</h2>
-            <div className="overflow-x-auto rounded-xl shadow-xl bg-white">
+            
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto rounded-xl shadow-xl bg-white">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-[#0F3A5F] text-white">
@@ -168,11 +170,11 @@ const ProjectDetailPage = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {pricing.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
+                    <tr key={idx} className="hover:bg-[#0F3A5F]/5 transition-colors">
                       <td className="p-4 font-bold text-gray-800">{row.size} Sq. Yd.</td>
                       <td className="p-4 text-gray-600">₹{row.rate?.toLocaleString()}</td>
                       <td className="p-4 font-bold text-[#0F3A5F]">₹{row.total?.toLocaleString()}</td>
-                      <td className="p-4 font-bold text-[#0F3A5F] bg-yellow-50">₹{row.booking?.toLocaleString()}</td>
+                      <td className="p-4 font-bold text-[#D4AF37] bg-[#D4AF37]/10">₹{row.booking?.toLocaleString()}</td>
                       <td className="p-4 text-gray-600">₹{row.rest?.toLocaleString()}</td>
                       <td className="p-4 font-bold text-[#0F3A5F]">₹{row.emi?.toLocaleString()}</td>
                     </tr>
@@ -180,6 +182,37 @@ const ProjectDetailPage = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+              {pricing.map((row, idx) => (
+                <div key={idx} className="bg-white rounded-xl shadow-lg p-4">
+                  <div className="text-center mb-3 pb-3 border-b border-gray-200">
+                    <h3 className="text-xl font-bold text-[#0F3A5F]">{row.size} Sq. Yd.</h3>
+                    <p className="text-sm text-gray-500">₹{row.rate?.toLocaleString()} per sq yd</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Total Cost</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">₹{row.total?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline bg-[#D4AF37]/10 -mx-4 px-4 py-2 rounded">
+                      <span className="text-xs text-gray-600 font-medium">Booking Amount</span>
+                      <span className="text-base font-bold text-[#D4AF37]">₹{row.booking?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Rest Amount</span>
+                      <span className="text-sm font-semibold text-gray-700">₹{row.rest?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline pt-2 border-t border-gray-200">
+                      <span className="text-xs text-gray-500">Monthly EMI</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">₹{row.emi?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <p className="text-center text-sm text-gray-400 mt-4">* Prices are subject to change. Registry charges extra as applicable.</p>
           </div>
         </section>
@@ -192,7 +225,7 @@ const ProjectDetailPage = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {project.investmentBenefits?.map((benefit, idx) => (
               <div key={idx} className="bg-white p-6 rounded-xl border border-gray-100 shadow-lg hover:shadow-xl transition-shadow text-center">
-                <div className="h-12 w-12 bg-blue-50 text-[#0F3A5F] rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="h-12 w-12 bg-[#0F3A5F]/10 text-[#0F3A5F] rounded-full flex items-center justify-center mx-auto mb-4">
                   <TrendingUp size={24} />
                 </div>
                 <p className="font-medium text-gray-800">{benefit}</p>

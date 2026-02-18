@@ -294,20 +294,26 @@ const HomePage = ({ onBookSiteVisit }) => {
                   <h3 className="text-2xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
                   <p className="text-sm text-gray-600 flex items-center gap-1 mb-3"><MapPin className="w-4 h-4" />{project.location}</p>
                   <p className="text-gray-700 mb-4 italic">"{project.tagline}"</p>
-                  <div className="grid grid-cols-3 gap-2 mb-4 p-4 bg-gray-50 rounded-xl text-center">
-                    <div>
-                      <p className="text-xs text-gray-500">Starting From</p>
-                      <p className="text-lg font-bold text-[#0F3A5F]">{project.startingPrice}</p>
+                  
+                  {/* Mobile-friendly pricing - stacked layout */}
+                  <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Starting From</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">{project.startingPrice}</span>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Booking ({project.bookingPct})</p>
-                      <p className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</p>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Booking ({project.bookingPct})</span>
+                      <span className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</span>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">EMI ({project.emiMonths}mo)</p>
-                      <p className="text-lg font-bold text-[#0F3A5F]">{project.emi}</p>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Monthly EMI</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">{project.emi}</span>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200">
+                      <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
                     </div>
                   </div>
+
                   <div className="mb-4 flex flex-wrap gap-2">
                     {project.amenities.slice(0, 4).map((amenity, i) => (
                       <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">{amenity}</span>

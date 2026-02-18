@@ -26,8 +26,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   // Additional check using permission utility if needed
   if (!canAccessPage(user.role, location.pathname)) {
-     // Fallback redirects
+     // Fallback redirects — send each role to their own home, never back to login
+     if (user.role === 'super_admin') return <Navigate to="/crm/admin/dashboard" replace />;
      if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
+     if (user.role === 'sales_executive') return <Navigate to="/crm/sales/dashboard" replace />;
      return <Navigate to="/crm/login" replace />;
   }
 

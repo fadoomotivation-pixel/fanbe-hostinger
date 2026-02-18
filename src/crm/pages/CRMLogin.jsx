@@ -70,7 +70,10 @@ const CRMLogin = () => {
 
       if (result.success) {
         toast({ title: 'Welcome Back!', description: `Logged in successfully` });
-        handleRedirect(result.role);
+        // Do NOT navigate here — let the useEffect below handle the redirect
+        // once AuthContext has applied the user state update. Calling navigate()
+        // immediately after login() causes ProtectedRoute to see isAuthenticated=false
+        // (state hasn't flushed yet), redirecting back to /crm/login (throttle loop).
       } else {
         setError(result.message || 'Login failed');
         toast({ title: 'Login Failed', description: result.message || 'Login failed', variant: 'destructive' });

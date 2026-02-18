@@ -17,13 +17,23 @@
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-XSS-Protection "1; mode=block"
-  
+
+  # Never cache HTML — ensures browser always fetches the latest index.html
+  # after a new Vite build (which changes hashed asset filenames).
+  # Without this, stale index.html references old /assets/index-*.js|css and
+  # the browser gets MIME-type errors because those files no longer exist.
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+
   # Cache everything on CDN by default
   Header set Cache-Control "public, s-maxage=604800, max-age=0"
-  
-  # Cache in browser all assets
+
+  # Cache hashed assets aggressively in browser — safe because filename changes on rebuild
   <If "%{REQUEST_URI} =~ m#^/assets/.*$#">
-    Header set Cache-Control "public, max-age=604800"
+    Header set Cache-Control "public, max-age=604800, immutable"
   </If>
 </IfModule>
 

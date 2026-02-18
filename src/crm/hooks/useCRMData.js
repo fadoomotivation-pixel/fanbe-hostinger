@@ -90,27 +90,28 @@ export const useCRMData = () => {
 
       const normalized = (data || []).map(row => ({
         id:               row.id,
-        name:             row.full_name || '',
-        phone:            row.phone     || '',
-        email:            row.email     || '',
-        source:           row.source    || 'Manual Import',
-        status:           row.final_status || row.status || 'FollowUp',
-        budget:           row.budget    || '',
-        interestLevel:    row.interest_level || 'Cold',
-        notes:            row.notes     || '',
-        callAttempt:      row.call_attempt || '',
-        callStatus:       row.call_status  || '',
-        siteVisitStatus:  row.site_visit_status || '',
-        finalStatus:      row.final_status || 'FollowUp',
-        assignedTo:       row.assigned_to  || null,
-        assignedToName:   row.assigned_to_name || null,
-        createdBy:        row.created_by   || null,
+        name:             row.full_name          || '',
+        phone:            row.phone              || '',
+        email:            row.email              || '',
+        source:           row.source             || 'Manual Import',
+        status:           row.final_status       || row.status || 'FollowUp',
+        budget:           row.budget             || '',
+        interestLevel:    row.interest_level     || 'Cold',
+        notes:            row.notes              || '',
+        callAttempt:      row.call_attempt       || '',
+        callStatus:       row.call_status        || '',
+        siteVisitStatus:  row.site_visit_status  || '',
+        finalStatus:      row.final_status       || 'FollowUp',
+        assignedTo:       row.assigned_to        || null,
+        assignedToName:   row.assigned_to_name   || null,
+        createdBy:        row.created_by         || null,
         createdAt:        row.created_at,
         lastActivity:     row.updated_at,
         activityLog:      [],
-        project:          row.project || '',
-        followUpDate:     row.follow_up_date || null,
-        isVIP:            row.is_vip || false,
+        project:          row.project            || '',
+        // ✅ FIXED: actual column is next_followup_date
+        followUpDate:     row.next_followup_date || null,
+        isVIP:            row.is_vip             || false,
       }));
 
       setLeads(normalized);
@@ -168,21 +169,21 @@ export const useCRMData = () => {
       const doc = {
         full_name:          lead.name,
         phone:              lead.phone,
-        email:              lead.email || '',
-        source:             lead.source || 'Manual Import',
+        email:              lead.email            || '',
+        source:             lead.source           || 'Manual Import',
         status:             'Active',
-        budget:             lead.budget || null,
-        interest_level:     lead.interestLevel || lead.interest_level || 'Cold',
-        notes:              lead.notes || '',
-        call_attempt:       lead.callAttempt || '',
-        call_status:        lead.callStatus  || '',
-        site_visit_status:  lead.siteVisitStatus || 'not planned',
-        final_status:       lead.status || 'FollowUp',
-        assigned_to:        lead.assignedTo || null,
-        created_by:         lead.createdBy  || null,
-        project:            lead.project || null,
-        follow_up_date:     lead.followUpDate || null,
-        is_vip:             lead.isVIP || false,
+        budget:             lead.budget           || null,
+        interest_level:     lead.interestLevel    || lead.interest_level || 'Cold',
+        notes:              lead.notes            || '',
+        call_attempt:       lead.callAttempt      || '',
+        call_status:        lead.callStatus       || '',
+        site_visit_status:  lead.siteVisitStatus  || 'not_planned',
+        final_status:       lead.status           || 'FollowUp',
+        assigned_to:        lead.assignedTo       || null,
+        created_by:         lead.createdBy        || null,
+        project:            lead.project          || null,
+        // ✅ FIXED: write to next_followup_date
+        next_followup_date: lead.followUpDate     || null,
         created_at:         new Date().toISOString(),
         updated_at:         new Date().toISOString(),
       };
@@ -221,8 +222,10 @@ export const useCRMData = () => {
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
       if (updates.assignedTo       !== undefined) mapped.assigned_to        = updates.assignedTo;
+      if (updates.assignedToName   !== undefined) mapped.assigned_to_name   = updates.assignedToName;
       if (updates.project          !== undefined) mapped.project            = updates.project;
-      if (updates.followUpDate     !== undefined) mapped.follow_up_date     = updates.followUpDate;
+      // ✅ FIXED: write to next_followup_date
+      if (updates.followUpDate     !== undefined) mapped.next_followup_date = updates.followUpDate;
       if (updates.isVIP            !== undefined) mapped.is_vip             = updates.isVIP;
       mapped.updated_at = new Date().toISOString();
 

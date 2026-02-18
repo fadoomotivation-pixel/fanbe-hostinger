@@ -79,12 +79,8 @@ const CRMLogin = () => {
         toast({ title: 'Login Failed', description: result.message || 'Login failed', variant: 'destructive' });
       }
     } catch (err) {
-<<<<<<< HEAD
-      setError('Login failed. Please try again.');
-=======
       console.error('[Login] Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
->>>>>>> origin/claude/resolve-outstanding-issue-zhhf4
       toast({ title: 'Login Failed', description: 'An unexpected error occurred.', variant: 'destructive' });
     } finally {
       setIsLoading(false);

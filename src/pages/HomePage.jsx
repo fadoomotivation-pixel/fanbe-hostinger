@@ -12,7 +12,11 @@ import { useToast } from '@/components/ui/use-toast';
 import EMICalculatorSection from '@/components/EMICalculatorSection';
 import { useWhatsApp } from '@/lib/useWhatsApp';
 
-// Project data with logos
+// ─────────────────────────────────────────────────────────────────────────────
+// Project data — RATES UPDATED Feb 2026
+// Formula: startingPrice = rate × 100 sq yd
+//          emi           = round((rate × 100 × 0.70) / 12)
+// ─────────────────────────────────────────────────────────────────────────────
 const projects = [
   {
     id: 'khatu-shyam-enclave',
@@ -24,8 +28,10 @@ const projects = [
     highlight: true,
     tagline: 'Divine Living Near Sacred Temple',
     sizes: ['100', '150', '200', '250'],
-    startingPrice: '₹8.5 Lakhs',
-    emi: '₹12,500/month',
+    // rate ₹7,525 × 100 = ₹7,52,500
+    startingPrice: '₹7.52 Lakhs',
+    // (7,52,500 × 0.70) / 12 = ₹43,896
+    emi: '₹43,896/month',
     amenities: ['Temple Proximity', 'Gated Security', 'Wide Roads', '24/7 Water'],
     status: 'Limited Plots Available',
     description: 'Experience spiritual living near the revered Khatu Shyam Temple'
@@ -40,8 +46,10 @@ const projects = [
     highlight: true,
     tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['100', '150', '200', '300'],
-    startingPrice: '₹12 Lakhs',
-    emi: '₹18,000/month',
+    // rate ₹7,525 × 100 = ₹7,52,500
+    startingPrice: '₹7.52 Lakhs',
+    // (7,52,500 × 0.70) / 12 = ₹43,896
+    emi: '₹43,896/month',
     amenities: ['RERA Approved', 'Park', 'Street Lights', 'Underground Wiring'],
     status: 'Best Seller',
     description: 'Live in the divine aura of Vrindavan with modern amenities'
@@ -54,21 +62,25 @@ const projects = [
     location: 'Mathura-Vrindavan Road',
     tagline: 'Serene Living Amidst Nature',
     sizes: ['100', '150', '200'],
-    startingPrice: '₹10 Lakhs',
-    emi: '₹15,000/month',
+    // rate ₹10,025 × 100 = ₹10,02,500
+    startingPrice: '₹10.02 Lakhs',
+    // (10,02,500 × 0.70) / 12 = ₹58,479
+    emi: '₹58,479/month',
     amenities: ['Green Spaces', 'Community Hall', 'Children Park', 'Security'],
     status: 'Available'
   },
   {
     id: 'semri-vatika',
     name: 'सेमरी वाटिका',
-    nameEn: 'Semri Vatika',
+    nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
-    tagline: 'Affordable Spiritual Living',
+    tagline: 'Premium Plots with High Appreciation',
     sizes: ['100', '125', '150', '200'],
-    startingPrice: '₹7.5 Lakhs',
-    emi: '₹11,000/month',
+    // rate ₹15,525 × 100 = ₹15,52,500
+    startingPrice: '₹15.52 Lakhs',
+    // (15,52,500 × 0.70) / 12 = ₹90,563
+    emi: '₹90,563/month',
     amenities: ['Basic Infrastructure', 'Road Access', 'Electricity', 'Water Supply'],
     status: 'New Launch'
   },
@@ -80,21 +92,25 @@ const projects = [
     location: 'Vrindavan Highway',
     tagline: 'Sacred Plots for Sacred Living',
     sizes: ['150', '200', '250'],
-    startingPrice: '₹11 Lakhs',
-    emi: '₹16,500/month',
+    // rate ₹8,025 × 100 = ₹8,02,500
+    startingPrice: '₹8.02 Lakhs',
+    // (8,02,500 × 0.70) / 12 = ₹46,813
+    emi: '₹46,813/month',
     amenities: ['Temple View', 'Wide Plots', 'Paved Roads', 'Boundary Wall'],
     status: 'Available'
   },
   {
     id: 'brij-vatika',
     name: 'बृज वाटिका',
-    nameEn: 'Brij Vatika',
+    nameEn: 'Brij Vatika (E Block)',
     logo: '/images/projects/brij_vatika.png',
     location: 'Braj Bhoomi, Vrindavan',
     tagline: 'Live in Lord Krishna\'s Land',
     sizes: ['100', '150', '200', '250', '300'],
-    startingPrice: '₹9 Lakhs',
-    emi: '₹13,500/month',
+    // rate ₹15,525 × 100 = ₹15,52,500
+    startingPrice: '₹15.52 Lakhs',
+    // (15,52,500 × 0.70) / 12 = ₹90,563
+    emi: '₹90,563/month',
     amenities: ['Garden', 'Kids Play Area', 'Street Lights', 'Gated Entry'],
     status: 'Available'
   }

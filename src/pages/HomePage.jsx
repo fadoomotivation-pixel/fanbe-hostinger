@@ -349,13 +349,27 @@ const HomePage = ({ onBookSiteVisit }) => {
                 </div>
                 <div className="p-5">
                   <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
-                  <p className="text-sm text-gray-600 mb-3 flex items-center gap-1"><MapPin className="w-4 h-4" />{project.location}</p>
-                  <div className="flex items-center justify-between mb-1 text-sm">
-                    <div><span className="text-gray-600">From </span><span className="font-bold text-[#0F3A5F]">{project.startingPrice}</span></div>
-                    <div><span className="text-gray-600">EMI </span><span className="font-semibold text-[#0F3A5F]">{project.emi}</span></div>
+                  <p className="text-sm text-gray-600 mb-4 flex items-center gap-1"><MapPin className="w-4 h-4" />{project.location}</p>
+                  
+                  {/* Mobile-friendly pricing - stacked layout */}
+                  <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Starting From</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">{project.startingPrice}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Booking ({project.bookingPct})</span>
+                      <span className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500">Monthly EMI</span>
+                      <span className="text-base font-bold text-[#0F3A5F]">{project.emi}</span>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200">
+                      <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mb-1">Booking: <span className="font-medium text-[#D4AF37]">{project.bookingAmt}</span></p>
-                  <p className="text-xs text-gray-400 text-right mb-4">{project.emiMonths}-month plan · 0% interest</p>
+
                   <Link to={`/projects/${project.id}`}>
                     <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
                       View Details <ChevronRight className="ml-2 w-4 h-4" />

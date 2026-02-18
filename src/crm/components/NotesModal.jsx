@@ -1,131 +1,78 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Edit2, Trash2, Save, X, MessageSquare, Clock } from 'lucide-react';
+import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
+import { MessageSquare, Send } from 'lucide-react';
 
-const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNote }) => {
-  const [newNote, setNewNote] = useState('');
-  const [editingNoteId, setEditingNoteId] = useState(null);
-  const [editText, setEditText] = useState('');
+const NotesModal = ({ isOpen, onClose, lead }) => {
+  const { addLeadNote } = useCRMData();
   const { user } = useAuth();
+  const [newNote, setNewNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleAdd = () => {
+  const notes = lead?.notes
+    ? lead.notes.split('\n').filter(Boolean).reverse()
+    : [];
+
+  const handleSave = async () => {
     if (!newNote.trim()) return;
-    onAddNote(newNote);
+    setIsSaving(true);
+    await addLeadNote(lead.id, newNote.trim(), user.name);
     setNewNote('');
+    setIsSaving(false);
   };
-
-  const startEditing = (note) => {
-    setEditingNoteId(note.id);
-    setEditText(note.text);
-  };
-
-  const saveEdit = (noteId) => {
-    if (!editText.trim()) return;
-    onUpdateNote(noteId, editText);
-    setEditingNoteId(null);
-    setEditText('');
-  };
-
-  const cancelEdit = () => {
-    setEditingNoteId(null);
-    setEditText('');
-  };
-
-  const handleDelete = (noteId) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
-      onDeleteNote(noteId);
-    }
-  };
-
-  const sortedNotes = lead?.notes ? [...lead.notes].reverse() : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[#0F3A5F]">
-            <MessageSquare className="h-5 w-5" />
-            Notes for {lead?.name}
-            {sortedNotes.length > 0 && (
-              <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                {sortedNotes.length}
-              </span>
-            )}
+      <DialogContent className="max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare size={18} className="text-blue-600" />
+            Notes — {lead?.name}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2 border">
-            <Textarea 
-              placeholder="Type a new note here..."
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              className="min-h-[80px] bg-white resize-none"
-            />
-            <div className="flex justify-end">
-              <Button size="sm" onClick={handleAdd} disabled={!newNote.trim()} className="bg-[#0F3A5F]">
-                Add Note
-              </Button>
-            </div>
-          </div>
-
-          <ScrollArea className="flex-1 pr-4 -mr-4">
-            <div className="space-y-4 pb-4">
-              {sortedNotes.length === 0 ? (
-                <div className="text-center text-gray-400 py-8 italic">No notes added yet.</div>
-              ) : (
-                sortedNotes.map(note => (
-                  <div key={note.id || Math.random()} className="bg-white border rounded-lg p-3 shadow-sm relative group">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-[#0F3A5F]">{note.author}</span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Clock size={10} />
-                          {new Date(note.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {editingNoteId !== note.id && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => startEditing(note)}>
-                              <Edit2 size={12} className="text-blue-500" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDelete(note.id)}>
-                              <Trash2 size={12} className="text-red-500" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {editingNoteId === note.id ? (
-                      <div className="space-y-2">
-                        <Textarea 
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          className="min-h-[60px] text-sm"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={cancelEdit} className="h-7 text-xs">Cancel</Button>
-                          <Button size="sm" onClick={() => saveEdit(note.id)} className="h-7 text-xs bg-green-600 hover:bg-green-700">Save</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.text}</p>
-                    )}
+        {/* Scrollable notes history */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-[280px] rounded-md border bg-gray-50 p-3">
+            {notes.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No notes yet. Add the first one below.</p>
+            ) : (
+              <div className="space-y-3">
+                {notes.map((note, i) => (
+                  <div key={i} className="bg-white rounded-lg p-3 border text-sm shadow-sm">
+                    <p className="text-gray-800 whitespace-pre-wrap">{note}</p>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </div>
+
+        {/* Add new note */}
+        <div className="shrink-0 space-y-3 pt-2">
+          <Textarea
+            placeholder="Add a note..."
+            value={newNote}
+            onChange={e => setNewNote(e.target.value)}
+            className="resize-none"
+            rows={3}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSave();
+            }}
+          />
+          <p className="text-xs text-gray-400">Tip: Ctrl+Enter to save</p>
+        </div>
+
+        <DialogFooter className="shrink-0 border-t pt-3">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button onClick={handleSave} disabled={isSaving || !newNote.trim()} className="gap-2">
+            <Send size={14} /> {isSaving ? 'Saving...' : 'Add Note'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

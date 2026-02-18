@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +6,22 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateScore, getScoreBadge, getScoreColor, getProgressBarColor } from '@/lib/leadScoringEngine';
+
+// Normalize notes: handles both Supabase string and legacy array format
+const getLastNoteText = (notes) => {
+  if (!notes) return null;
+  // Legacy format: array of {text, timestamp, author}
+  if (Array.isArray(notes)) {
+    if (notes.length === 0) return null;
+    const last = notes[notes.length - 1];
+    return last?.text || null;
+  }
+  // Supabase format: plain string
+  if (typeof notes === 'string' && notes.trim() !== '') {
+    return notes.trim();
+  }
+  return null;
+};
 
 const LeadTable = ({ 
   leads, 
@@ -33,7 +48,6 @@ const LeadTable = ({
     let valB = b[sortField];
     if (typeof valA === 'string') valA = valA.toLowerCase();
     if (typeof valB === 'string') valB = valB.toLowerCase();
-    
     if (valA < valB) return sortDir === 'asc' ? -1 : 1;
     if (valA > valB) return sortDir === 'asc' ? 1 : -1;
     return 0;
@@ -54,7 +68,6 @@ const LeadTable = ({
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now - date) / 1000);
-    
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hrs ago`;
@@ -64,7 +77,7 @@ const LeadTable = ({
 
   return (
     <div className="space-y-4">
-      {/* Bulk Action Bar - Visible when items selected */}
+      {/* Bulk Action Bar */}
       {selectedIds.length > 0 && (
           <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center gap-2">
@@ -89,7 +102,7 @@ const LeadTable = ({
           </div>
       )}
 
-      {/* --- Desktop & Tablet Table View --- */}
+      {/* Desktop & Tablet Table View */}
       <div className="hidden md:block bg-white rounded-lg shadow border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -123,7 +136,8 @@ const LeadTable = ({
                 <tr><td colSpan="10" className="p-8 text-center text-gray-400">No leads found.</td></tr>
               ) : (
                 sortedLeads.map(lead => {
-                  const lastNote = lead.notes && lead.notes.length > 0 ? lead.notes[lead.notes.length - 1] : null;
+                  // Safe notes extraction — works with both string and array
+                  const noteText = getLastNoteText(lead.notes);
                   const score = lead.score;
                   const scoreBadge = getScoreBadge(score);
                   const scoreColor = getScoreColor(score);
@@ -159,30 +173,27 @@ const LeadTable = ({
                       {type === 'daily' && <td className="p-4 text-xs text-gray-500 hidden lg:table-cell">
                          <div className="font-medium">{lead.assignedToName || 'Unassigned'}</div>
                       </td>}
-                      
-                      {/* Other conditional columns omitted for brevity, keeping structure */}
-                      {type === 'follow-up' && <td className="p-4">...</td>}
-                      {type === 'booked' && <td className="p-4">...</td>}
-                      {type === 'lost' && <td className="p-4">...</td>}
+                      {type === 'follow-up' && <td className="p-4">—</td>}
+                      {type === 'booked' && <td className="p-4">—</td>}
+                      {type === 'lost' && <td className="p-4">—</td>}
 
                       <td className="p-4">
                         <div className="flex items-start gap-2 group/note cursor-pointer" onClick={() => onAction('viewNotes', lead)}>
                           <div className="flex-1 min-w-0">
-                            {lastNote ? (
+                            {noteText ? (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <div className="text-xs text-gray-600 truncate max-w-[180px]">
-                                      {lastNote.text.substring(0, 50)}...
+                                      {noteText.length > 50 ? noteText.substring(0, 50) + '...' : noteText}
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent><p className="max-w-xs">{lastNote.text}</p></TooltipContent>
+                                  <TooltipContent><p className="max-w-xs">{noteText}</p></TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             ) : (
                               <span className="text-xs text-gray-400 italic">No notes</span>
                             )}
-                            {lastNote && <div className="text-[10px] text-gray-400 mt-0.5">{formatTimeAgo(lastNote.timestamp)}</div>}
                           </div>
                           <Edit2 size={12} className="text-gray-400 opacity-0 group-hover/note:opacity-100 transition-opacity mt-1" />
                         </div>
@@ -203,7 +214,7 @@ const LeadTable = ({
                       </td>
                       
                       <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2 opacity-100">
+                        <div className="flex justify-end gap-2">
                           <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full" onClick={(e) => { e.stopPropagation(); onAction('call', lead); }}>
                             <Phone size={14} />
                           </Button>
@@ -224,7 +235,7 @@ const LeadTable = ({
         </div>
       </div>
 
-      {/* --- Mobile View --- */}
+      {/* Mobile View */}
       <div className="md:hidden space-y-3">
         {selectedIds.length > 0 && (
              <div className="sticky top-0 z-10 bg-white p-2 shadow-md rounded-md flex justify-between items-center mb-2">
@@ -232,7 +243,9 @@ const LeadTable = ({
                  <Button variant="ghost" size="sm" className="h-8" onClick={() => onAction('bulk_delete')}><Trash2 size={16} className="text-red-500" /></Button>
              </div>
         )}
-        {sortedLeads.map(lead => (
+        {sortedLeads.map(lead => {
+          const noteText = getLastNoteText(lead.notes);
+          return (
             <div key={lead.id} className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3 ${selectedIds.includes(lead.id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}>
                  <div className="flex gap-3">
                      <Checkbox checked={selectedIds.includes(lead.id)} onCheckedChange={(c) => onSelectLead(lead.id, c)} className="mt-1" />
@@ -245,14 +258,21 @@ const LeadTable = ({
                             <Badge variant="outline">{lead.status}</Badge>
                          </div>
                          <div className="mt-2 text-xs text-gray-500">{lead.project}</div>
+                         {noteText && (
+                           <div className="mt-1 text-xs text-gray-400 italic truncate">
+                             {noteText.length > 60 ? noteText.substring(0, 60) + '...' : noteText}
+                           </div>
+                         )}
                      </div>
                  </div>
                  <div className="flex gap-2 pt-2 border-t mt-1">
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('call', lead)}><Phone size={14} className="mr-1" /> Call</Button>
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('whatsapp', lead)}><MessageSquare size={14} className="mr-1" /> WA</Button>
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('viewNotes', lead)}><StickyNote size={14} className="mr-1" /> Notes</Button>
                  </div>
             </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

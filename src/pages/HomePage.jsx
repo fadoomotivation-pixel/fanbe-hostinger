@@ -13,9 +13,18 @@ import EMICalculatorSection from '@/components/EMICalculatorSection';
 import { useWhatsApp } from '@/lib/useWhatsApp';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Project data — RATES UPDATED Feb 2026
-// Formula: startingPrice = rate × 100 sq yd
-//          emi           = round((rate × 100 × 0.70) / 12)
+// Project data — RATES & EMI DURATIONS UPDATED Feb 2026
+//
+// Formula : startingPrice = rate × 100 sq yd
+//           emi           = ceil((rate × 100 × 0.70) / emiMonths)
+//
+// Durations (from project sheets):
+//   Khatu Shyam Enclave   → 60 months
+//   Kunj Bihari Enclave   → 60 months
+//   Gokul Vatika          → 24 months
+//   Maa Semri Vatika      → 24 months
+//   Jagannath Dham        → 54 months
+//   Brij Vatika (E Block) → 40 months
 // ─────────────────────────────────────────────────────────────────────────────
 const projects = [
   {
@@ -28,10 +37,10 @@ const projects = [
     highlight: true,
     tagline: 'Divine Living Near Sacred Temple',
     sizes: ['100', '150', '200', '250'],
-    // rate ₹7,525 × 100 = ₹7,52,500
+    // rate ₹7,525 × 100 sq yd = ₹7,52,500  |  70% ÷ 60 months = ₹8,780/mo
     startingPrice: '₹7.52 Lakhs',
-    // (7,52,500 × 0.70) / 12 = ₹43,896
-    emi: '₹43,896/month',
+    emi: '₹8,780/month',
+    emiMonths: 60,
     amenities: ['Temple Proximity', 'Gated Security', 'Wide Roads', '24/7 Water'],
     status: 'Limited Plots Available',
     description: 'Experience spiritual living near the revered Khatu Shyam Temple'
@@ -46,10 +55,10 @@ const projects = [
     highlight: true,
     tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['100', '150', '200', '300'],
-    // rate ₹7,525 × 100 = ₹7,52,500
+    // rate ₹7,525 × 100 sq yd = ₹7,52,500  |  70% ÷ 60 months = ₹8,780/mo
     startingPrice: '₹7.52 Lakhs',
-    // (7,52,500 × 0.70) / 12 = ₹43,896
-    emi: '₹43,896/month',
+    emi: '₹8,780/month',
+    emiMonths: 60,
     amenities: ['RERA Approved', 'Park', 'Street Lights', 'Underground Wiring'],
     status: 'Best Seller',
     description: 'Live in the divine aura of Vrindavan with modern amenities'
@@ -62,10 +71,10 @@ const projects = [
     location: 'Mathura-Vrindavan Road',
     tagline: 'Serene Living Amidst Nature',
     sizes: ['100', '150', '200'],
-    // rate ₹10,025 × 100 = ₹10,02,500
+    // rate ₹10,025 × 100 sq yd = ₹10,02,500  |  70% ÷ 24 months = ₹29,240/mo
     startingPrice: '₹10.02 Lakhs',
-    // (10,02,500 × 0.70) / 12 = ₹58,479
-    emi: '₹58,479/month',
+    emi: '₹29,240/month',
+    emiMonths: 24,
     amenities: ['Green Spaces', 'Community Hall', 'Children Park', 'Security'],
     status: 'Available'
   },
@@ -77,10 +86,10 @@ const projects = [
     location: 'Semri, Mathura',
     tagline: 'Premium Plots with High Appreciation',
     sizes: ['100', '125', '150', '200'],
-    // rate ₹15,525 × 100 = ₹15,52,500
+    // rate ₹15,525 × 100 sq yd = ₹15,52,500  |  70% ÷ 24 months = ₹45,282/mo
     startingPrice: '₹15.52 Lakhs',
-    // (15,52,500 × 0.70) / 12 = ₹90,563
-    emi: '₹90,563/month',
+    emi: '₹45,282/month',
+    emiMonths: 24,
     amenities: ['Basic Infrastructure', 'Road Access', 'Electricity', 'Water Supply'],
     status: 'New Launch'
   },
@@ -92,10 +101,10 @@ const projects = [
     location: 'Vrindavan Highway',
     tagline: 'Sacred Plots for Sacred Living',
     sizes: ['150', '200', '250'],
-    // rate ₹8,025 × 100 = ₹8,02,500
+    // rate ₹8,025 × 100 sq yd = ₹8,02,500  |  70% ÷ 54 months = ₹10,403/mo
     startingPrice: '₹8.02 Lakhs',
-    // (8,02,500 × 0.70) / 12 = ₹46,813
-    emi: '₹46,813/month',
+    emi: '₹10,403/month',
+    emiMonths: 54,
     amenities: ['Temple View', 'Wide Plots', 'Paved Roads', 'Boundary Wall'],
     status: 'Available'
   },
@@ -107,10 +116,10 @@ const projects = [
     location: 'Braj Bhoomi, Vrindavan',
     tagline: 'Live in Lord Krishna\'s Land',
     sizes: ['100', '150', '200', '250', '300'],
-    // rate ₹15,525 × 100 = ₹15,52,500
+    // rate ₹15,525 × 100 sq yd = ₹15,52,500  |  70% ÷ 40 months = ₹27,169/mo
     startingPrice: '₹15.52 Lakhs',
-    // (15,52,500 × 0.70) / 12 = ₹90,563
-    emi: '₹90,563/month',
+    emi: '₹27,169/month',
+    emiMonths: 40,
     amenities: ['Garden', 'Kids Play Area', 'Street Lights', 'Gated Entry'],
     status: 'Available'
   }
@@ -204,7 +213,6 @@ const HomePage = ({ onBookSiteVisit }) => {
 
       {/* Hero Slider Section */}
       <section className="relative h-[600px] md:h-[700px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
-        {/* Slides */}
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSlide}
@@ -214,13 +222,9 @@ const HomePage = ({ onBookSiteVisit }) => {
             transition={{ duration: 0.5 }}
             className="absolute inset-0"
           >
-            {/* Slide Background */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
-            
-            {/* Slide Content - CENTER ALIGNED */}
             <div className="relative h-full container mx-auto px-4 flex items-center justify-center">
               <div className="w-full max-w-4xl text-white text-center">
-                {/* Elegant Fanbe Group Branding - Centered */}
                 <motion.div
                   initial={{ y: -20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -228,20 +232,16 @@ const HomePage = ({ onBookSiteVisit }) => {
                   className="mb-6 md:mb-8"
                 >
                   <div className="flex items-center justify-center gap-3 md:gap-4 mb-4">
-                    {/* Building Icon Circle */}
                     <div className="w-14 h-14 md:w-20 md:h-20 bg-[#D4AF37] rounded-full flex items-center justify-center flex-shrink-0 shadow-2xl">
                       <Building className="w-7 h-7 md:w-10 md:h-10 text-[#0F3A5F]" />
                     </div>
                   </div>
-                  {/* Fanbe Group Text - Elegant & Centered */}
                   <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-wide leading-tight mb-2">
                     <span className="text-[#D4AF37]">Fanbe</span> <span className="text-white">Group</span>
                   </h1>
-                  {/* Since 2012 - Subtle, smaller */}
                   <p className="text-sm md:text-base text-gray-300 font-light">Since 2012</p>
                 </motion.div>
 
-                {/* Slide Title */}
                 <motion.h2
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -260,7 +260,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                   {slides[currentSlide].subtitle}
                 </motion.p>
 
-                {/* Slide Points */}
                 {slides[currentSlide].points && (
                   <motion.ul
                     initial={{ y: 20, opacity: 0 }}
@@ -288,7 +287,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                   </motion.p>
                 )}
 
-                {/* CTAs - Centered */}
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -316,21 +314,13 @@ const HomePage = ({ onBookSiteVisit }) => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Slider Controls */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"
-        >
+        <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10">
           <ChevronLeft className="w-6 h-6 text-white" />
         </button>
-        <button
-          onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"
-        >
+        <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10">
           <ChevronRight className="w-6 h-6 text-white" />
         </button>
 
-        {/* Slider Indicators */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
             <button
@@ -371,24 +361,16 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* Featured Projects - Khatu Shyam & Kunj Bihari */}
+      {/* Featured Projects */}
       <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">
                 ⭐ Featured Projects
               </span>
-              <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">
-                Premium Spiritual Living
-              </h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Experience divine living in our flagship projects
-              </p>
+              <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">Premium Spiritual Living</h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Experience divine living in our flagship projects</p>
             </motion.div>
           </div>
 
@@ -402,7 +384,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                 transition={{ delay: idx * 0.2 }}
                 className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all"
               >
-                {/* Best Seller Badge */}
                 {project.status && (
                   <div className="absolute top-4 right-4 z-10">
                     <span className="bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black px-4 py-2 rounded-full text-sm font-bold shadow-lg">
@@ -411,62 +392,49 @@ const HomePage = ({ onBookSiteVisit }) => {
                   </div>
                 )}
 
-                {/* Project Logo */}
                 <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 flex items-center justify-center min-h-[280px]">
-                  <img 
-                    src={project.logo} 
-                    alt={project.nameEn}
-                    className="max-w-full max-h-[250px] object-contain drop-shadow-2xl group-hover:scale-105 transition-transform"
-                  />
+                  <img src={project.logo} alt={project.nameEn} className="max-w-full max-h-[250px] object-contain drop-shadow-2xl group-hover:scale-105 transition-transform" />
                 </div>
 
-                {/* Project Info */}
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-2xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
                       <p className="text-sm text-gray-600 flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {project.location}
+                        <MapPin className="w-4 h-4" />{project.location}
                       </p>
                     </div>
                   </div>
 
                   <p className="text-gray-700 mb-4 italic">"{project.tagline}"</p>
 
-                  {/* Pricing */}
                   <div className="flex items-center justify-between mb-4 p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="text-sm text-gray-600">Starting From</p>
                       <p className="text-2xl font-bold text-[#0F3A5F]">{project.startingPrice}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600">EMI From</p>
+                      <p className="text-sm text-gray-600">EMI ({project.emiMonths} months)</p>
                       <p className="text-lg font-bold text-[#D4AF37]">{project.emi}</p>
                     </div>
                   </div>
 
-                  {/* Amenities */}
                   <div className="mb-4">
                     <p className="text-sm font-semibold text-gray-700 mb-2">Key Features:</p>
                     <div className="flex flex-wrap gap-2">
                       {project.amenities.slice(0, 4).map((amenity, i) => (
-                        <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">
-                          {amenity}
-                        </span>
+                        <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">{amenity}</span>
                       ))}
                     </div>
                   </div>
 
-                  {/* CTAs */}
                   <div className="flex gap-3">
                     <Link to={`/projects/${project.id}`} className="flex-1">
                       <Button className="w-full bg-[#0F3A5F] hover:bg-[#0a2742]">
-                        View Details
-                        <ArrowRight className="ml-2 w-4 h-4" />
+                        View Details <ArrowRight className="ml-2 w-4 h-4" />
                       </Button>
                     </Link>
-                    <Button 
+                    <Button
                       variant="outline"
                       className="border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white"
                       onClick={() => window.open('https://wa.me/918076146988', '_blank')}
@@ -487,17 +455,9 @@ const HomePage = ({ onBookSiteVisit }) => {
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <h2 className="text-4xl font-bold text-[#0F3A5F] mb-4">
-                All Our Projects
-              </h2>
-              <p className="text-xl text-gray-600">
-                Explore premium plotted developments across sacred locations
-              </p>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <h2 className="text-4xl font-bold text-[#0F3A5F] mb-4">All Our Projects</h2>
+              <p className="text-xl text-gray-600">Explore premium plotted developments across sacred locations</p>
             </motion.div>
           </div>
 
@@ -511,11 +471,10 @@ const HomePage = ({ onBookSiteVisit }) => {
                 transition={{ delay: idx * 0.1 }}
                 className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
               >
-                {/* Logo Container */}
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#0F3A5F]/5 to-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <img 
-                    src={project.logo} 
+                  <img
+                    src={project.logo}
                     alt={project.nameEn}
                     className="max-w-full max-h-[180px] object-contain drop-shadow-lg group-hover:scale-110 transition-transform relative z-10"
                   />
@@ -526,15 +485,13 @@ const HomePage = ({ onBookSiteVisit }) => {
                   )}
                 </div>
 
-                {/* Content */}
                 <div className="p-5">
                   <h3 className="text-xl font-bold text-[#0F3A5F] mb-2">{project.nameEn}</h3>
                   <p className="text-sm text-gray-600 mb-3 flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {project.location}
+                    <MapPin className="w-4 h-4" />{project.location}
                   </p>
 
-                  <div className="flex items-center justify-between mb-3 text-sm">
+                  <div className="flex items-center justify-between mb-1 text-sm">
                     <div>
                       <span className="text-gray-600">From </span>
                       <span className="font-bold text-[#0F3A5F]">{project.startingPrice}</span>
@@ -544,11 +501,11 @@ const HomePage = ({ onBookSiteVisit }) => {
                       <span className="font-semibold text-[#D4AF37]">{project.emi}</span>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-400 text-right mb-3">{project.emiMonths}-month plan · 0% interest</p>
 
                   <Link to={`/projects/${project.id}`}>
                     <Button className="w-full bg-[#0F3A5F] hover:bg-[#0a2742]">
-                      View Details
-                      <ChevronRight className="ml-2 w-4 h-4" />
+                      View Details <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
                   </Link>
                 </div>
@@ -566,32 +523,24 @@ const HomePage = ({ onBookSiteVisit }) => {
       {/* Contact CTA */}
       <section className="py-20 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white">
         <div className="container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
             <h2 className="text-4xl font-bold mb-4">Ready to Invest in Your Dream Plot?</h2>
-            <p className="text-xl mb-8 text-gray-200">
-              Schedule a site visit or talk to our property experts today
-            </p>
+            <p className="text-xl mb-8 text-gray-200">Schedule a site visit or talk to our property experts today</p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button 
+              <Button
                 size="lg"
                 className="bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-lg px-8"
                 onClick={() => onBookSiteVisit?.()}
               >
-                <Calendar className="mr-2" />
-                Book Site Visit
+                <Calendar className="mr-2" /> Book Site Visit
               </Button>
-              <Button 
+              <Button
                 size="lg"
                 variant="outline"
                 className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8"
                 onClick={() => window.open('tel:+918076146988')}
               >
-                <Phone className="mr-2" />
-                Call Us Now
+                <Phone className="mr-2" /> Call Us Now
               </Button>
             </div>
           </motion.div>

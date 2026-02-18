@@ -14,8 +14,16 @@ const fmtL = (n) => {
   return `\u20b9${fmt(n)}`;
 };
 
+// Returns the EMI for a given project at 50 sq yd (starting price)
+const getStartingEmi = (p) => {
+  const total   = p.pricing.pricePerSqYdNum * 50;
+  const booking = Math.round(total * (p.pricing.bookingPct || 0.10));
+  const balance = total - booking;
+  return Math.ceil(balance / (p.pricing.emiMonths || 60));
+};
+
 const PRESET_SIZES = [50, 100, 150, 200, 250];
-const ROI_PCT      = 0.15; // 15% annual appreciation estimate
+const ROI_PCT      = 0.15;
 
 // ── Breakdown Modal ────────────────────────────────────────────────────────
 const BreakdownModal = ({ isOpen, onClose, data }) => {
@@ -33,13 +41,13 @@ const BreakdownModal = ({ isOpen, onClose, data }) => {
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
           <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800 font-medium">
-            {project} \u2014 {sqyd} sq yd plot
+            {project} — {sqyd} sq yd plot
           </div>
 
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <span className="text-sm text-gray-600">Total Plot Cost</span>
-              <span className="font-bold text-[#0F3A5F]">\u20b9{fmt(totalCost)}</span>
+              <span className="font-bold text-[#0F3A5F]">₹{fmt(totalCost)}</span>
             </div>
             <div className="relative">
               <div className="absolute left-5 top-0 h-full w-px bg-gray-200" />
@@ -47,23 +55,23 @@ const BreakdownModal = ({ isOpen, onClose, data }) => {
                 <div className="flex justify-between items-center p-3 bg-amber-50 border border-amber-100 rounded-lg">
                   <div>
                     <p className="text-sm font-semibold text-amber-800">Booking Amount ({bookingPctDisplay})</p>
-                    <p className="text-xs text-amber-600">Pay at booking \u2014 registry starts after this</p>
+                    <p className="text-xs text-amber-600">Pay at booking — registry starts after this</p>
                   </div>
-                  <span className="font-bold text-amber-700">\u20b9{fmt(booking)}</span>
+                  <span className="font-bold text-amber-700">₹{fmt(booking)}</span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-green-50 border border-green-100 rounded-lg">
                   <div>
-                    <p className="text-sm font-semibold text-green-800">Remaining ({(100 - parseFloat(bookingPctDisplay))}%)</p>
+                    <p className="text-sm font-semibold text-green-800">Remaining Balance</p>
                     <p className="text-xs text-green-600">Split into {emiMonths} interest-free EMIs</p>
                   </div>
-                  <span className="font-bold text-green-700">\u20b9{fmt(remaining)}</span>
+                  <span className="font-bold text-green-700">₹{fmt(remaining)}</span>
                 </div>
               </div>
             </div>
             <div className="flex justify-between items-center p-4 bg-[#0F3A5F] text-white rounded-xl">
               <div>
                 <p className="text-xs text-blue-200">Monthly EMI (for {emiMonths} months)</p>
-                <p className="text-2xl font-bold">\u20b9{fmt(emi)}</p>
+                <p className="text-2xl font-bold">₹{fmt(emi)}</p>
               </div>
               <span className="text-xs bg-white/20 px-2 py-1 rounded-full">0% Interest</span>
             </div>
@@ -89,7 +97,7 @@ const BreakdownModal = ({ isOpen, onClose, data }) => {
             {[
               `Registry starts after ${bookingPctDisplay} booking payment`,
               'All installments are 100% interest-free',
-              'No hidden charges \u2014 transparent pricing',
+              'No hidden charges — transparent pricing',
               'Free site visit with pick & drop available',
             ].map((note, i) => (
               <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
@@ -128,9 +136,9 @@ const EMICalculator = ({ defaultProjectId }) => {
     [selectedProjectId]
   );
 
-  const rate         = selectedProject.pricing.pricePerSqYdNum || 0;
-  const bookingPct   = selectedProject.pricing.bookingPct     || 0.10;
-  const emiMonths    = selectedProject.pricing.emiMonths      || 60;
+  const rate              = selectedProject.pricing.pricePerSqYdNum || 0;
+  const bookingPct        = selectedProject.pricing.bookingPct      || 0.10;
+  const emiMonths         = selectedProject.pricing.emiMonths       || 60;
   const bookingPctDisplay = selectedProject.pricing.bookingPctDisplay || '10%';
 
   const calc = useMemo(() => {
@@ -162,7 +170,7 @@ const EMICalculator = ({ defaultProjectId }) => {
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">Investment Calculator</h3>
-              <p className="text-blue-200 text-xs">Instant pricing \u00b7 0% interest \u00b7 No hidden charges</p>
+              <p className="text-blue-200 text-xs">Instant pricing · 0% interest · No hidden charges</p>
             </div>
           </div>
         </div>
@@ -172,22 +180,28 @@ const EMICalculator = ({ defaultProjectId }) => {
           <div className="space-y-2">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Project</label>
             <div className="grid grid-cols-2 gap-2">
-              {projects.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedProjectId(p.id)}
-                  className={`text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
-                    selectedProjectId === p.id
-                      ? 'bg-[#0F3A5F] text-white border-[#0F3A5F] shadow-md'
-                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
-                >
-                  <div className="font-semibold truncate">{p.name}</div>
-                  <div className={`text-[10px] mt-0.5 ${selectedProjectId === p.id ? 'text-blue-200' : 'text-gray-400'}`}>
-                    \u20b9{fmt(p.pricing.pricePerSqYdNum)}/sq yd \u00b7 {p.pricing.bookingPctDisplay} booking \u00b7 {p.pricing.emiMonths}mo
-                  </div>
-                </button>
-              ))}
+              {projects.map(p => {
+                const startEmi = getStartingEmi(p);
+                const isSelected = selectedProjectId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProjectId(p.id)}
+                    className={`text-left px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-[#0F3A5F] text-white border-[#0F3A5F] shadow-md'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    <div className="font-semibold truncate">{p.name}</div>
+                    <div className={`text-[10px] mt-0.5 font-medium ${
+                      isSelected ? 'text-[#D4AF37]' : 'text-green-600'
+                    }`}>
+                      EMI from ₹{fmt(startEmi)}/mo
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -228,18 +242,18 @@ const EMICalculator = ({ defaultProjectId }) => {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-[#0F3A5F] rounded-xl p-4 text-white col-span-2">
               <p className="text-xs text-blue-200 mb-1">Total Plot Cost</p>
-              <p className="text-3xl font-extrabold tracking-tight">\u20b9{fmt(calc.totalCost)}</p>
-              <p className="text-xs text-blue-300 mt-1">{sqyd} sq yd \u00d7 \u20b9{fmt(rate)}/sq yd</p>
+              <p className="text-3xl font-extrabold tracking-tight">₹{fmt(calc.totalCost)}</p>
+              <p className="text-xs text-blue-300 mt-1">{sqyd} sq yd × ₹{fmt(rate)}/sq yd</p>
             </div>
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
               <p className="text-xs text-amber-600 font-medium mb-1">Booking ({bookingPctDisplay})</p>
-              <p className="text-xl font-bold text-amber-700">\u20b9{fmt(calc.booking)}</p>
+              <p className="text-xl font-bold text-amber-700">₹{fmt(calc.booking)}</p>
               <p className="text-[10px] text-amber-500 mt-1">Pay to start registry</p>
             </div>
             <div className="bg-green-50 border border-green-100 rounded-xl p-4">
               <p className="text-xs text-green-600 font-medium mb-1">Monthly EMI</p>
-              <p className="text-xl font-bold text-green-700">\u20b9{fmt(calc.emi)}</p>
-              <p className="text-[10px] text-green-500 mt-1">{emiMonths} months \u00b7 0% interest</p>
+              <p className="text-xl font-bold text-green-700">₹{fmt(calc.emi)}</p>
+              <p className="text-[10px] text-green-500 mt-1">{emiMonths} months · 0% interest</p>
             </div>
           </div>
 
@@ -260,9 +274,11 @@ const EMICalculator = ({ defaultProjectId }) => {
             <Button variant="outline" className="flex-1 gap-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-blue-50" onClick={() => setShowBreakdown(true)}>
               <Info size={15} /> Full Breakdown
             </Button>
-            <Button className="flex-1 gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold"
-              onClick={() => window.open(`https://wa.me/918076146988?text=Hi%2C%20I%27m%20interested%20in%20${sqyd}%20sq%20yd%20plot%20at%20${encodeURIComponent(selectedProject.name)}.%20Total%3A%20%E2%82%B9${fmt(calc.totalCost)}`, '_blank')}>
-              Book Now
+            <Button
+              className="flex-1 gap-2 bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+              onClick={() => window.open(`https://wa.me/918076146988?text=Hi%2C%20I%27m%20interested%20in%20${sqyd}%20sq%20yd%20plot%20at%20${encodeURIComponent(selectedProject.name)}.%20Total%3A%20%E2%82%B9${fmt(calc.totalCost)}`, '_blank')}
+            >
+              ✨ Book Now
             </Button>
           </div>
         </div>

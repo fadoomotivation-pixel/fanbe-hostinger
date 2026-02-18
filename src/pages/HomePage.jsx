@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, ArrowRight 
+  CheckCircle, Phone, MapPin, Star, ArrowRight, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -15,7 +15,7 @@ import { useWhatsApp } from '@/lib/useWhatsApp';
 // ─────────────────────────────────────────────────────────────────────────────
 // Project data — RATES, BOOKING % & EMI DURATIONS — Feb 2026
 //
-// Base plot: 50 sq yd  |  Formula: EMI = ceil((total - booking) / months)
+// Base plot: 50 sq yd  |  Formula: EMI = ceil((total − booking) / months)
 //
 // Project                  Rate      Booking%  Months
 // Shree Kunj Bihari        ₹7,525    10%       60
@@ -36,7 +36,6 @@ const projects = [
     highlight: true,
     tagline: 'Divine Living Near Sacred Temple',
     sizes: ['50', '100', '150', '200', '250'],
-    // rate ₹7,525 × 50 sq yd = ₹3,76,250 | booking 10% = ₹37,625 | balance ÷ 60 mo = ₹5,644/mo
     startingPrice: '\u20b93.76 Lakhs',
     bookingAmt: '\u20b937,625 (10%)',
     emi: '\u20b95,644/month',
@@ -56,7 +55,6 @@ const projects = [
     highlight: true,
     tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['50', '100', '150', '200', '300'],
-    // rate ₹7,525 × 50 sq yd = ₹3,76,250 | booking 10% = ₹37,625 | balance ÷ 60 mo = ₹5,644/mo
     startingPrice: '\u20b93.76 Lakhs',
     bookingAmt: '\u20b937,625 (10%)',
     emi: '\u20b95,644/month',
@@ -74,7 +72,6 @@ const projects = [
     location: 'Mathura-Vrindavan Road',
     tagline: 'Serene Living Amidst Nature',
     sizes: ['50', '100', '150', '200'],
-    // rate ₹10,025 × 50 sq yd = ₹5,01,250 | booking 35% = ₹1,75,438 | balance ÷ 24 mo = ₹13,576/mo
     startingPrice: '\u20b95.01 Lakhs',
     bookingAmt: '\u20b91,75,438 (35%)',
     emi: '\u20b913,576/month',
@@ -91,7 +88,6 @@ const projects = [
     location: 'Semri, Mathura',
     tagline: 'Premium Plots with High Appreciation',
     sizes: ['50', '100', '125', '150', '200'],
-    // rate ₹15,525 × 50 sq yd = ₹7,76,250 | booking 35% = ₹2,71,688 | balance ÷ 24 mo = ₹21,024/mo
     startingPrice: '\u20b97.76 Lakhs',
     bookingAmt: '\u20b92,71,688 (35%)',
     emi: '\u20b921,024/month',
@@ -108,7 +104,6 @@ const projects = [
     location: 'Vrindavan Highway',
     tagline: 'Sacred Plots for Sacred Living',
     sizes: ['50', '100', '150', '200', '250'],
-    // rate ₹8,025 × 50 sq yd = ₹4,01,250 | booking 12.5% = ₹50,156 | balance ÷ 54 mo = ₹6,502/mo
     startingPrice: '\u20b94.01 Lakhs',
     bookingAmt: '\u20b950,156 (12.5%)',
     emi: '\u20b96,502/month',
@@ -125,7 +120,6 @@ const projects = [
     location: 'Braj Bhoomi, Vrindavan',
     tagline: 'Live in Lord Krishna\'s Land',
     sizes: ['50', '100', '150', '200', '250', '300'],
-    // rate ₹15,525 × 50 sq yd = ₹7,76,250 | booking 35% = ₹2,71,688 | balance ÷ 40 mo = ₹12,615/mo
     startingPrice: '\u20b97.76 Lakhs',
     bookingAmt: '\u20b92,71,688 (35%)',
     emi: '\u20b912,615/month',
@@ -333,16 +327,16 @@ const HomePage = ({ onBookSiteVisit }) => {
                       <p className="text-lg font-bold text-green-600">{project.emi}</p>
                     </div>
                   </div>
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-2">
-                      {project.amenities.slice(0, 4).map((amenity, i) => (
-                        <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">{amenity}</span>
-                      ))}
-                    </div>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {project.amenities.slice(0, 4).map((amenity, i) => (
+                      <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">{amenity}</span>
+                    ))}
                   </div>
                   <div className="flex gap-3">
                     <Link to={`/projects/${project.id}`} className="flex-1">
-                      <Button className="w-full bg-[#0F3A5F] hover:bg-[#0a2742]">View Details <ArrowRight className="ml-2 w-4 h-4" /></Button>
+                      <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
+                        \u2728 View Details <ArrowRight className="ml-2 w-4 h-4" />
+                      </Button>
                     </Link>
                     <Button variant="outline" className="border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -380,9 +374,11 @@ const HomePage = ({ onBookSiteVisit }) => {
                     <div><span className="text-gray-600">EMI </span><span className="font-semibold text-green-600">{project.emi}</span></div>
                   </div>
                   <p className="text-xs text-gray-400 mb-1">Booking: <span className="font-medium text-amber-600">{project.bookingAmt}</span></p>
-                  <p className="text-xs text-gray-400 text-right mb-3">{project.emiMonths}-month plan \u00b7 0% interest</p>
+                  <p className="text-xs text-gray-400 text-right mb-4">{project.emiMonths}-month plan \u00b7 0% interest</p>
                   <Link to={`/projects/${project.id}`}>
-                    <Button className="w-full bg-[#0F3A5F] hover:bg-[#0a2742]">View Details <ChevronRight className="ml-2 w-4 h-4" /></Button>
+                    <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
+                      \u2728 View Details <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
                   </Link>
                 </div>
               </motion.div>

@@ -1,3 +1,11 @@
+// ✅ RATES UPDATED — Feb 2026
+// Shree Jagannath Dham       → ₹8,025/sq yd
+// Shree Gokul Vatika         → ₹10,025/sq yd
+// Brij Vatika (E Block)      → ₹15,525/sq yd
+// Maa Semri Vatika           → ₹15,525/sq yd
+// Shree Kunj Bihari Enclave  → ₹7,525/sq yd
+// Shree Khatu Shyam Ji       → ₹7,525/sq yd
+
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
@@ -14,8 +22,9 @@ const projects = [
       'Green Park & Garden'
     ],
     pricing: {
-      startingPrice: '₹15,00,000',
-      pricePerSqYd: '₹12,000',
+      startingPrice: '₹7,52,500',
+      pricePerSqYd: '₹7,525',
+      pricePerSqYdNum: 7525,
       plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd', '250 sq yd']
     },
     amenities: [
@@ -69,8 +78,9 @@ const projects = [
       'Investment & Residential Both'
     ],
     pricing: {
-      startingPrice: '₹12,00,000',
-      pricePerSqYd: '₹10,000',
+      startingPrice: '₹7,52,500',
+      pricePerSqYd: '₹7,525',
+      pricePerSqYdNum: 7525,
       plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd']
     },
     amenities: [
@@ -117,9 +127,10 @@ const projects = [
       'Peaceful Environment'
     ],
     pricing: {
-      startingPrice: '₹18,00,000',
-      pricePerSqYd: '₹14,000',
-      plotSizes: ['120 sq yd', '180 sq yd', '240 sq yd', '300 sq yd']
+      startingPrice: '₹8,02,500',
+      pricePerSqYd: '₹8,025',
+      pricePerSqYdNum: 8025,
+      plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd', '250 sq yd']
     },
     amenities: [
       'Wide Roads - 40ft & 60ft',
@@ -158,10 +169,10 @@ const projects = [
   },
   {
     id: 'brij-vatika',
-    name: 'Brij Vatika',
+    name: 'Brij Vatika (E Block)',
     location: 'Braj Region, Uttar Pradesh',
-    shortDescription: 'Serene living in the heart of Braj',
-    description: 'Brij Vatika offers you a chance to own a piece of the sacred Braj region. With modern amenities and traditional values, this project is ideal for both living and investment.',
+    shortDescription: 'Premium E Block plots in the heart of Braj',
+    description: 'Brij Vatika E Block offers you a chance to own a piece of the sacred Braj region. With modern amenities and traditional values, this project is ideal for both living and investment.',
     highlights: [
       'Located in Sacred Braj Region',
       'Fully Developed Infrastructure',
@@ -171,8 +182,9 @@ const projects = [
       'Direct from Developer'
     ],
     pricing: {
-      startingPrice: '₹13,50,000',
-      pricePerSqYd: '₹11,000',
+      startingPrice: '₹15,52,500',
+      pricePerSqYd: '₹15,525',
+      pricePerSqYdNum: 15525,
       plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd', '250 sq yd']
     },
     amenities: [
@@ -219,9 +231,10 @@ const projects = [
       'High ROI Potential'
     ],
     pricing: {
-      startingPrice: '₹16,00,000',
-      pricePerSqYd: '₹13,000',
-      plotSizes: ['120 sq yd', '160 sq yd', '200 sq yd', '240 sq yd']
+      startingPrice: '₹10,02,500',
+      pricePerSqYd: '₹10,025',
+      pricePerSqYdNum: 10025,
+      plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd', '250 sq yd']
     },
     amenities: [
       '60ft Wide Main Road',
@@ -263,10 +276,10 @@ const projects = [
     id: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
     location: 'Near Mathura, Uttar Pradesh',
-    shortDescription: 'Affordable plots with premium amenities',
-    description: 'Maa Semri Vatika offers affordable residential plots without compromising on quality and amenities. Perfect for first-time buyers and investors looking for value appreciation.',
+    shortDescription: 'Premium plots with high appreciation potential',
+    description: 'Maa Semri Vatika offers premium residential plots with excellent value appreciation potential. Perfect for first-time buyers and investors looking for strong ROI in the Mathura region.',
     highlights: [
-      'Most Affordable Project',
+      'High Appreciation Zone',
       'Near NH-2 Connectivity',
       'Approved by Local Authority',
       'Transparent Pricing',
@@ -274,8 +287,9 @@ const projects = [
       'Quick Registry Process'
     ],
     pricing: {
-      startingPrice: '₹10,00,000',
-      pricePerSqYd: '₹8,500',
+      startingPrice: '₹15,52,500',
+      pricePerSqYd: '₹15,525',
+      pricePerSqYdNum: 15525,
       plotSizes: ['100 sq yd', '150 sq yd', '200 sq yd']
     },
     amenities: [

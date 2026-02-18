@@ -1,14 +1,12 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initializeData } from '@/lib/dataInitializer';
-import { 
-  login as firebaseLogin, 
-  logout as firebaseLogout,
-  getCurrentUser,
-  isAuthenticated as checkAuth
-} from '@/lib/authUtilsFirebase';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import {
+  login as supabaseLogin,
+  logout as supabaseLogout,
+  getUserDetails,
+} from '@/lib/authUtilsSupabase';
+import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 
@@ -16,60 +14,77 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize Data & Listen to Auth State
+  // Initialize local data & listen to Supabase auth state changes
   useEffect(() => {
-    // Ensure basic data exists
     initializeData();
 
-    // Listen to Firebase auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in
-        console.log('[Auth] Firebase user detected:', firebaseUser.email);
-        
-        // Get user details from Firestore
+    // Check for an existing session on mount
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        console.log('[Auth] Existing session found:', session.user.email);
         try {
-          const userDetails = await import('@/lib/authUtilsFirebase').then(m => 
-            m.getUserDetails(firebaseUser.uid)
-          );
-          
-          if (userDetails) {
-            const sessionUser = {
-              id: firebaseUser.uid,
-              username: userDetails.username,
-              name: userDetails.name,
-              email: userDetails.email,
-              role: userDetails.role,
-              permissions: userDetails.permissions || [],
-              lastLogin: new Date().toISOString()
-            };
-            
-            setUser(sessionUser);
-            console.log('[Auth] User session restored:', sessionUser.name);
+          const profile = await getUserDetails(session.user.id);
+          if (profile) {
+            setUser({
+              id: session.user.id,
+              username: profile.username,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role,
+              permissions: profile.permissions || [],
+              lastLogin: profile.last_login || new Date().toISOString(),
+            });
+            console.log('[Auth] Session restored:', profile.name);
           }
         } catch (error) {
-          console.error('[Auth] Error loading user details:', error);
+          console.error('[Auth] Error loading user profile:', error);
           setUser(null);
         }
-      } else {
-        // User is signed out
-        setUser(null);
-        console.log('[Auth] No user signed in');
       }
-      
       setLoading(false);
     });
 
-    // Cleanup subscription
-    return () => unsubscribe();
+    // Listen to future auth state changes (login / logout / token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[Auth] State change:', event);
+
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          try {
+            const profile = await getUserDetails(session.user.id);
+            if (profile) {
+              setUser({
+                id: session.user.id,
+                username: profile.username,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role,
+                permissions: profile.permissions || [],
+                lastLogin: profile.last_login || new Date().toISOString(),
+              });
+            }
+          } catch (error) {
+            console.error('[Auth] Error loading profile on state change:', error);
+            setUser(null);
+          }
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Session Timeout Logic (optional, keep for extra security)
+  // 30-minute inactivity session timeout
   useEffect(() => {
     if (!user) return;
 
     let timeoutId;
-    const timeoutDuration = 30 * 60 * 1000; // 30 minutes
+    const timeoutDuration = 30 * 60 * 1000;
 
     const resetTimer = () => {
       clearTimeout(timeoutId);
@@ -90,16 +105,13 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   const login = async (usernameOrEmail, password) => {
-    console.log(`[Auth] Attempting Firebase login for: ${usernameOrEmail}`);
-    
+    console.log(`[Auth] Attempting Supabase login for: ${usernameOrEmail}`);
     try {
-      const result = await firebaseLogin(usernameOrEmail, password);
-      
+      const result = await supabaseLogin(usernameOrEmail, password);
       if (result.success) {
         setUser(result.user);
         console.log(`[Auth] Login successful for ${result.user.name} (${result.user.role})`);
       }
-      
       return result;
     } catch (error) {
       console.error('[Auth] Login error:', error);
@@ -109,18 +121,18 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     console.log('[Auth] Logging out user');
-    await firebaseLogout();
+    await supabaseLogout();
     setUser(null);
     window.location.href = '/crm/login';
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
-      logout, 
-      loading, 
-      isAuthenticated: !!user 
+    <AuthContext.Provider value={{
+      user,
+      login,
+      logout,
+      loading,
+      isAuthenticated: !!user,
     }}>
       {!loading && children}
     </AuthContext.Provider>

@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Lock, User, Key, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { ROLES } from '@/lib/permissions';
-import { initializeUserDatabase } from '@/lib/authUtils';
 
 const CRMLogin = () => {
   const [username, setUsername] = useState('');
@@ -21,8 +20,6 @@ const CRMLogin = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    initializeUserDatabase();
-    
     // Redirect if already authenticated
     if (isAuthenticated && user) {
        handleRedirect(user.role);
@@ -79,12 +76,8 @@ const CRMLogin = () => {
         toast({ title: 'Login Failed', description: result.message || 'Login failed', variant: 'destructive' });
       }
     } catch (err) {
-<<<<<<< HEAD
-      setError('Login failed. Please try again.');
-=======
       console.error('[Login] Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
->>>>>>> origin/claude/resolve-outstanding-issue-zhhf4
       toast({ title: 'Login Failed', description: 'An unexpected error occurred.', variant: 'destructive' });
     } finally {
       setIsLoading(false);

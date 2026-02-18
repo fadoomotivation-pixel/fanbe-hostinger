@@ -269,11 +269,8 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* EMI Calculator - MOVED UP */}
-      <div className="bg-gray-50"><EMICalculatorSection /></div>
-
-      {/* Featured Projects - MOVED DOWN */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      {/* Featured Projects */}
+      <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
@@ -390,6 +387,9 @@ const HomePage = ({ onBookSiteVisit }) => {
           </div>
         </div>
       </section>
+
+      {/* EMI Calculator - MOVED AFTER ALL PROJECTS */}
+      <div className="bg-gray-50"><EMICalculatorSection /></div>
 
       {/* Contact CTA */}
       <section className="py-20 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white">

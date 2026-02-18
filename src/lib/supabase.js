@@ -3,16 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://mfgjzkaabyltscgrkhdz.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZ2p6a2FhYnlsdHNjZ3JraGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDAzNjQsImV4cCI6MjA4NjkxNjM2NH0.V6uWBH72rgp0UEFdB9aT8qrG4YFYhnERWZO1t976_tM';
+const supabaseServiceRoleKey =
+  import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZ2p6a2FhYnlsdHNjZ3JraGR6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTM0MDM2NCwiZXhwIjoyMDg2OTE2MzY0fQ.WaQ9h3ea_5KiLQfTZH8EmHhl4OJJ_lT1oM-PzvW1dMI';
 
-// Primary Supabase client (admin session)
+// Primary Supabase client (uses anon key, respects RLS)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Secondary Supabase client for creating new users without disrupting admin session.
-// createUserWithSignUp auto-signs-in the new user, so we use a separate client
-// with its own isolated storage to keep the admin's auth session intact.
-export const supabaseSecondary = createClient(supabaseUrl, supabaseAnonKey, {
+// Admin client using service_role key — bypasses RLS and can call auth.admin.* APIs.
+// Never auto-signs-in or persists a session, so the logged-in admin session is unaffected.
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
-    storageKey: 'supabase_secondary_auth',
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false,

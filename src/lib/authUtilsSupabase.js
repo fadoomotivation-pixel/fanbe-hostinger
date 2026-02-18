@@ -1,6 +1,6 @@
 // src/lib/authUtilsSupabase.js
 // Supabase equivalents of all Firebase auth & user management functions.
-import { supabase, supabaseSecondary } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 
 // ==========================================
 // AUTH FUNCTIONS
@@ -148,8 +148,8 @@ export const isAuthenticated = async () => {
 
 /**
  * Add a new user.
- * Uses a secondary Supabase client so the admin session is preserved,
- * because signUp() auto-signs-in the newly created user.
+ * Uses supabaseAdmin (service_role key) so the admin session is preserved and
+ * email confirmation is skipped automatically — no secondary client workaround needed.
  */
 export const addUser = async (userData) => {
   try {
@@ -166,23 +166,22 @@ export const addUser = async (userData) => {
       return { success: false, message: 'Username already exists' };
     }
 
-    // Step 1: Create the auth user via the SECONDARY client
-    // This keeps the admin's primary session untouched.
-    const { data: authData, error: signUpError } = await supabaseSecondary.auth.signUp({
+    // Step 1: Create the auth user via the admin API (service_role key).
+    // admin.createUser() never auto-signs-in the new user, so the admin
+    // session on the primary client remains completely untouched.
+    const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: userData.email,
       password: userData.password,
-      options: {
-        // Skip email confirmation so the account is immediately usable
-        data: { username: userData.username.toLowerCase() },
-      },
+      email_confirm: true, // skip email confirmation — account is immediately usable
+      user_metadata: { username: userData.username.toLowerCase() },
     });
 
-    if (signUpError) {
-      console.error('[Supabase] SignUp error:', signUpError);
-      if (signUpError.message.includes('already registered')) {
+    if (createError) {
+      console.error('[Supabase] admin.createUser error:', createError);
+      if (createError.message.includes('already registered')) {
         return { success: false, message: 'Email already in use' };
       }
-      return { success: false, message: signUpError.message };
+      return { success: false, message: createError.message };
     }
 
     if (!authData.user) {
@@ -217,11 +216,6 @@ export const addUser = async (userData) => {
       return { success: false, message: profileError.message };
     }
 
-    // Step 3: Sign out from the secondary client
-    await supabaseSecondary.auth.signOut();
-    console.log('[Supabase] New user signed out from secondary client');
-    console.log('[Supabase] Admin session preserved on primary client');
-
     return {
       success: true,
       user: profileDoc,
@@ -230,8 +224,6 @@ export const addUser = async (userData) => {
     };
   } catch (error) {
     console.error('[Supabase] Error creating user:', error);
-    try { await supabaseSecondary.auth.signOut(); } catch (_) { /* ignore */ }
-
     if (error.message?.includes('already registered')) {
       return { success: false, message: 'Email already in use' };
     }

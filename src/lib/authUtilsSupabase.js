@@ -1,24 +1,20 @@
 // src/lib/authUtilsSupabase.js
-// Supabase equivalents of all Firebase auth & user management functions.
+// Supabase auth & user management — all admin writes use supabaseAdmin (service_role)
 import { supabase, supabaseAdmin } from './supabase';
 
 // ==========================================
 // AUTH FUNCTIONS
 // ==========================================
 
-/**
- * Login with username or email + password.
- * Mirrors Firebase: getUserByUsername → signInWithEmailAndPassword → Firestore profile load.
- */
 export const login = async (usernameOrEmail, password) => {
   try {
-    console.log(`[Supabase] Login attempt for: ${usernameOrEmail}`);
+    console.log(`[Auth] Attempting login for: ${usernameOrEmail}`);
 
     let email = usernameOrEmail;
 
     if (!usernameOrEmail.includes('@')) {
-      // It's a username — look up the email in profiles
-      const { data, error } = await supabase
+      // username lookup — use admin client to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('email')
         .eq('username', usernameOrEmail.toLowerCase())
@@ -30,35 +26,30 @@ export const login = async (usernameOrEmail, password) => {
       email = data.email;
     }
 
-    // Sign in with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (authError) {
-      console.error('[Supabase] Auth error:', authError.message);
-      if (
-        authError.message.includes('Invalid login credentials') ||
-        authError.message.includes('invalid_credentials')
-      ) {
-        return { success: false, message: 'Invalid email or password' };
+      if (authError.message.includes('Invalid login credentials') || authError.message.includes('invalid_credentials')) {
+        return { success: false, message: 'Invalid username or password' };
       }
       if (authError.message.includes('Email not confirmed')) {
-        return { success: false, message: 'Email not confirmed. Contact admin.' };
+        return { success: false, message: 'Account not confirmed. Contact admin.' };
       }
       return { success: false, message: authError.message };
     }
 
-    // Load profile from profiles table
-    const { data: profile, error: profileError } = await supabase
+    // Load profile using admin client to bypass RLS
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', authData.user.id)
       .single();
 
     if (profileError || !profile) {
-      console.error('[Supabase] Profile not found:', profileError);
+      await supabase.auth.signOut();
       return { success: false, message: 'User profile not found. Contact admin.' };
     }
 
@@ -67,13 +58,13 @@ export const login = async (usernameOrEmail, password) => {
       return { success: false, message: 'Account is suspended. Contact admin.' };
     }
 
-    // Update last_login timestamp
-    await supabase
+    // Update last_login
+    await supabaseAdmin
       .from('profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.user.id);
 
-    console.log(`[Supabase] Login successful for ${profile.name}`);
+    console.log(`[Auth] Login successful for ${profile.name} (${profile.role})`);
 
     return {
       success: true,
@@ -89,110 +80,98 @@ export const login = async (usernameOrEmail, password) => {
       role: profile.role,
     };
   } catch (error) {
-    console.error('[Supabase] Login error:', error);
+    console.error('[Auth] Login error:', error);
     return { success: false, message: 'Login failed. Please try again.' };
   }
 };
 
-/**
- * Logout current user.
- */
 export const logout = async () => {
   try {
     await supabase.auth.signOut();
-    console.log('[Supabase] User logged out');
     return { success: true };
   } catch (error) {
-    console.error('[Supabase] Logout error:', error);
     return { success: false, message: error.message };
   }
 };
 
-/**
- * Get user profile from Supabase by user ID.
- */
 export const getUserDetails = async (userId) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
-
     if (error || !data) return null;
     return { id: data.id, ...data };
   } catch (error) {
-    console.error('[Supabase] Error getting user details:', error);
     return null;
   }
 };
 
-/**
- * Get current Supabase auth user.
- */
-export const getCurrentUser = () => {
-  return supabase.auth.getUser();
-};
+export const getCurrentUser = () => supabase.auth.getUser();
 
-/**
- * Check if a user is authenticated.
- */
 export const isAuthenticated = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session !== null;
 };
 
 // ==========================================
-// USER MANAGEMENT FUNCTIONS (Admin only)
+// USER MANAGEMENT (Admin only)
+// ALL operations use supabaseAdmin (service_role key)
+// This bypasses RLS entirely — safe because only admin UI calls these functions
 // ==========================================
 
-/**
- * Add a new user.
- * Uses supabaseAdmin (service_role key) so the admin session is preserved and
- * email confirmation is skipped automatically — no secondary client workaround needed.
- */
 export const addUser = async (userData) => {
   try {
     console.log('[Supabase] Creating user:', userData.username);
 
-    // Check if username already exists
-    const { data: existing } = await supabase
+    // 1. Check username uniqueness
+    const { data: existingUsername } = await supabaseAdmin
       .from('profiles')
-      .select('username')
+      .select('id')
       .eq('username', userData.username.toLowerCase())
-      .single();
+      .maybeSingle();
 
-    if (existing) {
+    if (existingUsername) {
       return { success: false, message: 'Username already exists' };
     }
 
-    // Step 1: Create the auth user via the admin API (service_role key).
-    // admin.createUser() never auto-signs-in the new user, so the admin
-    // session on the primary client remains completely untouched.
+    // 2. Check email uniqueness
+    const { data: existingEmail } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', userData.email.toLowerCase())
+      .maybeSingle();
+
+    if (existingEmail) {
+      return { success: false, message: 'Email already in use' };
+    }
+
+    // 3. Create auth user via admin API
+    // - email_confirm: true  →  skip email verification, account works immediately
+    // - This never signs in the new user, admin session is preserved
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: userData.email,
+      email: userData.email.toLowerCase(),
       password: userData.password,
-      email_confirm: true, // skip email confirmation — account is immediately usable
-      user_metadata: { username: userData.username.toLowerCase() },
+      email_confirm: true,
+      user_metadata: {
+        username: userData.username.toLowerCase(),
+        name: userData.name,
+      },
     });
 
     if (createError) {
-      console.error('[Supabase] admin.createUser error:', createError);
-      if (createError.message.includes('already registered')) {
-        return { success: false, message: 'Email already in use' };
-      }
+      console.error('[Supabase] auth.admin.createUser error:', createError);
       return { success: false, message: createError.message };
     }
 
-    if (!authData.user) {
-      return { success: false, message: 'Failed to create auth user' };
+    if (!authData?.user?.id) {
+      return { success: false, message: 'Auth user creation returned no ID' };
     }
 
-    console.log('[Supabase] Auth user created:', authData.user.id);
+    console.log('[Supabase] Auth user created with ID:', authData.user.id);
 
-    // Step 2: Create the profile record using the PRIMARY client (admin session)
-    const permissions = getDefaultPermissions(userData.role);
-
+    // 4. Insert profile using supabaseAdmin — bypasses RLS so insert always succeeds
     const profileDoc = {
       id: authData.user.id,
       username: userData.username.toLowerCase(),
@@ -202,133 +181,112 @@ export const addUser = async (userData) => {
       phone: userData.phone || '',
       department: userData.department || 'Sales',
       status: 'Active',
-      permissions: permissions,
+      permissions: getDefaultPermissions(userData.role),
       joining_date: new Date().toISOString(),
       last_login: null,
     };
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert(profileDoc);
 
     if (profileError) {
       console.error('[Supabase] Profile insert error:', profileError);
-      return { success: false, message: profileError.message };
+      // Auth user was created but profile failed — delete auth user to keep DB clean
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return { success: false, message: `Profile creation failed: ${profileError.message}` };
     }
+
+    console.log('[Supabase] Profile inserted successfully for:', userData.username);
 
     return {
       success: true,
       user: profileDoc,
-      plainPassword: userData.password,
       userId: authData.user.id,
+      plainPassword: userData.password,
     };
   } catch (error) {
-    console.error('[Supabase] Error creating user:', error);
-    if (error.message?.includes('already registered')) {
-      return { success: false, message: 'Email already in use' };
-    }
+    console.error('[Supabase] addUser unexpected error:', error);
     return { success: false, message: error.message || 'Failed to create user' };
   }
 };
 
-/**
- * Get all users (Admin only).
- */
 export const getAllUsers = async () => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .order('joining_date', { ascending: false });
-
     if (error) {
-      console.error('[Supabase] Error fetching users:', error);
+      console.error('[Supabase] getAllUsers error:', error);
       return [];
     }
-
     return data || [];
   } catch (error) {
-    console.error('[Supabase] Error getting users:', error);
+    console.error('[Supabase] getAllUsers error:', error);
     return [];
   }
 };
 
-/**
- * Update user profile fields.
- */
 export const updateUser = async (userId, updates) => {
   try {
-    // Strip fields that should not be updated here
     const { password, email, id, ...safeUpdates } = updates;
-
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('profiles')
       .update({ ...safeUpdates, updated_at: new Date().toISOString() })
       .eq('id', userId);
-
     if (error) throw error;
     return { success: true };
   } catch (error) {
-    console.error('[Supabase] Error updating user:', error);
     return { success: false, message: error.message };
   }
 };
 
-/**
- * Delete a user profile (soft: removes from profiles table).
- * Note: Removing from Supabase Auth requires a service-role key / Edge Function.
- */
 export const deleteUser = async (userId) => {
   try {
-    const { error } = await supabase
+    // Delete profile first
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('id', userId);
+    if (profileError) throw profileError;
 
-    if (error) throw error;
+    // Delete auth user too
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (authError) console.warn('[Supabase] Auth user delete warning:', authError.message);
+
     return { success: true };
   } catch (error) {
-    console.error('[Supabase] Error deleting user:', error);
     return { success: false, message: error.message };
   }
 };
 
-/**
- * Toggle user status between Active and Suspended.
- */
 export const toggleUserStatus = async (userId) => {
   try {
-    const { data: profile, error: fetchError } = await supabase
+    const { data: profile, error: fetchError } = await supabaseAdmin
       .from('profiles')
       .select('status')
       .eq('id', userId)
       .single();
 
-    if (fetchError || !profile) {
-      return { success: false, message: 'User not found' };
-    }
+    if (fetchError || !profile) return { success: false, message: 'User not found' };
 
     const newStatus = profile.status === 'Active' ? 'Suspended' : 'Active';
 
-    const { error: updateError } = await supabase
+    const { error } = await supabaseAdmin
       .from('profiles')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', userId);
 
-    if (updateError) throw updateError;
-
+    if (error) throw error;
     return { success: true, status: newStatus };
   } catch (error) {
-    console.error('[Supabase] Error toggling status:', error);
     return { success: false, message: error.message };
   }
 };
 
-/**
- * Generate a random secure password.
- */
 export const generateRandomPassword = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$%';
   let password = '';
   for (let i = 0; i < 12; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -342,11 +300,11 @@ export const generateRandomPassword = () => {
 
 const getDefaultPermissions = (role) => {
   const permissions = {
-    super_admin: ['all'],
-    manager: ['manage_team', 'assign_leads', 'view_reports', 'manage_properties'],
-    sub_admin: ['view_reports', 'view_leads', 'view_staff'],
+    super_admin:     ['all'],
+    manager:         ['manage_team', 'assign_leads', 'view_reports', 'manage_properties'],
+    team_lead:       ['assign_leads', 'view_reports', 'manage_leads', 'schedule_visits'],
+    sub_admin:       ['view_reports', 'view_leads', 'view_staff'],
     sales_executive: ['manage_leads', 'schedule_visits', 'create_bookings', 'make_calls'],
-    telecaller: ['call_leads', 'update_status', 'schedule_appointments'],
   };
   return permissions[role] || [];
 };

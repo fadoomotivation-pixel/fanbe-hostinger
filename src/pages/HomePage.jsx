@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, ArrowRight
+  CheckCircle, Phone, MapPin, Star, ArrowRight, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -150,6 +150,9 @@ const slides = [
   }
 ];
 
+// Plot sizes for "Plan Your Dream Plot" section
+const plotSizes = [50, 75, 100, 125, 150, 175, 200];
+
 const HomePage = ({ onBookSiteVisit }) => {
   const { toast } = useToast();
   const { getWhatsAppLink } = useWhatsApp();
@@ -183,8 +186,6 @@ const HomePage = ({ onBookSiteVisit }) => {
     }
     setIsSubmitting(false);
   };
-
-  const featuredProjects = projects.filter(p => p.highlight);
 
   return (
     <div className="min-h-screen">
@@ -269,72 +270,8 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* Featured Projects */}
-      <section className="py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">Featured Projects</span>
-              <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">Premium Spiritual Living</h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Experience divine living in our flagship projects</p>
-            </motion.div>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {featuredProjects.map((project, idx) => (
-              <motion.div key={project.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.2 }} className="group relative bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all">
-                {project.status && (
-                  <div className="absolute top-4 right-4 z-10">
-                    <span className="bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black px-4 py-2 rounded-full text-sm font-bold shadow-lg">{project.status}</span>
-                  </div>
-                )}
-                <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 flex items-center justify-center min-h-[280px]">
-                  <img src={project.logo} alt={project.nameEn} className="max-w-full max-h-[250px] object-contain drop-shadow-2xl group-hover:scale-105 transition-transform" />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-2xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
-                  <p className="text-sm text-gray-600 flex items-center gap-1 mb-3"><MapPin className="w-4 h-4" />{project.location}</p>
-                  <p className="text-gray-700 mb-4 italic">"{project.tagline}"</p>
-                  
-                  {/* Mobile-friendly pricing - stacked layout */}
-                  <div className="space-y-2 mb-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Starting From</span>
-                      <span className="text-base font-bold text-[#0F3A5F]">{project.startingPrice}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Booking ({project.bookingPct})</span>
-                      <span className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Monthly EMI</span>
-                      <span className="text-base font-bold text-[#0F3A5F]">{project.emi}</span>
-                    </div>
-                    <div className="pt-1 border-t border-gray-200">
-                      <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {project.amenities.slice(0, 4).map((amenity, i) => (
-                      <span key={i} className="px-3 py-1 bg-[#D4AF37]/10 text-[#0F3A5F] text-xs rounded-full">{amenity}</span>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <Link to={`/projects/${project.id}`} className="flex-1">
-                      <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                        View Details <ArrowRight className="ml-2 w-4 h-4" />
-                      </Button>
-                    </Link>
-                    <Button variant="outline" className="border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    </Button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Investment Calculator */}
+      <div className="bg-gray-50"><EMICalculatorSection /></div>
 
       {/* All Projects Grid */}
       <section className="py-20 bg-white">
@@ -388,20 +325,71 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* EMI Calculator - MOVED AFTER ALL PROJECTS */}
-      <div className="bg-gray-50"><EMICalculatorSection /></div>
+      {/* Plan Your Dream Plot (50-200 sq yd) */}
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+              <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">Choose Your Plot Size</span>
+              <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">Plan Your Dream Plot</h2>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Select from 50 to 200 sq yd and start your investment journey</p>
+            </motion.div>
+          </div>
+          
+          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {plotSizes.map((size, idx) => (
+              <motion.div
+                key={size}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all border-2 border-gray-100 hover:border-[#D4AF37] cursor-pointer group text-center"
+              >
+                <div className="text-3xl font-bold text-[#0F3A5F] group-hover:text-[#D4AF37] transition-colors mb-2">{size}</div>
+                <div className="text-sm text-gray-500">Sq. Yd.</div>
+              </motion.div>
+            ))}
+          </div>
 
-      {/* Contact CTA */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            whileInView={{ opacity: 1, y: 0 }} 
+            viewport={{ once: true }}
+            className="text-center mt-10"
+          >
+            <p className="text-gray-600 mb-6">Not sure which size is right for you? Our experts can help!</p>
+            <Button 
+              size="lg" 
+              className="bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-lg px-10 py-6 shadow-xl"
+              onClick={() => window.open('https://wa.me/918076146988?text=I\'m interested in plot sizes 50-200 sq yd', '_blank')}
+            >
+              <MessageCircle className="mr-2" /> Get Expert Advice
+            </Button>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* WhatsApp + Contact CTA */}
       <section className="py-20 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white">
         <div className="container mx-auto px-4 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <h2 className="text-4xl font-bold mb-4">Ready to Invest in Your Dream Plot?</h2>
-            <p className="text-xl mb-8 text-gray-200">Schedule a site visit or talk to our property experts today</p>
+            <h2 className="text-4xl font-bold mb-4">Chat on WhatsApp or Contact Us</h2>
+            <p className="text-xl mb-8 text-gray-200">Get instant answers to all your property queries</p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button size="lg" className="bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-lg px-8" onClick={() => onBookSiteVisit?.()}>
-                <Calendar className="mr-2" /> Book Site Visit
+              <Button 
+                size="lg" 
+                className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-lg px-8 py-6 shadow-xl"
+                onClick={() => window.open('https://wa.me/918076146988', '_blank')}
+              >
+                <MessageCircle className="mr-2" /> Chat on WhatsApp
               </Button>
-              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8" onClick={() => window.open('tel:+918076146988')}>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8 py-6"
+                onClick={() => window.open('tel:+918076146988')}
+              >
                 <Phone className="mr-2" /> Call Us Now
               </Button>
             </div>

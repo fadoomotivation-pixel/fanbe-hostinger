@@ -1,15 +1,15 @@
 // src/crm/hooks/useCRMData.js
-// Leads → Supabase (supabaseAdmin bypasses RLS)
-// Everything else → localStorage (unchanged)
+// Leads    → Supabase ✅
+// Employees → Supabase profiles table ✅
+// workLogs, calls, siteVisits, etc. → localStorage (unchanged)
 import { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import {
-  sampleEmployees, sampleCustomers, sampleInvoices,
+  sampleCustomers, sampleInvoices,
   samplePayments, sampleSettings, sampleWhatsAppTemplates, sampleWorkLogs
 } from '../data/sampleData';
 
 const STORAGE_KEYS = {
-  EMPLOYEES:       'crm_employees',
   CUSTOMERS:       'crm_customers',
   INVOICES:        'crm_invoices',
   PAYMENTS:        'crm_payments',
@@ -27,11 +27,12 @@ const STORAGE_KEYS = {
 
 export const useCRMData = () => {
   // ── Supabase state ──────────────────────────────────────────
-  const [leads, setLeads]       = useState([]);
+  const [leads, setLeads]           = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
+  const [employees, setEmployees]   = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(true);
 
   // ── localStorage state ──────────────────────────────────────
-  const [employees, setEmployees]         = useState([]);
   const [customers, setCustomers]         = useState([]);
   const [invoices, setInvoices]           = useState([]);
   const [payments, setPayments]           = useState([]);
@@ -52,7 +53,6 @@ export const useCRMData = () => {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : def;
     };
-    setEmployees(get(STORAGE_KEYS.EMPLOYEES, sampleEmployees));
     setCustomers(get(STORAGE_KEYS.CUSTOMERS, sampleCustomers));
     setInvoices(get(STORAGE_KEYS.INVOICES, sampleInvoices));
     setPayments(get(STORAGE_KEYS.PAYMENTS, samplePayments));
@@ -71,6 +71,7 @@ export const useCRMData = () => {
   // ── Load leads from Supabase ─────────────────────────────────
   useEffect(() => {
     fetchLeads();
+    fetchEmployees();
   }, []);
 
   const fetchLeads = async () => {
@@ -87,7 +88,6 @@ export const useCRMData = () => {
         return;
       }
 
-      // Normalize Supabase column names → CRM field names
       const normalized = (data || []).map(row => ({
         id:               row.id,
         name:             row.full_name || '',
@@ -103,10 +103,14 @@ export const useCRMData = () => {
         siteVisitStatus:  row.site_visit_status || '',
         finalStatus:      row.final_status || 'FollowUp',
         assignedTo:       row.assigned_to  || null,
+        assignedToName:   row.assigned_to_name || null,
         createdBy:        row.created_by   || null,
         createdAt:        row.created_at,
         lastActivity:     row.updated_at,
         activityLog:      [],
+        project:          row.project || '',
+        followUpDate:     row.follow_up_date || null,
+        isVIP:            row.is_vip || false,
       }));
 
       setLeads(normalized);
@@ -119,8 +123,46 @@ export const useCRMData = () => {
     }
   };
 
-  // ── Lead CRUD — all go to Supabase ───────────────────────────
+  // ── Load employees from Supabase profiles ───────────────────
+  const fetchEmployees = async () => {
+    try {
+      setEmployeesLoading(true);
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('[Employees] Fetch error:', error.message);
+        setEmployees([]);
+        return;
+      }
+
+      const normalized = (data || []).map(row => ({
+        id:          row.id,
+        name:        row.name        || row.username || '',
+        email:       row.email       || '',
+        username:    row.username    || '',
+        role:        row.role        || 'sales_executive',
+        status:      row.status      || 'Active',
+        phone:       row.phone       || '',
+        department:  row.department  || '',
+        permissions: row.permissions || [],
+        createdAt:   row.created_at,
+        lastLogin:   row.last_login  || null,
+      }));
+
+      setEmployees(normalized);
+      console.log(`[Employees] Loaded ${normalized.length} employees from Supabase`);
+    } catch (err) {
+      console.error('[Employees] Unexpected error:', err);
+      setEmployees([]);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+  // ── Lead CRUD — all go to Supabase ───────────────────────────
   const addLead = async (lead) => {
     try {
       const doc = {
@@ -138,6 +180,9 @@ export const useCRMData = () => {
         final_status:       lead.status || 'FollowUp',
         assigned_to:        lead.assignedTo || null,
         created_by:         lead.createdBy  || null,
+        project:            lead.project || null,
+        follow_up_date:     lead.followUpDate || null,
+        is_vip:             lead.isVIP || false,
         created_at:         new Date().toISOString(),
         updated_at:         new Date().toISOString(),
       };
@@ -163,7 +208,6 @@ export const useCRMData = () => {
 
   const updateLead = async (id, updates) => {
     try {
-      // Map CRM field names back to Supabase column names
       const mapped = {};
       if (updates.name             !== undefined) mapped.full_name          = updates.name;
       if (updates.phone            !== undefined) mapped.phone              = updates.phone;
@@ -177,6 +221,9 @@ export const useCRMData = () => {
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
       if (updates.assignedTo       !== undefined) mapped.assigned_to        = updates.assignedTo;
+      if (updates.project          !== undefined) mapped.project            = updates.project;
+      if (updates.followUpDate     !== undefined) mapped.follow_up_date     = updates.followUpDate;
+      if (updates.isVIP            !== undefined) mapped.is_vip             = updates.isVIP;
       mapped.updated_at = new Date().toISOString();
 
       const { error } = await supabaseAdmin
@@ -189,7 +236,6 @@ export const useCRMData = () => {
         return;
       }
 
-      // Optimistic update in local state
       setLeads(prev => prev.map(l =>
         l.id === id ? { ...l, ...updates, lastActivity: new Date().toISOString() } : l
       ));
@@ -306,9 +352,10 @@ export const useCRMData = () => {
   return {
     // Supabase
     leads, leadsLoading, fetchLeads,
+    employees, employeesLoading, fetchEmployees,
     addLead, updateLead, deleteLead, addLeadNote,
     // localStorage
-    employees, customers, invoices, payments,
+    customers, invoices, payments,
     settings, waTemplates, workLogs, promoMaterials,
     calls, siteVisits, bookings, tasks, eodReports, auditLogs,
     addPromoMaterial, deletePromoMaterial,

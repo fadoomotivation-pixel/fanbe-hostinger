@@ -43,13 +43,13 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import { 
-  addUser, 
-  getAllUsers, 
-  deleteUser, 
+import {
+  addUser,
+  getAllUsers,
+  deleteUser,
   toggleUserStatus,
-  generateRandomPassword 
-} from '@/lib/authUtilsFirebase';
+  generateRandomPassword
+} from '@/lib/authUtilsSupabase';
 
 const StaffManagement = () => {
   const { toast } = useToast();
@@ -68,12 +68,12 @@ const StaffManagement = () => {
     department: ''
   });
 
-  // Load users from Firebase on component mount
+  // Load users from Supabase on component mount
   useEffect(() => {
-    loadUsersFromFirebase();
+    loadUsersFromSupabase();
   }, []);
 
-  const loadUsersFromFirebase = async () => {
+  const loadUsersFromSupabase = async () => {
     try {
       setLoading(true);
       const users = await getAllUsers();
@@ -86,10 +86,10 @@ const StaffManagement = () => {
         status: u.status,
         phone: u.phone || '',
         department: u.department || 'Sales',
-        lastLogin: u.lastLogin || 'Never'
+        lastLogin: u.last_login || 'Never'
       }));
       setStaff(staffList);
-      console.log('✅ Loaded users from Firebase:', staffList.length);
+      console.log('✅ Loaded users from Supabase:', staffList.length);
     } catch (error) {
       console.error('❌ Error loading users:', error);
       toast({
@@ -133,7 +133,7 @@ const StaffManagement = () => {
     toast({ title: "Creating user...", description: "Please wait" });
     
     try {
-      // Add user to Firebase
+      // Add user to Supabase
       const result = await addUser({
         name: newStaff.name,
         email: email,
@@ -194,7 +194,7 @@ const StaffManagement = () => {
         showCredentialCard(result.user.username, tempPassword, result.user.name);
         
         // Reload the user list to show the new user
-        await loadUsersFromFirebase();
+        await loadUsersFromSupabase();
         
       } else {
         toast({ 

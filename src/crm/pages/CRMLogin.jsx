@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Lock, User, Key, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { ROLES } from '@/lib/permissions';
-import { initializeUserDatabase } from '@/lib/authUtils';
 
 const CRMLogin = () => {
   const [username, setUsername] = useState('');
@@ -21,8 +20,6 @@ const CRMLogin = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    initializeUserDatabase();
-    
     // Redirect if already authenticated
     if (isAuthenticated && user) {
        handleRedirect(user.role);

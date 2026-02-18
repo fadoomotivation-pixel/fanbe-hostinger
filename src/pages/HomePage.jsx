@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, ArrowRight, Sparkles
+  CheckCircle, Phone, MapPin, Star, ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -214,15 +214,9 @@ const HomePage = ({ onBookSiteVisit }) => {
             <div className="relative h-full container mx-auto px-4 flex items-center justify-center">
               <div className="w-full max-w-4xl text-white text-center">
                 <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mb-6 md:mb-8">
-                  <div className="flex items-center justify-center gap-3 md:gap-4 mb-4">
-                    <div className="w-14 h-14 md:w-20 md:h-20 bg-[#D4AF37] rounded-full flex items-center justify-center flex-shrink-0 shadow-2xl">
-                      <Building className="w-7 h-7 md:w-10 md:h-10 text-[#0F3A5F]" />
-                    </div>
-                  </div>
                   <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-wide leading-tight mb-2">
                     <span className="text-[#D4AF37]">Fanbe</span> <span className="text-white">Group</span>
                   </h1>
-                  <p className="text-sm md:text-base text-gray-300 font-light">Since 2012</p>
                 </motion.div>
                 <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
                   {slides[currentSlide].title}
@@ -275,7 +269,7 @@ const HomePage = ({ onBookSiteVisit }) => {
             {[
               { icon: Calendar, label: 'Founded', value: '2012' },
               { icon: Building, label: 'Projects', value: '6+' },
-              { icon: Users, label: 'Happy Families', value: '5,000+' },
+              { icon: Users, label: 'Happy Families', value: '15,000+' },
               { icon: Shield, label: 'Legal Clarity', value: '100%' }
             ].map((stat, idx) => (
               <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg">
@@ -293,7 +287,7 @@ const HomePage = ({ onBookSiteVisit }) => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-              <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">\u2b50 Featured Projects</span>
+              <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">Featured Projects</span>
               <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">Premium Spiritual Living</h2>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto">Experience divine living in our flagship projects</p>
             </motion.div>
@@ -335,7 +329,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                   <div className="flex gap-3">
                     <Link to={`/projects/${project.id}`} className="flex-1">
                       <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                        \u2728 View Details <ArrowRight className="ml-2 w-4 h-4" />
+                        View Details <ArrowRight className="ml-2 w-4 h-4" />
                       </Button>
                     </Link>
                     <Button variant="outline" className="border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
@@ -377,7 +371,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                   <p className="text-xs text-gray-400 text-right mb-4">{project.emiMonths}-month plan \u00b7 0% interest</p>
                   <Link to={`/projects/${project.id}`}>
                     <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                      \u2728 View Details <ChevronRight className="ml-2 w-4 h-4" />
+                      View Details <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>
                   </Link>
                 </div>

@@ -12,23 +12,10 @@ import { useToast } from '@/components/ui/use-toast';
 import EMICalculatorSection from '@/components/EMICalculatorSection';
 import { useWhatsApp } from '@/lib/useWhatsApp';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Project data — RATES, BOOKING % & EMI DURATIONS — Feb 2026
-//
-// Base plot: 50 sq yd  |  Formula: EMI = ceil((total − booking) / months)
-//
-// Project                  Rate      Booking%  Months
-// Shree Kunj Bihari        ₹7,525    10%       60
-// Shri Khatu Shyam         ₹7,525    10%       60
-// Gokul Vatika             ₹10,025   35%       24
-// Maa Semri Vatika         ₹15,525   35%       24
-// Jagannath Dham           ₹8,025    12.5%     54
-// Brij Vatika (E Block)    ₹15,525   35%       40
-// ─────────────────────────────────────────────────────────────────────────────
 const projects = [
   {
     id: 'khatu-shyam-enclave',
-    name: '\u0936\u094d\u0930\u0940 \u0916\u093e\u091f\u0942 \u0936\u094d\u092f\u093e\u092e Enclave',
+    name: 'श्री खाटू श्याम Enclave',
     nameEn: 'Shri Khatu Shyam Enclave',
     logo: '/images/projects/khatu_shyam_enclave.png',
     location: 'Near Khatu Shyam Temple, Rajasthan',
@@ -36,9 +23,9 @@ const projects = [
     highlight: true,
     tagline: 'Divine Living Near Sacred Temple',
     sizes: ['50', '100', '150', '200', '250'],
-    startingPrice: '\u20b93.76 Lakhs',
-    bookingAmt: '\u20b937,625 (10%)',
-    emi: '\u20b95,644/month',
+    startingPrice: '₹3.76 Lakhs',
+    bookingAmt: '₹37,625 (10%)',
+    emi: '₹5,644/month',
     emiMonths: 60,
     bookingPct: '10%',
     amenities: ['Temple Proximity', 'Gated Security', 'Wide Roads', '24/7 Water'],
@@ -47,7 +34,7 @@ const projects = [
   },
   {
     id: 'shree-kunj-bihari-enclave',
-    name: '\u0936\u094d\u0930\u0940 \u0915\u0941\u0902\u091c \u092c\u093f\u0939\u093e\u0930\u0940 Enclave',
+    name: 'श्री कुंज बिहारी Enclave',
     nameEn: 'Shree Kunj Bihari Enclave',
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
@@ -55,26 +42,26 @@ const projects = [
     highlight: true,
     tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['50', '100', '150', '200', '300'],
-    startingPrice: '\u20b93.76 Lakhs',
-    bookingAmt: '\u20b937,625 (10%)',
-    emi: '\u20b95,644/month',
+    startingPrice: '₹3.76 Lakhs',
+    bookingAmt: '₹37,625 (10%)',
+    emi: '₹5,644/month',
     emiMonths: 60,
     bookingPct: '10%',
-    amenities: ['RERA Approved', 'Park', 'Street Lights', 'Underground Wiring'],
+    amenities: ['Premium Gated Layout', 'Park', 'Street Lights', 'Underground Wiring'],
     status: 'Best Seller',
     description: 'Live in the divine aura of Vrindavan with modern amenities'
   },
   {
     id: 'gokul-vatika',
-    name: '\u0917\u094b\u0915\u0941\u0932 \u0935\u093e\u091f\u093f\u0915\u093e',
+    name: 'गोकुल वाटिका',
     nameEn: 'Gokul Vatika',
     logo: '/images/projects/gokul_vatika.png',
     location: 'Mathura-Vrindavan Road',
     tagline: 'Serene Living Amidst Nature',
     sizes: ['50', '100', '150', '200'],
-    startingPrice: '\u20b95.01 Lakhs',
-    bookingAmt: '\u20b91,75,438 (35%)',
-    emi: '\u20b913,576/month',
+    startingPrice: '₹5.01 Lakhs',
+    bookingAmt: '₹1,75,438 (35%)',
+    emi: '₹13,576/month',
     emiMonths: 24,
     bookingPct: '35%',
     amenities: ['Green Spaces', 'Community Hall', 'Children Park', 'Security'],
@@ -82,15 +69,15 @@ const projects = [
   },
   {
     id: 'semri-vatika',
-    name: '\u0938\u0947\u092e\u0930\u0940 \u0935\u093e\u091f\u093f\u0915\u093e',
+    name: 'सेमरी वाटिका',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
     tagline: 'Premium Plots with High Appreciation',
     sizes: ['50', '100', '125', '150', '200'],
-    startingPrice: '\u20b97.76 Lakhs',
-    bookingAmt: '\u20b92,71,688 (35%)',
-    emi: '\u20b921,024/month',
+    startingPrice: '₹7.76 Lakhs',
+    bookingAmt: '₹2,71,688 (35%)',
+    emi: '₹21,024/month',
     emiMonths: 24,
     bookingPct: '35%',
     amenities: ['Basic Infrastructure', 'Road Access', 'Electricity', 'Water Supply'],
@@ -98,15 +85,15 @@ const projects = [
   },
   {
     id: 'jagannath-dham',
-    name: '\u091c\u0917\u0928\u094d\u0928\u093e\u0925 \u0927\u093e\u092e',
+    name: 'जगन्नाथ धाम',
     nameEn: 'Jagannath Dham',
     logo: '/images/projects/jaganath_dham.png',
     location: 'Vrindavan Highway',
     tagline: 'Sacred Plots for Sacred Living',
     sizes: ['50', '100', '150', '200', '250'],
-    startingPrice: '\u20b94.01 Lakhs',
-    bookingAmt: '\u20b950,156 (12.5%)',
-    emi: '\u20b96,502/month',
+    startingPrice: '₹4.01 Lakhs',
+    bookingAmt: '₹50,156 (12.5%)',
+    emi: '₹6,502/month',
     emiMonths: 54,
     bookingPct: '12.5%',
     amenities: ['Temple View', 'Wide Plots', 'Paved Roads', 'Boundary Wall'],
@@ -114,15 +101,15 @@ const projects = [
   },
   {
     id: 'brij-vatika',
-    name: '\u092c\u0943\u091c \u0935\u093e\u091f\u093f\u0915\u093e',
+    name: 'बृज वाटिका',
     nameEn: 'Brij Vatika (E Block)',
     logo: '/images/projects/brij_vatika.png',
     location: 'Braj Bhoomi, Vrindavan',
     tagline: 'Live in Lord Krishna\'s Land',
     sizes: ['50', '100', '150', '200', '250', '300'],
-    startingPrice: '\u20b97.76 Lakhs',
-    bookingAmt: '\u20b92,71,688 (35%)',
-    emi: '\u20b912,615/month',
+    startingPrice: '₹7.76 Lakhs',
+    bookingAmt: '₹2,71,688 (35%)',
+    emi: '₹12,615/month',
     emiMonths: 40,
     bookingPct: '35%',
     amenities: ['Garden', 'Kids Play Area', 'Street Lights', 'Gated Entry'],
@@ -141,24 +128,24 @@ const slides = [
   {
     id: 2,
     image: '/images/slides/trust_transparency.png',
-    title: '\u092a\u093e\u0930\u0926\u0930\u094d\u0936\u093f\u0924\u093e \u0914\u0930 \u0935\u093f\u0936\u094d\u0935\u093e\u0938',
+    title: 'पारदर्शिता और विश्वास',
     subtitle: 'Transparency & Trust',
     points: [
-      '\u0924\u0941\u0930\u0902\u0924 \u0930\u091c\u093f\u0938\u094d\u091f\u094d\u0930\u0940: \u092a\u0942\u0930\u093e \u092a\u0948\u0938\u093e \u0926\u0947\u0928\u0947 \u092a\u0930 \u0924\u0941\u0930\u0902\u0924 \u0930\u091c\u093f\u0938\u094d\u091f\u094d\u0930\u0940',
-      '\u092a\u093e\u0930\u0926\u0930\u094d\u0936\u0940 \u092a\u094d\u0930\u0915\u094d\u0930\u093f\u092f\u093e: \u0915\u094b\u0908 \u091b\u093f\u092a\u093e \u0939\u0941\u0906 \u0936\u0941\u0932\u094d\u0915 (Hidden Charges) \u0928\u0939\u0940\u0902',
-      '\u0915\u093e\u0917\u091c\u0940 \u0915\u093e\u0930\u094d\u092f\u0935\u093e\u0939\u0940: \u0906\u0938\u093e\u0928 \u0914\u0930 \u0938\u0941\u0930\u0915\u094d\u0937\u093f\u0924 \u0921\u0949\u0915\u094d\u092f\u0942\u092e\u0947\u0902\u091f\u0947\u0936\u0928'
+      'तुरंत रजिस्ट्री: पूरा पैसा देने पर तुरंत रजिस्ट्री',
+      'पारदर्शी प्रक्रिया: कोई छिपा हुआ शुल्क (Hidden Charges) नहीं',
+      'कागजी कार्यवाही: आसान और सुरक्षित डॉक्युमेंटेशन'
     ]
   },
   {
     id: 3,
     image: '/images/slides/amenities.png',
-    title: '\u0938\u0941\u0935\u093f\u0927\u093e\u090f\u0902 \u091c\u094b \u091c\u0940\u0935\u0928 \u0915\u094b \u0906\u0938\u093e\u0928 \u092c\u0928\u093e\u090f\u0902',
+    title: 'सुविधाएं जो जीवन को आसान बनाएं',
     subtitle: 'Modern Amenities',
     points: [
-      '\u092d\u0935\u094d\u092f \u092a\u094d\u0930\u0935\u0947\u0936 \u0926\u094d\u0935\u093e\u0930: \u0938\u0941\u0930\u0915\u094d\u0937\u093e \u0917\u093e\u0930\u094d\u0921 \u0915\u0947 \u0938\u093e\u0925',
-      '\u092a\u0915\u094d\u0915\u0940 \u0938\u0921\u093c\u0915\u0947\u0902: \u0915\u0949\u0932\u094b\u0928\u0940 \u0915\u0947 \u0905\u0902\u0926\u0930 \u091a\u094c\u0921\u093c\u0940 \u0938\u0921\u093c\u0915\u0947\u0902',
-      '\u0939\u0930\u093e-\u092d\u0930\u093e \u0935\u093e\u0924\u093e\u0935\u0930\u0923: \u092a\u094d\u0930\u0926\u0942\u0937\u0923 \u092e\u0941\u0915\u094d\u0924 \u0914\u0930 \u0924\u093e\u091c\u093c\u0940 \u0939\u0935\u093e',
-      '\u092c\u093f\u091c\u0932\u0940 \u0914\u0930 \u092a\u093e\u0928\u0940: \u092c\u0941\u0928\u093f\u092f\u093e\u0926\u0940 \u0922\u093e\u0902\u091a\u0947 \u0915\u0940 \u092a\u0942\u0930\u0940 \u0935\u094d\u092f\u0935\u0938\u094d\u0925\u093e'
+      'भव्य प्रवेश द्वार: सुरक्षा गार्ड के साथ',
+      'पक्की सड़केंः कॉलोनी के अंदर चौड़ी सड़केें',
+      'हरा-भरा वातावरण: प्रदूषण मुक्त और ताज़ी हवा',
+      'बिजली और पानी: बुनियादी ढांचे की पूरी व्यवस्था'
     ]
   }
 ];
@@ -314,11 +301,11 @@ const HomePage = ({ onBookSiteVisit }) => {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Booking ({project.bookingPct})</p>
-                      <p className="text-sm font-bold text-amber-600">{project.bookingAmt}</p>
+                      <p className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">EMI ({project.emiMonths}mo)</p>
-                      <p className="text-lg font-bold text-green-600">{project.emi}</p>
+                      <p className="text-lg font-bold text-[#0F3A5F]">{project.emi}</p>
                     </div>
                   </div>
                   <div className="mb-4 flex flex-wrap gap-2">
@@ -332,7 +319,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                         View Details <ArrowRight className="ml-2 w-4 h-4" />
                       </Button>
                     </Link>
-                    <Button variant="outline" className="border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
+                    <Button variant="outline" className="border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     </Button>
                   </div>
@@ -365,10 +352,10 @@ const HomePage = ({ onBookSiteVisit }) => {
                   <p className="text-sm text-gray-600 mb-3 flex items-center gap-1"><MapPin className="w-4 h-4" />{project.location}</p>
                   <div className="flex items-center justify-between mb-1 text-sm">
                     <div><span className="text-gray-600">From </span><span className="font-bold text-[#0F3A5F]">{project.startingPrice}</span></div>
-                    <div><span className="text-gray-600">EMI </span><span className="font-semibold text-green-600">{project.emi}</span></div>
+                    <div><span className="text-gray-600">EMI </span><span className="font-semibold text-[#0F3A5F]">{project.emi}</span></div>
                   </div>
-                  <p className="text-xs text-gray-400 mb-1">Booking: <span className="font-medium text-amber-600">{project.bookingAmt}</span></p>
-                  <p className="text-xs text-gray-400 text-right mb-4">{project.emiMonths}-month plan \u00b7 0% interest</p>
+                  <p className="text-xs text-gray-400 mb-1">Booking: <span className="font-medium text-[#D4AF37]">{project.bookingAmt}</span></p>
+                  <p className="text-xs text-gray-400 text-right mb-4">{project.emiMonths}-month plan · 0% interest</p>
                   <Link to={`/projects/${project.id}`}>
                     <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
                       View Details <ChevronRight className="ml-2 w-4 h-4" />

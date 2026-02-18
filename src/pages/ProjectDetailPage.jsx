@@ -17,25 +17,16 @@ const ProjectDetailPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load Data Function
   const loadData = () => {
-    // 1. Get base static project
     const staticProject = projectsData.find(p => p.slug === slug);
     if (!staticProject) {
       setLoading(false);
       return;
     }
 
-    // 2. Get dynamic content overrides
     const dynamicContent = getProjectContent(slug);
-    
-    // 3. Get dynamic pricing
     const dynamicPricing = getPricingTable(slug);
-
-    // Merge logic: Dynamic content takes precedence
     const mergedProject = dynamicContent ? { ...staticProject, ...dynamicContent } : staticProject;
-    
-    // Prefer dynamic pricing if available in storage, else use static
     const finalPricing = (dynamicPricing && dynamicPricing.length > 0) ? dynamicPricing : staticProject.pricing;
 
     setProject(mergedProject);
@@ -46,7 +37,6 @@ const ProjectDetailPage = () => {
   useEffect(() => {
     loadData();
 
-    // Listen for real-time updates
     const unsubscribeImage = subscribeToContentUpdates(EVENTS.PROJECT_IMAGE_UPDATED, (data) => {
       if (!data.data.slug || data.data.slug === slug) {
         loadData();
@@ -88,7 +78,7 @@ const ProjectDetailPage = () => {
       {/* Hero Section */}
       <section className="relative h-[80vh] w-full bg-gray-900 overflow-hidden">
         <img 
-          key={project.heroImage} // Force re-render on update
+          key={project.heroImage}
           src={project.heroImage} 
           alt={project.title} 
           className="w-full h-full object-cover opacity-60 transition-opacity duration-500"
@@ -116,7 +106,7 @@ const ProjectDetailPage = () => {
                   Book Site Visit
                 </Button>
                 <a href={project.whatsappUrl} target="_blank" rel="noopener noreferrer">
-                  <Button className="h-14 px-8 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-lg shadow-lg w-full md:w-auto">
+                  <Button className="h-14 px-8 bg-[#0F3A5F] hover:bg-[#0a2742] text-white font-bold text-lg rounded-lg shadow-lg w-full md:w-auto">
                     <MessageCircle className="mr-2" /> Enquiry
                   </Button>
                 </a>
@@ -159,7 +149,7 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Pricing Table (Conditional) */}
+      {/* Pricing Table */}
       {isPricingAvailable && (
         <section className="py-20 bg-gray-50">
           <div className="container mx-auto px-4">
@@ -173,7 +163,7 @@ const ProjectDetailPage = () => {
                     <th className="p-4 font-semibold text-sm uppercase tracking-wider">Total Cost</th>
                     <th className="p-4 font-semibold text-sm uppercase tracking-wider bg-[#D4AF37] text-[#0F3A5F]">Booking Amt</th>
                     <th className="p-4 font-semibold text-sm uppercase tracking-wider">Rest Amt</th>
-                    <th className="p-4 font-semibold text-sm uppercase tracking-wider">60-Month EMI</th>
+                    <th className="p-4 font-semibold text-sm uppercase tracking-wider">Monthly EMI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -182,9 +172,9 @@ const ProjectDetailPage = () => {
                       <td className="p-4 font-bold text-gray-800">{row.size} Sq. Yd.</td>
                       <td className="p-4 text-gray-600">₹{row.rate?.toLocaleString()}</td>
                       <td className="p-4 font-bold text-[#0F3A5F]">₹{row.total?.toLocaleString()}</td>
-                      <td className="p-4 font-bold text-green-600 bg-yellow-50">₹{row.booking?.toLocaleString()}</td>
+                      <td className="p-4 font-bold text-[#0F3A5F] bg-yellow-50">₹{row.booking?.toLocaleString()}</td>
                       <td className="p-4 text-gray-600">₹{row.rest?.toLocaleString()}</td>
-                      <td className="p-4 font-bold text-[#D4AF37]">₹{row.emi?.toLocaleString()}</td>
+                      <td className="p-4 font-bold text-[#0F3A5F]">₹{row.emi?.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -225,7 +215,7 @@ const ProjectDetailPage = () => {
               <p className="text-sm uppercase tracking-widest text-blue-200">Projects Delivered</p>
             </div>
             <div>
-              <p className="text-4xl font-bold text-[#D4AF37] mb-1">5000+</p>
+              <p className="text-4xl font-bold text-[#D4AF37] mb-1">15,000+</p>
               <p className="text-sm uppercase tracking-widest text-blue-200">Happy Families</p>
             </div>
           </div>
@@ -238,7 +228,7 @@ const ProjectDetailPage = () => {
           Book Visit
         </Button>
         <a href={project.whatsappUrl} className="flex-1">
-          <Button variant="outline" className="w-full border-green-600 text-green-600">
+          <Button variant="outline" className="w-full border-[#0F3A5F] text-[#0F3A5F]">
             Enquiry
           </Button>
         </a>

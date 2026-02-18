@@ -17,12 +17,12 @@ const projects = [
     shortDescription: 'Premium residential plots in the holy city of Vrindavan',
     description: 'Experience divine living at Shree Kunj Bihari Enclave, located in the sacred land of Vrindavan. This premium residential project offers modern amenities while maintaining the spiritual essence of the region.',
     highlights: [
-      'RERA Approved Project',
       'Immediate Registry Available',
       'Gated Community',
       'Wide Internal Roads',
       '24/7 Security',
-      'Green Park & Garden'
+      'Green Park & Garden',
+      'Interest-Free Payment Plans'
     ],
     pricing: {
       startingPrice: '\u20b93,76,250',
@@ -50,7 +50,7 @@ const projects = [
     location: 'Khatu, Rajasthan',
     shortDescription: 'Spiritual living near the famous Khatu Shyam Temple',
     description: 'Shree Khatu Shyam Ji Enclave offers a unique blend of spirituality and modern living. Located near the revered Khatu Shyam Temple, this project is perfect for those seeking peace and prosperity.',
-    highlights: ['Near Famous Khatu Shyam Temple', 'RERA Registered', 'Free Pick and Drop Facility', 'No Hidden Charges', 'Clear Title', 'Investment & Residential Both'],
+    highlights: ['Near Famous Khatu Shyam Temple', 'Free Pick and Drop Facility', 'No Hidden Charges', 'Clear Title', 'Investment & Residential Both', 'Interest-Free Installments'],
     pricing: {
       startingPrice: '\u20b93,76,250',
       pricePerSqYd: '\u20b97,525',
@@ -131,7 +131,7 @@ const projects = [
     location: 'Gokul, Uttar Pradesh',
     shortDescription: 'Premium plots in Krishna\'s childhood abode',
     description: 'Shree Gokul Vatika is situated in Gokul, where Lord Krishna spent his childhood. This project offers premium residential plots with world-class facilities in a spiritually rich environment.',
-    highlights: ['Near Gokul Temple', 'Premium Gated Community', 'RERA Certified', 'Free Site Visit with Pick-Drop', 'Best Price in Area', 'High ROI Potential'],
+    highlights: ['Near Gokul Temple', 'Premium Gated Community', 'Free Site Visit with Pick-Drop', 'Best Price in Area', 'High ROI Potential', 'Transparent Pricing'],
     pricing: {
       startingPrice: '\u20b95,01,250',
       pricePerSqYd: '\u20b910,025',

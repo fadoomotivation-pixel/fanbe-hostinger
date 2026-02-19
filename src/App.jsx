@@ -76,7 +76,7 @@ import PromotionMaterialsManager from './crm/pages/PromotionMaterialsManager';
 import PromotionMaterialsViewer from './crm/pages/PromotionMaterialsViewer';
 import HomepageContentEditor from './crm/pages/HomepageContentEditor';
 import DeveloperConsole from './crm/pages/DeveloperConsole';
-import ProjectDocuments from './crm/pages/cms/ProjectDocuments';
+import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 
 // New Settings Imports
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
@@ -165,7 +165,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                    <Route path="admin/cms/projects" element={<ProjectPagesEditor />} />
                    <Route path="admin/cms/navigation" element={<NavigationMenuEditor />} />
                    <Route path="admin/cms/promotion-materials" element={<PromotionMaterialsManager />} />
-                   <Route path="admin/cms/project-documents" element={<ProjectDocuments />} />
+                   <Route path="admin/cms/project-documents" element={<ProjectDocumentsPage />} />
                    <Route path="homepage-content-editor" element={
                       <ProtectedRoute allowedRoles={['super_admin']}><HomepageContentEditor /></ProtectedRoute>
                    } />

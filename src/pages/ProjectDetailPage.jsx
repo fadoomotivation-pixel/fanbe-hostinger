@@ -6,7 +6,7 @@ import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { 
   Check, MapPin, MessageCircle, TrendingUp, FileText, Map, Download,
-  Home, Shield, Zap, Droplet, Trees, Users, Car, School, Heart,
+  Home, Shield, Zap, Droplet, Trees, Car, School, Heart,
   ShoppingBag, Train, ChevronDown, ChevronUp, Phone, IndianRupee,
   Building2, Calendar, Award
 } from 'lucide-react';
@@ -103,16 +103,13 @@ const ProjectDetailPage = () => {
   const isPricingAvailable = pricing && pricing.length > 0;
   const hasDocuments = docs.brochure || docs.map;
 
-  // Default amenities (you can customize per project later)
+  // Default amenities - Removed Power Backup, Community Hall, Club House
   const amenities = [
     { icon: Home, label: 'Gated Community', color: 'text-blue-600' },
     { icon: Shield, label: '24/7 Security', color: 'text-green-600' },
-    { icon: Zap, label: 'Power Backup', color: 'text-yellow-600' },
     { icon: Droplet, label: 'Water Supply', color: 'text-cyan-600' },
     { icon: Trees, label: 'Green Spaces', color: 'text-emerald-600' },
     { icon: Car, label: 'Wide Roads', color: 'text-gray-600' },
-    { icon: Users, label: 'Community Hall', color: 'text-purple-600' },
-    { icon: Building2, label: 'Club House', color: 'text-indigo-600' },
   ];
 
   // Location highlights
@@ -146,6 +143,11 @@ const ProjectDetailPage = () => {
       a: 'Absolutely! Book a free site visit and our team will arrange transportation and guided tour.'
     },
   ];
+
+  // Filter investment benefits - Remove rental income opportunity
+  const filteredBenefits = project.investmentBenefits?.filter(
+    benefit => !benefit.toLowerCase().includes('rental income')
+  ) || [];
 
   return (
     <div className="bg-white min-h-screen">
@@ -241,7 +243,7 @@ const ProjectDetailPage = () => {
               <p className="text-xs uppercase tracking-widest text-blue-200">Projects</p>
             </div>
             <div>
-              <Users className="w-10 h-10 text-[#D4AF37] mx-auto mb-2" />
+              <Shield className="w-10 h-10 text-[#D4AF37] mx-auto mb-2" />
               <p className="text-3xl font-black text-white mb-1">15,000+</p>
               <p className="text-xs uppercase tracking-widest text-blue-200">Happy Families</p>
             </div>
@@ -319,7 +321,7 @@ const ProjectDetailPage = () => {
             <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             {amenities.map((amenity, idx) => (
               <motion.div
                 key={idx}
@@ -385,8 +387,8 @@ const ProjectDetailPage = () => {
         <section className="py-20 bg-white">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Transparent Pricing</span>
-              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Pricing & Payment Plans</h2>
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Investment Plans</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Plot Sizes & Rates</h2>
               <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full mb-4"></div>
               <p className="text-gray-600 text-lg">0% Interest EMI • No Hidden Charges • Instant Registry</p>
             </div>
@@ -455,33 +457,35 @@ const ProjectDetailPage = () => {
       )}
 
       {/* Investment Benefits */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Smart Investment</span>
-            <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Why Invest Here?</h2>
-            <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
-          </div>
+      {filteredBenefits.length > 0 && (
+        <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Smart Investment</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Why Invest Here?</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {project.investmentBenefits?.map((benefit, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg hover:shadow-2xl hover:border-[#D4AF37] transition-all text-center group"
-              >
-                <div className="h-14 w-14 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <TrendingUp size={28} />
-                </div>
-                <p className="font-bold text-gray-800 text-base leading-snug">{benefit}</p>
-              </motion.div>
-            ))}
+            <div className={`grid md:grid-cols-2 ${filteredBenefits.length > 2 ? 'lg:grid-cols-3' : ''} gap-6 max-w-4xl mx-auto`}>
+              {filteredBenefits.map((benefit, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg hover:shadow-2xl hover:border-[#D4AF37] transition-all text-center group"
+                >
+                  <div className="h-14 w-14 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <TrendingUp size={28} />
+                  </div>
+                  <p className="font-bold text-gray-800 text-base leading-snug">{benefit}</p>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ Section */}
       <section className="py-20 bg-white">

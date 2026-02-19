@@ -1,5 +1,24 @@
 
 import { projectsData } from '@/data/projectsData';
+import { supabase } from '@/lib/supabase';
+
+// Fetch image URLs saved by the CMS from the Supabase DB.
+// Returns a map of { [slug]: heroImageUrl }
+export const getProjectImagesFromDB = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('project_content')
+      .select('slug, hero_image');
+    if (error) throw error;
+    return (data || []).reduce((acc, row) => {
+      if (row.hero_image) acc[row.slug] = row.hero_image;
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error('Error fetching project images from DB:', err);
+    return {};
+  }
+};
 
 const CONTENT_PREFIX = 'crm_project_content_';
 const PRICING_PREFIX = 'crm_project_pricing_';

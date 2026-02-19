@@ -34,7 +34,7 @@ const ProjectDetailPage = () => {
 
     const dynamicContent = getProjectContent(slug);
     const dynamicPricing = getPricingTable(slug);
-    const projectDocs = getProjectDocs(slug);
+    const projectDocs = getProjectDocs(slug); // This loads from CMS
 
     const dbImages = await getProjectImagesFromDB();
     const heroImage = dbImages[slug] || dynamicContent?.heroImage || staticProject.heroImage;
@@ -44,7 +44,7 @@ const ProjectDetailPage = () => {
 
     setProject(mergedProject);
     setPricing(finalPricing);
-    setDocs(projectDocs);
+    setDocs(projectDocs); // Documents from CMS
     setLoading(false);
   };
 
@@ -81,7 +81,14 @@ const ProjectDetailPage = () => {
 
   const handleDownload = (docType) => {
     const doc = docs[docType];
-    if (!doc) return;
+    if (!doc) {
+      toast({
+        title: 'Not Available',
+        description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} not uploaded yet.`,
+        variant: 'destructive'
+      });
+      return;
+    }
     
     const link = document.createElement('a');
     link.href = doc.data;
@@ -164,7 +171,7 @@ const ProjectDetailPage = () => {
         <meta name="description" content={project.meta?.description || project.subline} />
       </Helmet>
 
-      {/* Hero Section - Enhanced with Floating Logo */}
+      {/* Hero Section - Enhanced */}
       <section className="relative h-[85vh] w-full bg-gray-900 overflow-hidden">
         <img 
           key={project.heroImage}
@@ -173,35 +180,6 @@ const ProjectDetailPage = () => {
           className="w-full h-full object-cover opacity-70"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0F3A5F] via-[#0F3A5F]/30 to-transparent" />
-        
-        {/* Floating Project Logo Badge - Top Right */}
-        {project.logo && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.8, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="absolute top-6 right-6 z-20"
-          >
-            <div className="relative group">
-              {/* Glow effect */}
-              <div className="absolute inset-0 bg-[#D4AF37] rounded-2xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
-              
-              {/* Logo container */}
-              <div className="relative bg-white rounded-2xl p-2 shadow-2xl border-4 border-[#D4AF37] hover:scale-105 transition-transform">
-                <img 
-                  src={project.logo} 
-                  alt={`${project.title} Logo`}
-                  className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-xl"
-                />
-              </div>
-              
-              {/* Verified badge */}
-              <div className="absolute -bottom-2 -right-2 bg-[#D4AF37] text-[#0F3A5F] rounded-full p-1.5 shadow-lg border-2 border-white">
-                <Award size={16} className="font-bold" />
-              </div>
-            </div>
-          </motion.div>
-        )}
         
         <div className="absolute inset-0 flex items-center">
           <div className="container mx-auto px-4">
@@ -239,7 +217,7 @@ const ProjectDetailPage = () => {
                 </a>
               </div>
 
-              {/* Download Buttons - Always show if docs exist from CMS */}
+              {/* Download Buttons - Show from CMS */}
               {hasDocuments && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
@@ -298,7 +276,7 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Overview Section */}
+      {/* Overview Section with Project Logo on Right */}
       <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-16 items-start">
@@ -326,29 +304,45 @@ const ProjectDetailPage = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 md:p-10 rounded-3xl shadow-2xl text-white"
+              className="space-y-6"
             >
-              <h3 className="text-2xl font-black mb-6 flex items-center">
-                <span className="w-2 h-8 bg-[#D4AF37] mr-3 rounded-full"></span>
-                Why Choose {project.title.split(' ')[0]}?
-              </h3>
-              <ul className="space-y-4">
-                {project.keyHighlights?.map((highlight, idx) => (
-                  <motion.li 
-                    key={idx}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex items-start group"
-                  >
-                    <div className="mt-1 mr-4 h-7 w-7 rounded-full bg-[#D4AF37] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                      <Check size={16} className="text-[#0F3A5F] font-bold" />
-                    </div>
-                    <span className="text-white/95 font-medium text-base leading-relaxed">{highlight}</span>
-                  </motion.li>
-                ))}
-              </ul>
+              {/* Project Logo Box */}
+              {project.logo && (
+                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#D4AF37] p-6 text-center">
+                  <img 
+                    src={project.logo} 
+                    alt={`${project.title} Logo`}
+                    className="w-32 h-32 object-contain mx-auto mb-4"
+                  />
+                  <h3 className="text-xl font-black text-[#0F3A5F]">{project.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{project.location}</p>
+                </div>
+              )}
+
+              {/* Why Choose Card */}
+              <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 md:p-10 rounded-3xl shadow-2xl text-white">
+                <h3 className="text-2xl font-black mb-6 flex items-center">
+                  <span className="w-2 h-8 bg-[#D4AF37] mr-3 rounded-full"></span>
+                  Why Choose {project.title.split(' ')[0]}?
+                </h3>
+                <ul className="space-y-4">
+                  {project.keyHighlights?.map((highlight, idx) => (
+                    <motion.li 
+                      key={idx}
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="flex items-start group"
+                    >
+                      <div className="mt-1 mr-4 h-7 w-7 rounded-full bg-[#D4AF37] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <Check size={16} className="text-[#0F3A5F] font-bold" />
+                      </div>
+                      <span className="text-white/95 font-medium text-base leading-relaxed">{highlight}</span>
+                    </motion.li>
+                  ))}
+                </ul>
+              </div>
             </motion.div>
           </div>
         </div>

@@ -6,8 +6,8 @@ import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { 
   Check, MapPin, MessageCircle, TrendingUp, FileText, Map, Download,
-  Home, Shield, Zap, Droplet, Trees, Users, Car, School, Hospital,
-  ShoppingBag, Train, Plane, ChevronDown, ChevronUp, Phone, IndianRupee,
+  Home, Shield, Zap, Droplet, Trees, Users, Car, School, Heart,
+  ShoppingBag, Train, ChevronDown, ChevronUp, Phone, IndianRupee,
   Building2, Calendar, Award
 } from 'lucide-react';
 import { getProjectContent, getPricingTable, getProjectImagesFromDB, getProjectDocs } from '@/lib/contentStorage';
@@ -118,7 +118,7 @@ const ProjectDetailPage = () => {
   // Location highlights
   const nearbyPlaces = [
     { icon: School, label: 'Schools', distance: '2-5 km', color: 'text-orange-600' },
-    { icon: Hospital, label: 'Hospitals', distance: '3-8 km', color: 'text-red-600' },
+    { icon: Heart, label: 'Hospitals', distance: '3-8 km', color: 'text-red-600' },
     { icon: ShoppingBag, label: 'Shopping', distance: '1-3 km', color: 'text-pink-600' },
     { icon: Train, label: 'Railway Station', distance: '5-10 km', color: 'text-blue-600' },
   ];

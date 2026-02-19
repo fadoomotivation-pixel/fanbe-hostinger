@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, MessageCircle
+  CheckCircle, Phone, MapPin, Star, MessageCircle, Handshake
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -124,6 +124,21 @@ const slides = [
       'हरा-भरा वातावरण: प्रदूषण मुक्त और ताज़ी हवा',
       'बिजली और पानी: बुनियादी ढांचे की पूरी व्यवस्था'
     ]
+  },
+  {
+    id: 4,
+    title: 'चैनल पार्टनर बनें',
+    subtitle: 'Join as Channel Partner',
+    points: [
+      'आकर्षक कमीशन: हर सफल बुकिंग पर बेहतरीन कमीशन',
+      'मार्केटिंग सपोर्ट: प्रमोशनल मटेरियल और ट्रेनिंग',
+      'समय की स्वतंत्रता: अपनी सुविधा के अनुसार काम करें',
+      'विश्वसनीय कंपनी: 2012 से 15,000+ खुश परिवारों का भरोसा'
+    ],
+    cta: {
+      text: 'अभी जुड़ें',
+      icon: Handshake
+    }
   }
 ];
 
@@ -187,11 +202,19 @@ const HomePage = ({ onBookSiteVisit }) => {
                 )}
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
                   className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
-                  <Link to="/projects">
-                    <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
-                      Explore Projects <ChevronRight className="ml-2" />
+                  {slides[currentSlide].cta ? (
+                    <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl"
+                      onClick={() => window.open('https://wa.me/918076146988?text=मैं%20चैनल%20पार्टनर%20बनने%20में%20रुचि%20रखता%20हूं', '_blank')}>
+                      {slides[currentSlide].cta.icon && <slides[currentSlide].cta.icon className="mr-2" />}
+                      {slides[currentSlide].cta.text}
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link to="/projects">
+                      <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
+                        Explore Projects <ChevronRight className="ml-2" />
+                      </Button>
+                    </Link>
+                  )}
                   <Button size="lg" variant="outline"
                     className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6"
                     onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
@@ -300,7 +323,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                       <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
                     </div>
                   </div>
-                  <Link to={`/projects/${project.id}`}>
+                  <Link to={`/projects/${project.slug}`}>
                     <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
                       View Details <ChevronRight className="ml-2 w-4 h-4" />
                     </Button>

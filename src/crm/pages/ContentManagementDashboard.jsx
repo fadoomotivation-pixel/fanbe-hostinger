@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Globe, Layers, Monitor, Clock, ChevronRight } from 'lucide-react';
+import { Globe, Layers, Monitor, Clock, ChevronRight, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { projectsData } from '@/data/projectsData';
 import { useNavMenu, useSliderData } from '@/lib/contentSync';
@@ -20,6 +20,7 @@ const ContentManagementDashboard = () => {
     { title: 'Homepage Settings', desc: 'Manage hero slider, featured sections', path: '/crm/admin/cms/homepage', icon: Globe },
     { title: 'Project Pages', desc: 'Edit details, pricing, gallery', path: '/crm/admin/cms/projects', icon: Layers },
     { title: 'Navigation Menu', desc: 'Reorder and edit site menu', path: '/crm/admin/cms/navigation', icon: Monitor },
+    { title: 'Project Documents', desc: 'Upload brochures & maps for projects', path: '/crm/admin/cms/project-documents', icon: FileText },
   ];
 
   return (
@@ -51,7 +52,7 @@ const ContentManagementDashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickLinks.map((link, idx) => (
           <Link key={idx} to={link.path} className="block group">
             <Card className="h-full border-none shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1">

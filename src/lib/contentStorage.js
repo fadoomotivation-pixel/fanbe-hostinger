@@ -22,6 +22,7 @@ export const getProjectImagesFromDB = async () => {
 
 const CONTENT_PREFIX = 'crm_project_content_';
 const PRICING_PREFIX = 'crm_project_pricing_';
+const DOCS_PREFIX = 'crm_project_docs_';
 
 export const getProjectContent = (slug) => {
   try {
@@ -85,13 +86,56 @@ export const savePricingTable = (slug, pricingData) => {
     localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 5)));
 
     // Save new
-    localStorage.setItem(`${PRICING_PREFIX}${slug}`, JSON.stringify(payload.data)); // Storing raw array for ease of use, or object wrapped. Let's store raw array or wrapped. The getter expects object or array. Let's store data directly to match getter logic for 'saved'. 
-    // Actually, let's wrap it to match get logic properly
-    // Wait, getPricingTable checks JSON.parse(saved). If I save just the array, it returns array.
+    localStorage.setItem(`${PRICING_PREFIX}${slug}`, JSON.stringify(payload.data));
     
     return { success: true, timestamp: payload.lastUpdated };
   } catch (error) {
     console.error('Error saving pricing table:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// ═════════════════════════════════════════════════════════════
+// PROJECT DOCUMENTS (Brochure & Map)
+// ═════════════════════════════════════════════════════════════
+
+export const getProjectDocs = (slug) => {
+  try {
+    const saved = localStorage.getItem(`${DOCS_PREFIX}${slug}`);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return { brochure: null, map: null };
+  } catch (error) {
+    console.error('Error fetching project docs:', error);
+    return { brochure: null, map: null };
+  }
+};
+
+export const saveProjectDocs = (slug, docs) => {
+  try {
+    const dataToSave = {
+      ...docs,
+      lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem(`${DOCS_PREFIX}${slug}`, JSON.stringify(dataToSave));
+    return { success: true, timestamp: dataToSave.lastUpdated };
+  } catch (error) {
+    console.error('Error saving project docs:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getAllProjectDocs = () => {
+  try {
+    const allDocs = {};
+    const projects = ['shree-kunj-bihari', 'khatu-shyam-enclave', 'jagannath-dham', 'brij-vatika', 'gokul-vatika', 'maa-simri-vatika'];
+    projects.forEach(slug => {
+      allDocs[slug] = getProjectDocs(slug);
+    });
+    return allDocs;
+  } catch (error) {
+    console.error('Error fetching all project docs:', error);
+    return {};
   }
 };

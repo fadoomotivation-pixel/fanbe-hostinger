@@ -68,62 +68,73 @@ const ProjectDocumentsPage = () => {
     setUploadProgress(prev => ({ ...prev, [docType]: 0 }));
 
     try {
-      // Simulate upload progress
-      const reader = new FileReader();
-      
-      reader.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(prev => ({ ...prev, [docType]: percentComplete }));
-        }
-      };
-
-      reader.onload = () => {
-        const base64Data = reader.result;
+      // Read file as base64
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
         
-        // Save document
-        const currentDocs = getCurrentDocs();
-        const updatedDocs = {
-          ...currentDocs,
-          [docType]: {
-            filename: file.name,
-            type: file.type,
-            size: file.size,
-            data: base64Data,
-            uploadedAt: new Date().toISOString()
+        reader.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(prev => ({ ...prev, [docType]: percentComplete }));
           }
         };
 
-        const result = saveProjectDocs(selectedProject, updatedDocs);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read file'));
         
-        if (result.success) {
-          loadAllDocs();
-          broadcastContentUpdate(EVENTS.PROJECT_DOCS_UPDATED, { slug: selectedProject });
-          
-          toast({
-            title: '✅ Upload Successful',
-            description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} uploaded successfully!`,
-          });
-        } else {
-          throw new Error(result.error);
+        reader.readAsDataURL(file);
+      });
+
+      // Small delay to ensure 100% is visible
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Save document
+      const currentDocs = getCurrentDocs();
+      const updatedDocs = {
+        ...currentDocs,
+        [docType]: {
+          filename: file.name,
+          type: file.type,
+          size: file.size,
+          data: base64Data,
+          uploadedAt: new Date().toISOString()
         }
-
-        setUploading(prev => ({ ...prev, [docType]: false }));
-        setUploadProgress(prev => ({ ...prev, [docType]: 0 }));
       };
 
-      reader.onerror = () => {
-        throw new Error('Failed to read file');
-      };
+      const result = saveProjectDocs(selectedProject, updatedDocs);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save document');
+      }
 
-      reader.readAsDataURL(file);
+      // Update UI
+      loadAllDocs();
+      broadcastContentUpdate(EVENTS.PROJECT_DOCS_UPDATED, { slug: selectedProject });
+      
+      toast({
+        title: '✅ Upload Successful',
+        description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} uploaded successfully!`,
+      });
+
     } catch (error) {
       console.error('Upload error:', error);
+      
+      let errorMessage = 'Something went wrong. Please try again.';
+      
+      // Check for localStorage quota exceeded
+      if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+        errorMessage = 'Storage quota exceeded. Please delete some documents or clear browser data.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Upload Failed',
-        description: error.message || 'Something went wrong. Please try again.',
+        description: errorMessage,
         variant: 'destructive'
       });
+    } finally {
+      // Reset upload state
       setUploading(prev => ({ ...prev, [docType]: false }));
       setUploadProgress(prev => ({ ...prev, [docType]: 0 }));
     }
@@ -208,7 +219,10 @@ const ProjectDocumentsPage = () => {
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
               className="hidden"
-              onChange={(e) => handleFileUpload(docType, e.target.files[0])}
+              onChange={(e) => {
+                handleFileUpload(docType, e.target.files[0]);
+                e.target.value = ''; // Reset input
+              }}
               disabled={isUploading}
             />
           </div>
@@ -217,7 +231,9 @@ const ProjectDocumentsPage = () => {
           {isUploading && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-[#0F3A5F] font-medium">Uploading...</span>
+                <span className="text-[#0F3A5F] font-medium">
+                  {progress === 100 ? 'Saving...' : 'Uploading...'}
+                </span>
                 <span className="text-[#D4AF37] font-bold">{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -325,6 +341,7 @@ const ProjectDocumentsPage = () => {
                 <li>Supported formats: PDF, JPG, PNG</li>
                 <li>Documents appear automatically on project detail pages</li>
                 <li>Changes are visible immediately after upload</li>
+                <li>If upload gets stuck, try a smaller file or clear browser cache</li>
               </ul>
             </div>
           </div>

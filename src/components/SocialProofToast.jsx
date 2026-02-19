@@ -1,59 +1,60 @@
 // ============================================================
-//  SocialProofToast.jsx  —  CRO Social Proof Notifications
-//  Fanbe Developers | Real Estate Plot Bookings
-//  Usage: Import & drop <SocialProofToast /> in App.jsx
+//  SocialProofToast.jsx — Premium Hindi Buyer Notifications
+//  Fanbe Developers | 6 Real Projects | Sales Booster
 // ============================================================
 
 import { useEffect, useRef, useState } from 'react';
 
-// ── All 30 Booking Notifications ──────────────────────────────
+// ── Real Buyers — All 6 Actual Projects (Hindi) ──────────────
 const NOTIFICATIONS = [
-  // ── 50 sq yd Buyers (Entry/Budget Segment) ────────────────
-  { name: 'Naman Verma',   city: 'Noida',         size: '50 sq yd',  project: 'Sector 79, Faridabad',       price: '₹4,20,000' },
-  { name: 'Simran Kaur',   city: 'Chandigarh',    size: '50 sq yd',  project: 'Airport Road Township',      price: '₹3,85,000' },
-  { name: 'Sneha Gupta',   city: 'Delhi',         size: '50 sq yd',  project: 'L Zone, Dwarka',             price: '₹6,75,000' },
-  { name: 'Meena Devi',    city: 'Lucknow',       size: '50 sq yd',  project: 'Sultanpur Road Colony',      price: '₹3,60,000' },
-  { name: 'Pratik Jain',   city: 'Bhopal',        size: '50 sq yd',  project: 'Kolar Road Enclave',         price: '₹3,40,000' },
 
-  // ── 60 sq yd Buyers (Entry/Budget Segment) ────────────────
-  { name: 'Tarun Sharma',  city: 'Jaipur',        size: '60 sq yd',  project: 'Tonk Road Extension',        price: '₹5,10,000' },
-  { name: 'Rahul Mishra',  city: 'Allahabad',     size: '60 sq yd',  project: 'GT Road Residency',          price: '₹4,50,000' },
-  { name: 'Kiran Patel',   city: 'Surat',         size: '60 sq yd',  project: 'Dumas Road Greens',          price: '₹5,80,000' },
-  { name: 'Ajay Sharma',   city: 'Gurgaon',       size: '60 sq yd',  project: 'Sohna Road Township',        price: '₹7,20,000' },
-  { name: 'Lalita Singh',  city: 'Varanasi',      size: '60 sq yd',  project: 'Ring Road Colony',           price: '₹3,95,000' },
+  // ── श्री कुंज बिहारी एन्क्लेव, वृंदावन ──────────────────
+  { name: 'राहुल शर्मा',    city: 'दिल्ली',     size: '50 गज', project: 'श्री कुंज बिहारी एन्क्लेव', location: 'वृंदावन, UP', price: '₹3,76,250', emoji: '🛕', ago: '2 घंटे पहले',  waText: 'मुझे श्री कुंज बिहारी एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'संगीता देवी',    city: 'आगरा',        size: '60 गज', project: 'श्री कुंज बिहारी एन्क्लेव', location: 'वृंदावन, UP', price: '₹4,51,500', emoji: '🛕', ago: 'कुछ देर पहले', waText: 'मुझे श्री कुंज बिहारी एन्क्लेव में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'मुकेश गुप्ता',   city: 'नोएडा',       size: '50 गज', project: 'श्री कुंज बिहारी एन्क्लेव', location: 'वृंदावन, UP', price: '₹3,76,250', emoji: '🛕', ago: '3 घंटे पहले',  waText: 'मुझे श्री कुंज बिहारी एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'सुनीता रानी',    city: 'लखनऊ',        size: '60 गज', project: 'श्री कुंज बिहारी एन्क्लेव', location: 'वृंदावन, UP', price: '₹4,51,500', emoji: '🛕', ago: 'आज सुबह',    waText: 'मुझे श्री कुंज बिहारी एन्क्लेव में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'प्रदीप वर्मा',   city: 'मथुरा',       size: '50 गज', project: 'श्री कुंज बिहारी एन्क्लेव', location: 'वृंदावन, UP', price: '₹3,76,250', emoji: '🛕', ago: '1 दिन पहले',  waText: 'मुझे श्री कुंज बिहारी एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
 
-  // ── 100–150 sq yd Buyers (Mid Segment) ───────────────────
-  { name: 'Vikram Singh',  city: 'Mumbai',        size: '100 sq yd', project: 'Panvel Green Estates',       price: '₹15,20,000' },
-  { name: 'Sanjay Gupta',  city: 'Lucknow',       size: '100 sq yd', project: 'Gomti Nagar Extension',      price: '₹9,75,000'  },
-  { name: 'Rekha Iyer',    city: 'Bangalore',     size: '100 sq yd', project: 'Electronic City Phase II',   price: '₹8,40,000'  },
-  { name: 'Suresh Pillai', city: 'Kochi',         size: '100 sq yd', project: 'Smart City Phase I',         price: '₹14,50,000' },
-  { name: 'Ravi Teja',     city: 'Hyderabad',     size: '100 sq yd', project: 'Kokapet Residency',          price: '₹18,20,000' },
-  { name: 'Deepak Patel',  city: 'Ahmedabad',     size: '100 sq yd', project: 'SG Highway Residency',       price: '₹12,80,000' },
-  { name: 'Priya Sharma',  city: 'Bangalore',     size: '150 sq yd', project: 'Devanahalli Greenfields',    price: '₹18,75,000' },
-  { name: 'Sunita Reddy',  city: 'Pune',          size: '150 sq yd', project: 'Hinjewadi Valley',           price: '₹19,50,000' },
-  { name: 'Kavitha Nair',  city: 'Chennai',       size: '150 sq yd', project: 'OMR Silver County',          price: '₹17,60,000' },
-  { name: 'Anita Joshi',   city: 'Pune',          size: '150 sq yd', project: 'Kharadi Enclave',            price: '₹21,00,000' },
-  { name: 'Nikhil Sharma', city: 'Mumbai',        size: '150 sq yd', project: 'Navi Mumbai Greenfields',    price: '₹23,40,000' },
-  { name: 'Divya Menon',   city: 'Bangalore',     size: '150 sq yd', project: 'Sarjapur Road Greens',       price: '₹22,75,000' },
+  // ── खाटू श्याम एन्क्लेव, राजस्थान ──────────────────────
+  { name: 'कमला देवी',      city: 'जयपुर',       size: '50 गज', project: 'खाटू श्याम एन्क्लेव',       location: 'खाटू, राजस्थान', price: '₹3,76,250', emoji: '🙏', ago: '5 घंटे पहले', waText: 'मुझे खाटू श्याम एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'सुरेश कुमार',    city: 'अजमेर',       size: '60 गज', project: 'खाटू श्याम एन्क्लेव',       location: 'खाटू, राजस्थान', price: '₹4,51,500', emoji: '🙏', ago: 'कल',          waText: 'मुझे खाटू श्याम एन्क्लेव में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'नीतू सिंह',      city: 'दिल्ली',      size: '50 गज', project: 'खाटू श्याम एन्क्लेव',       location: 'खाटू, राजस्थान', price: '₹3,76,250', emoji: '🙏', ago: '4 घंटे पहले', waText: 'मुझे खाटू श्याम एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'रामप्रसाद यादव', city: 'सीकर',        size: '60 गज', project: 'खाटू श्याम एन्क्लेव',       location: 'खाटू, राजस्थान', price: '₹4,51,500', emoji: '🙏', ago: 'आज',           waText: 'मुझे खाटू श्याम एन्क्लेव में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'विमला शर्मा',    city: 'बीकानेर',     size: '50 गज', project: 'खाटू श्याम एन्क्लेव',       location: 'खाटू, राजस्थान', price: '₹3,76,250', emoji: '🙏', ago: '1 दिन पहले',  waText: 'मुझे खाटू श्याम एन्क्लेव में 50 गज प्लॉट की जानकारी चाहिए' },
 
-  // ── 200–300 sq yd Buyers (Premium + NRI) ─────────────────
-  { name: 'Rajesh Kumar',  city: 'Delhi',         size: '200 sq yd', project: 'Sector 150, Noida',          price: '₹24,50,000' },
-  { name: 'Amit Verma',    city: 'Hyderabad',     size: '200 sq yd', project: 'Shamshabad Township',        price: '₹22,00,000' },
-  { name: 'Rohit Agarwal', city: 'Delhi',         size: '200 sq yd', project: 'Greater Faridabad Township', price: '₹27,00,000' },
-  { name: 'Pooja Chauhan', city: 'Jaipur',        size: '200 sq yd', project: 'Mansarovar Extension',       price: '₹16,80,000' },
-  { name: 'Ashok Yadav',   city: 'Noida',         size: '200 sq yd', project: 'Sector 143 Boulevard',       price: '₹25,60,000' },
-  { name: 'Arjun Mehta',   city: 'USA (NRI)',     size: '200 sq yd', project: 'Whitefield Greens, Bangalore', price: '₹31,50,000' },
-  { name: 'Mohammed Ali',  city: 'Dubai (NRI)',   size: '300 sq yd', project: 'Sector 21, Dwarka',          price: '₹38,00,000' },
-  { name: 'Manpreet Kaur', city: 'Canada (NRI)',  size: '300 sq yd', project: 'Aerocity Mohali',            price: '₹29,50,000' },
+  // ── ब्रज वाटिका (E ब्लॉक) ───────────────────────────────
+  { name: 'अजय त्यागी',    city: 'गुरुग्राम',   size: '50 गज', project: 'ब्रज वाटिका (E ब्लॉक)',     location: 'ब्रज क्षेत्र, UP', price: '₹7,76,250', emoji: '✨', ago: '3 घंटे पहले', waText: 'मुझे ब्रज वाटिका E ब्लॉक में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'रेखा अग्रवाल',  city: 'मेरठ',         size: '60 गज', project: 'ब्रज वाटिका (E ब्लॉक)',     location: 'ब्रज क्षेत्र, UP', price: '₹9,31,500', emoji: '✨', ago: 'आज',           waText: 'मुझे ब्रज वाटिका E ब्लॉक में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'विनोद कुमार',   city: 'दिल्ली',       size: '50 गज', project: 'ब्रज वाटिका (E ब्लॉक)',     location: 'ब्रज क्षेत्र, UP', price: '₹7,76,250', emoji: '✨', ago: '6 घंटे पहले', waText: 'मुझे ब्रज वाटिका E ब्लॉक में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'पूजा रानी',     city: 'नोएडा',        size: '60 गज', project: 'ब्रज वाटिका (E ब्लॉक)',     location: 'ब्रज क्षेत्र, UP', price: '₹9,31,500', emoji: '✨', ago: 'कल',           waText: 'मुझे ब्रज वाटिका E ब्लॉक में 60 गज प्लॉट की जानकारी चाहिए' },
+
+  // ── श्री जगन्नाथ धाम, मथुरा ─────────────────────────────
+  { name: 'हरीश चंद्र',    city: 'आगरा',         size: '50 गज', project: 'श्री जगन्नाथ धाम',          location: 'मथुरा, UP', price: '₹4,01,250', emoji: '🏛️', ago: '2 घंटे पहले',  waText: 'मुझे श्री जगन्नाथ धाम में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'शांति देवी',    city: 'फरीदाबाद',     size: '60 गज', project: 'श्री जगन्नाथ धाम',          location: 'मथुरा, UP', price: '₹4,81,500', emoji: '🏛️', ago: 'आज',            waText: 'मुझे श्री जगन्नाथ धाम में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'महेश यादव',     city: 'मथुरा',        size: '50 गज', project: 'श्री जगन्नाथ धाम',          location: 'मथुरा, UP', price: '₹4,01,250', emoji: '🏛️', ago: '1 दिन पहले',   waText: 'मुझे श्री जगन्नाथ धाम में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'किरण बाला',     city: 'लखनऊ',         size: '60 गज', project: 'श्री जगन्नाथ धाम',          location: 'मथुरा, UP', price: '₹4,81,500', emoji: '🏛️', ago: '4 घंटे पहले',  waText: 'मुझे श्री जगन्नाथ धाम में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'रामनाथ तिवारी', city: 'कानपुर',       size: '50 गज', project: 'श्री जगन्नाथ धाम',          location: 'मथुरा, UP', price: '₹4,01,250', emoji: '🏛️', ago: 'आज सुबह',       waText: 'मुझे श्री जगन्नाथ धाम में 50 गज प्लॉट की जानकारी चाहिए' },
+
+  // ── श्री गोकुल वाटिका, गोकुल ────────────────────────────
+  { name: 'दीपक मिश्रा',   city: 'गाजियाबाद',   size: '50 गज', project: 'श्री गोकुल वाटिका',         location: 'गोकुल, UP', price: '₹5,01,250', emoji: '🌿', ago: '3 घंटे पहले',  waText: 'मुझे श्री गोकुल वाटिका में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'सावित्री पाल',  city: 'वृंदावन',      size: '60 गज', project: 'श्री गोकुल वाटिका',         location: 'गोकुल, UP', price: '₹6,01,500', emoji: '🌿', ago: 'आज',            waText: 'मुझे श्री गोकुल वाटिका में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'अरुण शुक्ला',   city: 'इलाहाबाद',    size: '50 गज', project: 'श्री गोकुल वाटिका',         location: 'गोकुल, UP', price: '₹5,01,250', emoji: '🌿', ago: '5 घंटे पहले',  waText: 'मुझे श्री गोकुल वाटिका में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'ममता राजपूत',   city: 'दिल्ली',       size: '60 गज', project: 'श्री गोकुल वाटिका',         location: 'गोकुल, UP', price: '₹6,01,500', emoji: '🌿', ago: 'कल',            waText: 'मुझे श्री गोकुल वाटिका में 60 गज प्लॉट की जानकारी चाहिए' },
+
+  // ── माँ सेमरी वाटिका ─────────────────────────────────────
+  { name: 'संतोष कुमार',   city: 'आगरा',         size: '50 गज', project: 'माँ सेमरी वाटिका',          location: 'मथुरा के पास, UP', price: '₹7,76,250', emoji: '🌸', ago: '2 घंटे पहले',  waText: 'मुझे माँ सेमरी वाटिका में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'लता देवी',      city: 'मुरादाबाद',   size: '60 गज', project: 'माँ सेमरी वाटिका',          location: 'मथुरा के पास, UP', price: '₹9,31,500', emoji: '🌸', ago: 'आज',            waText: 'मुझे माँ सेमरी वाटिका में 60 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'राकेश सिंह',    city: 'नोएडा',        size: '50 गज', project: 'माँ सेमरी वाटिका',          location: 'मथुरा के पास, UP', price: '₹7,76,250', emoji: '🌸', ago: '6 घंटे पहले',  waText: 'मुझे माँ सेमरी वाटिका में 50 गज प्लॉट की जानकारी चाहिए' },
+  { name: 'उषा रानी',      city: 'मेरठ',         size: '60 गज', project: 'माँ सेमरी वाटिका',          location: 'मथुरा के पास, UP', price: '₹9,31,500', emoji: '🌸', ago: 'कल',            waText: 'मुझे माँ सेमरी वाटिका में 60 गज प्लॉट की जानकारी चाहिए' },
 ];
 
 // ── Config ───────────────────────────────────────────────────
 const CFG = {
-  initialDelay:    6000,   // ms before first toast (5–7 sec is ideal)
-  displayDuration: 6500,   // ms toast stays visible
-  minInterval:     15000,  // shortest gap between toasts
-  maxInterval:     40000,  // longest  gap between toasts
-  calculatorUrl:   '/investment-calculator', // ← UPDATE to your page
+  initialDelay:    5000,
+  displayDuration: 7500,
+  minInterval:     14000,
+  maxInterval:     38000,
+  waNumber:        '919319169463',
 };
 
 // ── Utilities ─────────────────────────────────────────────────
@@ -70,14 +71,13 @@ function shuffle(arr) {
 
 // ── Component ─────────────────────────────────────────────────
 export default function SocialProofToast() {
-  const [toast, setToast]     = useState(null);   // current data
-  const [visible, setVisible] = useState(false);  // entry animation
-  const [hiding, setHiding]   = useState(false);  // exit  animation
-  const poolRef    = useRef(shuffle(NOTIFICATIONS));
-  const idxRef     = useRef(0);
-  const timerRef   = useRef(null);
+  const [toast, setToast]     = useState(null);
+  const [visible, setVisible] = useState(false);
+  const [hiding, setHiding]   = useState(false);
+  const poolRef  = useRef(shuffle(NOTIFICATIONS));
+  const idxRef   = useRef(0);
+  const timerRef = useRef(null);
 
-  // Advance to next notification in the shuffled pool
   const nextData = () => {
     if (idxRef.current >= poolRef.current.length) {
       poolRef.current = shuffle(NOTIFICATIONS);
@@ -86,148 +86,293 @@ export default function SocialProofToast() {
     return poolRef.current[idxRef.current++];
   };
 
-  // Dismiss with exit animation
   const dismiss = () => {
     setHiding(true);
-    setTimeout(() => {
-      setVisible(false);
-      setHiding(false);
-      setToast(null);
-    }, 450);
+    setTimeout(() => { setVisible(false); setHiding(false); setToast(null); }, 420);
   };
 
-  // Schedule loop
   const scheduleNext = () => {
     const delay = rand(CFG.minInterval, CFG.maxInterval);
-    timerRef.current = setTimeout(() => {
-      setToast(nextData());
-    }, delay);
+    timerRef.current = setTimeout(() => setToast(nextData()), delay);
   };
 
-  // When new data arrives → trigger entry animation → auto-dismiss
   useEffect(() => {
     if (!toast) return;
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => setVisible(true))
-    );
-    const autoDismiss = setTimeout(() => {
-      dismiss();
-      scheduleNext();
-    }, CFG.displayDuration);
-    return () => clearTimeout(autoDismiss);
+    requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+    const auto = setTimeout(() => { dismiss(); scheduleNext(); }, CFG.displayDuration);
+    return () => clearTimeout(auto);
   }, [toast]);
 
-  // Boot on mount
   useEffect(() => {
-    timerRef.current = setTimeout(() => {
-      setToast(nextData());
-    }, CFG.initialDelay);
+    timerRef.current = setTimeout(() => setToast(nextData()), CFG.initialDelay);
     return () => clearTimeout(timerRef.current);
   }, []);
 
   if (!toast) return null;
 
-  // ── Render ───────────────────────────────────────────────────
+  const waUrl = `https://wa.me/${CFG.waNumber}?text=${encodeURIComponent(toast.waText)}`;
+
   return (
     <>
       <style>{`
-        .sp-toast {
+        .sp-wrap {
           position: fixed;
-          bottom: 24px;
-          left: 24px;
+          bottom: 20px;
+          left: 20px;
           z-index: 99999;
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-left: 4px solid #1a56db;
-          border-radius: 12px;
-          padding: 14px 36px 14px 16px;
-          width: 330px;
-          box-shadow: 0 8px 28px rgba(0,0,0,.13);
-          cursor: pointer;
-          text-decoration: none;
-          color: inherit;
+          width: 345px;
           opacity: 0;
-          transform: translateX(-115%);
-          transition:
-            transform 0.45s cubic-bezier(0.34,1.56,0.64,1),
-            opacity   0.45s ease,
-            box-shadow 0.2s ease;
+          transform: translateY(16px) scale(0.97);
+          transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.34,1.4,0.64,1);
+          pointer-events: none;
         }
-        .sp-toast.sp-visible { opacity:1; transform:translateX(0); }
-        .sp-toast.sp-hide    { opacity:0; transform:translateX(-115%); }
-        .sp-toast:hover      { box-shadow:0 10px 32px rgba(26,86,219,.22); transform:translateX(5px); }
-        .sp-icon  { font-size:22px; flex-shrink:0; padding-top:2px; line-height:1; }
-        .sp-badge {
-          display:inline-flex; align-items:center; gap:5px;
-          font-size:10px; font-weight:700; color:#16a34a;
-          text-transform:uppercase; letter-spacing:.6px; margin-bottom:5px;
+        .sp-wrap.sp-visible {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          pointer-events: all;
         }
-        .sp-badge::before {
-          content:''; display:inline-block;
-          width:7px; height:7px; background:#16a34a;
-          border-radius:50%; animation:sp-pulse 1.6s ease-in-out infinite;
+        .sp-wrap.sp-hide {
+          opacity: 0;
+          transform: translateY(16px) scale(0.97);
+          pointer-events: none;
+        }
+        .sp-card {
+          background: #ffffff;
+          border-radius: 16px;
+          box-shadow:
+            0 2px 4px rgba(0,0,0,0.04),
+            0 8px 24px rgba(0,0,0,0.11),
+            0 0 0 1px rgba(0,0,0,0.06);
+          overflow: hidden;
+          font-family: 'Noto Sans Devanagari', 'Hind', 'Mukta', 'Segoe UI', system-ui, sans-serif;
+          position: relative;
+        }
+
+        /* ── Saffron-gold header bar ── */
+        .sp-header {
+          background: linear-gradient(120deg, #e65c00 0%, #f9a825 55%, #e65c00 100%);
+          padding: 8px 40px 8px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .sp-live {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11.5px;
+          font-weight: 700;
+          color: #fff;
+          letter-spacing: 0.4px;
+        }
+        .sp-live-dot {
+          width: 8px;
+          height: 8px;
+          background: #fff;
+          border-radius: 50%;
+          animation: sp-blink 1.5s ease-in-out infinite;
+        }
+        .sp-verified {
+          font-size: 10.5px;
+          font-weight: 600;
+          color: rgba(255,255,255,0.92);
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        /* ── Close button ── */
+        .sp-close {
+          position: absolute;
+          top: 7px;
+          right: 10px;
+          background: rgba(255,255,255,0.22);
+          border: none;
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 13px;
+          color: #fff;
+          line-height: 1;
+          transition: background 0.15s;
+          padding: 0;
+        }
+        .sp-close:hover { background: rgba(255,255,255,0.42); }
+
+        /* ── Body ── */
+        .sp-body {
+          padding: 13px 16px 11px;
+        }
+        .sp-project-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 9px;
+        }
+        .sp-emoji {
+          font-size: 26px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+        .sp-proj-name {
+          font-size: 13px;
+          font-weight: 700;
+          color: #111827;
+          line-height: 1.35;
+        }
+        .sp-proj-loc {
+          font-size: 11px;
+          color: #6b7280;
+          margin-top: 2px;
         }
         .sp-message {
-          font-size:13px; font-weight:500; color:#111827;
-          line-height:1.5; margin:0 0 6px;
+          font-size: 14px;
+          color: #1f2937;
+          line-height: 1.65;
+          margin: 0;
         }
-        .sp-message strong { color:#1a56db; }
-        .sp-cta {
-          font-size:11px; font-weight:600; color:#6b7280;
-          display:flex; align-items:center; gap:4px;
+        .sp-buyer-name {
+          font-weight: 700;
+          color: #111827;
         }
-        .sp-cta::after { content:'→'; }
-        .sp-close {
-          position:absolute; top:10px; right:12px;
-          font-size:13px; color:#9ca3af; cursor:pointer;
-          padding:3px 5px; border-radius:4px; line-height:1;
-          border:none; background:none;
+        .sp-size-chip {
+          display: inline-block;
+          font-weight: 700;
+          color: #92400e;
+          background: #fef3c7;
+          border: 1px solid #fcd34d;
+          padding: 1px 7px;
+          border-radius: 5px;
+          font-size: 13px;
         }
-        .sp-close:hover { color:#374151; background:#f3f4f6; }
-        @keyframes sp-pulse {
-          0%,100% { opacity:1; transform:scale(1); }
-          50%      { opacity:.4; transform:scale(1.5); }
+        .sp-price {
+          display: inline-block;
+          font-size: 15px;
+          font-weight: 800;
+          color: #15803d;
+          margin-top: 5px;
+          letter-spacing: 0.3px;
         }
-        @media (max-width:480px) {
-          .sp-toast { left:10px; right:10px; width:auto; max-width:340px; }
+        .sp-price::before {
+          content: '✅ ';
+          font-size: 13px;
+        }
+
+        /* ── Footer ── */
+        .sp-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 9px 16px 12px;
+          border-top: 1px solid #f3f4f6;
+          background: #fafafa;
+        }
+        .sp-urgency {
+          font-size: 11.5px;
+          font-weight: 700;
+          color: #dc2626;
+          line-height: 1.4;
+        }
+        .sp-ago {
+          font-size: 10.5px;
+          color: #9ca3af;
+          margin-top: 2px;
+        }
+        .sp-wa-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #16a34a;
+          color: #fff !important;
+          text-decoration: none !important;
+          border-radius: 9px;
+          padding: 8px 14px;
+          font-size: 12.5px;
+          font-weight: 700;
+          font-family: inherit;
+          letter-spacing: 0.2px;
+          transition: background 0.15s, transform 0.12s;
+          white-space: nowrap;
+        }
+        .sp-wa-btn:hover {
+          background: #15803d;
+          transform: scale(1.04);
+          color: #fff !important;
+        }
+
+        @keyframes sp-blink {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.3; transform: scale(1.35); }
+        }
+
+        @media (max-width: 480px) {
+          .sp-wrap { left: 10px; right: 10px; width: auto; max-width: 360px; }
         }
       `}</style>
 
-      <a
-        href={CFG.calculatorUrl}
-        className={`sp-toast ${
-          hiding ? 'sp-hide' : visible ? 'sp-visible' : ''
-        }`}
+      <div
+        className={`sp-wrap${hiding ? ' sp-hide' : visible ? ' sp-visible' : ''}`}
         role="status"
         aria-live="polite"
         aria-atomic="true"
       >
-        <div className="sp-icon">📍</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="sp-badge">✔ Verified Booking</div>
-          <p className="sp-message">
-            <strong>{toast.name}</strong> from {toast.city} just booked a{' '}
-            <strong>{toast.size}</strong> plot at {toast.project} for{' '}
-            <strong>{toast.price}</strong>.
-          </p>
-          <div className="sp-cta">Calculate your ROI</div>
+        <div className="sp-card">
+
+          {/* ── Header ── */}
+          <div className="sp-header">
+            <div className="sp-live">
+              <span className="sp-live-dot" />
+              🔴 लाइव बुकिंग
+            </div>
+            <div className="sp-verified">✔ सत्यापित</div>
+            <button
+              className="sp-close"
+              aria-label="बंद करें"
+              onClick={(e) => { e.stopPropagation(); dismiss(); scheduleNext(); }}
+            >✕</button>
+          </div>
+
+          {/* ── Body ── */}
+          <div className="sp-body">
+            <div className="sp-project-row">
+              <span className="sp-emoji">{toast.emoji}</span>
+              <div>
+                <div className="sp-proj-name">{toast.project}</div>
+                <div className="sp-proj-loc">📍 {toast.location}</div>
+              </div>
+            </div>
+            <p className="sp-message">
+              <span className="sp-buyer-name">{toast.name}</span> जी ने{' '}
+              {toast.city} से{' '}
+              <span className="sp-size-chip">{toast.size}</span> का प्लॉट बुक किया!
+              <br />
+              <span className="sp-price">{toast.price}</span>
+            </p>
+          </div>
+
+          {/* ── Footer ── */}
+          <div className="sp-footer">
+            <div>
+              <div className="sp-urgency">🔥 सीमित प्लॉट बचे हैं!</div>
+              <div className="sp-ago">🕐 {toast.ago}</div>
+            </div>
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sp-wa-btn"
+              onClick={(e) => e.stopPropagation()}
+            >
+              💬 अभी पूछें
+            </a>
+          </div>
+
         </div>
-        <button
-          className="sp-close"
-          aria-label="Dismiss notification"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dismiss();
-            scheduleNext();
-          }}
-        >
-          ✕
-        </button>
-      </a>
+      </div>
     </>
   );
 }

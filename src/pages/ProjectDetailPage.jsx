@@ -65,9 +65,17 @@ const ProjectDetailPage = () => {
       }
     });
 
+    const unsubscribeDocs = subscribeToContentUpdates(EVENTS.PROJECT_DOCS_UPDATED, (data) => {
+      if (!data.data.slug || data.data.slug === slug) {
+        loadData();
+        toast({ title: "Updated", description: "Project documents updated!" });
+      }
+    });
+
     return () => {
       unsubscribeImage();
       unsubscribeContent();
+      unsubscribeDocs();
     };
   }, [slug, toast]);
 
@@ -84,7 +92,7 @@ const ProjectDetailPage = () => {
     
     toast({
       title: 'Download Started',
-      description: `${docType === 'brochure' ? 'Brochure' : 'Map'} is downloading...`,
+      description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} is downloading...`,
     });
   };
 
@@ -156,7 +164,7 @@ const ProjectDetailPage = () => {
         <meta name="description" content={project.meta?.description || project.subline} />
       </Helmet>
 
-      {/* Hero Section - Enhanced */}
+      {/* Hero Section - Enhanced with Floating Logo */}
       <section className="relative h-[85vh] w-full bg-gray-900 overflow-hidden">
         <img 
           key={project.heroImage}
@@ -165,6 +173,35 @@ const ProjectDetailPage = () => {
           className="w-full h-full object-cover opacity-70"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0F3A5F] via-[#0F3A5F]/30 to-transparent" />
+        
+        {/* Floating Project Logo Badge - Top Right */}
+        {project.logo && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="absolute top-6 right-6 z-20"
+          >
+            <div className="relative group">
+              {/* Glow effect */}
+              <div className="absolute inset-0 bg-[#D4AF37] rounded-2xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
+              
+              {/* Logo container */}
+              <div className="relative bg-white rounded-2xl p-2 shadow-2xl border-4 border-[#D4AF37] hover:scale-105 transition-transform">
+                <img 
+                  src={project.logo} 
+                  alt={`${project.title} Logo`}
+                  className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-xl"
+                />
+              </div>
+              
+              {/* Verified badge */}
+              <div className="absolute -bottom-2 -right-2 bg-[#D4AF37] text-[#0F3A5F] rounded-full p-1.5 shadow-lg border-2 border-white">
+                <Award size={16} className="font-bold" />
+              </div>
+            </div>
+          </motion.div>
+        )}
         
         <div className="absolute inset-0 flex items-center">
           <div className="container mx-auto px-4">
@@ -202,13 +239,18 @@ const ProjectDetailPage = () => {
                 </a>
               </div>
 
-              {/* Download Buttons */}
+              {/* Download Buttons - Always show if docs exist from CMS */}
               {hasDocuments && (
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex flex-col sm:flex-row gap-3 mt-6"
+                >
                   {docs.brochure && (
                     <Button 
                       onClick={() => handleDownload('brochure')}
-                      className="h-12 px-6 bg-white/15 hover:bg-white/25 backdrop-blur-md border-2 border-white/40 text-white font-semibold rounded-lg shadow-lg transition-all"
+                      className="h-12 px-6 bg-white/15 hover:bg-white/25 backdrop-blur-md border-2 border-white/40 text-white font-semibold rounded-lg shadow-lg transition-all hover:scale-105"
                     >
                       <FileText className="mr-2 w-5 h-5" /> Download Brochure
                     </Button>
@@ -216,12 +258,12 @@ const ProjectDetailPage = () => {
                   {docs.map && (
                     <Button 
                       onClick={() => handleDownload('map')}
-                      className="h-12 px-6 bg-white/15 hover:bg-white/25 backdrop-blur-md border-2 border-white/40 text-white font-semibold rounded-lg shadow-lg transition-all"
+                      className="h-12 px-6 bg-white/15 hover:bg-white/25 backdrop-blur-md border-2 border-white/40 text-white font-semibold rounded-lg shadow-lg transition-all hover:scale-105"
                     >
                       <Map className="mr-2 w-5 h-5" /> Download Site Plan
                     </Button>
                   )}
-                </div>
+                </motion.div>
               )}
             </motion.div>
           </div>

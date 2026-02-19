@@ -1,418 +1,495 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  MapPin, ArrowRight, Shield, Clock, Star, MessageCircle,
-  Phone, CheckCircle, TrendingUp, Home, Banknote, Users, Building2
+  MapPin, Phone, MessageCircle, X, Filter, ChevronDown,
+  TrendingUp, Shield, Award, Users, IndianRupee, Calculator, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// ─── Project Data with logos & meta ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJECT DATA - Optimized for fast loading (no images in listing)
+// ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
     name: 'Shree Kunj Bihari Enclave',
-    nameHi: 'श्री कुंज बिहारी Enclave',
-    logo: '/images/projects/shree_kunj_bihari_enclave.png',
-    location: 'Vrindavan, Uttar Pradesh',
+    nameShort: 'SKBE',
+    icon: '🕉️',
+    location: 'Vrindavan, UP',
     region: 'vrindavan',
-    tagline: "Premium Plots in Krishna's Holy Land",
-    status: 'Best Seller',
-    statusColor: 'bg-green-500',
-    startingPrice: '₹3,76,250',
-    bookingAmt: '₹37,625',
-    bookingPct: '10%',
-    emi: '₹5,644/mo',
+    pricePerSqYd: 7525,
+    priceDisplay: '₹7,525',
+    startingPrice: 376250,
+    startingDisplay: '₹3.76L',
+    bookingPct: 10,
+    emi: 5644,
+    emiDisplay: '₹5,644',
     emiMonths: 60,
-    pricePerSqYd: '₹7,525/sq yd',
-    plotSizes: ['50', '100', '150', '200', '250'],
-    amenities: ['Underground Electricity', 'Street Lights', 'Water Supply', 'Main Gate Security', 'Children Park', 'Temple'],
-    highlights: ['Immediate Registry on 10%', 'Gated Community', '0% Interest EMI'],
+    status: 'bestseller',
+    statusLabel: 'Best Seller',
+    availability: 'available',
+    logoGradient: 'from-amber-500 to-orange-600',
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
     name: 'Shri Khatu Shyam Enclave',
-    nameHi: 'श्री खाटू श्याम Enclave',
-    logo: '/images/projects/khatu_shyam_enclave.png',
+    nameShort: 'KKSE',
+    icon: '🛕',
     location: 'Khatu, Rajasthan',
     region: 'rajasthan',
-    tagline: 'Divine Living Near Sacred Temple',
-    status: 'Limited Plots',
-    statusColor: 'bg-orange-500',
-    startingPrice: '₹3,76,250',
-    bookingAmt: '₹37,625',
-    bookingPct: '10%',
-    emi: '₹5,644/mo',
+    pricePerSqYd: 7525,
+    priceDisplay: '₹7,525',
+    startingPrice: 376250,
+    startingDisplay: '₹3.76L',
+    bookingPct: 10,
+    emi: 5644,
+    emiDisplay: '₹5,644',
     emiMonths: 60,
-    pricePerSqYd: '₹7,525/sq yd',
-    plotSizes: ['50', '100', '150', '200'],
-    amenities: ['Paved Roads', 'Street Lighting', 'Water Connection', 'Electricity', 'Landscaped Garden', 'Security Guards'],
-    highlights: ['Near Khatu Shyam Temple', 'Free Pick & Drop', '0% Interest EMI'],
+    status: 'limited',
+    statusLabel: 'Limited Plots',
+    availability: 'available',
+    logoGradient: 'from-rose-500 to-pink-600',
   },
   {
     id: 'shree-jagannath-dham',
     name: 'Shree Jagannath Dham',
-    nameHi: 'श्री जगन्नाथ धाम',
-    logo: '/images/projects/jaganath_dham.png',
-    location: 'Mathura, Uttar Pradesh',
+    nameShort: 'SJD',
+    icon: '🏛️',
+    location: 'Mathura, UP',
     region: 'mathura',
-    tagline: 'Sacred Plots for Sacred Living',
-    status: 'Available',
-    statusColor: 'bg-blue-500',
-    startingPrice: '₹4,01,250',
-    bookingAmt: '₹50,156',
-    bookingPct: '12.5%',
-    emi: '₹6,502/mo',
+    pricePerSqYd: 8025,
+    priceDisplay: '₹8,025',
+    startingPrice: 401250,
+    startingDisplay: '₹4.01L',
+    bookingPct: 12.5,
+    emi: 6502,
+    emiDisplay: '₹6,502',
     emiMonths: 54,
-    pricePerSqYd: '₹8,025/sq yd',
-    plotSizes: ['50', '100', '150', '200', '250'],
-    amenities: ['40ft & 60ft Wide Roads', 'Underground Cabling', 'Park & Green Areas', 'Community Center', '24x7 Security'],
-    highlights: ['Approved Layout Plan', 'Immediate Possession', '0% Interest EMI'],
+    status: 'available',
+    statusLabel: 'Available',
+    availability: 'available',
+    logoGradient: 'from-blue-500 to-indigo-600',
   },
   {
     id: 'brij-vatika',
     name: 'Brij Vatika (E Block)',
-    nameHi: 'बृज वाटिका (E Block)',
-    logo: '/images/projects/brij_vatika.png',
+    nameShort: 'BVE',
+    icon: '🌳',
     location: 'Braj Bhoomi, Vrindavan',
     region: 'vrindavan',
-    tagline: "Live in Lord Krishna's Sacred Land",
-    status: 'Available',
-    statusColor: 'bg-blue-500',
-    startingPrice: '₹7,76,250',
-    bookingAmt: '₹2,71,688',
-    bookingPct: '35%',
-    emi: '₹12,615/mo',
+    pricePerSqYd: 15525,
+    priceDisplay: '₹15,525',
+    startingPrice: 776250,
+    startingDisplay: '₹7.76L',
+    bookingPct: 35,
+    emi: 12615,
+    emiDisplay: '₹12,615',
     emiMonths: 40,
-    pricePerSqYd: '₹15,525/sq yd',
-    plotSizes: ['50', '100', '150', '200', '250'],
-    amenities: ['Concrete Roads', 'Solar Street Lights', 'RO Water Plant', 'Landscaping', 'Children Park', 'Security Cabin'],
-    highlights: ['Registry on 35%', 'No Brokerage', 'Direct from Developer'],
+    status: 'available',
+    statusLabel: 'Available',
+    availability: 'available',
+    logoGradient: 'from-emerald-500 to-teal-600',
   },
   {
     id: 'shree-gokul-vatika',
     name: 'Shree Gokul Vatika',
-    nameHi: 'श्री गोकुल वाटिका',
-    logo: '/images/projects/gokul_vatika.png',
-    location: 'Gokul, Uttar Pradesh',
+    nameShort: 'SGV',
+    icon: '🎋',
+    location: 'Gokul, UP',
     region: 'mathura',
-    tagline: "Premium Plots in Krishna's Childhood Abode",
-    status: 'Available',
-    statusColor: 'bg-blue-500',
-    startingPrice: '₹5,01,250',
-    bookingAmt: '₹1,75,438',
-    bookingPct: '35%',
-    emi: '₹13,576/mo',
+    pricePerSqYd: 10025,
+    priceDisplay: '₹10,025',
+    startingPrice: 501250,
+    startingDisplay: '₹5.01L',
+    bookingPct: 35,
+    emi: 13576,
+    emiDisplay: '₹13,576',
     emiMonths: 24,
-    pricePerSqYd: '₹10,025/sq yd',
-    plotSizes: ['50', '100', '150', '200', '250'],
-    amenities: ['60ft Wide Main Road', 'Interlocking Tile Roads', 'LED Street Lights', 'Meditation Center', 'Jogging Track', 'Gated Entry'],
-    highlights: ['Near Gokul Temple', 'Premium Gated Community', 'High ROI Potential'],
+    status: 'available',
+    statusLabel: 'Available',
+    availability: 'available',
+    logoGradient: 'from-green-500 to-lime-600',
   },
   {
     id: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
-    nameHi: 'मां सेमरी वाटिका',
-    logo: '/images/projects/semri_vatika.png',
-    location: 'Near Mathura, Uttar Pradesh',
+    nameShort: 'MSV',
+    icon: '🏞️',
+    location: 'Near Mathura, UP',
     region: 'mathura',
-    tagline: 'Premium Plots with High Appreciation',
-    status: 'New Launch',
-    statusColor: 'bg-purple-500',
-    startingPrice: '₹7,76,250',
-    bookingAmt: '₹2,71,688',
-    bookingPct: '35%',
-    emi: '₹21,024/mo',
+    pricePerSqYd: 15525,
+    priceDisplay: '₹15,525',
+    startingPrice: 776250,
+    startingDisplay: '₹7.76L',
+    bookingPct: 35,
+    emi: 21024,
+    emiDisplay: '₹21,024',
     emiMonths: 24,
-    pricePerSqYd: '₹15,525/sq yd',
-    plotSizes: ['50', '100', '125', '150', '200'],
-    amenities: ['Paved Internal Roads', 'Street Lighting', 'Water Supply', 'Boundary Wall', 'Main Gate', 'Green Belt'],
-    highlights: ['High Appreciation Zone', 'Near NH-2', 'Approved by Authority'],
+    status: 'new',
+    statusLabel: 'New Launch',
+    availability: 'available',
+    logoGradient: 'from-purple-500 to-violet-600',
   },
 ];
 
-const filters = [
-  { key: 'all', label: 'All Projects' },
-  { key: 'vrindavan', label: 'Vrindavan' },
-  { key: 'mathura', label: 'Mathura / Gokul' },
-  { key: 'rajasthan', label: 'Rajasthan' },
+const trustStats = [
+  { icon: Users, value: '15,000+', label: 'Happy Families' },
+  { icon: Award, value: '25+', label: 'Projects Delivered' },
+  { icon: Shield, value: '100%', label: 'Legal Clarity' },
+  { icon: TrendingUp, value: '0%', label: 'Interest EMI' },
 ];
 
-const trustPoints = [
-  { icon: Shield, value: '100%', label: 'Legal Clarity', sub: 'Clear title & registry' },
-  { icon: Banknote, value: '0%', label: 'Interest EMI', sub: 'No hidden charges' },
-  { icon: Clock, value: 'Instant', label: 'Registry', sub: 'On booking payment' },
-  { icon: Users, value: '15,000+', label: 'Happy Families', sub: 'Since 2012' },
-];
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: (i) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.5 } }),
+const statusColors = {
+  bestseller: 'bg-green-500 text-white',
+  limited: 'bg-orange-500 text-white',
+  new: 'bg-purple-500 text-white',
+  available: 'bg-blue-500 text-white',
 };
 
-const ProjectsPage = ({ onBookSiteVisit }) => {
-  const [activeFilter, setActiveFilter] = useState('all');
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════
+const ProjectsPage = () => {
+  const [filters, setFilters] = useState({
+    region: 'all',
+    priceRange: 'all',
+    emiRange: 'all',
+    status: 'all',
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [showStickyCTA, setShowStickyCTA] = useState(false);
 
-  const filtered = activeFilter === 'all'
-    ? projects
-    : projects.filter(p => p.region === activeFilter);
+  // Scroll detection for sticky CTA
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyCTA(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Filter logic
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      if (filters.region !== 'all' && p.region !== filters.region) return false;
+      if (filters.priceRange === 'under5' && p.startingPrice >= 500000) return false;
+      if (filters.priceRange === '5to8' && (p.startingPrice < 500000 || p.startingPrice >= 800000)) return false;
+      if (filters.priceRange === 'above8' && p.startingPrice < 800000) return false;
+      if (filters.emiRange === 'under10' && p.emi >= 10000) return false;
+      if (filters.emiRange === '10to15' && (p.emi < 10000 || p.emi >= 15000)) return false;
+      if (filters.emiRange === 'above15' && p.emi < 15000) return false;
+      if (filters.status !== 'all' && p.status !== filters.status) return false;
+      return true;
+    });
+  }, [filters]);
+
+  const resetFilters = () => {
+    setFilters({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
+  };
+
+  const activeFilterCount = Object.values(filters).filter(v => v !== 'all').length;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Helmet>
         <title>Our Projects | Fanbe Group — Premium Plots in Vrindavan, Mathura & Rajasthan</title>
-        <meta name="description" content="Explore 6 premium residential plot projects by Fanbe Group across Vrindavan, Mathura, Gokul and Rajasthan. 0% interest EMI, immediate registry, clear title." />
+        <meta name="description" content="6 premium residential plot projects. Starting ₹3.76L. 0% interest EMI. Instant registry. 15,000+ happy families." />
       </Helmet>
 
-      {/* ── HERO ──────────────────────────────────────────────────── */}
-      <section className="relative bg-gradient-to-br from-[#0A2744] via-[#0F3A5F] to-[#1a5a8f] text-white py-20 md:py-28 overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute -top-20 -right-20 w-72 h-72 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative container mx-auto px-4 text-center">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-block px-5 py-2 bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] rounded-full text-sm font-bold tracking-widest mb-6">
-              ✨ 25+ PROJECTS DELIVERED
-            </span>
-            <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 leading-tight">
-              Our <span className="text-[#D4AF37]">Premium</span> Projects
-            </h1>
-            <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-8">
-              Sacred locations. Modern infrastructure. 0% interest EMI.
-              Own your dream plot starting at just <span className="text-[#D4AF37] font-bold">₹3.76 Lakhs</span>.
-            </p>
-
-            {/* Quick stats strip */}
-            <div className="flex flex-wrap justify-center gap-6 md:gap-10 mt-8">
-              {[
-                { val: '6', lbl: 'Active Projects' },
-                { val: '₹3.76L', lbl: 'Starting Price' },
-                { val: '0%', lbl: 'Interest EMI' },
-                { val: '50 sq yd', lbl: 'Min. Plot Size' },
-              ].map((s, i) => (
-                <div key={i} className="text-center">
-                  <div className="text-2xl md:text-3xl font-bold text-[#D4AF37]">{s.val}</div>
-                  <div className="text-xs text-gray-400 uppercase tracking-wide mt-1">{s.lbl}</div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── FILTER BAR ────────────────────────────────────────────── */}
-      <div className="sticky top-[68px] z-30 bg-white border-b border-gray-200 shadow-sm">
+      {/* ═══ TRUST BAND ═══════════════════════════════════════════════════ */}
+      <section className="bg-gradient-to-r from-[#0A2744] via-[#0F3A5F] to-[#1a5a8f] text-white py-4">
         <div className="container mx-auto px-4">
-          <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
-            {filters.map(f => (
-              <button
-                key={f.key}
-                onClick={() => setActiveFilter(f.key)}
-                className={`flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
-                  activeFilter === f.key
-                    ? 'bg-[#0F3A5F] text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-            <div className="ml-auto flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 pr-2">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>{filtered.length} project{filtered.length !== 1 ? 's' : ''}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PROJECTS GRID ─────────────────────────────────────────── */}
-      <section className="py-14 md:py-20">
-        <div className="container mx-auto px-4">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeFilter}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
-            >
-              {filtered.map((project, i) => (
-                <motion.div
-                  key={project.id}
-                  custom={i}
-                  variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group flex flex-col"
-                >
-                  {/* Card Header — Logo */}
-                  <div className="relative bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 flex items-center justify-center min-h-[220px]">
-                    {/* Status Badge */}
-                    <span className={`absolute top-4 right-4 ${project.statusColor} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg z-10`}>
-                      {project.status}
-                    </span>
-                    <img
-                      src={project.logo}
-                      alt={project.name}
-                      className="max-w-full max-h-[190px] object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-
-                  {/* Card Body */}
-                  <div className="p-6 flex flex-col flex-1">
-                    {/* Name & Location */}
-                    <div className="mb-3">
-                      <h3 className="text-xl font-bold text-[#0F3A5F] leading-tight">{project.name}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5 font-medium">{project.nameHi}</p>
-                    </div>
-                    <p className="text-sm text-gray-500 flex items-center gap-1.5 mb-2">
-                      <MapPin className="w-3.5 h-3.5 text-[#D4AF37] flex-shrink-0" />{project.location}
-                    </p>
-                    <p className="text-sm text-gray-600 italic mb-4">"{project.tagline}"</p>
-
-                    {/* Pricing Box */}
-                    <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-xl p-4 mb-4">
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div>
-                          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
-                          <div className="text-sm font-bold text-[#0F3A5F] leading-tight">{project.startingPrice}</div>
-                        </div>
-                        <div className="border-x border-[#D4AF37]/20">
-                          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Booking ({project.bookingPct})</div>
-                          <div className="text-sm font-bold text-[#D4AF37] leading-tight">{project.bookingAmt}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">EMI</div>
-                          <div className="text-sm font-bold text-[#0F3A5F] leading-tight">{project.emi}</div>
-                        </div>
-                      </div>
-                      <div className="mt-2.5 pt-2.5 border-t border-[#D4AF37]/20 text-center">
-                        <span className="text-[10px] text-gray-400">{project.emiMonths}-month plan · 0% interest · {project.pricePerSqYd}</span>
-                      </div>
-                    </div>
-
-                    {/* Plot Sizes */}
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {project.plotSizes.map(s => (
-                        <span key={s} className="px-2.5 py-1 bg-[#0F3A5F]/8 border border-[#0F3A5F]/15 text-[#0F3A5F] text-xs rounded-full font-medium">
-                          {s} sq yd
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Highlights */}
-                    <div className="flex flex-col gap-1.5 mb-5">
-                      {project.highlights.map((h, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <CheckCircle className="w-3.5 h-3.5 text-[#D4AF37] flex-shrink-0" />
-                          <span className="text-xs text-gray-600">{h}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Amenities */}
-                    <div className="flex flex-wrap gap-1.5 mb-6">
-                      {project.amenities.slice(0, 4).map((a, idx) => (
-                        <span key={idx} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-[10px] rounded-full">{a}</span>
-                      ))}
-                      {project.amenities.length > 4 && (
-                        <span className="px-2.5 py-1 bg-gray-100 text-gray-400 text-[10px] rounded-full">+{project.amenities.length - 4} more</span>
-                      )}
-                    </div>
-
-                    {/* CTA Buttons */}
-                    <div className="flex gap-3 mt-auto">
-                      <Link to={`/projects/${project.id}`} className="flex-1">
-                        <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                          View Details <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white transition-all w-10 h-10 flex-shrink-0"
-                        onClick={() => window.open(`https://wa.me/918076146988?text=I%20am%20interested%20in%20${encodeURIComponent(project.name)}`, '_blank')}
-                      >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-
-          {filtered.length === 0 && (
-            <div className="text-center py-20 text-gray-400">
-              <Building2 className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg">No projects found for this filter.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── TRUST STRIP ───────────────────────────────────────────── */}
-      <section className="py-16 bg-gradient-to-r from-[#0A2744] to-[#0F3A5F] text-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Why Invest with <span className="text-[#D4AF37]">Fanbe Group?</span></h2>
-            <p className="text-gray-300">Trusted by 15,000+ families since 2012</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {trustPoints.map((tp, idx) => (
+          <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10">
+            {trustStats.map((stat, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="text-center p-6 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-all"
+                className="flex items-center gap-2"
               >
-                <tp.icon className="w-10 h-10 text-[#D4AF37] mx-auto mb-3" />
-                <div className="text-3xl font-bold mb-1">{tp.value}</div>
-                <div className="font-semibold text-sm">{tp.label}</div>
-                <div className="text-xs text-gray-400 mt-1">{tp.sub}</div>
+                <stat.icon className="w-5 h-5 text-[#D4AF37]" />
+                <div>
+                  <span className="font-bold text-lg">{stat.value}</span>
+                  <span className="text-xs text-gray-300 ml-1.5">{stat.label}</span>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── WHATSAPP CTA ──────────────────────────────────────────── */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#0F3A5F] mb-4">
-              Ready to Own Your Dream Plot?
-            </h2>
-            <p className="text-gray-600 max-w-xl mx-auto mb-8 text-lg">
-              Talk to our experts today. Free site visit with pick & drop facility.
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
-              <Button
-                size="lg"
-                className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-lg px-8 py-6 shadow-xl hover:-translate-y-0.5 transition-all"
-                onClick={() => window.open('https://wa.me/918076146988?text=I%20want%20to%20know%20more%20about%20your%20projects', '_blank')}
-              >
-                <MessageCircle className="mr-2" /> Chat on WhatsApp
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-bold text-lg px-8 py-6 transition-all hover:-translate-y-0.5"
-                onClick={() => window.open('tel:+918076146988')}
-              >
-                <Phone className="mr-2" /> Call Us Now
-              </Button>
+      {/* ═══ HEADER + FILTER BAR ══════════════════════════════════════════ */}
+      <section className="bg-white border-b sticky top-[68px] z-40 shadow-sm">
+        <div className="container mx-auto px-4 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#0F3A5F]">Our Projects</h1>
+              <p className="text-sm text-gray-500 mt-1">{filteredProjects.length} premium residential projects</p>
             </div>
-          </motion.div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="relative border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {/* Filter Panel */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border">
+                  {/* Region */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">Location</label>
+                    <select
+                      value={filters.region}
+                      onChange={(e) => setFilters({ ...filters, region: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0F3A5F] focus:border-transparent"
+                    >
+                      <option value="all">All Locations</option>
+                      <option value="vrindavan">Vrindavan</option>
+                      <option value="mathura">Mathura / Gokul</option>
+                      <option value="rajasthan">Rajasthan</option>
+                    </select>
+                  </div>
+
+                  {/* Price Range */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">Starting Price</label>
+                    <select
+                      value={filters.priceRange}
+                      onChange={(e) => setFilters({ ...filters, priceRange: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0F3A5F] focus:border-transparent"
+                    >
+                      <option value="all">Any Price</option>
+                      <option value="under5">Under ₹5 Lakhs</option>
+                      <option value="5to8">₹5L - ₹8L</option>
+                      <option value="above8">Above ₹8 Lakhs</option>
+                    </select>
+                  </div>
+
+                  {/* EMI Range */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">EMI Affordability</label>
+                    <select
+                      value={filters.emiRange}
+                      onChange={(e) => setFilters({ ...filters, emiRange: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0F3A5F] focus:border-transparent"
+                    >
+                      <option value="all">Any EMI</option>
+                      <option value="under10">Under ₹10k/mo</option>
+                      <option value="10to15">₹10k - ₹15k/mo</option>
+                      <option value="above15">Above ₹15k/mo</option>
+                    </select>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-2">Project Status</label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#0F3A5F] focus:border-transparent"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="bestseller">Best Seller</option>
+                      <option value="limited">Limited Plots</option>
+                      <option value="new">New Launch</option>
+                      <option value="available">Available</option>
+                    </select>
+                  </div>
+                </div>
+
+                {activeFilterCount > 0 && (
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={resetFilters}
+                      className="text-sm text-[#0F3A5F] hover:text-[#D4AF37] font-medium flex items-center gap-1"
+                    >
+                      <X className="w-4 h-4" /> Clear all filters
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </section>
-    </motion.div>
+
+      {/* ═══ PROJECT GRID ═════════════════════════════════════════════════ */}
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <AnimatePresence mode="wait">
+            {filteredProjects.length > 0 ? (
+              <motion.div
+                key="projects"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              >
+                {filteredProjects.map((project, idx) => (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
+                  >
+                    {/* Logo Header - Text based, no images */}
+                    <div className={`relative bg-gradient-to-br ${project.logoGradient} p-8 flex flex-col items-center justify-center min-h-[160px]`}>
+                      {/* Status Badge */}
+                      <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg`}>
+                        {project.statusLabel}
+                      </span>
+
+                      {/* Icon + Short Name */}
+                      <div className="text-6xl mb-2">{project.icon}</div>
+                      <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">{project.nameShort}</div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="text-lg font-bold text-[#0F3A5F] mb-1 leading-tight">{project.name}</h3>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
+                        <MapPin className="w-3 h-3" />{project.location}
+                      </p>
+
+                      {/* Pricing Box */}
+                      <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
+                            <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
+                              <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
+                            <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
+                          <div>
+                            <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
+                            <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
+                          </div>
+                          <div className="text-[9px] text-gray-400 text-right">
+                            {project.emiMonths} months<br />0% interest
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Booking Info */}
+                      <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-[#D4AF37]" />
+                        Book at {project.bookingPct}% · Instant Registry
+                      </div>
+
+                      {/* CTA Buttons */}
+                      <div className="grid grid-cols-2 gap-2 mt-auto">
+                        <Link to={`/projects/${project.id}`} className="block">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs transition-all"
+                          >
+                            <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
+                          </Button>
+                        </Link>
+                        <Button
+                          size="sm"
+                          className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs shadow-md hover:shadow-lg transition-all"
+                          onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(project.name)}`, '_blank')}
+                        >
+                          <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-20"
+              >
+                <Filter className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">No projects match your filters</h3>
+                <p className="text-gray-400 mb-6">Try adjusting your search criteria</p>
+                <Button onClick={resetFilters} variant="outline">
+                  <X className="w-4 h-4 mr-2" />Clear Filters
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </section>
+
+      {/* ═══ STICKY CTA BAR (appears on scroll) ══════════════════════════ */}
+      <AnimatePresence>
+        {showStickyCTA && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-[#D4AF37] shadow-2xl"
+          >
+            <div className="container mx-auto px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="hidden md:block">
+                  <div className="text-xs text-gray-500">Need help choosing?</div>
+                  <div className="font-bold text-[#0F3A5F]">Talk to our experts</div>
+                </div>
+                <div className="flex gap-2 flex-1 md:flex-none">
+                  <Button
+                    size="sm"
+                    className="flex-1 md:flex-none bg-[#25D366] hover:bg-[#1da851] text-white font-bold"
+                    onClick={() => window.open('https://wa.me/918076146988?text=I want to know about your projects', '_blank')}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />WhatsApp
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 md:flex-none border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-bold"
+                    onClick={() => window.open('tel:+918076146988')}
+                  >
+                    <Phone className="w-4 h-4 mr-2" />Call Now
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="hidden md:flex bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black font-bold"
+                    onClick={() => window.location.href = '/contact'}
+                  >
+                    Enquire Now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

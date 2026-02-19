@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, MessageCircle, Handshake
+  CheckCircle, Phone, MapPin, Star, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -137,7 +137,7 @@ const slides = [
     ],
     cta: {
       text: 'अभी जुड़ें',
-      icon: Handshake
+      icon: Users
     }
   }
 ];

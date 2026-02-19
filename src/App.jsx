@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -8,6 +7,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import SiteVisitModal from './components/SiteVisitModal';
 import FloatingWhatsAppButton from './components/FloatingWhatsAppButton';
+import SocialProofToast from './components/SocialProofToast';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import ProjectsListingPage from './pages/ProjectsListingPage';
@@ -266,6 +266,8 @@ function App() {
       </main>
       {!isCRM && <Footer />}
       {!isCRM && <FloatingWhatsAppButton />}
+      {/* CRO: Social Proof Toast — shown only on public website, hidden on CRM */}
+      {!isCRM && <SocialProofToast />}
       <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={handleCloseSiteVisitModal} />
       <Toaster />
     </div>

@@ -161,6 +161,10 @@ const HomePage = ({ onBookSiteVisit }) => {
   const nextSlide = () => setCurrentSlide(prev => (prev + 1) % slides.length);
   const prevSlide = () => setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
 
+  // Get current slide data
+  const currentSlideData = slides[currentSlide];
+  const CtaIcon = currentSlideData.cta?.icon;
+
   return (
     <div className="min-h-screen">
       <Helmet>
@@ -177,16 +181,16 @@ const HomePage = ({ onBookSiteVisit }) => {
               <div className="w-full max-w-3xl text-white text-center">
                 <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
                   className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
-                  {slides[currentSlide].title}
+                  {currentSlideData.title}
                 </motion.h2>
                 <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}
                   className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6">
-                  {slides[currentSlide].subtitle}
+                  {currentSlideData.subtitle}
                 </motion.p>
-                {slides[currentSlide].points && (
+                {currentSlideData.points && (
                   <motion.ul initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
                     className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto">
-                    {slides[currentSlide].points.map((point, idx) => (
+                    {currentSlideData.points.map((point, idx) => (
                       <li key={idx} className="flex items-start gap-2 md:gap-3 justify-center">
                         <CheckCircle className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                         <span className="text-sm md:text-base leading-snug text-left">{point}</span>
@@ -194,19 +198,19 @@ const HomePage = ({ onBookSiteVisit }) => {
                     ))}
                   </motion.ul>
                 )}
-                {slides[currentSlide].description && (
+                {currentSlideData.description && (
                   <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
                     className="text-base md:text-xl mb-6 md:mb-8">
-                    {slides[currentSlide].description}
+                    {currentSlideData.description}
                   </motion.p>
                 )}
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
                   className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
-                  {slides[currentSlide].cta ? (
+                  {currentSlideData.cta ? (
                     <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl"
                       onClick={() => window.open('https://wa.me/918076146988?text=मैं%20चैनल%20पार्टनर%20बनने%20में%20रुचि%20रखता%20हूं', '_blank')}>
-                      {slides[currentSlide].cta.icon && <slides[currentSlide].cta.icon className="mr-2" />}
-                      {slides[currentSlide].cta.text}
+                      {CtaIcon && <CtaIcon className="mr-2" />}
+                      {currentSlideData.cta.text}
                     </Button>
                   ) : (
                     <Link to="/projects">

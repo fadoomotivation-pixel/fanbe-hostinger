@@ -34,7 +34,7 @@ const ProjectDetailPage = () => {
 
     const dynamicContent = getProjectContent(slug);
     const dynamicPricing = getPricingTable(slug);
-    const projectDocs = getProjectDocs(slug); // This loads from CMS
+    const projectDocs = getProjectDocs(slug);
 
     const dbImages = await getProjectImagesFromDB();
     const heroImage = dbImages[slug] || dynamicContent?.heroImage || staticProject.heroImage;
@@ -44,7 +44,7 @@ const ProjectDetailPage = () => {
 
     setProject(mergedProject);
     setPricing(finalPricing);
-    setDocs(projectDocs); // Documents from CMS
+    setDocs(projectDocs);
     setLoading(false);
   };
 
@@ -118,7 +118,7 @@ const ProjectDetailPage = () => {
   const isPricingAvailable = pricing && pricing.length > 0;
   const hasDocuments = docs.brochure || docs.map;
 
-  // Default amenities - Removed Power Backup, Community Hall, Club House
+  // Default amenities
   const amenities = [
     { icon: Home, label: 'Gated Community', color: 'text-blue-600' },
     { icon: Shield, label: '24/7 Security', color: 'text-green-600' },
@@ -159,7 +159,7 @@ const ProjectDetailPage = () => {
     },
   ];
 
-  // Filter investment benefits - Remove rental income opportunity
+  // Filter investment benefits
   const filteredBenefits = project.investmentBenefits?.filter(
     benefit => !benefit.toLowerCase().includes('rental income')
   ) || [];
@@ -171,7 +171,7 @@ const ProjectDetailPage = () => {
         <meta name="description" content={project.meta?.description || project.subline} />
       </Helmet>
 
-      {/* Hero Section - Enhanced */}
+      {/* Hero Section */}
       <section className="relative h-[85vh] w-full bg-gray-900 overflow-hidden">
         <img 
           key={project.heroImage}
@@ -217,7 +217,6 @@ const ProjectDetailPage = () => {
                 </a>
               </div>
 
-              {/* Download Buttons - Show from CMS */}
               {hasDocuments && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
@@ -276,7 +275,7 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Overview Section with Project Logo on Right */}
+      {/* Overview Section with Project Logo in Why Choose Card */}
       <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-16 items-start">
@@ -304,45 +303,46 @@ const ProjectDetailPage = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="space-y-6"
+              className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 md:p-10 rounded-3xl shadow-2xl text-white"
             >
-              {/* Project Logo Box */}
-              {project.logo && (
-                <div className="bg-white rounded-2xl shadow-xl border-2 border-[#D4AF37] p-6 text-center">
-                  <img 
-                    src={project.logo} 
-                    alt={`${project.title} Logo`}
-                    className="w-32 h-32 object-contain mx-auto mb-4"
-                  />
-                  <h3 className="text-xl font-black text-[#0F3A5F]">{project.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{project.location}</p>
+              {/* Header with Logo */}
+              <div className="flex items-center gap-4 mb-6">
+                {project.logo && (
+                  <div className="flex-shrink-0">
+                    <div className="w-20 h-20 bg-white rounded-xl p-2 shadow-lg">
+                      <img 
+                        src={project.logo} 
+                        alt={`${project.title} Logo`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="text-2xl font-black">
+                    Why Choose {project.title.split(' ')[0]}?
+                  </h3>
                 </div>
-              )}
-
-              {/* Why Choose Card */}
-              <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 md:p-10 rounded-3xl shadow-2xl text-white">
-                <h3 className="text-2xl font-black mb-6 flex items-center">
-                  <span className="w-2 h-8 bg-[#D4AF37] mr-3 rounded-full"></span>
-                  Why Choose {project.title.split(' ')[0]}?
-                </h3>
-                <ul className="space-y-4">
-                  {project.keyHighlights?.map((highlight, idx) => (
-                    <motion.li 
-                      key={idx}
-                      initial={{ opacity: 0, x: 20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="flex items-start group"
-                    >
-                      <div className="mt-1 mr-4 h-7 w-7 rounded-full bg-[#D4AF37] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                        <Check size={16} className="text-[#0F3A5F] font-bold" />
-                      </div>
-                      <span className="text-white/95 font-medium text-base leading-relaxed">{highlight}</span>
-                    </motion.li>
-                  ))}
-                </ul>
               </div>
+
+              {/* Highlights List */}
+              <ul className="space-y-4">
+                {project.keyHighlights?.map((highlight, idx) => (
+                  <motion.li 
+                    key={idx}
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="flex items-start group"
+                  >
+                    <div className="mt-1 mr-4 h-7 w-7 rounded-full bg-[#D4AF37] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Check size={16} className="text-[#0F3A5F] font-bold" />
+                    </div>
+                    <span className="text-white/95 font-medium text-base leading-relaxed">{highlight}</span>
+                  </motion.li>
+                ))}
+              </ul>
             </motion.div>
           </div>
         </div>

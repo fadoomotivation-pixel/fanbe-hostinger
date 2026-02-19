@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { FileText, Map, Upload, Download, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import { getAllProjectDocs, saveProjectDocs } from '@/lib/contentStorage';
+import { FileText, Map, Upload, Download, Trash2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { uploadDocument, getAllProjectDocuments, deleteDocument } from '@/lib/documentStorage';
 import { broadcastContentUpdate, EVENTS } from '@/lib/contentSyncService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -27,14 +27,17 @@ const ProjectDocumentsPage = () => {
   const [allDocs, setAllDocs] = useState({});
   const [uploadProgress, setUploadProgress] = useState({ brochure: 0, map: 0 });
   const [uploading, setUploading] = useState({ brochure: false, map: false });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAllDocs();
   }, []);
 
-  const loadAllDocs = () => {
-    const docs = getAllProjectDocs();
+  const loadAllDocs = async () => {
+    setLoading(true);
+    const docs = await getAllProjectDocuments();
     setAllDocs(docs);
+    setLoading(false);
   };
 
   const getCurrentDocs = () => {
@@ -68,69 +71,45 @@ const ProjectDocumentsPage = () => {
     setUploadProgress(prev => ({ ...prev, [docType]: 0 }));
 
     try {
-      // Read file as base64
-      const base64Data = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(prev => ({ ...prev, [docType]: percentComplete }));
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const current = prev[docType];
+          if (current < 90) {
+            return { ...prev, [docType]: current + 10 };
           }
-        };
+          return prev;
+        });
+      }, 200);
 
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        
-        reader.readAsDataURL(file);
-      });
-
-      // Small delay to ensure 100% is visible
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Upload to Supabase
+      const result = await uploadDocument(selectedProject, docType, file);
       
-      // Save document
-      const currentDocs = getCurrentDocs();
-      const updatedDocs = {
-        ...currentDocs,
-        [docType]: {
-          filename: file.name,
-          type: file.type,
-          size: file.size,
-          data: base64Data,
-          uploadedAt: new Date().toISOString()
-        }
-      };
+      clearInterval(progressInterval);
+      setUploadProgress(prev => ({ ...prev, [docType]: 100 }));
 
-      const result = saveProjectDocs(selectedProject, updatedDocs);
-      
       if (!result.success) {
-        throw new Error(result.error || 'Failed to save document');
+        throw new Error(result.error || 'Failed to upload document');
       }
 
+      // Small delay to show 100%
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // Update UI
-      loadAllDocs();
+      await loadAllDocs();
       broadcastContentUpdate(EVENTS.PROJECT_DOCS_UPDATED, { slug: selectedProject });
       
       toast({
         title: '✅ Upload Successful',
-        description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} uploaded successfully!`,
+        description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} uploaded to cloud storage!`,
       });
 
     } catch (error) {
       console.error('Upload error:', error);
       
-      let errorMessage = 'Something went wrong. Please try again.';
-      
-      // Check for localStorage quota exceeded
-      if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
-        errorMessage = 'Storage quota exceeded. Please delete some documents or clear browser data.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
       toast({
         title: 'Upload Failed',
-        description: errorMessage,
+        description: error.message || 'Something went wrong. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -144,39 +123,38 @@ const ProjectDocumentsPage = () => {
     const doc = getCurrentDocs()[docType];
     if (!doc) return;
 
-    const link = document.createElement('a');
-    link.href = doc.data;
-    link.download = doc.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(doc.url, '_blank');
 
     toast({
-      title: 'Download Started',
-      description: `${doc.filename} is downloading...`
+      title: 'Opening Document',
+      description: `${doc.filename} is opening in a new tab...`
     });
   };
 
-  const handleDelete = (docType) => {
+  const handleDelete = async (docType) => {
     if (!window.confirm(`Are you sure you want to delete this ${docType === 'brochure' ? 'brochure' : 'site plan'}?`)) {
       return;
     }
 
-    const currentDocs = getCurrentDocs();
-    const updatedDocs = {
-      ...currentDocs,
-      [docType]: null
-    };
+    try {
+      const result = await deleteDocument(selectedProject, docType);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
 
-    const result = saveProjectDocs(selectedProject, updatedDocs);
-    
-    if (result.success) {
-      loadAllDocs();
+      await loadAllDocs();
       broadcastContentUpdate(EVENTS.PROJECT_DOCS_UPDATED, { slug: selectedProject });
       
       toast({
         title: 'Deleted',
         description: `${docType === 'brochure' ? 'Brochure' : 'Site Plan'} deleted successfully.`
+      });
+    } catch (error) {
+      toast({
+        title: 'Delete Failed',
+        description: error.message || 'Failed to delete document',
+        variant: 'destructive'
       });
     }
   };
@@ -207,7 +185,7 @@ const ProjectDocumentsPage = () => {
               <div className="border-2 border-dashed border-gray-300 hover:border-[#D4AF37] rounded-lg p-8 text-center transition-all bg-gray-50 hover:bg-blue-50">
                 <Upload className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                 <p className="text-sm font-medium text-gray-700 mb-1">
-                  {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+                  {isUploading ? 'Uploading to Cloud...' : 'Click to upload or drag and drop'}
                 </p>
                 <p className="text-xs text-gray-500">
                   PDF, JPG, PNG (Max 10MB)
@@ -232,7 +210,7 @@ const ProjectDocumentsPage = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-[#0F3A5F] font-medium">
-                  {progress === 100 ? 'Saving...' : 'Uploading...'}
+                  {progress >= 90 ? 'Saving to cloud...' : 'Uploading...'}
                 </span>
                 <span className="text-[#D4AF37] font-bold">{progress}%</span>
               </div>
@@ -260,7 +238,7 @@ const ProjectDocumentsPage = () => {
                   size="sm"
                   className="bg-[#0F3A5F] hover:bg-[#0a2742] text-white"
                 >
-                  <Download className="w-4 h-4 mr-1" /> Download
+                  <ExternalLink className="w-4 h-4 mr-1" /> Open
                 </Button>
                 <Button
                   onClick={() => handleDelete(docType)}
@@ -287,13 +265,23 @@ const ProjectDocumentsPage = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-[#0F3A5F] text-lg">Loading documents...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-[#0F3A5F]">📄 Project Documents</h1>
-          <p className="text-gray-600 mt-1">Upload brochures and site plans for your projects</p>
+          <h1 className="text-3xl font-black text-[#0F3A5F]">☁️ Project Documents</h1>
+          <p className="text-gray-600 mt-1">Upload brochures and site plans to cloud storage</p>
         </div>
       </div>
 
@@ -334,14 +322,14 @@ const ProjectDocumentsPage = () => {
           <div className="flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-800">
-              <p className="font-medium mb-2">📌 Important Notes:</p>
+              <p className="font-medium mb-2">☁️ Cloud Storage Benefits:</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Documents are stored locally in browser storage</li>
-                <li>Maximum file size: 10MB per document</li>
-                <li>Supported formats: PDF, JPG, PNG</li>
+                <li>Documents stored securely in Supabase cloud storage</li>
+                <li>No browser storage limits - upload files up to 10MB</li>
+                <li>Accessible from any device and browser</li>
+                <li>Automatic CDN delivery for fast loading</li>
                 <li>Documents appear automatically on project detail pages</li>
                 <li>Changes are visible immediately after upload</li>
-                <li>If upload gets stuck, try a smaller file or clear browser cache</li>
               </ul>
             </div>
           </div>

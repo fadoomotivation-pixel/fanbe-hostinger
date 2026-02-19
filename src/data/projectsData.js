@@ -4,7 +4,7 @@ export const projectsData = [
     title: 'Shree Kunj Bihari Enclave',
     subline: 'Your Gateway to Divine Living in Vrindavan',
     heroImage: 'https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=1200',
-    logo: 'https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=200',
+    logo: '/logos/kunj-bihari-logo.png',
     overview: 'Experience the serenity of Vrindavan with Shree Kunj Bihari Enclave. Located strategically near the Banke Bihari Temple, this project offers a perfect blend of spiritual peace and modern amenities.',
     keyHighlights: [
       'Walking distance from Banke Bihari Temple',
@@ -44,7 +44,7 @@ export const projectsData = [
     title: 'Khatu Shyam Enclave',
     subline: 'Divine Plots near Khatu Shyam Ji Temple',
     heroImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200',
-    logo: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=200',
+    logo: '/logos/khatu-shyam-logo.png',
     overview: 'Located just minutes away from the famous Khatu Shyam Ji Temple in Rajasthan, this enclave is designed for devotees who wish to have a home near their deity.',
     keyHighlights: [
       '5 mins from Temple Entrance',
@@ -70,7 +70,7 @@ export const projectsData = [
     title: 'Brij Vatika',
     subline: 'Embrace the Heritage of Braj',
     heroImage: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200',
-    logo: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=200',
+    logo: '/logos/brij-vatika-logo.png',
     overview: 'Brij Vatika offers a serene lifestyle in the heart of Braj Bhoomi. A perfect location for retirement homes or vacation stays.',
     keyHighlights: [
       'Eco-friendly environment',
@@ -95,7 +95,7 @@ export const projectsData = [
     title: 'Shree Jagannath Dham',
     subline: 'Premium Living in the City of Krishna',
     heroImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200',
-    logo: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=200',
+    logo: '/logos/jagannath-dham-logo.png',
     overview: 'A premium township project offering modern infrastructure while respecting the traditional values of Mathura.',
     keyHighlights: [
       'Modern Sewerage System',
@@ -120,7 +120,7 @@ export const projectsData = [
     title: 'Shree Gokul Vatika',
     subline: 'Live where Lord Krishna played',
     heroImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200',
-    logo: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=200',
+    logo: '/logos/gokul-vatika-logo.png',
     overview: 'Located in the historic town of Gokul, this project connects you to the childhood pastimes of Lord Krishna.',
     keyHighlights: [
       'Yamuna View plots available',
@@ -145,7 +145,7 @@ export const projectsData = [
     title: 'Maa Simri Vatika',
     subline: 'Affordable Plots for Every Family',
     heroImage: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1200',
-    logo: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=200',
+    logo: '/logos/maa-simri-vatika-logo.png',
     overview: 'Maa Simri Vatika is designed to make land ownership accessible to everyone. Located in a rapidly developing suburb.',
     keyHighlights: [
       'Lowest price guarantee',

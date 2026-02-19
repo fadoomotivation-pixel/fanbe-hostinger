@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
+import { getProjectImagesFromDB } from '@/lib/contentStorage';
 import { useToast } from '@/components/ui/use-toast';
 import EMICalculatorSection from '@/components/EMICalculatorSection';
 import PresetPlotCards from '@/components/PresetPlotCards';
@@ -16,6 +17,7 @@ import { useWhatsApp } from '@/lib/useWhatsApp';
 const projects = [
   {
     id: 'khatu-shyam-enclave',
+    slug: 'khatu-shyam-enclave',
     nameEn: 'Shri Khatu Shyam Enclave',
     logo: '/images/projects/khatu_shyam_enclave.png',
     location: 'Near Khatu Shyam Temple, Rajasthan',
@@ -29,6 +31,7 @@ const projects = [
   },
   {
     id: 'shree-kunj-bihari-enclave',
+    slug: 'shree-kunj-bihari',
     nameEn: 'Shree Kunj Bihari Enclave',
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
@@ -42,6 +45,7 @@ const projects = [
   },
   {
     id: 'gokul-vatika',
+    slug: 'gokul-vatika',
     nameEn: 'Gokul Vatika',
     logo: '/images/projects/gokul_vatika.png',
     location: 'Mathura-Vrindavan Road',
@@ -54,6 +58,7 @@ const projects = [
   },
   {
     id: 'semri-vatika',
+    slug: 'maa-simri-vatika',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
@@ -66,6 +71,7 @@ const projects = [
   },
   {
     id: 'jagannath-dham',
+    slug: 'jagannath-dham',
     nameEn: 'Jagannath Dham',
     logo: '/images/projects/jaganath_dham.png',
     location: 'Vrindavan Highway',
@@ -78,6 +84,7 @@ const projects = [
   },
   {
     id: 'brij-vatika',
+    slug: 'brij-vatika',
     nameEn: 'Brij Vatika (E Block)',
     logo: '/images/projects/brij_vatika.png',
     location: 'Braj Bhoomi, Vrindavan',
@@ -125,6 +132,11 @@ const HomePage = ({ onBookSiteVisit }) => {
   const { getWhatsAppLink } = useWhatsApp();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbImages, setDbImages] = useState({});
+
+  useEffect(() => {
+    getProjectImagesFromDB().then(imgs => setDbImages(imgs));
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % slides.length), 5000);
@@ -254,7 +266,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                 <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden">
                   <div className="absolute inset-0 bg-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <img
-                    src={project.logo}
+                    src={dbImages[project.slug] || project.logo}
                     alt={project.nameEn}
                     className="max-w-full max-h-[175px] object-contain group-hover:scale-105 transition-transform duration-300 relative z-10"
                   />

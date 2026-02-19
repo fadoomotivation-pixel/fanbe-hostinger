@@ -258,21 +258,22 @@ const HomePage = ({ onBookSiteVisit }) => {
                 viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
               >
-                {/*
-                  Logo area: dark navy gradient background for ALL cards.
-                  Dark-bg PNGs  → blend seamlessly (no visible seam).
-                  Light-bg PNGs → appear as clean logo-on-card — intentional & premium.
-                */}
-                <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                {/* Logo area with full-cover + zoom effect */}
+                <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] h-[240px] relative overflow-hidden">
+                  {/* Gold overlay on hover */}
+                  <div className="absolute inset-0 bg-[#D4AF37]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Logo fills entire div + 110% zoom on hover */}
                   <img
                     src={dbImages[project.slug] || project.logo}
                     alt={project.nameEn}
-                    className="max-w-full max-h-[175px] object-contain group-hover:scale-105 transition-transform duration-300 relative z-10"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                   />
+                  
+                  {/* Star badge for highlights */}
                   {project.highlight && (
-                    <div className="absolute top-2 right-2">
-                      <Star className="w-6 h-6 text-[#D4AF37] fill-[#D4AF37]" />
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                      <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
                     </div>
                   )}
                 </div>

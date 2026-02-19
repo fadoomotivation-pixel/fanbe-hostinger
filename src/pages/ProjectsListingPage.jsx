@@ -3,13 +3,31 @@ import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  MapPin, Phone, MessageCircle, X, Filter,
+  MapPin, Phone, X, Filter,
   TrendingUp, Shield, Award, Users,
-  Calculator, FileText, Building2
+  FileText, Building2, IndianRupee, Calculator
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const fmt = (n) => n?.toLocaleString('en-IN');
+
+function buildPricing(rate, bookingPct, emiMonths, sizes) {
+  return sizes.map(size => {
+    const total   = size * rate;
+    const booking = Math.round(total * bookingPct);
+    const rest    = total - booking;
+    const emi     = Math.round(rest / emiMonths);
+    return { size, rate, total, booking, rest, emi };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project data with full pricing tables
+// ─────────────────────────────────────────────────────────────────────────────
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
@@ -20,18 +38,16 @@ const projects = [
     location: 'Vrindavan, UP',
     region: 'vrindavan',
     logoGradient: 'from-amber-500 to-orange-600',
-    pricePerSqYd: 7525,
     priceDisplay: '₹7,525',
-    startingPrice: 376250,
     startingDisplay: '₹3.76L',
-    bookingPct: '10%',
-    emi: 5644,
+    startingPrice: 376250,
     emiDisplay: '₹5,644',
+    emi: 5644,
     emiMonths: 60,
-    status: 'bestseller',
-    statusLabel: 'Best Seller',
-    statusColor: 'bg-green-500',
+    bookingPct: '10%',
+    status: 'bestseller', statusLabel: 'Best Seller', statusColor: 'bg-green-500',
     highlights: ['Immediate Registry on 10%', 'Gated Community', '0% Interest EMI'],
+    pricing: buildPricing(7525, 0.10, 60, [50, 100, 150, 200, 250, 300]),
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
@@ -42,18 +58,16 @@ const projects = [
     location: 'Khatu, Rajasthan',
     region: 'rajasthan',
     logoGradient: 'from-rose-500 to-pink-700',
-    pricePerSqYd: 7525,
     priceDisplay: '₹7,525',
-    startingPrice: 376250,
     startingDisplay: '₹3.76L',
-    bookingPct: '10%',
-    emi: 5644,
+    startingPrice: 376250,
     emiDisplay: '₹5,644',
+    emi: 5644,
     emiMonths: 60,
-    status: 'limited',
-    statusLabel: 'Limited Plots',
-    statusColor: 'bg-orange-500',
+    bookingPct: '10%',
+    status: 'limited', statusLabel: 'Limited Plots', statusColor: 'bg-orange-500',
     highlights: ['Near Khatu Shyam Temple', 'Free Pick & Drop', '0% Interest EMI'],
+    pricing: buildPricing(7525, 0.10, 60, [50, 100, 150, 200, 250, 300]),
   },
   {
     id: 'shree-jagannath-dham',
@@ -64,18 +78,16 @@ const projects = [
     location: 'Mathura, UP',
     region: 'mathura',
     logoGradient: 'from-blue-500 to-indigo-700',
-    pricePerSqYd: 8025,
     priceDisplay: '₹8,025',
-    startingPrice: 401250,
     startingDisplay: '₹4.01L',
-    bookingPct: '12.5%',
-    emi: 6502,
+    startingPrice: 401250,
     emiDisplay: '₹6,502',
+    emi: 6502,
     emiMonths: 54,
-    status: 'available',
-    statusLabel: 'Available',
-    statusColor: 'bg-blue-500',
+    bookingPct: '12.5%',
+    status: 'available', statusLabel: 'Available', statusColor: 'bg-blue-500',
     highlights: ['Approved Layout Plan', 'Immediate Possession', '0% Interest EMI'],
+    pricing: buildPricing(8025, 0.125, 54, [50, 100, 150, 200, 250]),
   },
   {
     id: 'brij-vatika',
@@ -86,18 +98,16 @@ const projects = [
     location: 'Braj Bhoomi, Vrindavan',
     region: 'vrindavan',
     logoGradient: 'from-emerald-500 to-teal-700',
-    pricePerSqYd: 15525,
     priceDisplay: '₹15,525',
-    startingPrice: 776250,
     startingDisplay: '₹7.76L',
-    bookingPct: '35%',
-    emi: 12615,
+    startingPrice: 776250,
     emiDisplay: '₹12,615',
+    emi: 12615,
     emiMonths: 40,
-    status: 'available',
-    statusLabel: 'Available',
-    statusColor: 'bg-blue-500',
+    bookingPct: '35%',
+    status: 'available', statusLabel: 'Available', statusColor: 'bg-blue-500',
     highlights: ['Registry on 35%', 'No Brokerage', 'Direct from Developer'],
+    pricing: buildPricing(15525, 0.35, 40, [50, 100, 150, 200, 250]),
   },
   {
     id: 'shree-gokul-vatika',
@@ -108,18 +118,16 @@ const projects = [
     location: 'Gokul, UP',
     region: 'mathura',
     logoGradient: 'from-green-500 to-lime-600',
-    pricePerSqYd: 10025,
     priceDisplay: '₹10,025',
-    startingPrice: 501250,
     startingDisplay: '₹5.01L',
-    bookingPct: '35%',
-    emi: 13576,
+    startingPrice: 501250,
     emiDisplay: '₹13,576',
+    emi: 13576,
     emiMonths: 24,
-    status: 'available',
-    statusLabel: 'Available',
-    statusColor: 'bg-blue-500',
+    bookingPct: '35%',
+    status: 'available', statusLabel: 'Available', statusColor: 'bg-blue-500',
     highlights: ['Near Gokul Temple', 'Premium Gated Community', 'High ROI Potential'],
+    pricing: buildPricing(10025, 0.35, 24, [50, 100, 150, 200, 250]),
   },
   {
     id: 'maa-semri-vatika',
@@ -130,34 +138,170 @@ const projects = [
     location: 'Near Mathura, UP',
     region: 'mathura',
     logoGradient: 'from-purple-500 to-violet-700',
-    pricePerSqYd: 15525,
     priceDisplay: '₹15,525',
-    startingPrice: 776250,
     startingDisplay: '₹7.76L',
-    bookingPct: '35%',
-    emi: 21024,
+    startingPrice: 776250,
     emiDisplay: '₹21,024',
+    emi: 21024,
     emiMonths: 24,
-    status: 'new',
-    statusLabel: 'New Launch',
-    statusColor: 'bg-purple-500',
+    bookingPct: '35%',
+    status: 'new', statusLabel: 'New Launch', statusColor: 'bg-purple-500',
     highlights: ['High Appreciation Zone', 'Near NH-2', 'Approved Layout'],
+    pricing: buildPricing(15525, 0.35, 24, [50, 100, 150, 200, 250]),
   },
 ];
 
 const trustStats = [
-  { icon: Users,      value: '15,000+', label: 'Happy Families' },
-  { icon: Award,      value: '25+',     label: 'Projects Delivered' },
-  { icon: Shield,     value: '100%',    label: 'Legal Clarity' },
-  { icon: TrendingUp, value: '0%',      label: 'Interest EMI' },
+  { icon: Users,      value: '15,000+', label: 'Happy Families'      },
+  { icon: Award,      value: '25+',     label: 'Projects Delivered'  },
+  { icon: Shield,     value: '100%',    label: 'Legal Clarity'       },
+  { icon: TrendingUp, value: '0%',      label: 'Interest EMI'        },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Pricing Breakdown Modal
+// ─────────────────────────────────────────────────────────────────────────────
+const PricingModal = ({ project, onClose, onEnquire }) => {
+  if (!project) return null;
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="backdrop"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          key="modal"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Modal Header */}
+          <div className={`bg-gradient-to-r ${project.logoGradient} p-5 rounded-t-2xl flex items-center justify-between`}>
+            <div>
+              <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-0.5">Pricing Breakdown</p>
+              <h2 className="text-white font-extrabold text-xl leading-tight">{project.name}</h2>
+              <p className="text-white/80 text-xs mt-1 flex items-center gap-1">
+                <MapPin className="w-3 h-3" />{project.location}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="bg-white/20 hover:bg-white/40 text-white rounded-full p-2 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-5">
+            {/* Summary chips */}
+            <div className="flex flex-wrap gap-2 mb-5">
+              <span className="inline-flex items-center gap-1.5 bg-[#0F3A5F]/10 text-[#0F3A5F] text-xs font-bold px-3 py-1.5 rounded-full">
+                <IndianRupee className="w-3 h-3" />Rate: {project.priceDisplay}/sq yd
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                Booking: {project.bookingPct}
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                0% Interest · {project.emiMonths} months
+              </span>
+            </div>
+
+            {/* ── Desktop table ── */}
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-100 shadow">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-[#0F3A5F] text-white">
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Plot Size</th>
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Rate/Sq Yd</th>
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Total Cost</th>
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider bg-[#D4AF37] text-[#0F3A5F]">Booking Amt</th>
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Rest Amount</th>
+                    <th className="px-4 py-3 font-semibold uppercase text-xs tracking-wider">Monthly EMI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {project.pricing.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-[#0F3A5F]/5 transition-colors">
+                      <td className="px-4 py-3 font-bold text-gray-800">{row.size} Sq. Yd.</td>
+                      <td className="px-4 py-3 text-gray-600">₹{fmt(row.rate)}</td>
+                      <td className="px-4 py-3 font-bold text-[#0F3A5F]">₹{fmt(row.total)}</td>
+                      <td className="px-4 py-3 font-bold text-[#D4AF37] bg-[#D4AF37]/10">₹{fmt(row.booking)}</td>
+                      <td className="px-4 py-3 text-gray-600">₹{fmt(row.rest)}</td>
+                      <td className="px-4 py-3 font-bold text-[#0F3A5F]">₹{fmt(row.emi)}/mo</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Mobile cards ── */}
+            <div className="md:hidden space-y-3">
+              {project.pricing.map((row, idx) => (
+                <div key={idx} className="bg-white rounded-xl border border-gray-100 shadow p-4">
+                  <div className="text-center mb-3 pb-3 border-b border-gray-100">
+                    <h3 className="text-lg font-bold text-[#0F3A5F]">{row.size} Sq. Yd.</h3>
+                    <p className="text-xs text-gray-400">₹{fmt(row.rate)} per sq yd</p>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Total Cost</span>
+                      <span className="font-bold text-[#0F3A5F]">₹{fmt(row.total)}</span>
+                    </div>
+                    <div className="flex justify-between bg-[#D4AF37]/10 -mx-4 px-4 py-2 rounded">
+                      <span className="text-gray-600 font-medium">Booking ({project.bookingPct})</span>
+                      <span className="font-bold text-[#D4AF37]">₹{fmt(row.booking)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Rest Amount</span>
+                      <span className="font-semibold text-gray-700">₹{fmt(row.rest)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-gray-100">
+                      <span className="text-gray-500">Monthly EMI</span>
+                      <span className="font-bold text-[#0F3A5F]">₹{fmt(row.emi)}/mo</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-center text-xs text-gray-400 mt-4">
+              * Prices are indicative. Registry charges extra as applicable.
+            </p>
+
+            {/* Footer CTAs */}
+            <div className="flex gap-3 mt-5">
+              <Button className="flex-1 bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black font-bold shadow-md"
+                onClick={onEnquire}>
+                Book Site Visit
+              </Button>
+              <Link to={`/projects/${project.slug}`} className="flex-1">
+                <Button variant="outline" className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold">
+                  <FileText className="w-4 h-4 mr-2" />Full Details
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Page
+// ─────────────────────────────────────────────────────────────────────────────
 const ProjectsListingPage = () => {
-  const [filters, setFilters] = useState({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
+  const [filters, setFilters]         = useState({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
   const [showFilters, setShowFilters] = useState(false);
   const [showStickyCTA, setShowStickyCTA] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState('');
+  const [siteVisitOpen, setSiteVisitOpen] = useState(false);
+  const [selectedSlug, setSelectedSlug]   = useState('');
+  const [pricingProject, setPricingProject] = useState(null); // for the pricing modal
 
   React.useEffect(() => {
     const onScroll = () => setShowStickyCTA(window.scrollY > 420);
@@ -180,6 +324,8 @@ const ProjectsListingPage = () => {
   const activeCount  = Object.values(filters).filter(v => v !== 'all').length;
   const resetFilters = () => setFilters({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
 
+  const openEnquiry = (slug = '') => { setSelectedSlug(slug); setSiteVisitOpen(true); };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <Helmet>
@@ -187,7 +333,7 @@ const ProjectsListingPage = () => {
         <meta name="description" content="6 premium residential plot projects. Starting ₹3.76L. 0% interest EMI. Instant registry. 15,000+ happy families." />
       </Helmet>
 
-      {/* ── TRUST BAND ──────────────────────────────────────────── */}
+      {/* ── TRUST BAND ─────────────────────────────────────────── */}
       <section className="bg-gradient-to-r from-[#0A2744] via-[#0F3A5F] to-[#1a5a8f] text-white py-3">
         <div className="container mx-auto px-4">
           <div className="flex flex-wrap items-center justify-center gap-5 md:gap-10">
@@ -204,7 +350,7 @@ const ProjectsListingPage = () => {
         </div>
       </section>
 
-      {/* ── HEADER + FILTER BAR (sticky) ────────────────────────── */}
+      {/* ── HEADER + FILTER BAR (sticky) ───────────────────────── */}
       <div className="sticky top-[68px] z-40 bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -241,8 +387,7 @@ const ProjectsListingPage = () => {
                   ].map(f => (
                     <div key={f.key}>
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{f.label}</label>
-                      <select
-                        value={filters[f.key]}
+                      <select value={filters[f.key]}
                         onChange={e => setFilters(prev => ({ ...prev, [f.key]: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#0F3A5F]/30 focus:border-[#0F3A5F]"
                       >
@@ -264,7 +409,7 @@ const ProjectsListingPage = () => {
         </div>
       </div>
 
-      {/* ── PROJECTS GRID ─────────────────────────────────────────── */}
+      {/* ── PROJECTS GRID ─────────────────────────────────────── */}
       <section className="py-12 pb-28">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -278,31 +423,20 @@ const ProjectsListingPage = () => {
                     transition={{ delay: i * 0.06 }}
                     className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
                   >
-                    {/* ── Logo Header: gradient bg + icon + project name ── */}
+                    {/* Logo Header */}
                     <div className={`relative bg-gradient-to-br ${p.logoGradient} flex flex-col items-center justify-center min-h-[170px] overflow-hidden px-6 py-8`}>
-                      {/* decorative circles */}
                       <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full pointer-events-none" />
                       <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-black/10 rounded-full pointer-events-none" />
-
-                      {/* status badge */}
                       <span className={`absolute top-3 right-3 ${p.statusColor} text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow z-10`}>
                         {p.statusLabel}
                       </span>
-
-                      {/* icon */}
-                      <div className="text-5xl mb-3 drop-shadow-lg group-hover:scale-110 transition-transform duration-300 z-10">
-                        {p.icon}
-                      </div>
-
-                      {/* project short name — clean, readable */}
+                      <div className="text-5xl mb-3 drop-shadow-lg group-hover:scale-110 transition-transform duration-300 z-10">{p.icon}</div>
                       <div className="z-10 text-center">
-                        <p className="text-white font-extrabold text-lg leading-tight tracking-wide drop-shadow-md">
-                          {p.displayName}
-                        </p>
+                        <p className="text-white font-extrabold text-lg leading-tight tracking-wide drop-shadow-md">{p.displayName}</p>
                       </div>
                     </div>
 
-                    {/* ── Card Body ── */}
+                    {/* Card Body */}
                     <div className="p-5 flex flex-col flex-1">
                       <h3 className="text-[17px] font-bold text-[#0F3A5F] leading-snug mb-1">{p.name}</h3>
                       <p className="text-xs text-gray-400 flex items-center gap-1 mb-4">
@@ -333,13 +467,11 @@ const ProjectsListingPage = () => {
                         </div>
                       </div>
 
-                      {/* Booking info */}
                       <p className="text-xs text-gray-500 flex items-center gap-1.5 mb-3">
                         <Shield className="w-3 h-3 text-[#D4AF37] flex-shrink-0" />
                         Book at {p.bookingPct} · Instant Registry on booking
                       </p>
 
-                      {/* Highlights */}
                       <div className="space-y-1.5 mb-5">
                         {p.highlights.map((h, idx) => (
                           <div key={idx} className="flex items-center gap-2">
@@ -358,9 +490,11 @@ const ProjectsListingPage = () => {
                             <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
                           </Button>
                         </Link>
+
+                        {/* ✔ Check Pricing — opens full breakdown modal */}
                         <Button size="sm"
                           className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs h-10 shadow-md"
-                          onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(p.name)}`, '_blank')}
+                          onClick={() => setPricingProject(p)}
                         >
                           <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
                         </Button>
@@ -381,7 +515,7 @@ const ProjectsListingPage = () => {
         </div>
       </section>
 
-      {/* ── STICKY CTA BAR (scroll-triggered) ───────────────────── */}
+      {/* ── STICKY CTA BAR ────────────────────────────────────── */}
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div
@@ -397,23 +531,18 @@ const ProjectsListingPage = () => {
                   <p className="font-bold text-[#0F3A5F] text-sm">Talk to our experts — Free site visit</p>
                 </div>
                 <div className="flex gap-2 flex-1 md:flex-none">
-                  <Button size="sm"
-                    className="flex-1 md:w-36 bg-[#25D366] hover:bg-[#1da851] text-white font-bold"
-                    onClick={() => window.open('https://wa.me/918076146988?text=I want to know about your projects', '_blank')}
-                  >
-                    <MessageCircle className="w-4 h-4 mr-1.5" />WhatsApp
-                  </Button>
+                  {/* WhatsApp removed — per user request */}
                   <Button size="sm" variant="outline"
-                    className="flex-1 md:w-32 border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-bold"
+                    className="flex-1 md:w-36 border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-bold"
                     onClick={() => window.open('tel:+918076146988')}
                   >
                     <Phone className="w-4 h-4 mr-1.5" />Call Now
                   </Button>
                   <Button size="sm"
-                    className="hidden md:flex w-32 bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black font-bold"
-                    onClick={() => { setSelectedProject(''); setModalOpen(true); }}
+                    className="flex-1 md:w-40 bg-gradient-to-r from-[#D4AF37] to-[#B8941E] text-black font-bold shadow-md"
+                    onClick={() => openEnquiry('')}
                   >
-                    Enquire Now
+                    Book Free Site Visit
                   </Button>
                 </div>
               </div>
@@ -422,10 +551,20 @@ const ProjectsListingPage = () => {
         )}
       </AnimatePresence>
 
+      {/* ── PRICING MODAL ───────────────────────────────────── */}
+      {pricingProject && (
+        <PricingModal
+          project={pricingProject}
+          onClose={() => setPricingProject(null)}
+          onEnquire={() => { setPricingProject(null); openEnquiry(pricingProject.slug); }}
+        />
+      )}
+
+      {/* ── SITE VISIT LEAD MODAL ─────────────────────────── */}
       <SiteVisitLeadModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        preSelectedProjectSlug={selectedProject}
+        isOpen={siteVisitOpen}
+        onClose={() => setSiteVisitOpen(false)}
+        preSelectedProjectSlug={selectedSlug}
       />
     </div>
   );

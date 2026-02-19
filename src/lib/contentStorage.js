@@ -1,6 +1,7 @@
 
 import { projectsData } from '@/data/projectsData';
 import { supabase } from '@/lib/supabase';
+import { getProjectDocuments } from '@/lib/documentStorage';
 
 // Fetch image URLs saved by the CMS from the Supabase DB.
 // Returns a map of { [slug]: heroImageUrl }
@@ -22,7 +23,6 @@ export const getProjectImagesFromDB = async () => {
 
 const CONTENT_PREFIX = 'crm_project_content_';
 const PRICING_PREFIX = 'crm_project_pricing_';
-const DOCS_PREFIX = 'crm_project_docs_';
 
 export const getProjectContent = (slug) => {
   try {
@@ -96,46 +96,51 @@ export const savePricingTable = (slug, pricingData) => {
 };
 
 // ═════════════════════════════════════════════════════════════
-// PROJECT DOCUMENTS (Brochure & Map)
+// PROJECT DOCUMENTS (Now using Supabase Cloud Storage)
 // ═════════════════════════════════════════════════════════════
 
-export const getProjectDocs = (slug) => {
+export const getProjectDocs = async (slug) => {
   try {
-    const saved = localStorage.getItem(`${DOCS_PREFIX}${slug}`);
-    if (saved) {
-      return JSON.parse(saved);
+    // Fetch from Supabase cloud storage
+    const docs = await getProjectDocuments(slug);
+    
+    // Convert to format expected by frontend
+    const result = { brochure: null, map: null };
+    
+    if (docs.brochure) {
+      result.brochure = {
+        filename: docs.brochure.filename,
+        data: docs.brochure.url, // URL instead of base64
+        size: docs.brochure.size,
+        type: docs.brochure.type,
+        uploadedAt: docs.brochure.uploadedAt
+      };
     }
-    return { brochure: null, map: null };
+    
+    if (docs.map) {
+      result.map = {
+        filename: docs.map.filename,
+        data: docs.map.url, // URL instead of base64
+        size: docs.map.size,
+        type: docs.map.type,
+        uploadedAt: docs.map.uploadedAt
+      };
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error fetching project docs:', error);
     return { brochure: null, map: null };
   }
 };
 
-export const saveProjectDocs = (slug, docs) => {
-  try {
-    const dataToSave = {
-      ...docs,
-      lastUpdated: new Date().toISOString()
-    };
-    localStorage.setItem(`${DOCS_PREFIX}${slug}`, JSON.stringify(dataToSave));
-    return { success: true, timestamp: dataToSave.lastUpdated };
-  } catch (error) {
-    console.error('Error saving project docs:', error);
-    return { success: false, error: error.message };
-  }
+// Deprecated - Documents now managed via Supabase
+export const saveProjectDocs = () => {
+  console.warn('saveProjectDocs is deprecated. Use uploadDocument from documentStorage.js');
+  return { success: false, error: 'Use uploadDocument instead' };
 };
 
 export const getAllProjectDocs = () => {
-  try {
-    const allDocs = {};
-    const projects = ['shree-kunj-bihari', 'khatu-shyam-enclave', 'jagannath-dham', 'brij-vatika', 'gokul-vatika', 'maa-simri-vatika'];
-    projects.forEach(slug => {
-      allDocs[slug] = getProjectDocs(slug);
-    });
-    return allDocs;
-  } catch (error) {
-    console.error('Error fetching all project docs:', error);
-    return {};
-  }
+  console.warn('getAllProjectDocs is deprecated. Use getAllProjectDocuments from documentStorage.js');
+  return {};
 };

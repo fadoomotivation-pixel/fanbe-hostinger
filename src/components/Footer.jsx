@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin } from 'lucide-react';
@@ -101,14 +100,15 @@ const Footer = () => {
               <li className="flex items-start space-x-3">
                 <MapPin className="text-[#0066A1] mt-1 flex-shrink-0" size={18} />
                 <span className="text-gray-300 text-sm">
-                  Mathura-Vrindavan Road,<br />Uttar Pradesh, India
+                  Plot No. 35, Balaji Tower, 2nd Floor,<br />
+                  Ballabhgarh, Haryana 121004
                 </span>
               </li>
             </ul>
           </div>
 
           {/* Admin Portal Section */}
-          <div className="space-y-4 flex flex-col items-start md:items-end"> {/* Align to end on medium screens */}
+          <div className="space-y-4 flex flex-col items-start md:items-end">
             <span className="text-lg font-semibold text-[#0066A1]">Admin Access</span>
             <Link 
               to="/crm/login"

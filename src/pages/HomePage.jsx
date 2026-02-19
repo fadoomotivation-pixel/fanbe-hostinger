@@ -4,12 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, ArrowRight, MessageCircle
+  CheckCircle, Phone, MapPin, Star, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
 import { useToast } from '@/components/ui/use-toast';
 import EMICalculatorSection from '@/components/EMICalculatorSection';
+import PresetPlotCards from '@/components/PresetPlotCards';
 import { useWhatsApp } from '@/lib/useWhatsApp';
 
 const projects = [
@@ -19,9 +20,7 @@ const projects = [
     nameEn: 'Shri Khatu Shyam Enclave',
     logo: '/images/projects/khatu_shyam_enclave.png',
     location: 'Near Khatu Shyam Temple, Rajasthan',
-    featured: true,
     highlight: true,
-    tagline: 'Divine Living Near Sacred Temple',
     sizes: ['50', '100', '150', '200', '250'],
     startingPrice: '₹3.76 Lakhs',
     bookingAmt: '₹37,625 (10%)',
@@ -30,7 +29,6 @@ const projects = [
     bookingPct: '10%',
     amenities: ['Temple Proximity', 'Gated Security', 'Wide Roads', '24/7 Water'],
     status: 'Limited Plots Available',
-    description: 'Experience spiritual living near the revered Khatu Shyam Temple'
   },
   {
     id: 'shree-kunj-bihari-enclave',
@@ -38,7 +36,6 @@ const projects = [
     nameEn: 'Shree Kunj Bihari Enclave',
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
-    featured: true,
     highlight: true,
     tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['50', '100', '150', '200', '300'],
@@ -49,7 +46,6 @@ const projects = [
     bookingPct: '10%',
     amenities: ['Premium Gated Layout', 'Park', 'Street Lights', 'Underground Wiring'],
     status: 'Best Seller',
-    description: 'Live in the divine aura of Vrindavan with modern amenities'
   },
   {
     id: 'gokul-vatika',
@@ -57,7 +53,6 @@ const projects = [
     nameEn: 'Gokul Vatika',
     logo: '/images/projects/gokul_vatika.png',
     location: 'Mathura-Vrindavan Road',
-    tagline: 'Serene Living Amidst Nature',
     sizes: ['50', '100', '150', '200'],
     startingPrice: '₹5.01 Lakhs',
     bookingAmt: '₹1,75,438 (35%)',
@@ -73,7 +68,6 @@ const projects = [
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
-    tagline: 'Premium Plots with High Appreciation',
     sizes: ['50', '100', '125', '150', '200'],
     startingPrice: '₹7.76 Lakhs',
     bookingAmt: '₹2,71,688 (35%)',
@@ -89,7 +83,6 @@ const projects = [
     nameEn: 'Jagannath Dham',
     logo: '/images/projects/jaganath_dham.png',
     location: 'Vrindavan Highway',
-    tagline: 'Sacred Plots for Sacred Living',
     sizes: ['50', '100', '150', '200', '250'],
     startingPrice: '₹4.01 Lakhs',
     bookingAmt: '₹50,156 (12.5%)',
@@ -105,7 +98,6 @@ const projects = [
     nameEn: 'Brij Vatika (E Block)',
     logo: '/images/projects/brij_vatika.png',
     location: 'Braj Bhoomi, Vrindavan',
-    tagline: 'Live in Lord Krishna\'s Land',
     sizes: ['50', '100', '150', '200', '250', '300'],
     startingPrice: '₹7.76 Lakhs',
     bookingAmt: '₹2,71,688 (35%)',
@@ -150,9 +142,6 @@ const slides = [
   }
 ];
 
-// Plot sizes for "Plan Your Dream Plot" section
-const plotSizes = [50, 75, 100, 125, 150, 175, 200];
-
 const HomePage = ({ onBookSiteVisit }) => {
   const { toast } = useToast();
   const { getWhatsAppLink } = useWhatsApp();
@@ -195,13 +184,13 @@ const HomePage = ({ onBookSiteVisit }) => {
       </Helmet>
 
       {/* Hero Slider */}
-      <section className="relative h-[600px] md:h-[700px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
+      <section className="relative h-[480px] md:h-[540px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
         <AnimatePresence mode="wait">
           <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
-            <div className="relative h-full container mx-auto px-4 flex items-center justify-center">
-              <div className="w-full max-w-4xl text-white text-center">
-                <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mb-6 md:mb-8">
+            <div className="relative h-full container mx-auto px-4 flex items-start pt-12 md:pt-16">
+              <div className="w-full max-w-4xl text-white text-center mx-auto">
+                <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mb-4 md:mb-6">
                   <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-wide leading-tight mb-2">
                     <span className="text-[#D4AF37]">Fanbe</span> <span className="text-white">Group</span>
                   </h1>
@@ -243,7 +232,7 @@ const HomePage = ({ onBookSiteVisit }) => {
         </AnimatePresence>
         <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"><ChevronLeft className="w-6 h-6 text-white" /></button>
         <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"><ChevronRight className="w-6 h-6 text-white" /></button>
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
             <button key={idx} onClick={() => setCurrentSlide(idx)} className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`} />
           ))}
@@ -256,7 +245,7 @@ const HomePage = ({ onBookSiteVisit }) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { icon: Calendar, label: 'Founded', value: '2012' },
-              { icon: Building, label: 'Projects', value: '6+' },
+              { icon: Building, label: 'Projects', value: '25+' },
               { icon: Users, label: 'Happy Families', value: '15,000+' },
               { icon: Shield, label: 'Legal Clarity', value: '100%' }
             ].map((stat, idx) => (
@@ -293,8 +282,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                 <div className="p-5">
                   <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
                   <p className="text-sm text-gray-600 mb-4 flex items-center gap-1"><MapPin className="w-4 h-4" />{project.location}</p>
-                  
-                  {/* Mobile-friendly pricing - stacked layout */}
                   <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-baseline">
                       <span className="text-xs text-gray-500">Starting From</span>
@@ -312,7 +299,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                       <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
                     </div>
                   </div>
-
                   <Link to={`/projects/${project.id}`}>
                     <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
                       View Details <ChevronRight className="ml-2 w-4 h-4" />
@@ -325,48 +311,17 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* Plan Your Dream Plot (50-200 sq yd) */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      {/* Plan Your Dream Plot - Preset Cards */}
+      <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
               <span className="inline-block px-4 py-2 bg-[#D4AF37]/20 text-[#0F3A5F] rounded-full font-bold mb-4">Choose Your Plot Size</span>
               <h2 className="text-4xl md:text-5xl font-bold text-[#0F3A5F] mb-4">Plan Your Dream Plot</h2>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Select from 50 to 200 sq yd and start your investment journey</p>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">Choose from our popular plot sizes that fit your monthly budget perfectly</p>
             </motion.div>
           </div>
-          
-          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            {plotSizes.map((size, idx) => (
-              <motion.div
-                key={size}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-all border-2 border-gray-100 hover:border-[#D4AF37] cursor-pointer group text-center"
-              >
-                <div className="text-3xl font-bold text-[#0F3A5F] group-hover:text-[#D4AF37] transition-colors mb-2">{size}</div>
-                <div className="text-sm text-gray-500">Sq. Yd.</div>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            whileInView={{ opacity: 1, y: 0 }} 
-            viewport={{ once: true }}
-            className="text-center mt-10"
-          >
-            <p className="text-gray-600 mb-6">Not sure which size is right for you? Our experts can help!</p>
-            <Button 
-              size="lg" 
-              className="bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-lg px-10 py-6 shadow-xl"
-              onClick={() => window.open('https://wa.me/918076146988?text=I\'m interested in plot sizes 50-200 sq yd', '_blank')}
-            >
-              <MessageCircle className="mr-2" /> Get Expert Advice
-            </Button>
-          </motion.div>
+          <PresetPlotCards onSelectPlot={() => window.open('https://wa.me/918076146988?text=I%20am%20interested%20in%20a%20plot', '_blank')} />
         </div>
       </section>
 

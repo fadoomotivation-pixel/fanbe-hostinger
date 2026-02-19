@@ -37,6 +37,7 @@ const projects = [
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
     highlight: true,
+    tagline: "Premium Plots in Krishna's Holy Land",
     sizes: ['50', '100', '150', '200', '300'],
     startingPrice: '₹3.76 Lakhs',
     bookingAmt: '₹37,625 (10%)',
@@ -113,7 +114,7 @@ const slides = [
     id: 1,
     title: 'A Culture of Success',
     subtitle: 'Celebrating Excellence & Partnership',
-    description: 'Fanbe\'s Business Meets and Gold Achiever ceremonies'
+    description: "Fanbe's Business Meets and Gold Achiever ceremonies"
   },
   {
     id: 2,
@@ -191,10 +192,8 @@ const HomePage = ({ onBookSiteVisit }) => {
             className="absolute inset-0"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
-            {/* px-16 md:px-20 ensures text never overlaps the left/right arrows */}
             <div className="relative h-full flex items-center justify-center px-16 md:px-24">
               <div className="w-full max-w-3xl text-white text-center">
-
                 <motion.h2
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -203,7 +202,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                 >
                   {slides[currentSlide].title}
                 </motion.h2>
-
                 <motion.p
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -212,7 +210,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                 >
                   {slides[currentSlide].subtitle}
                 </motion.p>
-
                 {slides[currentSlide].points && (
                   <motion.ul
                     initial={{ y: 20, opacity: 0 }}
@@ -221,14 +218,13 @@ const HomePage = ({ onBookSiteVisit }) => {
                     className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto"
                   >
                     {slides[currentSlide].points.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-2 md:gap-3 text-center justify-center">
+                      <li key={idx} className="flex items-start gap-2 md:gap-3 justify-center">
                         <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                         <span className="text-sm md:text-base leading-snug text-left">{point}</span>
                       </li>
                     ))}
                   </motion.ul>
                 )}
-
                 {slides[currentSlide].description && (
                   <motion.p
                     initial={{ y: 20, opacity: 0 }}
@@ -239,7 +235,6 @@ const HomePage = ({ onBookSiteVisit }) => {
                     {slides[currentSlide].description}
                   </motion.p>
                 )}
-
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -260,32 +255,19 @@ const HomePage = ({ onBookSiteVisit }) => {
                     <Phone className="mr-2" /> Contact Us
                   </Button>
                 </motion.div>
-
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
-
-        {/* Arrows — vertically centred, outside text zone */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10"
-        >
+        <button onClick={prevSlide} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10">
           <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </button>
-        <button
-          onClick={nextSlide}
-          className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10"
-        >
+        <button onClick={nextSlide} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10">
           <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </button>
-
-        {/* Dots */}
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlide(idx)}
+            <button key={idx} onClick={() => setCurrentSlide(idx)}
               className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`}
             />
           ))}
@@ -302,12 +284,7 @@ const HomePage = ({ onBookSiteVisit }) => {
               { icon: Users, label: 'Happy Families', value: '15,000+' },
               { icon: Shield, label: 'Legal Clarity', value: '100%' }
             ].map((stat, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
+              <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg"
               >
                 <stat.icon className="h-10 w-10 mx-auto mb-3 text-[#D4AF37]" />
@@ -333,15 +310,28 @@ const HomePage = ({ onBookSiteVisit }) => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project, idx) => (
-              <motion.div key={project.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group">
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#0F3A5F]/5 to-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <img src={project.logo} alt={project.nameEn} className="max-w-full max-h-[180px] object-contain drop-shadow-lg group-hover:scale-110 transition-transform relative z-10" />
-                  {project.highlight && <div className="absolute top-2 right-2"><Star className="w-6 h-6 text-[#D4AF37] fill-[#D4AF37]" /></div>}
+              <motion.div key={project.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
+                className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
+              >
+                {/* ─── Logo area: uniform white background for all PNGs ─── */}
+                <div className="bg-white p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden border-b border-gray-100">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0F3A5F]/3 to-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <img
+                    src={project.logo}
+                    alt={project.nameEn}
+                    className="max-w-full max-h-[180px] object-contain group-hover:scale-105 transition-transform duration-300 relative z-10"
+                  />
+                  {project.highlight && (
+                    <div className="absolute top-2 right-2">
+                      <Star className="w-6 h-6 text-[#D4AF37] fill-[#D4AF37]" />
+                    </div>
+                  )}
                 </div>
                 <div className="p-5">
                   <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
-                  <p className="text-sm text-gray-600 mb-4 flex items-center gap-1"><MapPin className="w-4 h-4" />{project.location}</p>
+                  <p className="text-sm text-gray-600 mb-4 flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />{project.location}
+                  </p>
                   <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-baseline">
                       <span className="text-xs text-gray-500">Starting From</span>
@@ -371,7 +361,7 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* Plan Your Dream Plot - Preset Cards */}
+      {/* Plan Your Dream Plot */}
       <section className="py-20 bg-gradient-to-b from-blue-50 to-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
@@ -392,19 +382,12 @@ const HomePage = ({ onBookSiteVisit }) => {
             <h2 className="text-4xl font-bold mb-4">Chat on WhatsApp or Contact Us</h2>
             <p className="text-xl mb-8 text-gray-200">Get instant answers to all your property queries</p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button
-                size="lg"
-                className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-lg px-8 py-6 shadow-xl"
-                onClick={() => window.open('https://wa.me/918076146988', '_blank')}
-              >
+              <Button size="lg" className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-lg px-8 py-6 shadow-xl"
+                onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
                 <MessageCircle className="mr-2" /> Chat on WhatsApp
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8 py-6"
-                onClick={() => window.open('tel:+918076146988')}
-              >
+              <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8 py-6"
+                onClick={() => window.open('tel:+918076146988')}>
                 <Phone className="mr-2" /> Call Us Now
               </Button>
             </div>

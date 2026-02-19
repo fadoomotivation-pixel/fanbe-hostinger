@@ -3,8 +3,8 @@ import { useParams, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
-import { Check, MapPin, MessageCircle, TrendingUp } from 'lucide-react';
-import { getProjectContent, getPricingTable, getProjectImagesFromDB } from '@/lib/contentStorage';
+import { Check, MapPin, MessageCircle, TrendingUp, FileText, Map, Download } from 'lucide-react';
+import { getProjectContent, getPricingTable, getProjectImagesFromDB, getProjectDocs } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +14,7 @@ const ProjectDetailPage = () => {
   const { toast } = useToast();
   const [project, setProject] = useState(null);
   const [pricing, setPricing] = useState([]);
+  const [docs, setDocs] = useState({ brochure: null, map: null });
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -26,6 +27,7 @@ const ProjectDetailPage = () => {
 
     const dynamicContent = getProjectContent(slug);
     const dynamicPricing = getPricingTable(slug);
+    const projectDocs = getProjectDocs(slug);
 
     // Fetch image URL from Supabase DB (visible to all visitors, not just this browser)
     const dbImages = await getProjectImagesFromDB();
@@ -36,6 +38,7 @@ const ProjectDetailPage = () => {
 
     setProject(mergedProject);
     setPricing(finalPricing);
+    setDocs(projectDocs);
     setLoading(false);
   };
 
@@ -63,6 +66,23 @@ const ProjectDetailPage = () => {
 
   }, [slug, toast]);
 
+  const handleDownload = (docType) => {
+    const doc = docs[docType];
+    if (!doc) return;
+    
+    const link = document.createElement('a');
+    link.href = doc.data;
+    link.download = doc.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: 'Download Started',
+      description: `${docType === 'brochure' ? 'Brochure' : 'Map'} is downloading...`,
+    });
+  };
+
   if (!loading && !project) {
     return <Navigate to="/projects" replace />;
   }
@@ -72,6 +92,7 @@ const ProjectDetailPage = () => {
   }
 
   const isPricingAvailable = pricing && pricing.length > 0;
+  const hasDocuments = docs.brochure || docs.map;
 
   return (
     <div className="bg-white min-h-screen">
@@ -116,6 +137,28 @@ const ProjectDetailPage = () => {
                   </Button>
                 </a>
               </div>
+
+              {/* Download Buttons */}
+              {hasDocuments && (
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                  {docs.brochure && (
+                    <Button 
+                      onClick={() => handleDownload('brochure')}
+                      className="h-12 px-6 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 text-white font-semibold rounded-lg shadow-lg transition-all"
+                    >
+                      <FileText className="mr-2 w-5 h-5" /> Download Brochure
+                    </Button>
+                  )}
+                  {docs.map && (
+                    <Button 
+                      onClick={() => handleDownload('map')}
+                      className="h-12 px-6 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 text-white font-semibold rounded-lg shadow-lg transition-all"
+                    >
+                      <Map className="mr-2 w-5 h-5" /> Download Map
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

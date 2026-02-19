@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, ArrowRight } from 'lucide-react';
-import { getProjectContent } from '@/lib/contentStorage';
+import { getProjectContent, getProjectImagesFromDB } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -12,16 +12,18 @@ const ProjectsShowcase = () => {
   // State to hold potentially updated project data
   const [displayedProjects, setDisplayedProjects] = useState(projectsData);
 
-  const refreshProjects = () => {
+  const refreshProjects = async () => {
+    const dbImages = await getProjectImagesFromDB();
     const updated = projectsData.map(p => {
       const dynamic = getProjectContent(p.slug);
-      return dynamic ? { ...p, ...dynamic } : p;
+      const heroImage = dbImages[p.slug] || dynamic?.heroImage || p.heroImage;
+      return { ...p, ...(dynamic || {}), heroImage };
     });
     setDisplayedProjects(updated);
   };
 
   useEffect(() => {
-    // Initial Load
+    // Initial Load — fetch from Supabase DB so all visitors see CMS-uploaded images
     refreshProjects();
 
     // Subscribe to updates

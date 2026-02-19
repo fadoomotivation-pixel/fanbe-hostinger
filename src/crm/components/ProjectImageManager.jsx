@@ -67,6 +67,12 @@ const ProjectImageManager = () => {
       const publicUrl = await uploadToSupabase(file, slug);
       const existing = getProjectContent(slug) || {};
       saveProjectContent(slug, { ...existing, heroImage: publicUrl });
+
+      // Save to Supabase DB so all visitors (not just this browser) see the new image
+      await supabaseAdmin
+        .from('project_content')
+        .upsert({ slug, hero_image: publicUrl, updated_at: new Date().toISOString() });
+
       setProjectImages(prev => ({ ...prev, [slug]: publicUrl }));
       triggerContentUpdate(EVENTS.PROJECT_IMAGE_UPDATED, { slug });
       setJustUpdated(prev => ({ ...prev, [slug]: true }));

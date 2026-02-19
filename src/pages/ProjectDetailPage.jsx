@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { Check, MapPin, MessageCircle, TrendingUp } from 'lucide-react';
-import { getProjectContent, getPricingTable } from '@/lib/contentStorage';
+import { getProjectContent, getPricingTable, getProjectImagesFromDB } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,7 +17,7 @@ const ProjectDetailPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadData = () => {
+  const loadData = async () => {
     const staticProject = projectsData.find(p => p.slug === slug);
     if (!staticProject) {
       setLoading(false);
@@ -26,7 +26,12 @@ const ProjectDetailPage = () => {
 
     const dynamicContent = getProjectContent(slug);
     const dynamicPricing = getPricingTable(slug);
-    const mergedProject = dynamicContent ? { ...staticProject, ...dynamicContent } : staticProject;
+
+    // Fetch image URL from Supabase DB (visible to all visitors, not just this browser)
+    const dbImages = await getProjectImagesFromDB();
+    const heroImage = dbImages[slug] || dynamicContent?.heroImage || staticProject.heroImage;
+
+    const mergedProject = { ...staticProject, ...(dynamicContent || {}), heroImage };
     const finalPricing = (dynamicPricing && dynamicPricing.length > 0) ? dynamicPricing : staticProject.pricing;
 
     setProject(mergedProject);

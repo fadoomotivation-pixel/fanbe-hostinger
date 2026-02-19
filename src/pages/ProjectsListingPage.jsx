@@ -31,7 +31,7 @@ function buildPricing(rate, bookingPct, emiMonths, sizes) {
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
-    slug: 'shree-kunj-bihari-enclave',
+    slug: 'shree-kunj-bihari',  // ← matches projectsData.js
     name: 'Shree Kunj Bihari Enclave',
     displayName: 'Kunj Bihari',
     icon: '🕍',
@@ -51,7 +51,7 @@ const projects = [
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
-    slug: 'shree-khatu-shyam-ji-enclave',
+    slug: 'khatu-shyam-enclave',  // ← matches projectsData.js
     name: 'Shri Khatu Shyam Enclave',
     displayName: 'Khatu Shyam',
     icon: '🛕',
@@ -71,7 +71,7 @@ const projects = [
   },
   {
     id: 'shree-jagannath-dham',
-    slug: 'shree-jagannath-dham',
+    slug: 'jagannath-dham',  // ← matches projectsData.js
     name: 'Shree Jagannath Dham',
     displayName: 'Jagannath Dham',
     icon: '🏛️',
@@ -91,7 +91,7 @@ const projects = [
   },
   {
     id: 'brij-vatika',
-    slug: 'brij-vatika',
+    slug: 'brij-vatika',  // ← matches projectsData.js
     name: 'Brij Vatika (E Block)',
     displayName: 'Brij Vatika',
     icon: '🌳',
@@ -111,7 +111,7 @@ const projects = [
   },
   {
     id: 'shree-gokul-vatika',
-    slug: 'shree-gokul-vatika',
+    slug: 'gokul-vatika',  // ← matches projectsData.js
     name: 'Shree Gokul Vatika',
     displayName: 'Gokul Vatika',
     icon: '🌸',
@@ -131,7 +131,7 @@ const projects = [
   },
   {
     id: 'maa-semri-vatika',
-    slug: 'maa-semri-vatika',
+    slug: 'maa-simri-vatika',  // ← matches projectsData.js (note: simri not semri)
     name: 'Maa Semri Vatika',
     displayName: 'Semri Vatika',
     icon: '🏞️',

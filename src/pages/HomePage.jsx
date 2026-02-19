@@ -16,95 +16,76 @@ import { useWhatsApp } from '@/lib/useWhatsApp';
 const projects = [
   {
     id: 'khatu-shyam-enclave',
-    name: 'श्री खाटू श्याम Enclave',
     nameEn: 'Shri Khatu Shyam Enclave',
     logo: '/images/projects/khatu_shyam_enclave.png',
     location: 'Near Khatu Shyam Temple, Rajasthan',
     highlight: true,
-    sizes: ['50', '100', '150', '200', '250'],
     startingPrice: '₹3.76 Lakhs',
     bookingAmt: '₹37,625 (10%)',
     emi: '₹5,644/month',
     emiMonths: 60,
     bookingPct: '10%',
-    amenities: ['Temple Proximity', 'Gated Security', 'Wide Roads', '24/7 Water'],
     status: 'Limited Plots Available',
   },
   {
     id: 'shree-kunj-bihari-enclave',
-    name: 'श्री कुंज बिहारी Enclave',
     nameEn: 'Shree Kunj Bihari Enclave',
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
     highlight: true,
-    tagline: "Premium Plots in Krishna's Holy Land",
-    sizes: ['50', '100', '150', '200', '300'],
     startingPrice: '₹3.76 Lakhs',
     bookingAmt: '₹37,625 (10%)',
     emi: '₹5,644/month',
     emiMonths: 60,
     bookingPct: '10%',
-    amenities: ['Premium Gated Layout', 'Park', 'Street Lights', 'Underground Wiring'],
     status: 'Best Seller',
   },
   {
     id: 'gokul-vatika',
-    name: 'गोकुल वाटिका',
     nameEn: 'Gokul Vatika',
     logo: '/images/projects/gokul_vatika.png',
     location: 'Mathura-Vrindavan Road',
-    sizes: ['50', '100', '150', '200'],
     startingPrice: '₹5.01 Lakhs',
     bookingAmt: '₹1,75,438 (35%)',
     emi: '₹13,576/month',
     emiMonths: 24,
     bookingPct: '35%',
-    amenities: ['Green Spaces', 'Community Hall', 'Children Park', 'Security'],
     status: 'Available'
   },
   {
     id: 'semri-vatika',
-    name: 'सेमरी वाटिका',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
-    sizes: ['50', '100', '125', '150', '200'],
     startingPrice: '₹7.76 Lakhs',
     bookingAmt: '₹2,71,688 (35%)',
     emi: '₹21,024/month',
     emiMonths: 24,
     bookingPct: '35%',
-    amenities: ['Basic Infrastructure', 'Road Access', 'Electricity', 'Water Supply'],
     status: 'New Launch'
   },
   {
     id: 'jagannath-dham',
-    name: 'जगन्नाथ धाम',
     nameEn: 'Jagannath Dham',
     logo: '/images/projects/jaganath_dham.png',
     location: 'Vrindavan Highway',
-    sizes: ['50', '100', '150', '200', '250'],
     startingPrice: '₹4.01 Lakhs',
     bookingAmt: '₹50,156 (12.5%)',
     emi: '₹6,502/month',
     emiMonths: 54,
     bookingPct: '12.5%',
-    amenities: ['Temple View', 'Wide Plots', 'Paved Roads', 'Boundary Wall'],
     status: 'Available'
   },
   {
     id: 'brij-vatika',
-    name: 'बृज वाटिका',
     nameEn: 'Brij Vatika (E Block)',
     logo: '/images/projects/brij_vatika.png',
     location: 'Braj Bhoomi, Vrindavan',
-    sizes: ['50', '100', '150', '200', '250', '300'],
     startingPrice: '₹7.76 Lakhs',
     bookingAmt: '₹2,71,688 (35%)',
     emi: '₹12,615/month',
     emiMonths: 40,
     bookingPct: '35%',
-    amenities: ['Garden', 'Kids Play Area', 'Street Lights', 'Gated Entry'],
     status: 'Available'
   }
 ];
@@ -143,35 +124,15 @@ const HomePage = ({ onBookSiteVisit }) => {
   const { toast } = useToast();
   const { getWhatsAppLink } = useWhatsApp();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [leadForm, setLeadForm] = useState({ name: '', phone: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % slides.length), 5000);
     return () => clearInterval(timer);
   }, []);
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-
-  const handleLeadSubmit = async (e) => {
-    e.preventDefault();
-    if (!leadForm.name || !leadForm.phone) {
-      toast({ title: 'Error', description: 'Please fill all fields', variant: 'destructive' });
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await submitSiteVisit({ name: leadForm.name, phone: leadForm.phone, project: 'Homepage Inquiry', date: new Date().toISOString() });
-      toast({ title: 'Success!', description: "We'll contact you soon" });
-      setLeadForm({ name: '', phone: '' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Please try again', variant: 'destructive' });
-    }
-    setIsSubmitting(false);
-  };
+  const nextSlide = () => setCurrentSlide(prev => (prev + 1) % slides.length);
+  const prevSlide = () => setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
 
   return (
     <div className="min-h-screen">
@@ -183,75 +144,45 @@ const HomePage = ({ onBookSiteVisit }) => {
       {/* Hero Slider */}
       <section className="relative h-[460px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentSlide}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="absolute inset-0"
-          >
+          <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
             <div className="relative h-full flex items-center justify-center px-16 md:px-24">
               <div className="w-full max-w-3xl text-white text-center">
-                <motion.h2
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 text-center"
-                >
+                <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
+                  className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
                   {slides[currentSlide].title}
                 </motion.h2>
-                <motion.p
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.45 }}
-                  className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6 text-center"
-                >
+                <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}
+                  className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6">
                   {slides[currentSlide].subtitle}
                 </motion.p>
                 {slides[currentSlide].points && (
-                  <motion.ul
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.55 }}
-                    className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto"
-                  >
+                  <motion.ul initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
+                    className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto">
                     {slides[currentSlide].points.map((point, idx) => (
                       <li key={idx} className="flex items-start gap-2 md:gap-3 justify-center">
-                        <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                        <CheckCircle className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                         <span className="text-sm md:text-base leading-snug text-left">{point}</span>
                       </li>
                     ))}
                   </motion.ul>
                 )}
                 {slides[currentSlide].description && (
-                  <motion.p
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.55 }}
-                    className="text-base md:text-xl mb-6 md:mb-8 text-center"
-                  >
+                  <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
+                    className="text-base md:text-xl mb-6 md:mb-8">
                     {slides[currentSlide].description}
                   </motion.p>
                 )}
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.65 }}
-                  className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center"
-                >
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
+                  className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
                   <Link to="/projects">
                     <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
                       Explore Projects <ChevronRight className="ml-2" />
                     </Button>
                   </Link>
-                  <Button
-                    size="lg"
-                    variant="outline"
+                  <Button size="lg" variant="outline"
                     className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6"
-                    onClick={() => window.open('https://wa.me/918076146988', '_blank')}
-                  >
+                    onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
                     <Phone className="mr-2" /> Contact Us
                   </Button>
                 </motion.div>
@@ -268,8 +199,7 @@ const HomePage = ({ onBookSiteVisit }) => {
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
             <button key={idx} onClick={() => setCurrentSlide(idx)}
-              className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`}
-            />
+              className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`} />
           ))}
         </div>
       </section>
@@ -279,14 +209,14 @@ const HomePage = ({ onBookSiteVisit }) => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: Calendar, label: 'Founded', value: '2012' },
-              { icon: Building, label: 'Projects', value: '25+' },
-              { icon: Users, label: 'Happy Families', value: '15,000+' },
-              { icon: Shield, label: 'Legal Clarity', value: '100%' }
+              { icon: Calendar, label: 'Founded',        value: '2012'    },
+              { icon: Building, label: 'Projects',       value: '25+'     },
+              { icon: Users,   label: 'Happy Families', value: '15,000+' },
+              { icon: Shield,  label: 'Legal Clarity',  value: '100%'    }
             ].map((stat, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
-                className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg"
-              >
+              <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
+                className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg">
                 <stat.icon className="h-10 w-10 mx-auto mb-3 text-[#D4AF37]" />
                 <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
                 <div className="text-gray-300 font-medium">{stat.label}</div>
@@ -308,18 +238,25 @@ const HomePage = ({ onBookSiteVisit }) => {
               <p className="text-xl text-gray-600">Explore premium plotted developments across sacred locations</p>
             </motion.div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project, idx) => (
-              <motion.div key={project.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
+              <motion.div key={project.id}
+                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
               >
-                {/* ─── Logo area: uniform white background for all PNGs ─── */}
-                <div className="bg-white p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden border-b border-gray-100">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#0F3A5F]/3 to-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                {/*
+                  Logo area: dark navy gradient background for ALL cards.
+                  Dark-bg PNGs  → blend seamlessly (no visible seam).
+                  Light-bg PNGs → appear as clean logo-on-card — intentional & premium.
+                */}
+                <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 flex items-center justify-center min-h-[200px] relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[#D4AF37]/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <img
                     src={project.logo}
                     alt={project.nameEn}
-                    className="max-w-full max-h-[180px] object-contain group-hover:scale-105 transition-transform duration-300 relative z-10"
+                    className="max-w-full max-h-[175px] object-contain group-hover:scale-105 transition-transform duration-300 relative z-10"
                   />
                   {project.highlight && (
                     <div className="absolute top-2 right-2">
@@ -327,6 +264,7 @@ const HomePage = ({ onBookSiteVisit }) => {
                     </div>
                   )}
                 </div>
+
                 <div className="p-5">
                   <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
                   <p className="text-sm text-gray-600 mb-4 flex items-center gap-1">

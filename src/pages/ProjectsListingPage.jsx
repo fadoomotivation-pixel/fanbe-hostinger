@@ -4,21 +4,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   MapPin, Phone, MessageCircle, X, Filter,
-  TrendingUp, Shield, Award, Users, IndianRupee,
-  Calculator, FileText, Building2, Banknote, Clock
+  TrendingUp, Shield, Award, Users,
+  Calculator, FileText, Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
 
-// ─────────────────────────────────────────────────────────────
-// PROJECT DATA  (text-logo cards — no heavy images in listing)
-// ─────────────────────────────────────────────────────────────
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
     slug: 'shree-kunj-bihari-enclave',
     name: 'Shree Kunj Bihari Enclave',
-    abbr: 'SKBE',
+    displayName: 'Kunj Bihari',
     icon: '🕍',
     location: 'Vrindavan, UP',
     region: 'vrindavan',
@@ -40,7 +37,7 @@ const projects = [
     id: 'shree-khatu-shyam-ji-enclave',
     slug: 'shree-khatu-shyam-ji-enclave',
     name: 'Shri Khatu Shyam Enclave',
-    abbr: 'SKSE',
+    displayName: 'Khatu Shyam',
     icon: '🛕',
     location: 'Khatu, Rajasthan',
     region: 'rajasthan',
@@ -62,7 +59,7 @@ const projects = [
     id: 'shree-jagannath-dham',
     slug: 'shree-jagannath-dham',
     name: 'Shree Jagannath Dham',
-    abbr: 'SJD',
+    displayName: 'Jagannath Dham',
     icon: '🏛️',
     location: 'Mathura, UP',
     region: 'mathura',
@@ -84,7 +81,7 @@ const projects = [
     id: 'brij-vatika',
     slug: 'brij-vatika',
     name: 'Brij Vatika (E Block)',
-    abbr: 'BVE',
+    displayName: 'Brij Vatika',
     icon: '🌳',
     location: 'Braj Bhoomi, Vrindavan',
     region: 'vrindavan',
@@ -106,7 +103,7 @@ const projects = [
     id: 'shree-gokul-vatika',
     slug: 'shree-gokul-vatika',
     name: 'Shree Gokul Vatika',
-    abbr: 'SGV',
+    displayName: 'Gokul Vatika',
     icon: '🌸',
     location: 'Gokul, UP',
     region: 'mathura',
@@ -128,7 +125,7 @@ const projects = [
     id: 'maa-semri-vatika',
     slug: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
-    abbr: 'MSV',
+    displayName: 'Semri Vatika',
     icon: '🏞️',
     location: 'Near Mathura, UP',
     region: 'mathura',
@@ -155,7 +152,6 @@ const trustStats = [
   { icon: TrendingUp, value: '0%',      label: 'Interest EMI' },
 ];
 
-// ─────────────────────────────────────────────────────────────
 const ProjectsListingPage = () => {
   const [filters, setFilters] = useState({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
   const [showFilters, setShowFilters] = useState(false);
@@ -170,18 +166,18 @@ const ProjectsListingPage = () => {
   }, []);
 
   const filtered = useMemo(() => projects.filter(p => {
-    if (filters.region !== 'all' && p.region !== filters.region) return false;
+    if (filters.region    !== 'all' && p.region !== filters.region) return false;
     if (filters.priceRange === 'under5'  && p.startingPrice >= 500000) return false;
     if (filters.priceRange === '5to8'    && (p.startingPrice < 500000 || p.startingPrice >= 800000)) return false;
     if (filters.priceRange === 'above8'  && p.startingPrice < 800000) return false;
-    if (filters.emiRange  === 'under10'  && p.emi >= 10000) return false;
-    if (filters.emiRange  === '10to15'   && (p.emi < 10000 || p.emi >= 15000)) return false;
-    if (filters.emiRange  === 'above15'  && p.emi < 15000) return false;
-    if (filters.status !== 'all' && p.status !== filters.status) return false;
+    if (filters.emiRange   === 'under10' && p.emi >= 10000) return false;
+    if (filters.emiRange   === '10to15'  && (p.emi < 10000 || p.emi >= 15000)) return false;
+    if (filters.emiRange   === 'above15' && p.emi < 15000) return false;
+    if (filters.status    !== 'all' && p.status !== filters.status) return false;
     return true;
   }), [filters]);
 
-  const activeCount = Object.values(filters).filter(v => v !== 'all').length;
+  const activeCount  = Object.values(filters).filter(v => v !== 'all').length;
   const resetFilters = () => setFilters({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
 
   return (
@@ -191,12 +187,14 @@ const ProjectsListingPage = () => {
         <meta name="description" content="6 premium residential plot projects. Starting ₹3.76L. 0% interest EMI. Instant registry. 15,000+ happy families." />
       </Helmet>
 
-      {/* ── TRUST BAND ─────────────────────────────────────────── */}
+      {/* ── TRUST BAND ──────────────────────────────────────────── */}
       <section className="bg-gradient-to-r from-[#0A2744] via-[#0F3A5F] to-[#1a5a8f] text-white py-3">
         <div className="container mx-auto px-4">
           <div className="flex flex-wrap items-center justify-center gap-5 md:gap-10">
             {trustStats.map((s, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className="flex items-center gap-2">
+              <motion.div key={i} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }} className="flex items-center gap-2"
+              >
                 <s.icon className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
                 <span className="font-bold">{s.value}</span>
                 <span className="text-xs text-gray-300">{s.label}</span>
@@ -209,33 +207,37 @@ const ProjectsListingPage = () => {
       {/* ── HEADER + FILTER BAR (sticky) ────────────────────────── */}
       <div className="sticky top-[68px] z-40 bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-0">
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#0F3A5F]">Our Projects</h1>
-              <p className="text-xs text-gray-400 mt-0.5">{filtered.length} premium residential {filtered.length === 1 ? 'project' : 'projects'}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {filtered.length} premium residential {filtered.length === 1 ? 'project' : 'projects'}
+              </p>
             </div>
-            <Button
-              variant="outline" size="sm"
+            <Button variant="outline" size="sm"
               onClick={() => setShowFilters(f => !f)}
               className="relative border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white"
             >
-              <Filter className="w-4 h-4 mr-1.5" />
-              Filters
+              <Filter className="w-4 h-4 mr-1.5" />Filters
               {activeCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-[10px] font-extrabold w-4.5 h-4.5 min-w-[1.1rem] min-h-[1.1rem] rounded-full flex items-center justify-center">{activeCount}</span>
+                <span className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-[10px] font-extrabold min-w-[1.1rem] min-h-[1.1rem] rounded-full flex items-center justify-center px-1">
+                  {activeCount}
+                </span>
               )}
             </Button>
           </div>
 
           <AnimatePresence>
             {showFilters && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }} className="overflow-hidden"
+              >
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-4 bg-gray-50 rounded-xl border">
                   {[
-                    { label: 'Location', key: 'region', opts: [['all','All Locations'],['vrindavan','Vrindavan'],['mathura','Mathura / Gokul'],['rajasthan','Rajasthan']] },
-                    { label: 'Starting Price', key: 'priceRange', opts: [['all','Any Price'],['under5','Under ₹5L'],['5to8','₹5L – ₹8L'],['above8','Above ₹8L']] },
-                    { label: 'EMI Budget', key: 'emiRange', opts: [['all','Any EMI'],['under10','Under ₹10k/mo'],['10to15','₹10k – ₹15k/mo'],['above15','Above ₹15k/mo']] },
-                    { label: 'Status', key: 'status', opts: [['all','All Status'],['bestseller','Best Seller'],['limited','Limited Plots'],['new','New Launch'],['available','Available']] },
+                    { label: 'Location',      key: 'region',     opts: [['all','All Locations'],['vrindavan','Vrindavan'],['mathura','Mathura / Gokul'],['rajasthan','Rajasthan']] },
+                    { label: 'Starting Price',key: 'priceRange', opts: [['all','Any Price'],['under5','Under ₹5L'],['5to8','₹5L – ₹8L'],['above8','Above ₹8L']] },
+                    { label: 'EMI Budget',    key: 'emiRange',   opts: [['all','Any EMI'],['under10','Under ₹10k/mo'],['10to15','₹10k – ₹15k/mo'],['above15','Above ₹15k/mo']] },
+                    { label: 'Status',        key: 'status',     opts: [['all','All Status'],['bestseller','Best Seller'],['limited','Limited Plots'],['new','New Launch'],['available','Available']] },
                   ].map(f => (
                     <div key={f.key}>
                       <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{f.label}</label>
@@ -262,7 +264,7 @@ const ProjectsListingPage = () => {
         </div>
       </div>
 
-      {/* ── PROJECTS GRID ───────────────────────────────────────── */}
+      {/* ── PROJECTS GRID ─────────────────────────────────────────── */}
       <section className="py-12 pb-28">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -271,28 +273,33 @@ const ProjectsListingPage = () => {
                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
               >
                 {filtered.map((p, i) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 24 }}
-                    animate={{ opacity: 1, y: 0 }}
+                  <motion.div key={p.id}
+                    initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.06 }}
                     className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
                   >
-                    {/* ── Logo / Icon Header ── */}
-                    <div className={`relative bg-gradient-to-br ${p.logoGradient} p-8 flex flex-col items-center justify-center min-h-[160px] overflow-hidden`}>
-                      {/* Faint circle decoration */}
-                      <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
-                      <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-black/10 rounded-full" />
+                    {/* ── Logo Header: gradient bg + icon + project name ── */}
+                    <div className={`relative bg-gradient-to-br ${p.logoGradient} flex flex-col items-center justify-center min-h-[170px] overflow-hidden px-6 py-8`}>
+                      {/* decorative circles */}
+                      <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full pointer-events-none" />
+                      <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-black/10 rounded-full pointer-events-none" />
 
-                      {/* Status Badge */}
-                      <span className={`absolute top-3 right-3 ${p.statusColor} text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md z-10`}>
+                      {/* status badge */}
+                      <span className={`absolute top-3 right-3 ${p.statusColor} text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow z-10`}>
                         {p.statusLabel}
                       </span>
 
-                      {/* Icon */}
-                      <div className="text-5xl mb-2 drop-shadow-md group-hover:scale-110 transition-transform duration-300">{p.icon}</div>
-                      {/* Abbr */}
-                      <div className="text-white/80 text-xs font-black tracking-[0.35em] uppercase">{p.abbr}</div>
+                      {/* icon */}
+                      <div className="text-5xl mb-3 drop-shadow-lg group-hover:scale-110 transition-transform duration-300 z-10">
+                        {p.icon}
+                      </div>
+
+                      {/* project short name — clean, readable */}
+                      <div className="z-10 text-center">
+                        <p className="text-white font-extrabold text-lg leading-tight tracking-wide drop-shadow-md">
+                          {p.displayName}
+                        </p>
+                      </div>
                     </div>
 
                     {/* ── Card Body ── */}
@@ -302,7 +309,7 @@ const ProjectsListingPage = () => {
                         <MapPin className="w-3 h-3 text-[#D4AF37]" />{p.location}
                       </p>
 
-                      {/* ── Pricing Box ── */}
+                      {/* Pricing Box */}
                       <div className="bg-[#F8F5EC] border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div>
@@ -320,9 +327,7 @@ const ProjectsListingPage = () => {
                             <div className="text-base font-bold text-[#0F3A5F]">{p.emiDisplay}</div>
                           </div>
                           <div className="text-right">
-                            <div className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full border border-green-200">
-                              0% Interest
-                            </div>
+                            <div className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full border border-green-200">0% Interest</div>
                             <div className="text-[9px] text-gray-400 mt-1">{p.emiMonths} months</div>
                           </div>
                         </div>
@@ -335,7 +340,7 @@ const ProjectsListingPage = () => {
                       </p>
 
                       {/* Highlights */}
-                      <div className="space-y-1 mb-5">
+                      <div className="space-y-1.5 mb-5">
                         {p.highlights.map((h, idx) => (
                           <div key={idx} className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] flex-shrink-0" />
@@ -347,12 +352,13 @@ const ProjectsListingPage = () => {
                       {/* CTA Buttons */}
                       <div className="grid grid-cols-2 gap-2 mt-auto">
                         <Link to={`/projects/${p.slug}`}>
-                          <Button variant="outline" size="sm" className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs h-10">
+                          <Button variant="outline" size="sm"
+                            className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs h-10"
+                          >
                             <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
                           </Button>
                         </Link>
-                        <Button
-                          size="sm"
+                        <Button size="sm"
                           className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs h-10 shadow-md"
                           onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(p.name)}`, '_blank')}
                         >
@@ -379,8 +385,7 @@ const ProjectsListingPage = () => {
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div
-            initial={{ y: 80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-[#D4AF37] shadow-2xl"

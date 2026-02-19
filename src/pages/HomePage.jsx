@@ -37,7 +37,6 @@ const projects = [
     logo: '/images/projects/shree_kunj_bihari_enclave.png',
     location: 'Vrindavan, UP',
     highlight: true,
-    tagline: 'Premium Plots in Krishna\'s Holy Land',
     sizes: ['50', '100', '150', '200', '300'],
     startingPrice: '₹3.76 Lakhs',
     bookingAmt: '₹37,625 (10%)',
@@ -112,14 +111,12 @@ const projects = [
 const slides = [
   {
     id: 1,
-    image: '/images/slides/team_culture.png',
     title: 'A Culture of Success',
     subtitle: 'Celebrating Excellence & Partnership',
     description: 'Fanbe\'s Business Meets and Gold Achiever ceremonies'
   },
   {
     id: 2,
-    image: '/images/slides/trust_transparency.png',
     title: 'पारदर्शिता और विश्वास',
     subtitle: 'Transparency & Trust',
     points: [
@@ -130,12 +127,11 @@ const slides = [
   },
   {
     id: 3,
-    image: '/images/slides/amenities.png',
     title: 'सुविधाएं जो जीवन को आसान बनाएं',
     subtitle: 'Modern Amenities',
     points: [
       'भव्य प्रवेश द्वार: सुरक्षा गार्ड के साथ',
-      'पक्की सड़केंः कॉलोनी के अंदर चौड़ी सड़केें',
+      'पक्की सड़कें: कॉलोनी के अंदर चौड़ी सड़कें',
       'हरा-भरा वातावरण: प्रदूषण मुक्त और ताज़ी हवा',
       'बिजली और पानी: बुनियादी ढांचे की पूरी व्यवस्था'
     ]
@@ -184,57 +180,114 @@ const HomePage = ({ onBookSiteVisit }) => {
       </Helmet>
 
       {/* Hero Slider */}
-      <section className="relative h-[480px] md:h-[540px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
+      <section className="relative h-[460px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
         <AnimatePresence mode="wait">
-          <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="absolute inset-0">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="absolute inset-0"
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
-            <div className="relative h-full container mx-auto px-4 flex items-start pt-12 md:pt-16">
-              <div className="w-full max-w-4xl text-white text-center mx-auto">
-                <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mb-4 md:mb-6">
-                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif font-bold tracking-wide leading-tight mb-2">
-                    <span className="text-[#D4AF37]">Fanbe</span> <span className="text-white">Group</span>
-                  </h1>
-                </motion.div>
-                <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }} className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
+            {/* px-16 md:px-20 ensures text never overlaps the left/right arrows */}
+            <div className="relative h-full flex items-center justify-center px-16 md:px-24">
+              <div className="w-full max-w-3xl text-white text-center">
+
+                <motion.h2
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 text-center"
+                >
                   {slides[currentSlide].title}
                 </motion.h2>
-                <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6">
+
+                <motion.p
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.45 }}
+                  className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6 text-center"
+                >
                   {slides[currentSlide].subtitle}
                 </motion.p>
+
                 {slides[currentSlide].points && (
-                  <motion.ul initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="space-y-2 md:space-y-3 mb-6 md:mb-8 text-left max-w-2xl mx-auto">
+                  <motion.ul
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.55 }}
+                    className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto"
+                  >
                     {slides[currentSlide].points.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-2 md:gap-3">
-                        <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37] flex-shrink-0 mt-0.5 md:mt-1" />
-                        <span className="text-sm md:text-lg leading-tight text-left">{point}</span>
+                      <li key={idx} className="flex items-start gap-2 md:gap-3 text-center justify-center">
+                        <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                        <span className="text-sm md:text-base leading-snug text-left">{point}</span>
                       </li>
                     ))}
                   </motion.ul>
                 )}
+
                 {slides[currentSlide].description && (
-                  <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="text-base md:text-xl mb-6 md:mb-8">
+                  <motion.p
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.55 }}
+                    className="text-base md:text-xl mb-6 md:mb-8 text-center"
+                  >
                     {slides[currentSlide].description}
                   </motion.p>
                 )}
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.7 }} className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
+
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.65 }}
+                  className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center"
+                >
                   <Link to="/projects">
                     <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
                       Explore Projects <ChevronRight className="ml-2" />
                     </Button>
                   </Link>
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6" onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6"
+                    onClick={() => window.open('https://wa.me/918076146988', '_blank')}
+                  >
                     <Phone className="mr-2" /> Contact Us
                   </Button>
                 </motion.div>
+
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
-        <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"><ChevronLeft className="w-6 h-6 text-white" /></button>
-        <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 p-3 rounded-full backdrop-blur-sm transition-all z-10"><ChevronRight className="w-6 h-6 text-white" /></button>
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+
+        {/* Arrows — vertically centred, outside text zone */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10"
+        >
+          <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10"
+        >
+          <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
+        </button>
+
+        {/* Dots */}
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
-            <button key={idx} onClick={() => setCurrentSlide(idx)} className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`} />
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`}
+            />
           ))}
         </div>
       </section>
@@ -249,7 +302,14 @@ const HomePage = ({ onBookSiteVisit }) => {
               { icon: Users, label: 'Happy Families', value: '15,000+' },
               { icon: Shield, label: 'Legal Clarity', value: '100%' }
             ].map((stat, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg">
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg"
+              >
                 <stat.icon className="h-10 w-10 mx-auto mb-3 text-[#D4AF37]" />
                 <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
                 <div className="text-gray-300 font-medium">{stat.label}</div>
@@ -332,16 +392,16 @@ const HomePage = ({ onBookSiteVisit }) => {
             <h2 className="text-4xl font-bold mb-4">Chat on WhatsApp or Contact Us</h2>
             <p className="text-xl mb-8 text-gray-200">Get instant answers to all your property queries</p>
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold text-lg px-8 py-6 shadow-xl"
                 onClick={() => window.open('https://wa.me/918076146988', '_blank')}
               >
                 <MessageCircle className="mr-2" /> Chat on WhatsApp
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-lg px-8 py-6"
                 onClick={() => window.open('tel:+918076146988')}
               >

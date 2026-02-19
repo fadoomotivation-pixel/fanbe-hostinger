@@ -4,6 +4,7 @@ import { Globe, Layers, Monitor, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { projectsData } from '@/data/projectsData';
 import { useNavMenu, useSliderData } from '@/lib/contentSync';
+import ProjectImageManager from '@/crm/components/ProjectImageManager';
 
 const ContentManagementDashboard = () => {
   const navMenu = useNavMenu();
@@ -70,6 +71,10 @@ const ContentManagementDashboard = () => {
           </Link>
         ))}
       </div>
+
+      <Card className="border-none shadow-md p-6">
+        <ProjectImageManager />
+      </Card>
 
       <Card className="border-none shadow-md">
         <CardHeader>

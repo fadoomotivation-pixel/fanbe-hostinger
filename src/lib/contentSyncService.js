@@ -7,6 +7,7 @@ export const EVENTS = {
   SLIDER_UPDATED: 'slider_updated',
   PROJECT_IMAGE_UPDATED: 'project_image_updated',
   PROJECT_CONTENT_UPDATED: 'project_content_updated',
+  PROJECT_DOCS_UPDATED: 'project_docs_updated',
   MENU_UPDATED: 'menu_updated',
   HOMEPAGE_SETTINGS_UPDATED: 'homepage_settings_updated',
 };
@@ -37,6 +38,9 @@ export const triggerContentUpdate = (eventName, data = {}) => {
   
   console.log(`[ContentSync] Triggered: ${eventName}`, payload);
 };
+
+// Alias for consistency with other parts of the codebase
+export const broadcastContentUpdate = triggerContentUpdate;
 
 /**
  * Subscribes to content update events

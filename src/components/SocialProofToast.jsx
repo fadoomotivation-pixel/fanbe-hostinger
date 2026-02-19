@@ -117,10 +117,10 @@ export default function SocialProofToast() {
       <style>{`
         .sp-wrap {
           position: fixed;
-          bottom: 20px;
-          left: 20px;
+          bottom: 12px;
+          left: 12px;
           z-index: 99999;
-          width: 345px;
+          width: 300px;
           opacity: 0;
           transform: translateY(16px) scale(0.97);
           transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.34,1.4,0.64,1);
@@ -138,10 +138,10 @@ export default function SocialProofToast() {
         }
         .sp-card {
           background: #ffffff;
-          border-radius: 16px;
+          border-radius: 14px;
           box-shadow:
             0 2px 4px rgba(0,0,0,0.04),
-            0 8px 24px rgba(0,0,0,0.11),
+            0 6px 20px rgba(0,0,0,0.1),
             0 0 0 1px rgba(0,0,0,0.06);
           overflow: hidden;
           font-family: 'Noto Sans Devanagari', 'Hind', 'Mukta', 'Segoe UI', system-ui, sans-serif;
@@ -151,7 +151,7 @@ export default function SocialProofToast() {
         /* ── Saffron-gold header bar ── */
         .sp-header {
           background: linear-gradient(120deg, #e65c00 0%, #f9a825 55%, #e65c00 100%);
-          padding: 8px 40px 8px 14px;
+          padding: 6px 32px 6px 10px;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -159,43 +159,43 @@ export default function SocialProofToast() {
         .sp-live {
           display: flex;
           align-items: center;
-          gap: 6px;
-          font-size: 11.5px;
+          gap: 5px;
+          font-size: 10px;
           font-weight: 700;
           color: #fff;
-          letter-spacing: 0.4px;
+          letter-spacing: 0.3px;
         }
         .sp-live-dot {
-          width: 8px;
-          height: 8px;
+          width: 6px;
+          height: 6px;
           background: #fff;
           border-radius: 50%;
           animation: sp-blink 1.5s ease-in-out infinite;
         }
         .sp-verified {
-          font-size: 10.5px;
+          font-size: 9px;
           font-weight: 600;
           color: rgba(255,255,255,0.92);
           display: flex;
           align-items: center;
-          gap: 3px;
+          gap: 2px;
         }
 
         /* ── Close button ── */
         .sp-close {
           position: absolute;
-          top: 7px;
-          right: 10px;
+          top: 4px;
+          right: 6px;
           background: rgba(255,255,255,0.22);
           border: none;
           border-radius: 50%;
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          font-size: 13px;
+          font-size: 11px;
           color: #fff;
           line-height: 1;
           transition: background 0.15s;
@@ -205,34 +205,34 @@ export default function SocialProofToast() {
 
         /* ── Body ── */
         .sp-body {
-          padding: 13px 16px 11px;
+          padding: 10px 12px 8px;
         }
         .sp-project-row {
           display: flex;
           align-items: center;
-          gap: 10px;
-          margin-bottom: 9px;
+          gap: 8px;
+          margin-bottom: 7px;
         }
         .sp-emoji {
-          font-size: 26px;
+          font-size: 22px;
           line-height: 1;
           flex-shrink: 0;
         }
         .sp-proj-name {
-          font-size: 13px;
+          font-size: 11.5px;
           font-weight: 700;
           color: #111827;
-          line-height: 1.35;
+          line-height: 1.3;
         }
         .sp-proj-loc {
-          font-size: 11px;
+          font-size: 9.5px;
           color: #6b7280;
-          margin-top: 2px;
+          margin-top: 1px;
         }
         .sp-message {
-          font-size: 14px;
+          font-size: 12px;
           color: #1f2937;
-          line-height: 1.65;
+          line-height: 1.5;
           margin: 0;
         }
         .sp-buyer-name {
@@ -245,21 +245,21 @@ export default function SocialProofToast() {
           color: #92400e;
           background: #fef3c7;
           border: 1px solid #fcd34d;
-          padding: 1px 7px;
-          border-radius: 5px;
-          font-size: 13px;
+          padding: 1px 6px;
+          border-radius: 4px;
+          font-size: 11px;
         }
         .sp-price {
           display: inline-block;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 800;
           color: #15803d;
-          margin-top: 5px;
-          letter-spacing: 0.3px;
+          margin-top: 4px;
+          letter-spacing: 0.2px;
         }
         .sp-price::before {
           content: '✅ ';
-          font-size: 13px;
+          font-size: 11px;
         }
 
         /* ── Footer ── */
@@ -267,34 +267,34 @@ export default function SocialProofToast() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 9px 16px 12px;
+          padding: 7px 12px 9px;
           border-top: 1px solid #f3f4f6;
           background: #fafafa;
         }
         .sp-urgency {
-          font-size: 11.5px;
+          font-size: 10px;
           font-weight: 700;
           color: #dc2626;
-          line-height: 1.4;
+          line-height: 1.3;
         }
         .sp-ago {
-          font-size: 10.5px;
+          font-size: 9px;
           color: #9ca3af;
-          margin-top: 2px;
+          margin-top: 1px;
         }
         .sp-wa-btn {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           background: #16a34a;
           color: #fff !important;
           text-decoration: none !important;
-          border-radius: 9px;
-          padding: 8px 14px;
-          font-size: 12.5px;
+          border-radius: 7px;
+          padding: 6px 11px;
+          font-size: 11px;
           font-weight: 700;
           font-family: inherit;
-          letter-spacing: 0.2px;
+          letter-spacing: 0.1px;
           transition: background 0.15s, transform 0.12s;
           white-space: nowrap;
         }
@@ -310,7 +310,42 @@ export default function SocialProofToast() {
         }
 
         @media (max-width: 480px) {
-          .sp-wrap { left: 10px; right: 10px; width: auto; max-width: 360px; }
+          .sp-wrap { 
+            left: 8px; 
+            right: 8px; 
+            width: auto; 
+            max-width: 280px;
+            bottom: 8px;
+          }
+          .sp-card {
+            border-radius: 12px;
+          }
+          .sp-emoji {
+            font-size: 20px;
+          }
+          .sp-proj-name {
+            font-size: 10.5px;
+          }
+          .sp-proj-loc {
+            font-size: 9px;
+          }
+          .sp-message {
+            font-size: 11px;
+          }
+          .sp-price {
+            font-size: 12px;
+          }
+          .sp-urgency {
+            font-size: 9.5px;
+          }
+          .sp-ago {
+            font-size: 8.5px;
+          }
+          .sp-wa-btn {
+            padding: 5px 9px;
+            font-size: 10px;
+            gap: 4px;
+          }
         }
       `}</style>
 

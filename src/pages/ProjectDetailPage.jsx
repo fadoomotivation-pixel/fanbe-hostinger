@@ -81,6 +81,7 @@ const ProjectDetailPage = () => {
       unsubscribeContent();
       unsubscribeDocs();
       unsubscribeMap();
+      unsubscribeMap();
     };
   }, [slug, toast]);
 

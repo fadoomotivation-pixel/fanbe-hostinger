@@ -1,3 +1,14 @@
+// ✅ PRICING CORRECTED - Feb 20, 2026, 8:07 PM IST
+// All rates, EMI months, and pricing tables updated to match official payment plans
+//
+// OFFICIAL RATES (SOURCE OF TRUTH):
+// Shree Kunj Bihari:    ₹7,525/sq yd | 60 months | 10% booking
+// Khatu Shyam Enclave:  ₹7,525/sq yd | 60 months | 10% booking  
+// Shree Jagannath Dham: ₹8,025/sq yd | 54 months | 10% booking
+// Gokul Vatika:         ₹10,025/sq yd | 24 months | 10% booking
+// Brij Vatika:          ₹15,525/sq yd | 40 months | 10% booking
+// Maa Semri Vatika:     ₹15,525/sq yd | 24 months | 15% booking
+
 export const projectsData = [
   {
     slug: 'shree-kunj-bihari',
@@ -26,7 +37,7 @@ export const projectsData = [
       'Gated Colony with Closed Boundary',
       '100% Clear Title & Immediate Mutation',
       'Immediate Registry with 35% Payment',
-      '0% Interest EMI - 59 Months Payment Plan'
+      '0% Interest EMI - 60 Months Payment Plan'
     ],
     
     amenities: [
@@ -48,20 +59,20 @@ export const projectsData = [
     
     pricePerSqYard: 7525,
     bookingPercentage: '10%',
-    emiMonths: 59,
+    emiMonths: 60,
     emiInterest: '0%',
     registryPayment: '35%',
     
     pricing: [
-      { size: 50, rate: 7525, total: 376250, booking: 37250, rest: 338750, emi: 5650 },
-      { size: 55, rate: 7525, total: 413875, booking: 41000, rest: 372875, emi: 6200 },
-      { size: 60, rate: 7525, total: 451500, booking: 45000, rest: 406500, emi: 6800 },
-      { size: 80, rate: 7525, total: 602000, booking: 60000, rest: 542000, emi: 9050 },
-      { size: 100, rate: 7525, total: 752500, booking: 74500, rest: 678000, emi: 11300 },
-      { size: 120, rate: 7525, total: 903000, booking: 90000, rest: 813000, emi: 13550 },
-      { size: 150, rate: 7525, total: 1128750, booking: 112500, rest: 1016250, emi: 16950 },
-      { size: 200, rate: 7525, total: 1505000, booking: 149000, rest: 1356000, emi: 22600 },
-      { size: 250, rate: 7525, total: 1881250, booking: 186500, rest: 1694750, emi: 28250 }
+      { size: 50, rate: 7525, total: 376250, booking: 37625, rest: 338625, emi: 5644 },
+      { size: 55, rate: 7525, total: 413875, booking: 41387, rest: 372488, emi: 6208 },
+      { size: 60, rate: 7525, total: 451500, booking: 45150, rest: 406350, emi: 6772 },
+      { size: 80, rate: 7525, total: 602000, booking: 60200, rest: 541800, emi: 9030 },
+      { size: 100, rate: 7525, total: 752500, booking: 75250, rest: 677250, emi: 11287 },
+      { size: 120, rate: 7525, total: 903000, booking: 90300, rest: 812700, emi: 13545 },
+      { size: 150, rate: 7525, total: 1128750, booking: 112875, rest: 1015875, emi: 16931 },
+      { size: 200, rate: 7525, total: 1505000, booking: 150500, rest: 1354500, emi: 22575 },
+      { size: 250, rate: 7525, total: 1881250, booking: 188125, rest: 1693125, emi: 28219 }
     ],
     
     trustBadges: [
@@ -168,6 +179,24 @@ export const projectsData = [
       content: 'With the new Shekhawati Film City bringing tourism and the eternal devotion of Khatu Shyam Ji bringing millions of visitors, land rates in this area are skyrocketing. Secure your plot today for a stable and growth-oriented future.'
     },
     
+    pricePerSqYard: 7525,
+    bookingPercentage: '10%',
+    emiMonths: 60,
+    emiInterest: '0%',
+    registryPayment: '35%',
+    
+    pricing: [
+      { size: 50, rate: 7525, total: 376250, booking: 37625, rest: 338625, emi: 5644 },
+      { size: 55, rate: 7525, total: 413875, booking: 41387, rest: 372488, emi: 6208 },
+      { size: 60, rate: 7525, total: 451500, booking: 45150, rest: 406350, emi: 6772 },
+      { size: 80, rate: 7525, total: 602000, booking: 60200, rest: 541800, emi: 9030 },
+      { size: 100, rate: 7525, total: 752500, booking: 75250, rest: 677250, emi: 11287 },
+      { size: 120, rate: 7525, total: 903000, booking: 90300, rest: 812700, emi: 13545 },
+      { size: 150, rate: 7525, total: 1128750, booking: 112875, rest: 1015875, emi: 16931 },
+      { size: 200, rate: 7525, total: 1505000, booking: 150500, rest: 1354500, emi: 22575 },
+      { size: 250, rate: 7525, total: 1881250, booking: 188125, rest: 1693125, emi: 28219 }
+    ],
+    
     trustBadges: [
       { icon: 'BadgeCheck', text: '100% Clear Title' },
       { icon: 'FileCheck', text: 'Immediate Registry' },
@@ -188,13 +217,12 @@ export const projectsData = [
   {
     slug: 'brij-vatika',
     title: 'Brij Vatika',
-    subline: 'Own Your Piece of Holy Braj – Best Value for Money in Vrindavan',
+    subline: 'Own Your Piece of Holy Braj – Premium Plots in Vrindavan',
     heroImage: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200',
     logo: 'https://fanbegroup.com/logos/brij-vatika-logo.png',
-    overview: 'Experience unbeatable value at Brij Vatika - the most affordable gated colony near holy Vrindavan. Located just 1 minute from NH2 and Ajhai Railway Station, and 5 minutes from the magnificent Golden Temple (Prem Mandir), this project offers the longest 40-month EMI plan with 0% interest. Perfect for devotees and investors seeking proximity to Vrindavan\'s spiritual aura at the best price.',
+    overview: 'Experience premium living at Brij Vatika - a gated colony near holy Vrindavan. Located just 1 minute from NH2 and Ajhai Railway Station, and 5 minutes from the magnificent Golden Temple (Prem Mandir), this project offers 40-month EMI plan with 0% interest. Perfect for devotees and investors seeking proximity to Vrindavan\'s spiritual aura.',
     location: 'Near Ajhai Railway Station, Vrindavan Road, Mathura, UP',
     
-    // Special USP - The "1-Minute Timeline"
     oneMinuteTimeline: [
       { icon: '🛣️', label: 'NH2 National Highway', time: '1 Minute', color: 'blue' },
       { icon: '🚆', label: 'Ajhai Railway Station', time: '1 Minute', color: 'green' },
@@ -217,10 +245,9 @@ export const projectsData = [
       '40-Month EMI Plan - Longest Payment Window',
       '0% Interest - Most Affordable Payment Option',
       'Gated Colony with 24/7 Security',
-      'Best Value for Money near Holy Vrindavan'
+      'Premium Location near Holy Vrindavan'
     ],
     
-    // Trust Highlight - 40-Month EMI
     emiHighlight: {
       title: '40-Month EMI Plan',
       subtitle: 'Longest & Most Flexible Payment Option',
@@ -228,36 +255,36 @@ export const projectsData = [
     },
 
     investmentBenefits: [
-      'Best value for money investment near Vrindavan',
+      'Premium investment near Vrindavan',
       'Rapidly growing religious tourism hub',
       'NH2 location ensures high appreciation',
       'Perfect for retirement homes near temples',
       'Ajhai Station connectivity for easy travel',
       'Proximity to Prem Mandir attracts millions',
-      '40-month EMI makes it ultra-affordable'
+      '40-month EMI makes it affordable'
     ],
     
-    pricePerSqYard: 5500,
+    pricePerSqYard: 15525,
     bookingPercentage: '10%',
     emiMonths: 40,
     emiInterest: '0%',
     registryPayment: '30%',
     
     pricing: [
-      { size: 50, rate: 5500, total: 275000, booking: 27500, rest: 247500, emi: 6188 },
-      { size: 60, rate: 5500, total: 330000, booking: 33000, rest: 297000, emi: 7425 },
-      { size: 80, rate: 5500, total: 440000, booking: 44000, rest: 396000, emi: 9900 },
-      { size: 100, rate: 5500, total: 550000, booking: 55000, rest: 495000, emi: 12375 },
-      { size: 120, rate: 5500, total: 660000, booking: 66000, rest: 594000, emi: 14850 },
-      { size: 150, rate: 5500, total: 825000, booking: 82500, rest: 742500, emi: 18563 },
-      { size: 200, rate: 5500, total: 1100000, booking: 110000, rest: 990000, emi: 24750 }
+      { size: 50, rate: 15525, total: 776250, booking: 77625, rest: 698625, emi: 17465 },
+      { size: 60, rate: 15525, total: 931500, booking: 93150, rest: 838350, emi: 20958 },
+      { size: 80, rate: 15525, total: 1242000, booking: 124200, rest: 1117800, emi: 27945 },
+      { size: 100, rate: 15525, total: 1552500, booking: 155250, rest: 1397250, emi: 34931 },
+      { size: 120, rate: 15525, total: 1863000, booking: 186300, rest: 1676700, emi: 41917 },
+      { size: 150, rate: 15525, total: 2328750, booking: 232875, rest: 2095875, emi: 52396 },
+      { size: 200, rate: 15525, total: 3105000, booking: 310500, rest: 2794500, emi: 69862 }
     ],
     
     trustBadges: [
       { icon: 'BadgeCheck', text: '40-Month EMI' },
       { icon: 'FileCheck', text: '0% Interest' },
       { icon: 'ShieldCheck', text: 'Clear Title' },
-      { icon: 'Receipt', text: 'Best Value' }
+      { icon: 'Receipt', text: 'Premium Value' }
     ],
 
     whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Brij%20Vatika%20-%20Plots%20near%20Vrindavan%20Prem%20Mandir',
@@ -265,20 +292,19 @@ export const projectsData = [
     
     meta: {
       title: 'Brij Vatika - Residential Plots in Vrindavan near Prem Mandir | Plots near Ajhai Railway Station | Property for Sale Mathura Vrindavan',
-      description: 'Looking for affordable plots in Vrindavan? Brij Vatika offers gated colony plots with 0% interest EMI just 1 minute from Ajhai Station. 5 mins from Prem Mandir. 40-month payment plan. Book your site visit now!',
-      keywords: 'Residential plots in Vrindavan near Prem Mandir, Plots near Ajhai Railway Station, Property for sale in Mathura Vrindavan, Affordable plots Vrindavan, Gated colony near Golden Temple, Land near NH2 Vrindavan, 40 month EMI plots Mathura'
+      description: 'Looking for premium plots in Vrindavan? Brij Vatika offers gated colony plots with 0% interest EMI just 1 minute from Ajhai Station. 5 mins from Prem Mandir. 40-month payment plan. Book your site visit now!',
+      keywords: 'Residential plots in Vrindavan near Prem Mandir, Plots near Ajhai Railway Station, Property for sale in Mathura Vrindavan, Premium plots Vrindavan, Gated colony near Golden Temple, Land near NH2 Vrindavan, 40 month EMI plots Mathura'
     }
   },
   {
     slug: 'jagannath-dham',
     title: 'Shree Jagannath Dham',
-    subline: 'Stop Renting, Start Owning – Lowest Price Gated Colony in Kosi',
+    subline: 'Affordable Gated Colony Plots in Kosi with Immediate Registry',
     heroImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200',
     logo: 'https://fanbegroup.com/logos/jagannath-dham-logo.png',
-    overview: 'Don\'t miss your last chance to own a home at the lowest rates in Kosi! Shree Jagannath Dham offers immediate registry, instant possession, and the cheapest gated colony plots near Mathura. With 0% interest EMI and limited plots remaining, this is your opportunity to stop renting and start building your future. All legal documents clear and ready for immediate mutation.',
+    overview: 'Own your home at Shree Jagannath Dham! This gated colony offers immediate registry, instant possession, and affordable plots near Mathura. With 0% interest EMI and limited plots remaining, this is your opportunity to start building your future. All legal documents clear and ready for immediate mutation.',
     location: 'Kosi Kalan, Mathura, Uttar Pradesh',
     
-    // Scarcity & Urgency Elements
     urgencyBanner: {
       text: 'Limited Plots Remaining',
       percentage: 78,
@@ -286,7 +312,7 @@ export const projectsData = [
     },
     
     quickStats: [
-      { icon: '💰', label: 'Lowest Price', distance: 'Guaranteed' },
+      { icon: '💰', label: 'Affordable Price', distance: 'Guaranteed' },
       { icon: '📝', label: 'Immediate Registry', distance: 'Same Day' },
       { icon: '🏠', label: 'Instant Possession', distance: 'Ready Now' }
     ],
@@ -299,7 +325,7 @@ export const projectsData = [
     ],
 
     keyHighlights: [
-      'Cheapest Gated Colony Plots in Kosi Mathura',
+      'Affordable Gated Colony Plots in Kosi Mathura',
       'Immediate Registry - Get Documents Same Day',
       'Instant Possession - Start Building Immediately',
       '0% Interest EMI - Most Affordable Payment Plan',
@@ -309,7 +335,6 @@ export const projectsData = [
       'Stop Renting Forever - Own Your Land Today'
     ],
     
-    // Document Trust Section
     legalDocuments: [
       { icon: '📄', label: 'Registry Documents', status: 'Available' },
       { icon: '📋', label: 'Mutation Papers', status: 'Ready' },
@@ -318,7 +343,7 @@ export const projectsData = [
     ],
 
     investmentBenefits: [
-      'Lowest price guarantee - Cheapest in the region',
+      'Affordable pricing for first-time buyers',
       'Immediate registry means instant ownership',
       'No waiting period for possession',
       'NH2 proximity ensures rapid appreciation',
@@ -327,37 +352,39 @@ export const projectsData = [
       'Limited availability creates urgency'
     ],
     
-    pricePerSqYard: 4500,
+    pricePerSqYard: 8025,
     bookingPercentage: '10%',
-    emiMonths: 36,
+    emiMonths: 54,
     emiInterest: '0%',
-    registryPayment: '25%',
+    registryPayment: '30%',
     
     pricing: [
-      { size: 50, rate: 4500, total: 225000, booking: 22500, rest: 202500, emi: 5625 },
-      { size: 60, rate: 4500, total: 270000, booking: 27000, rest: 243000, emi: 6750 },
-      { size: 80, rate: 4500, total: 360000, booking: 36000, rest: 324000, emi: 9000 },
-      { size: 100, rate: 4500, total: 450000, booking: 45000, rest: 405000, emi: 11250 },
-      { size: 120, rate: 4500, total: 540000, booking: 54000, rest: 486000, emi: 13500 },
-      { size: 150, rate: 4500, total: 675000, booking: 67500, rest: 607500, emi: 16875 },
-      { size: 200, rate: 4500, total: 900000, booking: 90000, rest: 810000, emi: 22500 }
+      { size: 50, rate: 8025, total: 401250, booking: 40125, rest: 361125, emi: 6687 },
+      { size: 55, rate: 8025, total: 441375, booking: 44137, rest: 397238, emi: 7356 },
+      { size: 60, rate: 8025, total: 481500, booking: 48150, rest: 433350, emi: 8025 },
+      { size: 80, rate: 8025, total: 642000, booking: 64200, rest: 577800, emi: 10700 },
+      { size: 100, rate: 8025, total: 802500, booking: 80250, rest: 722250, emi: 13375 },
+      { size: 120, rate: 8025, total: 963000, booking: 96300, rest: 866700, emi: 16050 },
+      { size: 150, rate: 8025, total: 1203750, booking: 120375, rest: 1083375, emi: 20062 },
+      { size: 200, rate: 8025, total: 1605000, booking: 160500, rest: 1444500, emi: 26750 },
+      { size: 250, rate: 8025, total: 2006250, booking: 200625, rest: 1805625, emi: 33437 }
     ],
     
     trustBadges: [
-      { icon: 'BadgeCheck', text: 'Lowest Price' },
+      { icon: 'BadgeCheck', text: 'Affordable Price' },
       { icon: 'FileCheck', text: 'Immediate Registry' },
       { icon: 'ShieldCheck', text: 'Instant Possession' },
       { icon: 'Receipt', text: '0% Interest' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20want%20to%20book%20a%20plot%20at%20Jagannath%20Dham%20-%20Cheapest%20Plots%20Kosi',
+    whatsappUrl: 'https://wa.me/919319169463?text=I%20want%20to%20book%20a%20plot%20at%20Jagannath%20Dham%20-%20Plots%20in%20Kosi',
     brochureUrl: '#',
     ctaUrgent: true,
     
     meta: {
-      title: 'Shree Jagannath Dham - Cheapest Plots in Kosi Mathura | Immediate Registry Plots | Affordable Housing Kosi Kalan',
-      description: 'Don\'t miss the last chance to own a home at Jagannath Dham. Gated colony plots at the lowest rates with instant possession and registry. 0% interest EMI available. Limited plots remaining!',
-      keywords: 'Cheapest plots in Kosi Mathura, Immediate registry plots in Mathura, Affordable housing Kosi Kalan, Lowest price gated colony Mathura, Plots with instant possession, Stop renting own land Kosi, Budget plots near NH2'
+      title: 'Shree Jagannath Dham - Affordable Plots in Kosi Mathura | Immediate Registry Plots | Housing in Kosi Kalan',
+      description: 'Own your home at Jagannath Dham. Gated colony plots with instant possession and registry. 0% interest EMI available. Limited plots remaining!',
+      keywords: 'Affordable plots in Kosi Mathura, Immediate registry plots in Mathura, Housing Kosi Kalan, Gated colony Mathura, Plots with instant possession, Own land Kosi, Budget plots near NH2'
     }
   },
   {
@@ -375,7 +402,6 @@ export const projectsData = [
       { icon: '🏗️', label: 'Planned Layout', distance: 'Approved' }
     ],
     
-    // Infrastructure Comparison Table Data
     comparisonTable: {
       title: 'Why Gokul Vatika is Different',
       ordinaryColony: [
@@ -413,7 +439,6 @@ export const projectsData = [
       '0% Interest EMI - Investment Grade Property'
     ],
     
-    // Infrastructure Spotlight
     infrastructureSpotlight: [
       { icon: '🛣️', label: '30ft Wide Roads', description: 'Blacktop roads wider than city standards', category: 'Roads' },
       { icon: '📹', label: 'CCTV Monitoring', description: '24/7 surveillance at all entry points', category: 'Security' },
@@ -433,20 +458,22 @@ export const projectsData = [
       'Perfect for long-term wealth creation'
     ],
     
-    pricePerSqYard: 6500,
+    pricePerSqYard: 10025,
     bookingPercentage: '10%',
-    emiMonths: 48,
+    emiMonths: 24,
     emiInterest: '0%',
-    registryPayment: '30%',
+    registryPayment: '35%',
     
     pricing: [
-      { size: 50, rate: 6500, total: 325000, booking: 32500, rest: 292500, emi: 6094 },
-      { size: 60, rate: 6500, total: 390000, booking: 39000, rest: 351000, emi: 7313 },
-      { size: 80, rate: 6500, total: 520000, booking: 52000, rest: 468000, emi: 9750 },
-      { size: 100, rate: 6500, total: 650000, booking: 65000, rest: 585000, emi: 12188 },
-      { size: 120, rate: 6500, total: 780000, booking: 78000, rest: 702000, emi: 14625 },
-      { size: 150, rate: 6500, total: 975000, booking: 97500, rest: 877500, emi: 18281 },
-      { size: 200, rate: 6500, total: 1300000, booking: 130000, rest: 1170000, emi: 24375 }
+      { size: 50, rate: 10025, total: 501250, booking: 50125, rest: 451125, emi: 18796 },
+      { size: 55, rate: 10025, total: 551375, booking: 55137, rest: 496238, emi: 20676 },
+      { size: 60, rate: 10025, total: 601500, booking: 60150, rest: 541350, emi: 22556 },
+      { size: 80, rate: 10025, total: 802000, booking: 80200, rest: 721800, emi: 30075 },
+      { size: 100, rate: 10025, total: 1002500, booking: 100250, rest: 902250, emi: 37593 },
+      { size: 120, rate: 10025, total: 1203000, booking: 120300, rest: 1082700, emi: 45112 },
+      { size: 150, rate: 10025, total: 1503750, booking: 150375, rest: 1353375, emi: 56390 },
+      { size: 200, rate: 10025, total: 2005000, booking: 200500, rest: 1804500, emi: 75187 },
+      { size: 250, rate: 10025, total: 2506250, booking: 250625, rest: 2255625, emi: 93984 }
     ],
     
     trustBadges: [
@@ -474,7 +501,6 @@ export const projectsData = [
     overview: 'Experience world-class township living at Maa Simri Vatika - the premium gated colony that redefines luxury in the holy land of Braj. Perfectly positioned at the center of Vrindavan, Mathura City, and Govardhan, this elite community offers grand entrance gates, lush green parks, and wide blacktop roads. With 24-month easy EMI and proximity to the sacred Maa Simri Mandir, this is where modern luxury meets spiritual peace.',
     location: 'Mathura-Govardhan Road, Near Maa Simri Mandir, UP',
     
-    // Location Triangle - Strategic Position
     locationTriangle: [
       { icon: '🛕', label: 'Vrindavan', distance: '12 Minutes', direction: 'North' },
       { icon: '🏛️', label: 'Mathura City', distance: '10 Minutes', direction: 'West' },
@@ -506,7 +532,6 @@ export const projectsData = [
       '24-Month Easy EMI - Most Flexible Payment'
     ],
     
-    // Premium Amenity Focus
     premiumAmenities: [
       { 
         icon: '🏰', 
@@ -556,20 +581,20 @@ export const projectsData = [
       '24-month EMI makes luxury affordable'
     ],
     
-    pricePerSqYard: 8500,
+    pricePerSqYard: 15525,
     bookingPercentage: '15%',
     emiMonths: 24,
     emiInterest: '0%',
     registryPayment: '40%',
     
     pricing: [
-      { size: 60, rate: 8500, total: 510000, booking: 76500, rest: 433500, emi: 18063 },
-      { size: 80, rate: 8500, total: 680000, booking: 102000, rest: 578000, emi: 24083 },
-      { size: 100, rate: 8500, total: 850000, booking: 127500, rest: 722500, emi: 30104 },
-      { size: 120, rate: 8500, total: 1020000, booking: 153000, rest: 867000, emi: 36125 },
-      { size: 150, rate: 8500, total: 1275000, booking: 191250, rest: 1083750, emi: 45156 },
-      { size: 200, rate: 8500, total: 1700000, booking: 255000, rest: 1445000, emi: 60208 },
-      { size: 250, rate: 8500, total: 2125000, booking: 318750, rest: 1806250, emi: 75260 }
+      { size: 60, rate: 15525, total: 931500, booking: 139725, rest: 791775, emi: 32990 },
+      { size: 80, rate: 15525, total: 1242000, booking: 186300, rest: 1055700, emi: 43987 },
+      { size: 100, rate: 15525, total: 1552500, booking: 232875, rest: 1319625, emi: 54984 },
+      { size: 120, rate: 15525, total: 1863000, booking: 279450, rest: 1583550, emi: 65981 },
+      { size: 150, rate: 15525, total: 2328750, booking: 349312, rest: 1979438, emi: 82476 },
+      { size: 200, rate: 15525, total: 3105000, booking: 465750, rest: 2639250, emi: 109968 },
+      { size: 250, rate: 15525, total: 3881250, booking: 582187, rest: 3299063, emi: 137460 }
     ],
     
     trustBadges: [

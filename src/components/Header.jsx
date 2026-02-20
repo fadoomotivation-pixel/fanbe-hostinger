@@ -67,9 +67,13 @@ const Header = ({ onBookSiteVisit }) => {
               // Special handling for Projects link
               if (item.href === '/projects') {
                 return (
-                  <div key={item.name} className="relative projects-dropdown-container">
+                  <div
+                    key={item.name}
+                    className="relative projects-dropdown-container"
+                    onMouseEnter={() => setProjectsDropdownOpen(true)}
+                    onMouseLeave={() => setProjectsDropdownOpen(false)}
+                  >
                     <button
-                      onClick={() => setProjectsDropdownOpen(!projectsDropdownOpen)}
                       className={`text-sm font-medium tracking-wide transition-all duration-300 relative py-1 flex items-center gap-1 ${
                         isActive(item.href) || location.pathname.startsWith('/projects/')
                           ? 'text-white'

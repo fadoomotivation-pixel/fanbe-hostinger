@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 
 const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 5000 // 5 seconds default
 
 let count = 0
 function generateId() {
@@ -86,7 +87,7 @@ export function useToast() {
 
       const timeout = setTimeout(() => {
         toast.dismiss()
-      }, toast.duration || 5000)
+      }, toast.duration || TOAST_REMOVE_DELAY)
 
       timeouts.push(timeout)
     })

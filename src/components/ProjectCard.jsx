@@ -6,12 +6,26 @@ import { Button } from '@/components/ui/button';
 const ProjectCard = ({ project, onBookVisit }) => {
   return (
     <div className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col h-full border border-gray-100">
-      <div className="h-56 overflow-hidden relative group">
+      {/* Project Logo Badge */}
+      <div className="relative h-56 overflow-hidden group">
         <img
           src={project.heroImage}
           alt={project.title}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
         />
+        {/* Logo Badge - Top Left */}
+        {project.logo && (
+          <div className="absolute top-4 left-4 w-16 h-16 bg-white rounded-xl p-2 shadow-xl border border-gray-200">
+            <img 
+              src={project.logo} 
+              alt={`${project.title} Logo`}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
           <h3 className="text-white font-bold text-xl drop-shadow-md">{project.title}</h3>
         </div>

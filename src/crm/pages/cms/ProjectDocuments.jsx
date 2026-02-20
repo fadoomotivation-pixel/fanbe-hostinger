@@ -11,7 +11,7 @@ const projects = [
   { slug: 'jagannath-dham', name: 'Jagannath Dham' },
   { slug: 'brij-vatika', name: 'Brij Vatika' },
   { slug: 'gokul-vatika', name: 'Gokul Vatika' },
-  { slug: 'maa-simri-vatika', name: 'Maa Simri Vatika' }
+  { slug: 'maa-semri-vatika', name: 'Maa Semri Vatika' }
 ];
 
 const ProjectDocuments = () => {

@@ -9,7 +9,25 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
-import { getProjectImagesFromDB } from '@/lib/contentStorage';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase Storage — single source of truth for hero images
+// ─────────────────────────────────────────────────────────────────────────────
+const SUPABASE_STORAGE_URL = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images';
+
+const PROJECT_FOLDER_MAP = {
+  'shree-kunj-bihari':  'projects/shree-kunj-bihari',
+  'khatu-shyam-enclave':'projects/khatu-shyam-enclave',
+  'brij-vatika':        'projects/brij-vatika',
+  'jagannath-dham':     'projects/jagannath-dham',
+  'gokul-vatika':       'projects/gokul-vatika',
+  'maa-semri-vatika':   'projects/maa-semri-vatika',
+};
+
+const getSupabaseHeroUrl = (slug) => {
+  const folder = PROJECT_FOLDER_MAP[slug];
+  return folder ? `${SUPABASE_STORAGE_URL}/${folder}/hero.jpg` : null;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -303,11 +321,6 @@ const ProjectsListingPage = () => {
   const [siteVisitOpen, setSiteVisitOpen] = useState(false);
   const [selectedSlug, setSelectedSlug]   = useState('');
   const [pricingProject, setPricingProject] = useState(null);
-  const [dbImages, setDbImages] = useState({});
-
-  useEffect(() => {
-    getProjectImagesFromDB().then(imgs => setDbImages(imgs));
-  }, []);
 
   React.useEffect(() => {
     const onScroll = () => setShowStickyCTA(window.scrollY > 420);
@@ -436,11 +449,16 @@ const ProjectsListingPage = () => {
                         {/* Gold overlay on hover */}
                         <div className="absolute inset-0 bg-[#D4AF37]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                         
-                        {/* Logo fills entire div + 110% zoom on hover */}
+                        {/* Hero image from Supabase, fallback to local */}
                         <img
-                          src={dbImages[p.slug] || p.logo}
+                          src={getSupabaseHeroUrl(p.slug) || p.logo}
                           alt={p.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                          onError={(e) => {
+                            if (e.target.src !== p.logo) {
+                              e.target.src = p.logo;
+                            }
+                          }}
                         />
                         
                         {/* Star badge for highlights */}

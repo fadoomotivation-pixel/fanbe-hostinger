@@ -8,8 +8,26 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
-import { getProjectImagesFromDB } from '@/lib/contentStorage';
 import { useToast } from '@/components/ui/use-toast';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase Storage — single source of truth for hero images
+// ─────────────────────────────────────────────────────────────────────────────
+const SUPABASE_STORAGE_URL = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images';
+
+const PROJECT_FOLDER_MAP = {
+  'shree-kunj-bihari':  'projects/shree-kunj-bihari',
+  'khatu-shyam-enclave':'projects/khatu-shyam-enclave',
+  'brij-vatika':        'projects/brij-vatika',
+  'jagannath-dham':     'projects/jagannath-dham',
+  'gokul-vatika':       'projects/gokul-vatika',
+  'maa-semri-vatika':   'projects/maa-semri-vatika',
+};
+
+const getSupabaseHeroUrl = (slug) => {
+  const folder = PROJECT_FOLDER_MAP[slug];
+  return folder ? `${SUPABASE_STORAGE_URL}/${folder}/hero.jpg` : null;
+};
 import EMICalculatorSection from '@/components/EMICalculatorSection';
 import PresetPlotCards from '@/components/PresetPlotCards';
 import { useWhatsApp } from '@/lib/useWhatsApp';
@@ -57,8 +75,8 @@ const projects = [
     status: 'Available'
   },
   {
-    id: 'maa-simri-vatika',
-    slug: 'maa-simri-vatika',
+    id: 'maa-semri-vatika',
+    slug: 'maa-semri-vatika',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
@@ -206,11 +224,6 @@ const HomePage = ({ onBookSiteVisit }) => {
   const { getWhatsAppLink } = useWhatsApp();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dbImages, setDbImages] = useState({});
-
-  useEffect(() => {
-    getProjectImagesFromDB().then(imgs => setDbImages(imgs));
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentSlide(prev => (prev + 1) % slides.length), 5000);
@@ -350,9 +363,9 @@ const HomePage = ({ onBookSiteVisit }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project, idx) => {
-              // Use Supabase image if available, fallback to static logo
-              const projectImage = dbImages[project.slug] || project.logo;
-              
+              // Use Supabase hero image directly, fallback to local on error
+              const projectImage = getSupabaseHeroUrl(project.slug) || project.logo;
+
               return (
                 <motion.div key={project.id}
                   initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}

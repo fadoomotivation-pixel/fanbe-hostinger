@@ -1,37 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, ArrowRight } from 'lucide-react';
-import { getProjectContent, getProjectImagesFromDB } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
 import { useToast } from '@/components/ui/use-toast';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase Storage — single source of truth for hero images
+// ─────────────────────────────────────────────────────────────────────────────
+const SUPABASE_STORAGE_URL = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images';
+
+const PROJECT_FOLDER_MAP = {
+  'shree-kunj-bihari':  'projects/shree-kunj-bihari',
+  'khatu-shyam-enclave':'projects/khatu-shyam-enclave',
+  'brij-vatika':        'projects/brij-vatika',
+  'jagannath-dham':     'projects/jagannath-dham',
+  'gokul-vatika':       'projects/gokul-vatika',
+  'maa-semri-vatika':   'projects/maa-semri-vatika',
+};
+
+const getSupabaseHeroUrl = (slug) => {
+  const folder = PROJECT_FOLDER_MAP[slug];
+  return folder ? `${SUPABASE_STORAGE_URL}/${folder}/hero.jpg` : null;
+};
+
 const ProjectsShowcase = () => {
   const { toast } = useToast();
-  // State to hold potentially updated project data
-  const [displayedProjects, setDisplayedProjects] = useState(projectsData);
 
-  const refreshProjects = async () => {
-    const dbImages = await getProjectImagesFromDB();
-    const updated = projectsData.map(p => {
-      const dynamic = getProjectContent(p.slug);
-      const heroImage = dbImages[p.slug] || dynamic?.heroImage || p.heroImage;
-      return { ...p, ...(dynamic || {}), heroImage };
-    });
-    setDisplayedProjects(updated);
-  };
+  // Build displayed projects with Supabase hero URLs directly (no async flash)
+  const displayedProjects = useMemo(() =>
+    projectsData.map(p => ({
+      ...p,
+      heroImage: getSupabaseHeroUrl(p.slug) || p.heroImage,
+      fallbackImage: p.heroImage, // Unsplash fallback if Supabase fails
+    })),
+    []
+  );
 
   useEffect(() => {
-    // Initial Load — fetch from Supabase DB so all visitors see CMS-uploaded images
-    refreshProjects();
-
-    // Subscribe to updates
     const unsubscribe = subscribeToContentUpdates(EVENTS.PROJECT_IMAGE_UPDATED, () => {
-      refreshProjects();
       toast({ title: "Updated", description: "Projects updated in real-time!" });
     });
-
     return () => unsubscribe();
   }, [toast]);
 
@@ -53,11 +63,15 @@ const ProjectsShowcase = () => {
             >
               {/* Background Image with Lazy Loading */}
               <img
-                key={project.heroImage} // Force re-render if image URL changes
                 src={project.heroImage}
                 alt={`${project.title} - Fanbe Group`}
                 loading="lazy"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 lg:group-hover:scale-110"
+                onError={(e) => {
+                  if (project.fallbackImage && e.target.src !== project.fallbackImage) {
+                    e.target.src = project.fallbackImage;
+                  }
+                }}
               />
               
               {/* Fallback/Skeleton Background (visible if img fails or loading) */}

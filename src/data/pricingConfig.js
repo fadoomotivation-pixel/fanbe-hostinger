@@ -59,8 +59,8 @@ export const PRICING_CONFIG = {
     registryPayment: '30%',
     plotSizes: [50, 60, 80, 100, 120, 150, 200]
   },
-  'maa-simri-vatika': {
-    projectName: 'Maa Simri Vatika',
+  'maa-semri-vatika': {
+    projectName: 'Maa Semri Vatika',
     pricePerSqYard: 15525,
     bookingPercentage: '15%',
     emiMonths: 24,
@@ -108,11 +108,11 @@ export const PROJECT_PRICING_TABLES = {
     parseFloat(PRICING_CONFIG['brij-vatika'].bookingPercentage),
     PRICING_CONFIG['brij-vatika'].emiMonths
   ),
-  'maa-simri-vatika': generatePricingTable(
-    PRICING_CONFIG['maa-simri-vatika'].plotSizes,
-    PRICING_CONFIG['maa-simri-vatika'].pricePerSqYard,
-    parseFloat(PRICING_CONFIG['maa-simri-vatika'].bookingPercentage),
-    PRICING_CONFIG['maa-simri-vatika'].emiMonths
+  'maa-semri-vatika': generatePricingTable(
+    PRICING_CONFIG['maa-semri-vatika'].plotSizes,
+    PRICING_CONFIG['maa-semri-vatika'].pricePerSqYard,
+    parseFloat(PRICING_CONFIG['maa-semri-vatika'].bookingPercentage),
+    PRICING_CONFIG['maa-semri-vatika'].emiMonths
   ),
   'khatu-shyam-enclave': generatePricingTable(
     PRICING_CONFIG['khatu-shyam-enclave'].plotSizes,

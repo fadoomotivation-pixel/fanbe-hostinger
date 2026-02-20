@@ -132,7 +132,7 @@ const projects = [
   },
   {
     id: 'maa-semri-vatika',
-    slug: 'maa-simri-vatika',
+    slug: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
     displayName: 'Semri Vatika',
     logo: '/images/projects/semri_vatika.png',

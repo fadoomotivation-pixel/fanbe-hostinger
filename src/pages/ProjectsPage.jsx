@@ -9,12 +9,12 @@ import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Supabase Storage URLs - Direct links to your uploaded images
+// Supabase Storage URL for Hero Images
 // ═══════════════════════════════════════════════════════════════════════════
 const SUPABASE_STORAGE_BASE = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images/projects';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA with Supabase Image URLs
+// PROJECT DATA - Using Local Logos (same as homepage) + Supabase Hero Images
 // ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
@@ -36,8 +36,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-amber-500 to-orange-600',
     slug: 'shree-kunj-bihari',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/shree-kunj-bihari/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/kunj-bihari-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/shree-kunj-bihari/hero.jpg`,
   },
   {
@@ -59,8 +59,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-rose-500 to-pink-600',
     slug: 'khatu-shyam-enclave',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/khatu-shyam-enclave/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/khatu-shyam-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/khatu-shyam-enclave/hero.jpg`,
   },
   {
@@ -82,8 +82,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-blue-500 to-indigo-600',
     slug: 'jagannath-dham',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/jagannath-dham/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/jagannath-dham-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/jagannath-dham/hero.jpg`,
   },
   {
@@ -105,8 +105,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-emerald-500 to-teal-600',
     slug: 'brij-vatika',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/brij-vatika/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/brij-vatika-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/brij-vatika/hero.jpg`,
   },
   {
@@ -128,8 +128,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-green-500 to-lime-600',
     slug: 'gokul-vatika',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/gokul-vatika/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/gokul-vatika-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/gokul-vatika/hero.jpg`,
   },
   {
@@ -151,8 +151,8 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-purple-500 to-violet-600',
     slug: 'maa-simri-vatika',
-    // Supabase Images
-    logoUrl: `${SUPABASE_STORAGE_BASE}/maa-simri-vatika/logo.png`,
+    // Local logo (same as homepage) + Supabase hero
+    logoUrl: '/logos/maa-simri-vatika-logo.png',
     heroUrl: `${SUPABASE_STORAGE_BASE}/maa-simri-vatika/hero.jpg`,
   },
 ];
@@ -172,7 +172,7 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT CARD with Hover Detection & Direct Supabase Images
+// PROJECT CARD with Hover Detection - Local Logos + Supabase Hero Images
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectCard = ({ project, index }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -190,7 +190,7 @@ const ProjectCard = ({ project, index }) => {
       <div className="relative overflow-hidden min-h-[200px]">
         <AnimatePresence mode="wait">
           {isHovered ? (
-            // Show Hero Image on Hover
+            // Show Hero Image on Hover (from Supabase)
             <motion.div
               key="hero"
               initial={{ opacity: 0, scale: 1.05 }}
@@ -204,8 +204,8 @@ const ProjectCard = ({ project, index }) => {
                 alt={project.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Fallback to gradient if image fails to load
-                  e.target.style.display = 'none';
+                  // Fallback to gradient if hero image fails
+                  e.target.parentElement.style.display = 'none';
                 }}
               />
               {/* Gradient overlay for text readability */}
@@ -224,25 +224,25 @@ const ProjectCard = ({ project, index }) => {
               </motion.div>
             </motion.div>
           ) : (
-            // Show Logo on Default State
+            // Show Logo on Default State (from /logos/ folder - same as homepage)
             <motion.div
               key="logo"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`bg-gradient-to-br ${project.logoGradient} h-full flex flex-col items-center justify-center p-8`}
+              className={`bg-gradient-to-br ${project.logoGradient} h-full flex flex-col items-center justify-center p-8 relative`}
             >
               <img
                 src={project.logoUrl}
                 alt={`${project.name} logo`}
-                className="w-24 h-24 object-contain mb-3 drop-shadow-2xl"
+                className="w-24 h-24 object-contain drop-shadow-2xl"
                 onError={(e) => {
-                  // Fallback to project initial if logo fails
+                  // Fallback to project initials if logo fails
                   e.target.style.display = 'none';
-                  e.target.nextElementSibling.style.display = 'block';
                 }}
               />
-              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase" style={{ display: 'none' }}>
+              {/* Fallback text if logo doesn't load */}
+              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase mt-3">
                 {project.nameShort}
               </div>
             </motion.div>
@@ -552,7 +552,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ STICKY CTA BAR ═════════════════════════════════════════════ */}
+      {/* ═══ STICKY CTA BAR ═══════════════════════════════════════════════ */}
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div

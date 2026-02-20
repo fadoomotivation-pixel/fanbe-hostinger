@@ -21,7 +21,7 @@ const PROJECT_SLUG_MAP = {
   'brij-vatika': 'projects/brij-vatika',
   'jagannath-dham': 'projects/jagannath-dham',
   'gokul-vatika': 'projects/gokul-vatika',
-  'maa-simri-vatika': 'projects/maa-simri-vatika'
+  'maa-semri-vatika': 'projects/maa-semri-vatika'  // FIXED: Changed from simri to semri
 };
 
 // Helper function to get image URL from Supabase storage
@@ -155,7 +155,7 @@ const projects = [
     statusLabel: 'New Launch',
     availability: 'available',
     logoGradient: 'from-purple-500 via-violet-500 to-violet-600',
-    slug: 'maa-simri-vatika',
+    slug: 'maa-semri-vatika',  // FIXED: Changed from simri to semri
   },
 ];
 
@@ -354,9 +354,8 @@ const ProjectCard = ({ project, index }) => {
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+// ... (rest of the component remains the same - truncated for brevity)
+
 const ProjectsPage = () => {
   const [filters, setFilters] = useState({
     region: 'all',

@@ -16,7 +16,7 @@ const PROJECT_SLUG_MAP = {
   'brij-vatika': 'projects/brij-vatika',
   'jagannath-dham': 'projects/jagannath-dham',
   'gokul-vatika': 'projects/gokul-vatika',
-  'maa-simri-vatika': 'projects/maa-simri-vatika'
+  'maa-semri-vatika': 'projects/maa-semri-vatika'  // FIXED: Changed from simri to semri
 };
 
 // Save project content (overview, description, etc.)

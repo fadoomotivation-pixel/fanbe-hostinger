@@ -8,7 +8,6 @@ export const projectsData = [
     overview: 'Experience premium living at Shree Kunj Bihari Enclave in Kosi Kalan, strategically located on NH2 near Mathura. This gated colony offers pollution-free environment, modern infrastructure, and flexible payment plans with 0% interest EMI. Perfect for residential plots and investment opportunities.',
     location: 'Kosi Kalan, Mathura, Uttar Pradesh',
     
-    // Location Markers with Icons
     locationMarkers: [
       { icon: '🛣️', label: 'National Highway (NH2)', distance: '5 Minutes' },
       { icon: '🚆', label: 'Kosi Railway Station', distance: '5 Minutes' },
@@ -30,7 +29,6 @@ export const projectsData = [
       '0% Interest EMI - 59 Months Payment Plan'
     ],
     
-    // Updated Amenities for display
     amenities: [
       { icon: 'Gate', label: 'Grand Entrance Gate', description: 'With Guard Room' },
       { icon: 'Road', label: 'Wide Roads', description: 'Damar (Blacktop) Roads' },
@@ -48,7 +46,6 @@ export const projectsData = [
       'No hidden charges - transparent pricing'
     ],
     
-    // NEW PRICING - ₹7,525 per Sq. Yard
     pricePerSqYard: 7525,
     bookingPercentage: '10%',
     emiMonths: 59,
@@ -67,7 +64,6 @@ export const projectsData = [
       { size: 250, rate: 7525, total: 1881250, booking: 186500, rest: 1694750, emi: 28250 }
     ],
     
-    // Trust Badges
     trustBadges: [
       { icon: 'BadgeCheck', text: '100% Clear Title' },
       { icon: 'FileCheck', text: 'Immediate Mutation' },
@@ -87,27 +83,115 @@ export const projectsData = [
   {
     slug: 'khatu-shyam-enclave',
     title: 'Khatu Shyam Enclave',
-    subline: 'Divine Plots near Khatu Shyam Ji Temple',
+    subline: 'Divine Plots near Sacred Khatu Shyam Ji Mandir',
     heroImage: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200',
     logo: 'https://fanbegroup.com/logos/khatu-shyam-logo.png',
-    overview: 'Located just minutes away from the famous Khatu Shyam Ji Temple in Rajasthan, this enclave is designed for devotees who wish to have a home near their deity.',
+    overview: 'Experience spiritual living at Khatu Shyam Enclave - a premium gated society located on the holy Khatu-Khachariawas Road in Sikar, Rajasthan. With the divine presence of Khatu Shyam Mandir and the emerging Shekhawati Film City, this location offers both spiritual peace and high investment potential. Our society features a grand temple, green park, water fountain, and highway-facing commercial shops.',
+    location: 'Khatu-Khachariawas Road, Sikar, Rajasthan',
+    
+    // Top Quick Stats
+    quickStats: [
+      { icon: '🛕', label: 'Khatu Shyam Mandir', distance: '20 Mins' },
+      { icon: '🎬', label: 'Shekhawati Film City', distance: '15 Mins' },
+      { icon: '🛡️', label: 'Gated Society', distance: '24/7 Security' }
+    ],
+    
+    // Location Markers
+    locationMarkers: [
+      { icon: '🚩', label: 'Khatu Shyam Mandir', distance: '20 Minutes', description: 'Major pilgrimage site for millions of devotees' },
+      { icon: '🏰', label: 'Jeen Mata Mandir', distance: '20 Minutes', description: '1200 years old ancient Shakti Peeth' },
+      { icon: '🎥', label: 'Shekhawati Film City', distance: '15 Minutes', description: "Region's first film city with 10+ themes & Taj Mahal replica" }
+    ],
+
+    // Key Highlights
     keyHighlights: [
-      '5 mins from Temple Entrance',
-      'Developing Commercial Hub nearby',
-      'Sweet Water Supply',
-      'Street Lights & Paved Roads'
+      '20 Mins from Khatu Shyam Mandir - Major Pilgrimage Site',
+      '15 Mins from Shekhawati Film City with 10+ Themes',
+      '20 Mins from 1200-year-old Jeen Mata Mandir',
+      'Gated Society with 24/7 Security Guards',
+      'Grand Temple inside society for daily Aarti',
+      'Water Fountain with color lighting at main crossing',
+      'Highway-facing commercial shops for business income',
+      '24/7 On-site Project Office for your service'
     ],
+    
+    // Premium Amenities (for special display)
+    premiumAmenities: [
+      { 
+        icon: '🛕', 
+        label: 'Grand Temple', 
+        description: 'Dedicated temple inside society for daily Aarti and spiritual peace',
+        category: 'Spiritual'
+      },
+      { 
+        icon: '🌳', 
+        label: 'Green Park', 
+        description: 'Open Gym, Walking Pathways, and Kids\' Playground',
+        category: 'Lifestyle'
+      },
+      { 
+        icon: '⛲', 
+        label: 'Water Fountain', 
+        description: 'Grand fountain with color lighting at main crossing (Chauraha)',
+        category: 'Premium'
+      },
+      { 
+        icon: '🛍️', 
+        label: 'Market Place', 
+        description: 'Highway-facing commercial shops for daily needs and business income',
+        category: 'Commercial'
+      },
+      { 
+        icon: '🏢', 
+        label: '24/7 Project Office', 
+        description: 'On-site office dedicated to your service',
+        category: 'Service'
+      }
+    ],
+    
+    // Basic Infrastructure
+    basicInfrastructure: [
+      { icon: '✅', label: 'Gated Society', description: 'Walled Colony' },
+      { icon: '✅', label: 'Wide Damar Roads', description: 'Blacktop Roads' },
+      { icon: '✅', label: '24/7 Security Guards', description: 'Round-the-clock protection' },
+      { icon: '✅', label: 'Water & Electricity', description: 'Continuous supply' },
+      { icon: '✅', label: 'Waste Management', description: 'Clean environment system' }
+    ],
+
     investmentBenefits: [
-      'Rapidly increasing footfall in Khatu Dham',
-      'Perfect for building Dharamshalas or Guest Houses',
-      'Low entry point for investment'
+      'Shekhawati Film City bringing massive tourism growth',
+      'Millions of devotees visit Khatu Shyam Ji annually',
+      'Land rates skyrocketing in the region',
+      'Perfect for Dharamshalas, Guest Houses, or Homes',
+      'Highway-facing commercial shops for rental income',
+      'Ancient pilgrimage circuit with Jeen Mata Mandir',
+      'Stable and growth-oriented investment opportunity'
     ],
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Khatu%20Shyam%20Enclave',
+    
+    // Investment Insight
+    investmentInsight: {
+      title: 'Why Invest in Khatu Shyam Enclave?',
+      content: 'With the new Shekhawati Film City bringing tourism and the eternal devotion of Khatu Shyam Ji bringing millions of visitors, land rates in this area are skyrocketing. Secure your plot today for a stable and growth-oriented future.'
+    },
+    
+    // Trust Badges
+    trustBadges: [
+      { icon: 'BadgeCheck', text: '100% Clear Title' },
+      { icon: 'FileCheck', text: 'Immediate Registry' },
+      { icon: 'ShieldCheck', text: 'Gated Security' },
+      { icon: 'Receipt', text: 'Flexible EMI Plans' }
+    ],
+
+    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Khatu%20Shyam%20Enclave%20-%20Plots%20near%20Khatu%20Shyam%20Mandir',
     brochureUrl: '#',
-    location: 'Khatu, Rajasthan',
+    
+    // CTA Theme
+    ctaTheme: 'saffron', // Orange/Saffron spiritual theme
+    
     meta: {
-      title: 'Khatu Shyam Enclave - Plots near Temple | Fanbe Group',
-      description: 'Invest in Khatu Shyam Enclave. Prime residential plots near the famous temple in Rajasthan.'
+      title: 'Khatu Shyam Enclave - Plots near Khatu Shyam Mandir | Land for Sale in Sikar Rajasthan | Fanbe Developers',
+      description: 'Buy residential plots near Khatu Shyam Mandir on Khachariawas Road, Sikar. 20 mins from temple, 15 mins from Shekhawati Film City. Gated society with temple, park, fountain. Investment plots near Jeen Mata Mandir.',
+      keywords: 'Plots near Khatu Shyam Mandir, Land for sale in Sikar Rajasthan, Residential plots Khatu Khachariawas Road, Investment plots near Jeen Mata Mandir, Fanbe Developers Sikar projects, Gated society Khatu, Plots near Film City Rajasthan'
     }
   },
   {

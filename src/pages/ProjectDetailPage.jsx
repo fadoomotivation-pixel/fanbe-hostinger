@@ -8,8 +8,7 @@ import {
   Check, MapPin, MessageCircle, TrendingUp, Download,
   Home, Shield, Zap, Droplet, Trees, Car, School, Heart,
   ShoppingBag, Train, ChevronDown, ChevronUp, Phone,
-  Building2, Calendar, Award, BadgeCheck, FileCheck, ShieldCheck, Receipt,
-  Navigation, Factory, Church
+  Building2, Calendar, Award, BadgeCheck, FileCheck, ShieldCheck, Receipt
 } from 'lucide-react';
 import { getProjectContent, getPricingTable, getProjectImagesFromDB, getProjectDocs } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
@@ -115,6 +114,15 @@ const ProjectDetailPage = () => {
   const hasDocuments = docs.brochure || docs.map;
   const hasLocationMarkers = project.locationMarkers && project.locationMarkers.length > 0;
   const hasTrustBadges = project.trustBadges && project.trustBadges.length > 0;
+  const hasQuickStats = project.quickStats && project.quickStats.length > 0;
+  const hasPremiumAmenities = project.premiumAmenities && project.premiumAmenities.length > 0;
+  const hasBasicInfrastructure = project.basicInfrastructure && project.basicInfrastructure.length > 0;
+  const hasInvestmentInsight = project.investmentInsight;
+
+  // Determine CTA button colors based on theme
+  const ctaColors = project.ctaTheme === 'saffron' 
+    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+    : 'bg-[#D4AF37] hover:bg-[#b5952f] text-[#0F3A5F]';
 
   const amenities = [
     { icon: Home, label: 'Gated Community', color: 'text-blue-600' },
@@ -197,6 +205,21 @@ const ProjectDetailPage = () => {
                 <MapPin className="mr-2 text-[#D4AF37]" size={24} /> {project.location}
               </div>
               
+              {/* Quick Stats Pills */}
+              {hasQuickStats && (
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {project.quickStats.map((stat, idx) => (
+                    <div key={idx} className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/30 flex items-center gap-2">
+                      <span className="text-2xl">{stat.icon}</span>
+                      <div className="text-sm">
+                        <p className="text-white font-bold">{stat.label}</p>
+                        <p className="text-blue-200 text-xs">{stat.distance}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               {project.pricePerSqYard && (
                 <div className="inline-block bg-[#D4AF37] text-[#0F3A5F] px-6 py-3 rounded-xl font-black text-2xl mb-6 shadow-2xl">
                   ₹{project.pricePerSqYard.toLocaleString()} per Sq. Yard
@@ -207,7 +230,7 @@ const ProjectDetailPage = () => {
                 <Button 
                   onClick={() => setModalOpen(true)}
                   size="lg"
-                  className="h-16 px-10 bg-[#D4AF37] hover:bg-[#b5952f] text-[#0F3A5F] font-extrabold text-xl rounded-xl shadow-2xl hover:shadow-[0_0_30px_rgba(212,175,55,0.6)] transition-all hover:scale-105"
+                  className={`h-16 px-10 ${ctaColors} font-extrabold text-xl rounded-xl shadow-2xl transition-all hover:scale-105`}
                 >
                   🏛️ Book Free Site Visit
                 </Button>
@@ -381,28 +404,27 @@ const ProjectDetailPage = () => {
         <section className="py-20 bg-white">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Strategic Location</span>
-              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Location & Distance</h2>
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Nearby Landmarks</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Strategic Location</h2>
               <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {project.locationMarkers.map((marker, idx) => (
                 <motion.div
                   key={idx}
                   initial={{ opacity: 0, scale: 0.9 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all border-b-4 border-[#D4AF37]"
+                  transition={{ delay: idx * 0.15 }}
+                  className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all border-b-4 border-orange-500 text-center"
                 >
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="text-4xl">{marker.icon}</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-[#0F3A5F] text-base">{marker.label}</h4>
-                      <p className="text-[#D4AF37] font-black text-lg">{marker.distance}</p>
-                    </div>
-                  </div>
+                  <div className="text-6xl mb-4">{marker.icon}</div>
+                  <h4 className="font-black text-[#0F3A5F] text-xl mb-2">{marker.label}</h4>
+                  <p className="text-orange-500 font-black text-lg mb-3">{marker.distance}</p>
+                  {marker.description && (
+                    <p className="text-gray-600 text-sm leading-relaxed">{marker.description}</p>
+                  )}
                 </motion.div>
               ))}
             </div>
@@ -410,34 +432,120 @@ const ProjectDetailPage = () => {
         </section>
       )}
 
-      {/* Amenities Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Modern Living</span>
-            <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">World-Class Amenities</h2>
-            <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
-          </div>
+      {/* Basic Infrastructure Section */}
+      {hasBasicInfrastructure && (
+        <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Infrastructure</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Basic Infrastructure</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            {amenities.map((amenity, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200 hover:border-[#D4AF37] hover:shadow-xl transition-all text-center group"
-              >
-                <div className="h-16 w-16 bg-gradient-to-br from-[#0F3A5F]/10 to-[#0F3A5F]/5 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <amenity.icon size={32} className={amenity.color} />
-                </div>
-                <p className="font-bold text-gray-800 text-sm">{amenity.label}</p>
-              </motion.div>
-            ))}
+            <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
+              {project.basicInfrastructure.map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.08 }}
+                  className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all border border-gray-200 text-center"
+                >
+                  <div className="text-4xl mb-3">{item.icon}</div>
+                  <h4 className="font-bold text-[#0F3A5F] text-base mb-1">{item.label}</h4>
+                  <p className="text-gray-600 text-xs">{item.description}</p>
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* Premium Amenities Section */}
+      {hasPremiumAmenities && (
+        <section className="py-20 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Premium Features</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Premium Amenities</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              {project.premiumAmenities.map((amenity, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-gradient-to-br from-orange-50 to-white p-8 rounded-3xl shadow-xl hover:shadow-2xl transition-all border-l-4 border-orange-500 group"
+                >
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">{amenity.icon}</div>
+                  <div className="mb-2">
+                    <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">{amenity.category}</span>
+                  </div>
+                  <h4 className="font-black text-[#0F3A5F] text-xl mb-3">{amenity.label}</h4>
+                  <p className="text-gray-700 leading-relaxed">{amenity.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Standard Amenities */}
+      {!hasPremiumAmenities && (
+        <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Modern Living</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">World-Class Amenities</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              {amenities.map((amenity, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200 hover:border-[#D4AF37] hover:shadow-xl transition-all text-center group"
+                >
+                  <div className="h-16 w-16 bg-gradient-to-br from-[#0F3A5F]/10 to-[#0F3A5F]/5 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <amenity.icon size={32} className={amenity.color} />
+                  </div>
+                  <p className="font-bold text-gray-800 text-sm">{amenity.label}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Investment Insight Section */}
+      {hasInvestmentInsight && (
+        <section className="py-20 bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 text-white relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC40Ij48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTEyYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHptMC0xMmMwLTIuMjEtMS43OS00LTQtNHMtNCAxLjc5LTQgNCAx Ljc5IDQgNCA0IDQtMS43OSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')]" />
+          </div>
+          <div className="container mx-auto px-4 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-4xl mx-auto text-center"
+            >
+              <TrendingUp size={60} className="mx-auto mb-6" />
+              <h2 className="text-4xl font-black mb-6">{project.investmentInsight.title}</h2>
+              <p className="text-xl leading-relaxed">{project.investmentInsight.content}</p>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Pricing Table */}
       {isPricingAvailable && (
@@ -530,7 +638,7 @@ const ProjectDetailPage = () => {
               <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
             </div>
 
-            <div className={`grid md:grid-cols-2 ${filteredBenefits.length > 2 ? 'lg:grid-cols-3' : ''} gap-6 max-w-4xl mx-auto`}>
+            <div className={`grid md:grid-cols-2 ${filteredBenefits.length > 2 ? 'lg:grid-cols-3' : ''} gap-6 max-w-5xl mx-auto`}>
               {filteredBenefits.map((benefit, idx) => (
                 <motion.div
                   key={idx}
@@ -620,7 +728,7 @@ const ProjectDetailPage = () => {
           <Button
             onClick={() => setModalOpen(true)}
             size="lg"
-            className="h-16 px-12 bg-[#D4AF37] hover:bg-[#b5952f] text-[#0F3A5F] font-black text-xl rounded-xl shadow-2xl hover:scale-105 transition-all"
+            className={`h-16 px-12 ${ctaColors} font-black text-xl rounded-xl shadow-2xl hover:scale-105 transition-all`}
           >
             🏛️ Book Your Free Site Visit Now
           </Button>

@@ -5,10 +5,11 @@ import { motion } from 'framer-motion';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
 import { 
-  Check, MapPin, MessageCircle, TrendingUp, FileText, Map, Download,
+  Check, MapPin, MessageCircle, TrendingUp, Download,
   Home, Shield, Zap, Droplet, Trees, Car, School, Heart,
-  ShoppingBag, Train, ChevronDown, ChevronUp, Phone, IndianRupee,
-  Building2, Calendar, Award
+  ShoppingBag, Train, ChevronDown, ChevronUp, Phone,
+  Building2, Calendar, Award, BadgeCheck, FileCheck, ShieldCheck, Receipt,
+  Navigation, Factory, Church
 } from 'lucide-react';
 import { getProjectContent, getPricingTable, getProjectImagesFromDB, getProjectDocs } from '@/lib/contentStorage';
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
@@ -112,6 +113,8 @@ const ProjectDetailPage = () => {
 
   const isPricingAvailable = pricing && pricing.length > 0;
   const hasDocuments = docs.brochure || docs.map;
+  const hasLocationMarkers = project.locationMarkers && project.locationMarkers.length > 0;
+  const hasTrustBadges = project.trustBadges && project.trustBadges.length > 0;
 
   const amenities = [
     { icon: Home, label: 'Gated Community', color: 'text-blue-600' },
@@ -121,25 +124,18 @@ const ProjectDetailPage = () => {
     { icon: Car, label: 'Wide Roads', color: 'text-gray-600' },
   ];
 
-  const nearbyPlaces = [
-    { icon: School, label: 'Schools', distance: '2-5 km', color: 'text-orange-600' },
-    { icon: Heart, label: 'Hospitals', distance: '3-8 km', color: 'text-red-600' },
-    { icon: ShoppingBag, label: 'Shopping', distance: '1-3 km', color: 'text-pink-600' },
-    { icon: Train, label: 'Railway Station', distance: '5-10 km', color: 'text-blue-600' },
-  ];
-
   const faqs = [
     {
       q: 'What is the booking amount?',
-      a: `The booking amount varies by plot size. Typically ${project.bookingPercentage || '10-35%'} of the total cost. Check the pricing table for exact amounts.`
+      a: `The booking amount is ${project.bookingPercentage || '10%'} of the total plot cost. Check the pricing table below for exact amounts.`
     },
     {
       q: 'Is there an EMI facility?',
-      a: 'Yes! We offer 0% interest EMI plans from 24 to 60 months depending on the project.'
+      a: `Yes! We offer ${project.emiInterest || '0%'} interest EMI plans for ${project.emiMonths || '60'} months.`
     },
     {
       q: 'When will I get possession?',
-      a: 'Immediate possession is available after full payment and registry completion.'
+      a: `${project.registryPayment ? `Pay ${project.registryPayment} and get immediate registry.` : 'Immediate possession available after full payment and registry completion.'}`
     },
     {
       q: 'Are there any hidden charges?',
@@ -155,11 +151,19 @@ const ProjectDetailPage = () => {
     benefit => !benefit.toLowerCase().includes('rental income')
   ) || [];
 
+  const trustIconMap = {
+    BadgeCheck,
+    FileCheck,
+    ShieldCheck,
+    Receipt
+  };
+
   return (
     <div className="bg-white min-h-screen">
       <Helmet>
         <title>{project.meta?.title || project.title}</title>
         <meta name="description" content={project.meta?.description || project.subline} />
+        {project.meta?.keywords && <meta name="keywords" content={project.meta.keywords} />}
       </Helmet>
 
       {/* Hero Section */}
@@ -192,6 +196,12 @@ const ProjectDetailPage = () => {
               <div className="flex items-center text-white/90 mb-8 text-lg">
                 <MapPin className="mr-2 text-[#D4AF37]" size={24} /> {project.location}
               </div>
+              
+              {project.pricePerSqYard && (
+                <div className="inline-block bg-[#D4AF37] text-[#0F3A5F] px-6 py-3 rounded-xl font-black text-2xl mb-6 shadow-2xl">
+                  ₹{project.pricePerSqYard.toLocaleString()} per Sq. Yard
+                </div>
+              )}
               
               <div className="flex flex-col md:flex-row gap-4">
                 <Button 
@@ -238,6 +248,31 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
+      {/* Trust Badges Strip */}
+      {hasTrustBadges && (
+        <section className="bg-gradient-to-r from-[#D4AF37] to-[#b5952f] py-6 border-y-4 border-[#0F3A5F]">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {project.trustBadges.map((badge, idx) => {
+                const IconComponent = trustIconMap[badge.icon];
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="flex items-center justify-center gap-2 text-[#0F3A5F]"
+                  >
+                    {IconComponent && <IconComponent size={24} className="flex-shrink-0" />}
+                    <span className="font-bold text-sm md:text-base">{badge.text}</span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Quick Stats Banner */}
       <section className="bg-[#0F3A5F] py-8 text-white border-b-4 border-[#D4AF37]">
         <div className="container mx-auto px-4">
@@ -266,7 +301,7 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Overview Section - FIXED LOGO DISPLAY */}
+      {/* Overview Section */}
       <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-16 items-start">
@@ -296,7 +331,6 @@ const ProjectDetailPage = () => {
               transition={{ duration: 0.5 }}
               className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-8 md:p-10 rounded-3xl shadow-2xl text-white"
             >
-              {/* FIXED: Logo display without text */}
               <div className="flex items-start gap-4 mb-6">
                 {project.logo && (
                   <div className="flex-shrink-0">
@@ -342,9 +376,42 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Rest of sections remain the same... */}
+      {/* Location Markers Section */}
+      {hasLocationMarkers && (
+        <section className="py-20 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Strategic Location</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Location & Distance</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {project.locationMarkers.map((marker, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all border-b-4 border-[#D4AF37]"
+                >
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="text-4xl">{marker.icon}</div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-[#0F3A5F] text-base">{marker.label}</h4>
+                      <p className="text-[#D4AF37] font-black text-lg">{marker.distance}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Amenities Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Modern Living</span>
@@ -372,49 +439,205 @@ const ProjectDetailPage = () => {
         </div>
       </section>
 
-      {/* Location & Connectivity */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      {/* Pricing Table */}
+      {isPricingAvailable && (
+        <section className="py-20 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Investment Plans</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Plots That Fit Your Budget</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full mb-4"></div>
+              {project.pricePerSqYard && (
+                <p className="text-2xl font-black text-[#0F3A5F] mb-2">₹{project.pricePerSqYard.toLocaleString()} per Sq. Yard</p>
+              )}
+              <div className="flex flex-wrap justify-center gap-3 text-sm font-semibold text-gray-700">
+                {project.emiInterest && <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full">{project.emiInterest} Interest EMI</span>}
+                {project.emiMonths && <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full">{project.emiMonths}-Months Payment Plan</span>}
+                {project.registryPayment && <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full">Immediate Registry with {project.registryPayment}</span>}
+              </div>
+            </div>
+            
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-hidden rounded-2xl shadow-2xl bg-white border border-gray-200">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gradient-to-r from-[#0F3A5F] to-[#1a5a8f] text-white">
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider">Plot Size</th>
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider">Rate / Sq Yd</th>
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider">Total Cost</th>
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider bg-[#D4AF37] text-[#0F3A5F]">Booking Amount</th>
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider">Balance Amount</th>
+                    <th className="p-5 font-bold text-sm uppercase tracking-wider">Monthly EMI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {pricing.map((row, idx) => (
+                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="p-5 font-black text-gray-900 text-lg">{row.size} Sq. Yd.</td>
+                      <td className="p-5 text-gray-700 font-semibold">₹{row.rate?.toLocaleString()}</td>
+                      <td className="p-5 font-black text-[#0F3A5F] text-lg">₹{row.total?.toLocaleString()}</td>
+                      <td className="p-5 font-black text-[#D4AF37] text-lg bg-[#D4AF37]/10">₹{row.booking?.toLocaleString()}</td>
+                      <td className="p-5 text-gray-700 font-semibold">₹{row.rest?.toLocaleString()}</td>
+                      <td className="p-5 font-black text-[#0F3A5F] text-lg">₹{row.emi?.toLocaleString()}<span className="text-sm font-normal text-gray-500">/mo</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+              {pricing.map((row, idx) => (
+                <div key={idx} className="bg-white rounded-2xl shadow-xl p-5 border border-gray-200">
+                  <div className="text-center mb-4 pb-4 border-b-2 border-[#D4AF37]">
+                    <h3 className="text-2xl font-black text-[#0F3A5F]">{row.size} Sq. Yd.</h3>
+                    <p className="text-sm text-gray-500 mt-1">₹{row.rate?.toLocaleString()} per sq yd</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Total Cost</span>
+                      <span className="text-lg font-black text-[#0F3A5F]">₹{row.total?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline bg-[#D4AF37]/10 -mx-5 px-5 py-3 rounded">
+                      <span className="text-xs text-gray-700 font-bold uppercase tracking-wide">Booking Amount</span>
+                      <span className="text-lg font-black text-[#D4AF37]">₹{row.booking?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Balance Amount</span>
+                      <span className="text-base font-bold text-gray-700">₹{row.rest?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-baseline pt-3 border-t border-gray-200">
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">Monthly EMI</span>
+                      <span className="text-lg font-black text-[#0F3A5F]">₹{row.emi?.toLocaleString()}<span className="text-sm font-normal">/mo</span></span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-center text-sm text-gray-400 mt-6">* Other sizes available (Contact for custom requirements). Registry charges extra as per government rates.</p>
+          </div>
+        </section>
+      )}
+
+      {/* Investment Benefits */}
+      {filteredBenefits.length > 0 && (
+        <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Smart Investment</span>
+              <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Why Invest Here?</h2>
+              <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
+            </div>
+
+            <div className={`grid md:grid-cols-2 ${filteredBenefits.length > 2 ? 'lg:grid-cols-3' : ''} gap-6 max-w-4xl mx-auto`}>
+              {filteredBenefits.map((benefit, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg hover:shadow-2xl hover:border-[#D4AF37] transition-all text-center group"
+                >
+                  <div className="h-14 w-14 bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] text-white rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <TrendingUp size={28} />
+                  </div>
+                  <p className="font-bold text-gray-800 text-base leading-snug">{benefit}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Strategic Location</span>
-            <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Location & Connectivity</h2>
+            <span className="text-[#D4AF37] font-bold text-sm uppercase tracking-wider">Got Questions?</span>
+            <h2 className="text-4xl font-black text-[#0F3A5F] mt-2 mb-4">Frequently Asked Questions</h2>
             <div className="w-20 h-1.5 bg-[#D4AF37] mx-auto rounded-full"></div>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {nearbyPlaces.map((place, idx) => (
+          <div className="max-w-3xl mx-auto space-y-4">
+            {faqs.map((faq, idx) => (
               <motion.div
                 key={idx}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all border-b-4 border-[#D4AF37]"
+                transition={{ delay: idx * 0.05 }}
+                className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden hover:border-[#D4AF37] transition-all"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <place.icon size={36} className={place.color} />
-                  <span className="text-[#0F3A5F] font-black text-xl">{place.distance}</span>
-                </div>
-                <p className="font-bold text-gray-800 text-lg">{place.label}</p>
+                <button
+                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                  className="w-full p-6 flex items-center justify-between text-left hover:bg-gray-100 transition-colors"
+                >
+                  <span className="font-bold text-[#0F3A5F] text-lg pr-4">{faq.q}</span>
+                  {openFaq === idx ? (
+                    <ChevronUp className="text-[#D4AF37] flex-shrink-0" size={24} />
+                  ) : (
+                    <ChevronDown className="text-[#D4AF37] flex-shrink-0" size={24} />
+                  )}
+                </button>
+                {openFaq === idx && (
+                  <div className="px-6 pb-6 text-gray-700 leading-relaxed">
+                    {faq.a}
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
 
-          <div className="mt-12 text-center">
-            <p className="text-gray-600 mb-6 text-lg">Prime connectivity to major landmarks and highways</p>
-            <Button
-              onClick={() => setModalOpen(true)}
-              size="lg"
-              className="bg-[#0F3A5F] hover:bg-[#0a2742] text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg"
-            >
-              <MapPin className="mr-2" /> Schedule Site Visit
-            </Button>
+          <div className="text-center mt-12">
+            <p className="text-gray-600 mb-6 text-lg">Still have questions? We're here to help!</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a href={project.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                <Button size="lg" className="bg-[#25D366] hover:bg-[#1da851] text-white font-bold px-8 py-6 text-lg rounded-xl shadow-lg">
+                  <MessageCircle className="mr-2" /> Chat on WhatsApp
+                </Button>
+              </a>
+              <a href="tel:+918076146988">
+                <Button size="lg" variant="outline" className="border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-bold px-8 py-6 text-lg rounded-xl">
+                  <Phone className="mr-2" /> Call Now
+                </Button>
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing, Benefits, FAQ sections remain unchanged */}
-      {/* ... (keeping existing code for brevity) ... */}
+      {/* Final CTA Banner */}
+      <section className="py-16 bg-gradient-to-r from-[#0F3A5F] via-[#1a5a8f] to-[#0F3A5F] text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-black mb-4">
+            Ready to Own Your Dream Plot?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Book a free site visit today and explore {project.title} with our expert team
+          </p>
+          <Button
+            onClick={() => setModalOpen(true)}
+            size="lg"
+            className="h-16 px-12 bg-[#D4AF37] hover:bg-[#b5952f] text-[#0F3A5F] font-black text-xl rounded-xl shadow-2xl hover:scale-105 transition-all"
+          >
+            🏛️ Book Your Free Site Visit Now
+          </Button>
+        </div>
+      </section>
+
+      {/* Sticky Mobile CTA */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t-2 border-[#D4AF37] md:hidden z-50 flex gap-3 shadow-[0_-5px_15px_rgba(0,0,0,0.15)]">
+        <Button onClick={() => setModalOpen(true)} className="flex-1 bg-[#0F3A5F] text-white font-bold py-4 rounded-lg">
+          🏛️ Book Visit
+        </Button>
+        <a href={project.whatsappUrl} className="flex-1">
+          <Button className="w-full bg-[#25D366] text-white font-bold py-4 rounded-lg">
+            <MessageCircle className="mr-1" size={18} /> WhatsApp
+          </Button>
+        </a>
+      </div>
 
       <SiteVisitLeadModal 
         isOpen={modalOpen} 

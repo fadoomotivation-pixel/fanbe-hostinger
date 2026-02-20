@@ -7,23 +7,20 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA - Optimized for fast loading (images loaded from Supabase)
+// Supabase Storage URLs - Direct links to your uploaded images
+// ═══════════════════════════════════════════════════════════════════════════
+const SUPABASE_STORAGE_BASE = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images/projects';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJECT DATA with Supabase Image URLs
 // ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
     name: 'Shree Kunj Bihari Enclave',
     nameShort: 'SKBE',
-    icon: '🕉️',
     location: 'Vrindavan, UP',
     region: 'vrindavan',
     pricePerSqYd: 7525,
@@ -39,12 +36,14 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-amber-500 to-orange-600',
     slug: 'shree-kunj-bihari',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/shree-kunj-bihari/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/shree-kunj-bihari/hero.jpg`,
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
     name: 'Shri Khatu Shyam Enclave',
     nameShort: 'KKSE',
-    icon: '🛕',
     location: 'Khatu, Rajasthan',
     region: 'rajasthan',
     pricePerSqYd: 7525,
@@ -60,12 +59,14 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-rose-500 to-pink-600',
     slug: 'khatu-shyam-enclave',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/khatu-shyam-enclave/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/khatu-shyam-enclave/hero.jpg`,
   },
   {
     id: 'shree-jagannath-dham',
     name: 'Shree Jagannath Dham',
     nameShort: 'SJD',
-    icon: '🏛️',
     location: 'Mathura, UP',
     region: 'mathura',
     pricePerSqYd: 8025,
@@ -81,12 +82,14 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-blue-500 to-indigo-600',
     slug: 'jagannath-dham',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/jagannath-dham/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/jagannath-dham/hero.jpg`,
   },
   {
     id: 'brij-vatika',
     name: 'Brij Vatika (E Block)',
     nameShort: 'BVE',
-    icon: '🌳',
     location: 'Braj Bhoomi, Vrindavan',
     region: 'vrindavan',
     pricePerSqYd: 15525,
@@ -102,12 +105,14 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-emerald-500 to-teal-600',
     slug: 'brij-vatika',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/brij-vatika/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/brij-vatika/hero.jpg`,
   },
   {
     id: 'shree-gokul-vatika',
     name: 'Shree Gokul Vatika',
     nameShort: 'SGV',
-    icon: '🎋',
     location: 'Gokul, UP',
     region: 'mathura',
     pricePerSqYd: 10025,
@@ -123,12 +128,14 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-green-500 to-lime-600',
     slug: 'gokul-vatika',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/gokul-vatika/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/gokul-vatika/hero.jpg`,
   },
   {
     id: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
     nameShort: 'MSV',
-    icon: '🏞️',
     location: 'Near Mathura, UP',
     region: 'mathura',
     pricePerSqYd: 15525,
@@ -144,6 +151,9 @@ const projects = [
     availability: 'available',
     logoGradient: 'from-purple-500 to-violet-600',
     slug: 'maa-simri-vatika',
+    // Supabase Images
+    logoUrl: `${SUPABASE_STORAGE_BASE}/maa-simri-vatika/logo.png`,
+    heroUrl: `${SUPABASE_STORAGE_BASE}/maa-simri-vatika/hero.jpg`,
   },
 ];
 
@@ -162,102 +172,77 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT CARD COMPONENT with Hover Detection
+// PROJECT CARD with Hover Detection & Direct Supabase Images
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectCard = ({ project, index }) => {
-  const [hoveredProject, setHoveredProject] = useState(null);
-  const [projectImage, setProjectImage] = useState(null);
-  const [imageLoading, setImageLoading] = useState(false);
-
-  // Fetch project image from Supabase when hovered
-  useEffect(() => {
-    if (hoveredProject === project.id) {
-      loadProjectImage();
-    }
-  }, [hoveredProject]);
-
-  const loadProjectImage = async () => {
-    if (projectImage || imageLoading) return; // Already loaded or loading
-    
-    setImageLoading(true);
-    try {
-      // Fetch project from Supabase by slug
-      const { data, error } = await supabase
-        .from('projects')
-        .select('image_url, logo_url')
-        .eq('slug', project.slug)
-        .single();
-
-      if (!error && data) {
-        setProjectImage({
-          imageUrl: data.image_url,
-          logoUrl: data.logo_url
-        });
-      }
-    } catch (err) {
-      console.error('Error loading project image:', err);
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  const handleMouseEnter = () => {
-    setHoveredProject(project.id);
-  };
-
-  const handleMouseLeave = () => {
-    setHoveredProject(null);
-  };
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
     >
-      {/* Logo Header - Shows Supabase image on hover, gradient otherwise */}
+      {/* Header with Logo/Hero Image */}
       <div className="relative overflow-hidden min-h-[200px]">
-        {/* Animated Expand on Hover */}
         <AnimatePresence mode="wait">
-          {hoveredProject === project.id && projectImage?.imageUrl ? (
+          {isHovered ? (
+            // Show Hero Image on Hover
             <motion.div
-              key="image"
-              initial={{ opacity: 0, scale: 1.1 }}
+              key="hero"
+              initial={{ opacity: 0, scale: 1.05 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.3 }}
               className="absolute inset-0 w-full h-full"
             >
               <img
-                src={projectImage.imageUrl}
+                src={project.heroUrl}
                 alt={project.name}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to gradient if image fails to load
+                  e.target.style.display = 'none';
+                }}
               />
               {/* Gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+              
+              {/* Hover indicator */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
+              >
+                <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
+                  <FileText className="w-3 h-3" />
+                  Click to view details
+                </span>
+              </motion.div>
             </motion.div>
           ) : (
+            // Show Logo on Default State
             <motion.div
-              key="gradient"
+              key="logo"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className={`bg-gradient-to-br ${project.logoGradient} h-full flex flex-col items-center justify-center p-8`}
             >
-              {/* Logo Image from Supabase or Icon */}
-              {projectImage?.logoUrl ? (
-                <img
-                  src={projectImage.logoUrl}
-                  alt={`${project.name} logo`}
-                  className="w-20 h-20 object-contain mb-3 drop-shadow-lg"
-                />
-              ) : (
-                <div className="text-6xl mb-2">{project.icon}</div>
-              )}
-              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">
+              <img
+                src={project.logoUrl}
+                alt={`${project.name} logo`}
+                className="w-24 h-24 object-contain mb-3 drop-shadow-2xl"
+                onError={(e) => {
+                  // Fallback to project initial if logo fails
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'block';
+                }}
+              />
+              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase" style={{ display: 'none' }}>
                 {project.nameShort}
               </div>
             </motion.div>
@@ -268,20 +253,6 @@ const ProjectCard = ({ project, index }) => {
         <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
           {project.statusLabel}
         </span>
-
-        {/* Auto-expand indicator on hover */}
-        {hoveredProject === project.id && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
-          >
-            <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
-              <FileText className="w-3 h-3" />
-              Click to view details
-            </span>
-          </motion.div>
-        )}
       </div>
 
       {/* Content */}
@@ -391,7 +362,7 @@ const ProjectsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* SEO Meta Tags with Schema Markup */}
+      {/* SEO Meta Tags */}
       <SEOHelmet
         title="Our Projects | Fanbe Group — Premium Plots in Vrindavan, Mathura & Rajasthan"
         description="Explore 6 premium residential plot projects in Vrindavan, Mathura & Rajasthan. Starting ₹3.76 Lakhs | 0% Interest EMI | Immediate Registry | Trusted by 15,000+ families since 2012 | Book free site visit today"
@@ -546,7 +517,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ PROJECT GRID with Hover Detection ═══════════════════════════ */}
+      {/* ═══ PROJECT GRID ═════════════════════════════════════════════════ */}
       <section className="py-12">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -581,7 +552,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ STICKY CTA BAR (appears on scroll) ══════════════════════════ */}
+      {/* ═══ STICKY CTA BAR ═════════════════════════════════════════════ */}
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div

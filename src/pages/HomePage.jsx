@@ -57,8 +57,8 @@ const projects = [
     status: 'Available'
   },
   {
-    id: 'semri-vatika',
-    slug: 'maa-semri-vatika',
+    id: 'maa-simri-vatika',
+    slug: 'maa-simri-vatika',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',
@@ -349,62 +349,73 @@ const HomePage = ({ onBookSiteVisit }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {projects.map((project, idx) => (
-              <motion.div key={project.id}
-                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
-                className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
-              >
-                {/* Logo area with full-cover + zoom effect */}
-                <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] h-[240px] relative overflow-hidden">
-                  {/* Gold overlay on hover */}
-                  <div className="absolute inset-0 bg-[#D4AF37]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {/* Logo fills entire div + 110% zoom on hover */}
-                  <img
-                    src={dbImages[project.slug] || project.logo}
-                    alt={`${project.nameEn} - ${project.location} - Fanbe Group plots`}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                  />
-                  
-                  {/* Star badge for highlights */}
-                  {project.highlight && (
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
-                      <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-5">
-                  <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
-                  <p className="text-sm text-gray-600 mb-4 flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />{project.location}
-                  </p>
-                  <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Starting From</span>
-                      <span className="text-base font-bold text-[#0F3A5F]">{project.startingPrice}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Booking ({project.bookingPct})</span>
-                      <span className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-gray-500">Monthly EMI</span>
-                      <span className="text-base font-bold text-[#0F3A5F]">{project.emi}</span>
-                    </div>
-                    <div className="pt-1 border-t border-gray-200">
-                      <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
-                    </div>
+            {projects.map((project, idx) => {
+              // Use Supabase image if available, fallback to static logo
+              const projectImage = dbImages[project.slug] || project.logo;
+              
+              return (
+                <motion.div key={project.id}
+                  initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
+                  className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
+                >
+                  {/* Logo area with full-cover + zoom effect */}
+                  <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] h-[240px] relative overflow-hidden">
+                    {/* Gold overlay on hover */}
+                    <div className="absolute inset-0 bg-[#D4AF37]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    
+                    {/* Image from Supabase CRM or fallback to static */}
+                    <img
+                      src={projectImage}
+                      alt={`${project.nameEn} - ${project.location} - Fanbe Group plots`}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                      onError={(e) => {
+                        // If Supabase image fails, fallback to static logo
+                        if (e.target.src !== project.logo) {
+                          e.target.src = project.logo;
+                        }
+                      }}
+                    />
+                    
+                    {/* Star badge for highlights */}
+                    {project.highlight && (
+                      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
+                        <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
+                      </div>
+                    )}
                   </div>
-                  <Link to={`/projects/${project.slug}`}>
-                    <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
-                      View Details <ChevronRight className="ml-2 w-4 h-4" />
-                    </Button>
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
+
+                  <div className="p-5">
+                    <h3 className="text-xl font-bold text-[#0F3A5F] mb-1">{project.nameEn}</h3>
+                    <p className="text-sm text-gray-600 mb-4 flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />{project.location}
+                    </p>
+                    <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs text-gray-500">Starting From</span>
+                        <span className="text-base font-bold text-[#0F3A5F]">{project.startingPrice}</span>
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs text-gray-500">Booking ({project.bookingPct})</span>
+                        <span className="text-sm font-bold text-[#D4AF37]">{project.bookingAmt}</span>
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs text-gray-500">Monthly EMI</span>
+                        <span className="text-base font-bold text-[#0F3A5F]">{project.emi}</span>
+                      </div>
+                      <div className="pt-1 border-t border-gray-200">
+                        <p className="text-xs text-gray-400 text-center">{project.emiMonths}-month plan · 0% interest</p>
+                      </div>
+                    </div>
+                    <Link to={`/projects/${project.slug}`}>
+                      <Button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5">
+                        View Details <ChevronRight className="ml-2 w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

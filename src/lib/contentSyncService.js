@@ -8,6 +8,7 @@ export const EVENTS = {
   PROJECT_IMAGE_UPDATED: 'project_image_updated',
   PROJECT_CONTENT_UPDATED: 'project_content_updated',
   PROJECT_DOCS_UPDATED: 'project_docs_updated',
+  PROJECT_MAP_UPDATED: 'project_map_updated', // NEW: Map URL updates
   MENU_UPDATED: 'menu_updated',
   HOMEPAGE_SETTINGS_UPDATED: 'homepage_settings_updated',
 };

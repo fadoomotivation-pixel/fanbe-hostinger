@@ -1,3 +1,29 @@
+# Robots.txt for Fanbe Group - Premium Real Estate Plots
+# Updated: February 20, 2026
+
+# Allow all search engines to crawl everything
 User-agent: *
 Allow: /
+
+# Sitemap location
 Sitemap: https://fanbegroup.com/sitemap.xml
+
+# Crawl delay (optional - helps prevent server overload)
+Crawl-delay: 1
+
+# Disallow admin/CRM pages (keep private)
+Disallow: /crm/
+Disallow: /admin/
+Disallow: /login
+
+# Allow important pages
+Allow: /
+Allow: /projects
+Allow: /about
+Allow: /why-invest
+Allow: /contact
+
+# Fanbe Group Contact Info
+# Phone: +91-8076146988
+# Website: https://fanbegroup.com
+# Email: info@fanbegroup.com

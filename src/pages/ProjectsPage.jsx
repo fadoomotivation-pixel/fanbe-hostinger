@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -9,14 +9,38 @@ import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA - Optimized for fast loading (no images in listing)
+// SUPABASE STORAGE CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://mfgjzkaabyltscgrkhdz.supabase.co';
+const SUPABASE_STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/project-images`;
+
+// Project slug to folder mapping (same as your CMS contentStorage.js)
+const PROJECT_SLUG_MAP = {
+  'shree-kunj-bihari': 'projects/shree-kunj-bihari',
+  'khatu-shyam-enclave': 'projects/khatu-shyam-enclave',
+  'brij-vatika': 'projects/brij-vatika',
+  'jagannath-dham': 'projects/jagannath-dham',
+  'gokul-vatika': 'projects/gokul-vatika',
+  'maa-simri-vatika': 'projects/maa-simri-vatika'
+};
+
+// Helper function to get image URL from Supabase storage
+const getProjectImageUrl = (slug) => {
+  const folder = PROJECT_SLUG_MAP[slug];
+  if (!folder) return null;
+  
+  // Return the hero image URL from Supabase storage
+  return `${SUPABASE_STORAGE_URL}/${folder}/hero.jpg`;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJECT DATA
 // ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
     id: 'shree-kunj-bihari-enclave',
     name: 'Shree Kunj Bihari Enclave',
     nameShort: 'SKBE',
-    icon: '🕉️',
     location: 'Vrindavan, UP',
     region: 'vrindavan',
     pricePerSqYd: 7525,
@@ -30,13 +54,13 @@ const projects = [
     status: 'bestseller',
     statusLabel: 'Best Seller',
     availability: 'available',
-    logoGradient: 'from-amber-500 to-orange-600',
+    logoGradient: 'from-amber-500 via-orange-500 to-orange-600',
+    slug: 'shree-kunj-bihari',
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
     name: 'Shri Khatu Shyam Enclave',
     nameShort: 'KKSE',
-    icon: '🛕',
     location: 'Khatu, Rajasthan',
     region: 'rajasthan',
     pricePerSqYd: 7525,
@@ -50,87 +74,88 @@ const projects = [
     status: 'limited',
     statusLabel: 'Limited Plots',
     availability: 'available',
-    logoGradient: 'from-rose-500 to-pink-600',
+    logoGradient: 'from-rose-500 via-pink-500 to-pink-600',
+    slug: 'khatu-shyam-enclave',
   },
   {
     id: 'shree-jagannath-dham',
     name: 'Shree Jagannath Dham',
     nameShort: 'SJD',
-    icon: '🏛️',
     location: 'Mathura, UP',
     region: 'mathura',
     pricePerSqYd: 8025,
     priceDisplay: '₹8,025',
     startingPrice: 401250,
     startingDisplay: '₹4.01L',
-    bookingPct: 12.5,
-    emi: 6502,
-    emiDisplay: '₹6,502',
+    bookingPct: 10,
+    emi: 6687,
+    emiDisplay: '₹6,687',
     emiMonths: 54,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-blue-500 to-indigo-600',
+    logoGradient: 'from-blue-500 via-indigo-500 to-indigo-600',
+    slug: 'jagannath-dham',
   },
   {
     id: 'brij-vatika',
     name: 'Brij Vatika (E Block)',
     nameShort: 'BVE',
-    icon: '🌳',
     location: 'Braj Bhoomi, Vrindavan',
     region: 'vrindavan',
     pricePerSqYd: 15525,
     priceDisplay: '₹15,525',
     startingPrice: 776250,
     startingDisplay: '₹7.76L',
-    bookingPct: 35,
-    emi: 12615,
-    emiDisplay: '₹12,615',
+    bookingPct: 10,
+    emi: 17465,
+    emiDisplay: '₹17,465',
     emiMonths: 40,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-emerald-500 to-teal-600',
+    logoGradient: 'from-emerald-500 via-teal-500 to-teal-600',
+    slug: 'brij-vatika',
   },
   {
     id: 'shree-gokul-vatika',
     name: 'Shree Gokul Vatika',
     nameShort: 'SGV',
-    icon: '🎋',
     location: 'Gokul, UP',
     region: 'mathura',
     pricePerSqYd: 10025,
     priceDisplay: '₹10,025',
     startingPrice: 501250,
     startingDisplay: '₹5.01L',
-    bookingPct: 35,
-    emi: 13576,
-    emiDisplay: '₹13,576',
+    bookingPct: 10,
+    emi: 18796,
+    emiDisplay: '₹18,796',
     emiMonths: 24,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-green-500 to-lime-600',
+    logoGradient: 'from-green-500 via-lime-500 to-lime-600',
+    slug: 'gokul-vatika',
   },
   {
     id: 'maa-semri-vatika',
     name: 'Maa Semri Vatika',
     nameShort: 'MSV',
-    icon: '🏞️',
     location: 'Near Mathura, UP',
     region: 'mathura',
     pricePerSqYd: 15525,
     priceDisplay: '₹15,525',
-    startingPrice: 776250,
-    startingDisplay: '₹7.76L',
-    bookingPct: 35,
-    emi: 21024,
-    emiDisplay: '₹21,024',
+    startingPrice: 931500,
+    startingDisplay: '₹9.31L',
+    bookingPct: 15,
+    emi: 32990,
+    emiDisplay: '₹32,990',
     emiMonths: 24,
     status: 'new',
     statusLabel: 'New Launch',
     availability: 'available',
-    logoGradient: 'from-purple-500 to-violet-600',
+    logoGradient: 'from-purple-500 via-violet-500 to-violet-600',
+    slug: 'maa-simri-vatika',
   },
 ];
 
@@ -149,6 +174,187 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PROJECT CARD - With Real Images from Supabase Storage
+// ═══════════════════════════════════════════════════════════════════════════
+const ProjectCard = ({ project, index }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Get image URL from Supabase storage using project slug
+  const imageUrl = getProjectImageUrl(project.slug);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
+    >
+      {/* Image Header - Real images from Supabase Storage */}
+      <div className="relative overflow-hidden">
+        <Link to={`/projects/${project.id}`}>
+          <motion.div
+            animate={{
+              scale: isHovered ? 1.05 : 1,
+            }}
+            transition={{ duration: 0.3 }}
+            className="relative h-64 bg-gray-200"
+          >
+            {imageUrl && !imageError ? (
+              <>
+                {/* Main Project Image from Supabase */}
+                <img
+                  src={imageUrl}
+                  alt={project.name}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+                
+                {/* Loading skeleton */}
+                {!imageLoaded && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 animate-pulse" />
+                )}
+
+                {/* Dark overlay for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              </>
+            ) : (
+              /* Fallback gradient if image fails or doesn't exist */
+              <div className={`absolute inset-0 bg-gradient-to-br ${project.logoGradient}`}>
+                {/* Decorative pattern overlay */}
+                <div className="absolute inset-0 opacity-10">
+                  <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                    <pattern id={`pattern-${project.id}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                      <circle cx="20" cy="20" r="1" fill="white" />
+                    </pattern>
+                    <rect width="100%" height="100%" fill={`url(#pattern-${project.id})`} />
+                  </svg>
+                </div>
+              </div>
+            )}
+
+            {/* Project Name Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+              <motion.div
+                animate={{
+                  y: isHovered ? -5 : 0,
+                }}
+                transition={{ duration: 0.3 }}
+              >
+                <h3 className="text-2xl font-bold text-white mb-1 leading-tight drop-shadow-lg">
+                  {project.name}
+                </h3>
+                {project.nameShort && (
+                  <div className="text-white/90 text-sm font-medium tracking-[0.2em] uppercase drop-shadow">
+                    {project.nameShort}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+
+            {/* Shine effect on hover */}
+            {isHovered && (
+              <motion.div
+                initial={{ x: '-100%', opacity: 0 }}
+                animate={{ x: '100%', opacity: 0.3 }}
+                transition={{ duration: 0.6 }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent"
+              />
+            )}
+          </motion.div>
+        </Link>
+
+        {/* Status Badge */}
+        <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
+          {project.statusLabel}
+        </span>
+
+        {/* Hover Indicator */}
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
+            >
+              <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
+                <FileText className="w-3 h-3" />
+                Click to view details
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Content */}
+      <div className="p-5 flex flex-col flex-1">
+        <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
+          <MapPin className="w-3 h-3" />{project.location}
+        </p>
+
+        {/* Pricing Box */}
+        <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
+              <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
+                <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
+              <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
+            <div>
+              <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
+              <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
+            </div>
+            <div className="text-[9px] text-gray-400 text-right">
+              {project.emiMonths} months<br />0% interest
+            </div>
+          </div>
+        </div>
+
+        {/* Booking Info */}
+        <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+          <Shield className="w-3 h-3 text-[#D4AF37]" />
+          Book at {project.bookingPct}% · Instant Registry
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="grid grid-cols-2 gap-2 mt-auto">
+          <Link to={`/projects/${project.id}`} className="block">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs transition-all"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
+            </Button>
+          </Link>
+          <Button
+            size="sm"
+            className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs shadow-md hover:shadow-lg transition-all"
+            onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(project.name)}`, '_blank')}
+          >
+            <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectsPage = () => {
@@ -162,7 +368,7 @@ const ProjectsPage = () => {
   const [showStickyCTA, setShowStickyCTA] = useState(false);
 
   // Scroll detection for sticky CTA
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       setShowStickyCTA(window.scrollY > 400);
     };
@@ -193,7 +399,7 @@ const ProjectsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* SEO Meta Tags with Schema Markup */}
+      {/* SEO Meta Tags */}
       <SEOHelmet
         title="Our Projects | Fanbe Group — Premium Plots in Vrindavan, Mathura & Rajasthan"
         description="Explore 6 premium residential plot projects in Vrindavan, Mathura & Rajasthan. Starting ₹3.76 Lakhs | 0% Interest EMI | Immediate Registry | Trusted by 15,000+ families since 2012 | Book free site visit today"
@@ -348,7 +554,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ PROJECT GRID ═════════════════════════════════════════════════ */}
+      {/* ═══ PROJECT GRID ═══════════════════════════════════════════════════ */}
       <section className="py-12">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -361,84 +567,7 @@ const ProjectsPage = () => {
                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
               >
                 {filteredProjects.map((project, idx) => (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
-                  >
-                    {/* Logo Header - Text based, no images */}
-                    <div className={`relative bg-gradient-to-br ${project.logoGradient} p-8 flex flex-col items-center justify-center min-h-[160px]`}>
-                      {/* Status Badge */}
-                      <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg`}>
-                        {project.statusLabel}
-                      </span>
-
-                      {/* Icon + Short Name */}
-                      <div className="text-6xl mb-2">{project.icon}</div>
-                      <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">{project.nameShort}</div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <h3 className="text-lg font-bold text-[#0F3A5F] mb-1 leading-tight">{project.name}</h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
-                        <MapPin className="w-3 h-3" />{project.location}
-                      </p>
-
-                      {/* Pricing Box */}
-                      <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
-                            <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
-                              <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
-                            <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
-                          <div>
-                            <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
-                            <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
-                          </div>
-                          <div className="text-[9px] text-gray-400 text-right">
-                            {project.emiMonths} months<br />0% interest
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Booking Info */}
-                      <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
-                        <Shield className="w-3 h-3 text-[#D4AF37]" />
-                        Book at {project.bookingPct}% · Instant Registry
-                      </div>
-
-                      {/* CTA Buttons */}
-                      <div className="grid grid-cols-2 gap-2 mt-auto">
-                        <Link to={`/projects/${project.id}`} className="block">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs transition-all"
-                          >
-                            <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
-                          </Button>
-                        </Link>
-                        <Button
-                          size="sm"
-                          className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs shadow-md hover:shadow-lg transition-all"
-                          onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(project.name)}`, '_blank')}
-                        >
-                          <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
+                  <ProjectCard key={project.id} project={project} index={idx} />
                 ))}
               </motion.div>
             ) : (
@@ -460,7 +589,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ STICKY CTA BAR (appears on scroll) ══════════════════════════ */}
+      {/* ═══ STICKY CTA BAR ══════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div

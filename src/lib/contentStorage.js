@@ -1,146 +1,245 @@
+// Content storage for project data
+const PROJECT_CONTENT_KEY = 'fanbe_project_content_';
+const PRICING_TABLE_KEY = 'fanbe_pricing_table_';
+const PROJECT_IMAGE_KEY = 'fanbe_project_images';
+const PROJECT_DOCS_KEY = 'fanbe_project_docs_';
+const PROJECT_MAP_KEY = 'fanbe_project_map_'; // NEW: For map URLs
 
-import { projectsData } from '@/data/projectsData';
-import { supabase } from '@/lib/supabase';
-import { getProjectDocuments } from '@/lib/documentStorage';
-
-// Fetch image URLs saved by the CMS from the Supabase DB.
-// Returns a map of { [slug]: heroImageUrl }
-export const getProjectImagesFromDB = async () => {
+// Save project content (overview, description, etc.)
+export const saveProjectContent = (slug, content) => {
   try {
-    const { data, error } = await supabase
-      .from('project_content')
-      .select('slug, hero_image');
-    if (error) throw error;
-    return (data || []).reduce((acc, row) => {
-      if (row.hero_image) acc[row.slug] = row.hero_image;
-      return acc;
-    }, {});
-  } catch (err) {
-    console.error('Error fetching project images from DB:', err);
-    return {};
+    localStorage.setItem(PROJECT_CONTENT_KEY + slug, JSON.stringify(content));
+    return true;
+  } catch (error) {
+    console.error('Error saving project content:', error);
+    return false;
   }
 };
 
-const CONTENT_PREFIX = 'crm_project_content_';
-const PRICING_PREFIX = 'crm_project_pricing_';
-
+// Get project content
 export const getProjectContent = (slug) => {
   try {
-    const saved = localStorage.getItem(`${CONTENT_PREFIX}${slug}`);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    // Fallback to static data
-    return projectsData.find(p => p.slug === slug) || null;
+    const data = localStorage.getItem(PROJECT_CONTENT_KEY + slug);
+    return data ? JSON.parse(data) : null;
   } catch (error) {
-    console.error('Error fetching project content:', error);
+    console.error('Error loading project content:', error);
     return null;
   }
 };
 
-export const saveProjectContent = (slug, content) => {
-  try {
-    const dataToSave = {
-      ...content,
-      lastUpdated: new Date().toISOString()
-    };
-    localStorage.setItem(`${CONTENT_PREFIX}${slug}`, JSON.stringify(dataToSave));
-    return { success: true, timestamp: dataToSave.lastUpdated };
-  } catch (error) {
-    console.error('Error saving project content:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-export const getPricingTable = (slug) => {
-  try {
-    const saved = localStorage.getItem(`${PRICING_PREFIX}${slug}`);
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    // Fallback to static data pricing
-    const project = projectsData.find(p => p.slug === slug);
-    return project?.pricing || [];
-  } catch (error) {
-    console.error('Error fetching pricing table:', error);
-    return [];
-  }
-};
-
+// Save pricing table
 export const savePricingTable = (slug, pricingData) => {
   try {
-    const payload = {
-      data: pricingData,
-      lastUpdated: new Date().toISOString()
-    };
-    // Get history
-    const current = getPricingTable(slug);
-    const historyKey = `${PRICING_PREFIX}${slug}_history`;
-    const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-    
-    // Add to history (keep last 5)
-    history.unshift({
-      date: new Date().toISOString(),
-      previousData: current
-    });
-    localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 5)));
-
-    // Save new
-    localStorage.setItem(`${PRICING_PREFIX}${slug}`, JSON.stringify(payload.data));
-    
-    return { success: true, timestamp: payload.lastUpdated };
+    localStorage.setItem(PRICING_TABLE_KEY + slug, JSON.stringify(pricingData));
+    return true;
   } catch (error) {
     console.error('Error saving pricing table:', error);
-    return { success: false, error: error.message };
+    return false;
   }
 };
 
-// ═════════════════════════════════════════════════════════════
-// PROJECT DOCUMENTS (Now using Supabase Cloud Storage)
-// ═════════════════════════════════════════════════════════════
-
-export const getProjectDocs = async (slug) => {
+// Get pricing table
+export const getPricingTable = (slug) => {
   try {
-    // Fetch from Supabase cloud storage
-    const docs = await getProjectDocuments(slug);
-    
-    // Convert to format expected by frontend
-    const result = { brochure: null, map: null };
-    
-    if (docs.brochure) {
-      result.brochure = {
-        filename: docs.brochure.filename,
-        data: docs.brochure.url, // URL instead of base64
-        size: docs.brochure.size,
-        type: docs.brochure.type,
-        uploadedAt: docs.brochure.uploadedAt
-      };
-    }
-    
-    if (docs.map) {
-      result.map = {
-        filename: docs.map.filename,
-        data: docs.map.url, // URL instead of base64
-        size: docs.map.size,
-        type: docs.map.type,
-        uploadedAt: docs.map.uploadedAt
-      };
-    }
-    
-    return result;
+    const data = localStorage.getItem(PRICING_TABLE_KEY + slug);
+    return data ? JSON.parse(data) : null;
   } catch (error) {
-    console.error('Error fetching project docs:', error);
-    return { brochure: null, map: null };
+    console.error('Error loading pricing table:', error);
+    return null;
   }
 };
 
-// Deprecated - Documents now managed via Supabase
-export const saveProjectDocs = () => {
-  console.warn('saveProjectDocs is deprecated. Use uploadDocument from documentStorage.js');
-  return { success: false, error: 'Use uploadDocument instead' };
+// Save project image to IndexedDB
+export const saveProjectImageToDB = async (slug, imageDataUrl) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FanbeProjectImages', 1);
+    
+    request.onerror = () => reject(request.error);
+    
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['images'], 'readwrite');
+      const store = transaction.objectStore('images');
+      
+      store.put({ slug, imageDataUrl, updatedAt: new Date().toISOString() });
+      
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => reject(transaction.error);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('images')) {
+        db.createObjectStore('images', { keyPath: 'slug' });
+      }
+    };
+  });
 };
 
-export const getAllProjectDocs = () => {
-  console.warn('getAllProjectDocs is deprecated. Use getAllProjectDocuments from documentStorage.js');
-  return {};
+// Get project image from IndexedDB
+export const getProjectImageFromDB = async (slug) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FanbeProjectImages', 1);
+    
+    request.onerror = () => reject(request.error);
+    
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['images'], 'readonly');
+      const store = transaction.objectStore('images');
+      const getRequest = store.get(slug);
+      
+      getRequest.onsuccess = () => {
+        resolve(getRequest.result?.imageDataUrl || null);
+      };
+      
+      getRequest.onerror = () => reject(getRequest.error);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('images')) {
+        db.createObjectStore('images', { keyPath: 'slug' });
+      }
+    };
+  });
+};
+
+// Get all project images
+export const getProjectImagesFromDB = async () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FanbeProjectImages', 1);
+    
+    request.onerror = () => {
+      console.error('IndexedDB error:', request.error);
+      resolve({});
+    };
+    
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['images'], 'readonly');
+      const store = transaction.objectStore('images');
+      const getAllRequest = store.getAll();
+      
+      getAllRequest.onsuccess = () => {
+        const images = {};
+        getAllRequest.result.forEach(item => {
+          images[item.slug] = item.imageDataUrl;
+        });
+        resolve(images);
+      };
+      
+      getAllRequest.onerror = () => {
+        console.error('Get all error:', getAllRequest.error);
+        resolve({});
+      };
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('images')) {
+        db.createObjectStore('images', { keyPath: 'slug' });
+      }
+    };
+  });
+};
+
+// Save project documents (brochure, site map)
+export const saveProjectDocs = async (slug, docs) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FanbeProjectDocs', 1);
+    
+    request.onerror = () => reject(request.error);
+    
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['docs'], 'readwrite');
+      const store = transaction.objectStore('docs');
+      
+      store.put({ slug, ...docs, updatedAt: new Date().toISOString() });
+      
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => reject(transaction.error);
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('docs')) {
+        db.createObjectStore('docs', { keyPath: 'slug' });
+      }
+    };
+  });
+};
+
+// Get project documents
+export const getProjectDocs = async (slug) => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('FanbeProjectDocs', 1);
+    
+    request.onerror = () => {
+      console.error('IndexedDB error:', request.error);
+      resolve({ brochure: null, map: null });
+    };
+    
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(['docs'], 'readonly');
+      const store = transaction.objectStore('docs');
+      const getRequest = store.get(slug);
+      
+      getRequest.onsuccess = () => {
+        const result = getRequest.result;
+        resolve({
+          brochure: result?.brochure || null,
+          map: result?.map || null
+        });
+      };
+      
+      getRequest.onerror = () => {
+        console.error('Get docs error:', getRequest.error);
+        resolve({ brochure: null, map: null });
+      };
+    };
+    
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('docs')) {
+        db.createObjectStore('docs', { keyPath: 'slug' });
+      }
+    };
+  });
+};
+
+// NEW: Save project map URL
+export const saveProjectMapUrl = (slug, mapUrl) => {
+  try {
+    localStorage.setItem(PROJECT_MAP_KEY + slug, mapUrl);
+    return true;
+  } catch (error) {
+    console.error('Error saving map URL:', error);
+    return false;
+  }
+};
+
+// NEW: Get project map URL
+export const getProjectMapUrl = (slug) => {
+  try {
+    return localStorage.getItem(PROJECT_MAP_KEY + slug) || null;
+  } catch (error) {
+    console.error('Error loading map URL:', error);
+    return null;
+  }
+};
+
+// Clear all project data for a specific slug
+export const clearProjectData = (slug) => {
+  try {
+    localStorage.removeItem(PROJECT_CONTENT_KEY + slug);
+    localStorage.removeItem(PRICING_TABLE_KEY + slug);
+    localStorage.removeItem(PROJECT_MAP_KEY + slug);
+    return true;
+  } catch (error) {
+    console.error('Error clearing project data:', error);
+    return false;
+  }
 };

@@ -146,7 +146,9 @@ const EMICalculator = ({ defaultProjectId }) => {
     const booking   = Math.round(totalCost * bookingPct);
     const remaining = totalCost - booking;
     const emi       = Math.ceil(remaining / emiMonths);
-    return { totalCost, booking, remaining, emi };
+    const futureValue = totalCost * Math.pow(1 + ROI_PCT, 3);
+    const profit = futureValue - totalCost;
+    return { totalCost, booking, remaining, emi, futureValue, profit };
   }, [rate, sqyd, bookingPct, emiMonths]);
 
   const breakdownData = {
@@ -257,13 +259,13 @@ const EMICalculator = ({ defaultProjectId }) => {
             </div>
           </div>
 
-          {/* ROI teaser */}
+          {/* ROI teaser - UPDATED to show Est. Profit */}
           <div className="flex items-center justify-between bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-[#D4AF37]" />
               <div>
-                <p className="text-xs font-semibold text-[#0F3A5F]">Est. value in 3 years</p>
-                <p className="text-sm font-bold text-[#0F3A5F]">{fmtL(calc.totalCost * Math.pow(1 + ROI_PCT, 3))}</p>
+                <p className="text-xs font-semibold text-[#0F3A5F]">Est. Profit in 3 years</p>
+                <p className="text-sm font-bold text-[#0F3A5F]">{fmtL(calc.profit)}</p>
               </div>
             </div>
             <span className="text-[10px] bg-[#D4AF37]/20 text-[#0F3A5F] px-2 py-0.5 rounded-full font-semibold">+15% p.a.</span>

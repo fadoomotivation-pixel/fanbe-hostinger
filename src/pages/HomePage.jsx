@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
@@ -97,13 +97,13 @@ const projects = [
   }
 ];
 
-// UPDATED SLIDER - Original Style with New Strategic Content
+// UPDATED SLIDER - Removed EMI description from Slide 1
 const slides = [
   {
     id: 1,
     title: 'Live Where Devotion Meets Modernity',
     subtitle: 'Premium Gated Plots near Vrindavan & Kosi',
-    description: 'Starting at ₹5,000 EMI/month | 0% Interest | Immediate Registry',
+    // REMOVED: description: 'Starting at ₹5,000 EMI/month | 0% Interest | Immediate Registry',
     seoTag: 'Plots near Vrindavan with EMI'
   },
   {
@@ -148,6 +148,59 @@ const slides = [
   }
 ];
 
+// Counter Animation Component
+const Counter = ({ end, duration = 2 }) => {
+  const ref = React.useRef(null);
+  const isInView = useInView(ref, { once: true });
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!isInView) return;
+    
+    let startTime;
+    let animationFrame;
+
+    const animate = (currentTime) => {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / (duration * 1000), 1);
+      
+      // Easing function for smooth animation
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      
+      // Parse the end value (handle '15,000+' format)
+      const numericEnd = parseInt(end.toString().replace(/[^0-9]/g, ''));
+      const currentCount = Math.floor(easeOutQuart * numericEnd);
+      
+      setCount(currentCount);
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      } else {
+        setCount(end); // Set final value with original formatting
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+    };
+  }, [isInView, end, duration]);
+
+  // Format the count based on the end value format
+  const formatCount = () => {
+    if (typeof end === 'string' && end.includes('+')) {
+      return count === end ? end : `${count.toLocaleString()}+`;
+    }
+    if (typeof end === 'string' && end.includes('%')) {
+      return `${count}%`;
+    }
+    return count.toLocaleString();
+  };
+
+  return <span ref={ref}>{formatCount()}</span>;
+};
+
 const HomePage = ({ onBookSiteVisit }) => {
   const { toast } = useToast();
   const { getWhatsAppLink } = useWhatsApp();
@@ -175,7 +228,7 @@ const HomePage = ({ onBookSiteVisit }) => {
     <div className="min-h-screen">
       <Helmet>
         <title>Fanbe Group - Premium Plotted Developments in Vrindavan & Mathura | Plots near Vrindavan with EMI</title>
-        <meta name="description" content="Discover spiritual living with Fanbe Group's premium plots in Vrindavan, Mathura, and Braj Bhoomi. Transparent pricing, easy EMI starting ₹5,000/month. Trusted by 15,000+ families." />
+        <meta name="description" content="Discover spiritual living with Fanbe Group's premium plots in Vrindavan, Mathura, and Braj Bhoomi. Transparent pricing, easy EMI. Trusted by 15,000+ families." />
         <meta name="keywords" content="Plots near Vrindavan with EMI, Investment plots near Khatu Shyam Ji, Trusted real estate developer Mathura, Gated colony plots Vrindavan, Residential plots Kosi Kalan, Channel Partner Fanbe Group" />
       </Helmet>
 
@@ -258,7 +311,7 @@ const HomePage = ({ onBookSiteVisit }) => {
         </div>
       </section>
 
-      {/* Stats - Updated to 15,000+ Families & Removed RERA */}
+      {/* Stats - With Counter Animation */}
       <section className="py-16 bg-white relative z-20 -mt-10 rounded-t-[3rem] shadow-[0_-20px_40px_rgba(0,0,0,0.1)]">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -272,7 +325,9 @@ const HomePage = ({ onBookSiteVisit }) => {
                 viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] p-6 rounded-xl text-white text-center hover:scale-105 transition-transform shadow-lg">
                 <stat.icon className="h-10 w-10 mx-auto mb-3 text-[#D4AF37]" />
-                <div className="text-3xl md:text-4xl font-bold mb-1">{stat.value}</div>
+                <div className="text-3xl md:text-4xl font-bold mb-1">
+                  <Counter end={stat.value} duration={2.5} />
+                </div>
                 <div className="text-gray-300 font-medium">{stat.label}</div>
               </motion.div>
             ))}

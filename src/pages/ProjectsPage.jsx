@@ -7,133 +7,28 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
+import { supabase } from '@/lib/supabase';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA
+// HELPER FUNCTION - Get Image URL from Supabase Storage
 // ═══════════════════════════════════════════════════════════════════════════
-const projects = [
-  {
-    id: 'shree-kunj-bihari-enclave',
-    name: 'Shree Kunj Bihari Enclave',
-    nameShort: 'SKBE',
-    location: 'Vrindavan, UP',
-    region: 'vrindavan',
-    pricePerSqYd: 7525,
-    priceDisplay: '₹7,525',
-    startingPrice: 376250,
-    startingDisplay: '₹3.76L',
-    bookingPct: 10,
-    emi: 5644,
-    emiDisplay: '₹5,644',
-    emiMonths: 60,
-    status: 'bestseller',
-    statusLabel: 'Best Seller',
-    availability: 'available',
-    logoGradient: 'from-amber-500 via-orange-500 to-orange-600',
-    slug: 'shree-kunj-bihari',
-  },
-  {
-    id: 'shree-khatu-shyam-ji-enclave',
-    name: 'Shri Khatu Shyam Enclave',
-    nameShort: 'KKSE',
-    location: 'Khatu, Rajasthan',
-    region: 'rajasthan',
-    pricePerSqYd: 7525,
-    priceDisplay: '₹7,525',
-    startingPrice: 376250,
-    startingDisplay: '₹3.76L',
-    bookingPct: 10,
-    emi: 5644,
-    emiDisplay: '₹5,644',
-    emiMonths: 60,
-    status: 'limited',
-    statusLabel: 'Limited Plots',
-    availability: 'available',
-    logoGradient: 'from-rose-500 via-pink-500 to-pink-600',
-    slug: 'khatu-shyam-enclave',
-  },
-  {
-    id: 'shree-jagannath-dham',
-    name: 'Shree Jagannath Dham',
-    nameShort: 'SJD',
-    location: 'Mathura, UP',
-    region: 'mathura',
-    pricePerSqYd: 8025,
-    priceDisplay: '₹8,025',
-    startingPrice: 401250,
-    startingDisplay: '₹4.01L',
-    bookingPct: 10,
-    emi: 6687,
-    emiDisplay: '₹6,687',
-    emiMonths: 54,
-    status: 'available',
-    statusLabel: 'Available',
-    availability: 'available',
-    logoGradient: 'from-blue-500 via-indigo-500 to-indigo-600',
-    slug: 'jagannath-dham',
-  },
-  {
-    id: 'brij-vatika',
-    name: 'Brij Vatika (E Block)',
-    nameShort: 'BVE',
-    location: 'Braj Bhoomi, Vrindavan',
-    region: 'vrindavan',
-    pricePerSqYd: 15525,
-    priceDisplay: '₹15,525',
-    startingPrice: 776250,
-    startingDisplay: '₹7.76L',
-    bookingPct: 10,
-    emi: 17465,
-    emiDisplay: '₹17,465',
-    emiMonths: 40,
-    status: 'available',
-    statusLabel: 'Available',
-    availability: 'available',
-    logoGradient: 'from-emerald-500 via-teal-500 to-teal-600',
-    slug: 'brij-vatika',
-  },
-  {
-    id: 'shree-gokul-vatika',
-    name: 'Shree Gokul Vatika',
-    nameShort: 'SGV',
-    location: 'Gokul, UP',
-    region: 'mathura',
-    pricePerSqYd: 10025,
-    priceDisplay: '₹10,025',
-    startingPrice: 501250,
-    startingDisplay: '₹5.01L',
-    bookingPct: 10,
-    emi: 18796,
-    emiDisplay: '₹18,796',
-    emiMonths: 24,
-    status: 'available',
-    statusLabel: 'Available',
-    availability: 'available',
-    logoGradient: 'from-green-500 via-lime-500 to-lime-600',
-    slug: 'gokul-vatika',
-  },
-  {
-    id: 'maa-semri-vatika',
-    name: 'Maa Semri Vatika',
-    nameShort: 'MSV',
-    location: 'Near Mathura, UP',
-    region: 'mathura',
-    pricePerSqYd: 15525,
-    priceDisplay: '₹15,525',
-    startingPrice: 931500,
-    startingDisplay: '₹9.31L',
-    bookingPct: 15,
-    emi: 32990,
-    emiDisplay: '₹32,990',
-    emiMonths: 24,
-    status: 'new',
-    statusLabel: 'New Launch',
-    availability: 'available',
-    logoGradient: 'from-purple-500 via-violet-500 to-violet-600',
-    slug: 'maa-simri-vatika',
-  },
-];
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  
+  // Remove leading slash if present
+  const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+  
+  // Get public URL from Supabase storage
+  const { data } = supabase.storage
+    .from('project-images')
+    .getPublicUrl(cleanPath);
+  
+  return data?.publicUrl || null;
+};
 
+// ═══════════════════════════════════════════════════════════════════════════
+// TRUST STATS & STATUS COLORS
+// ═══════════════════════════════════════════════════════════════════════════
 const trustStats = [
   { icon: Users, value: '15,000+', label: 'Happy Families' },
   { icon: Award, value: '25+', label: 'Projects Delivered' },
@@ -149,10 +44,15 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT CARD - Elegant Name Display with Hover Effect
+// PROJECT CARD - With Real Images from Supabase
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectCard = ({ project, index }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Get image URL from Supabase
+  const imageUrl = getImageUrl(project.image_path || project.main_image || project.featured_image);
 
   return (
     <motion.div
@@ -163,74 +63,89 @@ const ProjectCard = ({ project, index }) => {
       onMouseLeave={() => setIsHovered(false)}
       className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
     >
-      {/* Elegant Header with Project Name */}
+      {/* Image Header - Real images from Supabase */}
       <div className="relative overflow-hidden">
-        <motion.div
-          animate={{
-            scale: isHovered ? 1.05 : 1,
-          }}
-          transition={{ duration: 0.3 }}
-          className={`bg-gradient-to-br ${project.logoGradient} p-10 relative`}
-        >
-          {/* Decorative pattern overlay */}
-          <div className="absolute inset-0 opacity-10">
-            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-              <pattern id={`pattern-${project.id}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                <circle cx="20" cy="20" r="1" fill="white" />
-              </pattern>
-              <rect width="100%" height="100%" fill={`url(#pattern-${project.id})`} />
-            </svg>
-          </div>
+        <Link to={`/projects/${project.id}`}>
+          <motion.div
+            animate={{
+              scale: isHovered ? 1.05 : 1,
+            }}
+            transition={{ duration: 0.3 }}
+            className="relative h-64 bg-gray-200"
+          >
+            {imageUrl && !imageError ? (
+              <>
+                {/* Main Project Image */}
+                <img
+                  src={imageUrl}
+                  alt={project.name}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setImageError(true)}
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+                
+                {/* Loading skeleton */}
+                {!imageLoaded && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 animate-pulse" />
+                )}
 
-          {/* Project Name - Elegant Typography */}
-          <div className="relative z-10 text-center">
-            <motion.div
-              animate={{
-                y: isHovered ? -5 : 0,
-              }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Decorative line above */}
-              <div className="flex items-center justify-center mb-4">
-                <div className="h-px bg-white/40 w-8"></div>
-                <div className="mx-3 text-white/60 text-xs font-light tracking-widest uppercase">
-                  Premium Project
+                {/* Dark overlay for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              </>
+            ) : (
+              /* Fallback gradient if image fails or doesn't exist */
+              <div className={`absolute inset-0 bg-gradient-to-br ${project.logoGradient || 'from-blue-500 via-indigo-500 to-indigo-600'}`}>
+                {/* Decorative pattern overlay */}
+                <div className="absolute inset-0 opacity-10">
+                  <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                    <pattern id={`pattern-${project.id}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                      <circle cx="20" cy="20" r="1" fill="white" />
+                    </pattern>
+                    <rect width="100%" height="100%" fill={`url(#pattern-${project.id})`} />
+                  </svg>
                 </div>
-                <div className="h-px bg-white/40 w-8"></div>
               </div>
+            )}
 
-              {/* Project Name */}
-              <h3 className="text-2xl font-bold text-white mb-2 leading-tight px-4">
-                {project.name}
-              </h3>
+            {/* Project Name Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+              <motion.div
+                animate={{
+                  y: isHovered ? -5 : 0,
+                }}
+                transition={{ duration: 0.3 }}
+              >
+                <h3 className="text-2xl font-bold text-white mb-1 leading-tight drop-shadow-lg">
+                  {project.name}
+                </h3>
+                {project.nameShort && (
+                  <div className="text-white/90 text-sm font-medium tracking-[0.2em] uppercase drop-shadow">
+                    {project.nameShort}
+                  </div>
+                )}
+              </motion.div>
+            </div>
 
-              {/* Short Code */}
-              <div className="text-white/80 text-sm font-medium tracking-[0.3em] uppercase">
-                {project.nameShort}
-              </div>
-
-              {/* Decorative line below */}
-              <div className="mt-4 flex items-center justify-center">
-                <div className="h-px bg-white/30 w-12"></div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Shine effect on hover */}
-          {isHovered && (
-            <motion.div
-              initial={{ x: '-100%', opacity: 0 }}
-              animate={{ x: '100%', opacity: 0.3 }}
-              transition={{ duration: 0.6 }}
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent"
-            />
-          )}
-        </motion.div>
+            {/* Shine effect on hover */}
+            {isHovered && (
+              <motion.div
+                initial={{ x: '-100%', opacity: 0 }}
+                animate={{ x: '100%', opacity: 0.3 }}
+                transition={{ duration: 0.6 }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent"
+              />
+            )}
+          </motion.div>
+        </Link>
 
         {/* Status Badge */}
-        <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
-          {project.statusLabel}
-        </span>
+        {project.status && (
+          <span className={`absolute top-3 right-3 ${statusColors[project.status] || 'bg-blue-500 text-white'} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
+            {project.statusLabel || project.status}
+          </span>
+        )}
 
         {/* Hover Indicator */}
         <AnimatePresence>
@@ -262,21 +177,21 @@ const ProjectCard = ({ project, index }) => {
             <div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
               <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
-                <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
+                <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay?.replace('₹', '') || project.pricePerSqYd}
               </div>
             </div>
             <div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
-              <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
+              <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay || `₹${(project.startingPrice / 100000).toFixed(2)}L`}</div>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
             <div>
               <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
-              <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
+              <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay || `₹${project.emi}`}</div>
             </div>
             <div className="text-[9px] text-gray-400 text-right">
-              {project.emiMonths} months<br />0% interest
+              {project.emiMonths || 60} months<br />0% interest
             </div>
           </div>
         </div>
@@ -284,7 +199,7 @@ const ProjectCard = ({ project, index }) => {
         {/* Booking Info */}
         <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
           <Shield className="w-3 h-3 text-[#D4AF37]" />
-          Book at {project.bookingPct}% · Instant Registry
+          Book at {project.bookingPct || 10}% · Instant Registry
         </div>
 
         {/* CTA Buttons */}
@@ -315,6 +230,9 @@ const ProjectCard = ({ project, index }) => {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectsPage = () => {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     region: 'all',
     priceRange: 'all',
@@ -323,6 +241,157 @@ const ProjectsPage = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [showStickyCTA, setShowStickyCTA] = useState(false);
+
+  // Fetch projects from Supabase on component mount
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch from Supabase - adjust table name and columns as per your schema
+      const { data, error: fetchError } = await supabase
+        .from('projects') // Change to your actual table name
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      setProjects(data || []);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setError(err.message);
+      
+      // Fallback to hardcoded data if fetch fails (for graceful degradation)
+      setProjects([
+        {
+          id: 'shree-kunj-bihari-enclave',
+          name: 'Shree Kunj Bihari Enclave',
+          nameShort: 'SKBE',
+          location: 'Vrindavan, UP',
+          region: 'vrindavan',
+          pricePerSqYd: 7525,
+          priceDisplay: '₹7,525',
+          startingPrice: 376250,
+          startingDisplay: '₹3.76L',
+          bookingPct: 10,
+          emi: 5644,
+          emiDisplay: '₹5,644',
+          emiMonths: 60,
+          status: 'bestseller',
+          statusLabel: 'Best Seller',
+          availability: 'available',
+          logoGradient: 'from-amber-500 via-orange-500 to-orange-600',
+          slug: 'shree-kunj-bihari',
+        },
+        {
+          id: 'shree-khatu-shyam-ji-enclave',
+          name: 'Shri Khatu Shyam Enclave',
+          nameShort: 'KKSE',
+          location: 'Khatu, Rajasthan',
+          region: 'rajasthan',
+          pricePerSqYd: 7525,
+          priceDisplay: '₹7,525',
+          startingPrice: 376250,
+          startingDisplay: '₹3.76L',
+          bookingPct: 10,
+          emi: 5644,
+          emiDisplay: '₹5,644',
+          emiMonths: 60,
+          status: 'limited',
+          statusLabel: 'Limited Plots',
+          availability: 'available',
+          logoGradient: 'from-rose-500 via-pink-500 to-pink-600',
+          slug: 'khatu-shyam-enclave',
+        },
+        {
+          id: 'shree-jagannath-dham',
+          name: 'Shree Jagannath Dham',
+          nameShort: 'SJD',
+          location: 'Mathura, UP',
+          region: 'mathura',
+          pricePerSqYd: 8025,
+          priceDisplay: '₹8,025',
+          startingPrice: 401250,
+          startingDisplay: '₹4.01L',
+          bookingPct: 10,
+          emi: 6687,
+          emiDisplay: '₹6,687',
+          emiMonths: 54,
+          status: 'available',
+          statusLabel: 'Available',
+          availability: 'available',
+          logoGradient: 'from-blue-500 via-indigo-500 to-indigo-600',
+          slug: 'jagannath-dham',
+        },
+        {
+          id: 'brij-vatika',
+          name: 'Brij Vatika (E Block)',
+          nameShort: 'BVE',
+          location: 'Braj Bhoomi, Vrindavan',
+          region: 'vrindavan',
+          pricePerSqYd: 15525,
+          priceDisplay: '₹15,525',
+          startingPrice: 776250,
+          startingDisplay: '₹7.76L',
+          bookingPct: 10,
+          emi: 17465,
+          emiDisplay: '₹17,465',
+          emiMonths: 40,
+          status: 'available',
+          statusLabel: 'Available',
+          availability: 'available',
+          logoGradient: 'from-emerald-500 via-teal-500 to-teal-600',
+          slug: 'brij-vatika',
+        },
+        {
+          id: 'shree-gokul-vatika',
+          name: 'Shree Gokul Vatika',
+          nameShort: 'SGV',
+          location: 'Gokul, UP',
+          region: 'mathura',
+          pricePerSqYd: 10025,
+          priceDisplay: '₹10,025',
+          startingPrice: 501250,
+          startingDisplay: '₹5.01L',
+          bookingPct: 10,
+          emi: 18796,
+          emiDisplay: '₹18,796',
+          emiMonths: 24,
+          status: 'available',
+          statusLabel: 'Available',
+          availability: 'available',
+          logoGradient: 'from-green-500 via-lime-500 to-lime-600',
+          slug: 'gokul-vatika',
+        },
+        {
+          id: 'maa-semri-vatika',
+          name: 'Maa Semri Vatika',
+          nameShort: 'MSV',
+          location: 'Near Mathura, UP',
+          region: 'mathura',
+          pricePerSqYd: 15525,
+          priceDisplay: '₹15,525',
+          startingPrice: 931500,
+          startingDisplay: '₹9.31L',
+          bookingPct: 15,
+          emi: 32990,
+          emiDisplay: '₹32,990',
+          emiMonths: 24,
+          status: 'new',
+          statusLabel: 'New Launch',
+          availability: 'available',
+          logoGradient: 'from-purple-500 via-violet-500 to-violet-600',
+          slug: 'maa-simri-vatika',
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Scroll detection for sticky CTA
   useEffect(() => {
@@ -346,13 +415,25 @@ const ProjectsPage = () => {
       if (filters.status !== 'all' && p.status !== filters.status) return false;
       return true;
     });
-  }, [filters]);
+  }, [projects, filters]);
 
   const resetFilters = () => {
     setFilters({ region: 'all', priceRange: 'all', emiRange: 'all', status: 'all' });
   };
 
   const activeFilterCount = Object.values(filters).filter(v => v !== 'all').length;
+
+  // Loading State
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#0F3A5F] mb-4"></div>
+          <p className="text-gray-600">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -406,6 +487,9 @@ const ProjectsPage = () => {
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-[#0F3A5F]">Premium Residential Plots in Vrindavan & Mathura</h1>
               <p className="text-sm text-gray-500 mt-1">{filteredProjects.length} premium residential projects | Starting ₹3.76L</p>
+              {error && (
+                <p className="text-xs text-orange-500 mt-1">⚠️ Using cached data - some images may not load</p>
+              )}
             </div>
             <Button
               variant="outline"

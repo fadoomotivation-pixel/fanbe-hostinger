@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Helmet } from 'react-helmet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -7,6 +6,7 @@ import {
   TrendingUp, Shield, Award, Users, IndianRupee, Calculator, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import SEOHelmet from '@/components/SEOHelmet';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PROJECT DATA - Optimized for fast loading (no images in listing)
@@ -193,10 +193,25 @@ const ProjectsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <Helmet>
-        <title>Our Projects | Fanbe Group — Premium Plots in Vrindavan, Mathura & Rajasthan</title>
-        <meta name="description" content="6 premium residential plot projects. Starting ₹3.76L. 0% interest EMI. Instant registry. 15,000+ happy families." />
-      </Helmet>
+      {/* SEO Meta Tags with Schema Markup */}
+      <SEOHelmet
+        title="Our Projects | Fanbe Group — Premium Plots in Vrindavan, Mathura & Rajasthan"
+        description="Explore 6 premium residential plot projects in Vrindavan, Mathura & Rajasthan. Starting ₹3.76 Lakhs | 0% Interest EMI | Immediate Registry | Trusted by 15,000+ families since 2012 | Book free site visit today"
+        keywords={[
+          'plots near khatu shyam temple',
+          'investment plots braj bhoomi',
+          'gated community plots vrindavan',
+          'best plots to buy in vrindavan',
+          'affordable plots near vrindavan',
+          'vrindavan real estate projects',
+          'mathura residential plots for sale',
+          'plots with instant registry',
+          'spiritual plots near temples',
+          'plots starting under 5 lakhs'
+        ]}
+        image="/images/projects-og.jpg"
+        type="website"
+      />
 
       {/* ═══ TRUST BAND ═══════════════════════════════════════════════════ */}
       <section className="bg-gradient-to-r from-[#0A2744] via-[#0F3A5F] to-[#1a5a8f] text-white py-4">
@@ -226,8 +241,8 @@ const ProjectsPage = () => {
         <div className="container mx-auto px-4 py-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-[#0F3A5F]">Our Projects</h1>
-              <p className="text-sm text-gray-500 mt-1">{filteredProjects.length} premium residential projects</p>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#0F3A5F]">Premium Residential Plots in Vrindavan & Mathura</h1>
+              <p className="text-sm text-gray-500 mt-1">{filteredProjects.length} premium residential projects | Starting ₹3.76L</p>
             </div>
             <Button
               variant="outline"

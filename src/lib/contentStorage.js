@@ -5,6 +5,20 @@ const PROJECT_IMAGE_KEY = 'fanbe_project_images';
 const PROJECT_DOCS_KEY = 'fanbe_project_docs_';
 const PROJECT_MAP_KEY = 'fanbe_project_map_'; // NEW: For map URLs
 
+// Supabase configuration
+const SUPABASE_URL = 'https://mfgjzkaabyltscgrkhdz.supabase.co';
+const SUPABASE_STORAGE_URL = `${SUPABASE_URL}/storage/v1/object/public/project-images`;
+
+// Project slug to folder mapping
+const PROJECT_SLUG_MAP = {
+  'shree-kunj-bihari': 'projects/shree-kunj-bihari',
+  'khatu-shyam-enclave': 'projects/khatu-shyam-enclave',
+  'brij-vatika': 'projects/brij-vatika',
+  'jagannath-dham': 'projects/jagannath-dham',
+  'gokul-vatika': 'projects/gokul-vatika',
+  'maa-simri-vatika': 'projects/maa-simri-vatika'
+};
+
 // Save project content (overview, description, etc.)
 export const saveProjectContent = (slug, content) => {
   try {
@@ -105,8 +119,42 @@ export const getProjectImageFromDB = async (slug) => {
   });
 };
 
-// Get all project images
+// NEW: Get all project images from Supabase (for HomePage)
 export const getProjectImagesFromDB = async () => {
+  const images = {};
+  
+  // Try to fetch from Supabase first
+  for (const [slug, folder] of Object.entries(PROJECT_SLUG_MAP)) {
+    try {
+      const imageUrl = `${SUPABASE_STORAGE_URL}/${folder}/hero.jpg`;
+      
+      // Check if image exists by attempting to fetch headers
+      const response = await fetch(imageUrl, { method: 'HEAD' });
+      
+      if (response.ok) {
+        images[slug] = imageUrl;
+      }
+    } catch (error) {
+      console.log(`Supabase image not found for ${slug}, will use fallback`);
+    }
+  }
+  
+  // If no Supabase images found, try IndexedDB as fallback
+  if (Object.keys(images).length === 0) {
+    try {
+      const dbImages = await getProjectImagesFromIndexedDB();
+      return dbImages;
+    } catch (error) {
+      console.error('Error loading from IndexedDB:', error);
+      return {};
+    }
+  }
+  
+  return images;
+};
+
+// Get all project images from IndexedDB (fallback)
+const getProjectImagesFromIndexedDB = async () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('FanbeProjectImages', 1);
     

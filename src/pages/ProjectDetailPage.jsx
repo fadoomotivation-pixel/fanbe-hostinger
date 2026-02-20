@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { projectsData } from '@/data/projectsData';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { getProjectContent, getPricingTable, getProjectImagesFromDB, getProjectD
 import { subscribeToContentUpdates, EVENTS } from '@/lib/contentSyncService';
 import SiteVisitLeadModal from '@/components/SiteVisitLeadModal';
 import { useToast } from '@/components/ui/use-toast';
+import SEOHelmet from '@/components/SEOHelmet';
 
 const ProjectDetailPage = () => {
   const { slug } = useParams();
@@ -80,8 +80,6 @@ const ProjectDetailPage = () => {
       unsubscribeImage();
       unsubscribeContent();
       unsubscribeDocs();
-      unsubscribeMap();
-      unsubscribeMap();
     };
   }, [slug, toast]);
 
@@ -172,13 +170,51 @@ const ProjectDetailPage = () => {
     Receipt
   };
 
+  // Generate dynamic keywords for this project
+  const locationName = project.location.split(',')[0].trim().toLowerCase();
+  const projectKeywords = [
+    ...(project.meta?.keywords?.split(',').map(k => k.trim()) || []),
+    `${project.title.toLowerCase()}`,
+    `${project.title.toLowerCase()} price`,
+    `${project.title.toLowerCase()} booking`,
+    `${project.title.toLowerCase()} emi plan`,
+    `plots in ${locationName}`,
+    `${locationName} residential plots`,
+    `buy plot in ${locationName}`,
+    `${locationName} real estate`,
+    'premium residential plots',
+    'gated community plots',
+    'immediate registry plots',
+    '0% interest emi plots',
+    `best plots in ${locationName}`,
+    'plot investment',
+    'affordable plots'
+  ];
+
   return (
     <div className="bg-white min-h-screen">
-      <Helmet>
-        <title>{project.meta?.title || project.title}</title>
-        <meta name="description" content={project.meta?.description || project.subline} />
-        {project.meta?.keywords && <meta name="keywords" content={project.meta.keywords} />}
-      </Helmet>
+      {/* SEO Meta Tags with Schema Markup */}
+      <SEOHelmet
+        title={project.meta?.title || `${project.title} | Premium Plots in ${project.location} - Fanbe Group`}
+        description={
+          project.meta?.description || 
+          `${project.subline} | Starting ₹${project.pricePerSqYard?.toLocaleString()}/sq yd | ${project.emiInterest || '0%'} Interest EMI for ${project.emiMonths || 60} months | Immediate Registry | Book free site visit | Fanbe Group - Trusted by 15,000+ families since 2012`
+        }
+        keywords={projectKeywords}
+        image={project.heroImage || '/images/default-project.jpg'}
+        type="article"
+        projectData={{
+          title: project.title,
+          overview: project.overview,
+          subline: project.subline,
+          location: project.location,
+          pricePerSqYard: project.pricePerSqYard,
+          startingPrice: project.startingPrice,
+          keyHighlights: project.keyHighlights,
+          coordinates: project.mapLocation?.coordinates
+        }}
+      />
+
       {/* Breadcrumb Navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
@@ -195,7 +231,7 @@ const ProjectDetailPage = () => {
         <img 
           key={project.heroImage}
           src={project.heroImage} 
-          alt={project.title} 
+          alt={`${project.title} - Premium residential plots in ${project.location}`}
           className="w-full h-full object-cover opacity-70"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0F3A5F] via-[#0F3A5F]/30 to-transparent" />
@@ -581,7 +617,7 @@ const ProjectDetailPage = () => {
 
       {/* Investment Insight Section */}
       {hasInvestmentInsight && (
-        <section className="py-20 bg-gradient-to-r from-[#FBF8EF]0 via-orange-600 to-orange-500 text-white relative overflow-hidden">
+        <section className="py-20 bg-gradient-to-r from-orange-500 via-orange-600 to-orange-500 text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC40Ij48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTEyYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHptMC0xMmMwLTIuMjEtMS43OS00LTQtNHMtNCAxLjc5LTQgNCAx Ljc5IDQgNCA0IDQtMS43OSA0LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')]" />
           </div>

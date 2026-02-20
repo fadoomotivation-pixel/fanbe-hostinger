@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   ChevronRight, ChevronLeft, Shield, Calendar, Building, Users, 
-  CheckCircle, Phone, MapPin, Star, MessageCircle, ArrowRight,
-  Award, TrendingUp
+  CheckCircle, Phone, MapPin, Star, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitSiteVisit } from '@/lib/storage';
@@ -98,58 +97,38 @@ const projects = [
   }
 ];
 
-// NEW SLIDER STRUCTURE - 4 Strategic Slides
+// UPDATED SLIDER - Original Style with New Strategic Content
 const slides = [
   {
     id: 1,
     title: 'Live Where Devotion Meets Modernity',
-    subtitle: 'Premium Gated Plots near Vrindavan & Kosi starting at ₹5,000 EMI',
-    description: 'Experience spiritual living with modern amenities. Gated colonies with 24/7 security, wide roads, and all basic infrastructure near holy temples.',
-    image: 'https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=1920&q=80', // Prem Mandir style temple
-    cta: {
-      text: 'View Vrindavan Projects',
-      link: '/projects',
-      icon: ArrowRight
-    },
-    seoTag: 'Plots near Vrindavan with EMI',
-    overlayGradient: 'from-[#0F3A5F]/90 via-[#0F3A5F]/70 to-transparent',
-    textAlign: 'left'
+    subtitle: 'Premium Gated Plots near Vrindavan & Kosi',
+    description: 'Starting at ₹5,000 EMI/month | 0% Interest | Immediate Registry',
+    seoTag: 'Plots near Vrindavan with EMI'
   },
   {
     id: 2,
     title: 'Invest in the Future of Rajasthan',
-    subtitle: 'Plots at Shree Khatu Shyam Enclave. Just 15 mins from the Film City',
-    description: 'Strategic location near Khatu Shyam Ji Temple and the new Shekhawati Film City. High appreciation potential with spiritual tourism boom.',
-    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1920&q=80', // Temple architecture
-    cta: {
-      text: 'Explore Sikar Projects',
-      link: '/projects/khatu-shyam-enclave',
-      icon: ArrowRight
-    },
-    seoTag: 'Investment plots near Khatu Shyam Ji',
-    overlayGradient: 'from-orange-900/85 via-orange-800/65 to-transparent',
-    textAlign: 'left'
+    subtitle: 'Shree Khatu Shyam Enclave - Just 15 mins from Film City',
+    points: [
+      '20 Minutes from Khatu Shyam Mandir - Major Pilgrimage Site',
+      '15 Minutes from Shekhawati Film City with 10+ Themes',
+      'Gated Society with Temple, Parks & Water Fountain',
+      'High Appreciation Potential - Tourism Boom Area'
+    ],
+    seoTag: 'Investment plots near Khatu Shyam Ji'
   },
   {
     id: 3,
-    title: '12 Years of Trust, 5000+ Happy Families',
-    subtitle: 'Immediate Registry | Interest-Free EMI | 25+ Delivered Projects',
-    description: 'Join thousands of families who trusted Fanbe Group for their dream plot. 100% transparent process, clear documentation, and guaranteed possession.',
-    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1920&q=80',
-    features: [
-      { icon: Award, text: 'RERA Approved' },
-      { icon: Shield, text: '100% Legal Clarity' },
-      { icon: CheckCircle, text: 'Immediate Registry' },
-      { icon: Users, text: '15,000+ Families' }
+    title: '12 Years of Trust, 15,000+ Happy Families',
+    subtitle: 'The Fanbe Guarantee',
+    points: [
+      'तुरंत रजिस्ट्री: पूरा पैसा देने पर तुरंत रजिस्ट्री',
+      '0% ब्याज ईएमआई: 24-60 महीने की आसान किश्तें',
+      'पारदर्शी प्रक्रिया: कोई छिपा हुआ शुल्क नहीं',
+      '25+ सफल प्रोजेक्ट्स: 2012 से विश्वसनीय नाम'
     ],
-    cta: {
-      text: 'Why Choose Fanbe Group?',
-      link: '/about',
-      icon: ArrowRight
-    },
-    seoTag: 'Trusted real estate developer Mathura',
-    overlayGradient: 'from-[#0F3A5F]/95 via-[#1a5a8f]/80 to-[#0F3A5F]/60',
-    textAlign: 'center'
+    seoTag: 'Trusted real estate developer Mathura'
   },
   {
     id: 4,
@@ -161,15 +140,11 @@ const slides = [
       'समय की स्वतंत्रता: अपनी सुविधा के अनुसार काम करें',
       'विश्वसनीय कंपनी: 2012 से 15,000+ खुश परिवारों का भरोसा'
     ],
-    image: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1920&q=80', // Business people
     cta: {
       text: 'अभी जुड़ें (Join Now)',
-      whatsapp: true,
       icon: Users
     },
-    seoTag: 'Channel Partner Fanbe Group',
-    overlayGradient: 'from-[#0F3A5F]/90 via-[#1a5a8f]/75 to-transparent',
-    textAlign: 'center'
+    seoTag: 'Channel Partner Fanbe Group'
   }
 ];
 
@@ -192,219 +167,99 @@ const HomePage = ({ onBookSiteVisit }) => {
   const nextSlide = () => setCurrentSlide(prev => (prev + 1) % slides.length);
   const prevSlide = () => setCurrentSlide(prev => (prev - 1 + slides.length) % slides.length);
 
+  // Get current slide data
   const currentSlideData = slides[currentSlide];
   const CtaIcon = currentSlideData.cta?.icon;
-
-  const handleCTAClick = () => {
-    if (currentSlideData.cta.whatsapp) {
-      window.open('https://wa.me/918076146988?text=मैं%20चैनल%20पार्टनर%20बनने%20में%20रुचि%20रखता%20हूं', '_blank');
-    }
-  };
 
   return (
     <div className="min-h-screen">
       <Helmet>
         <title>Fanbe Group - Premium Plotted Developments in Vrindavan & Mathura | Plots near Vrindavan with EMI</title>
-        <meta name="description" content="Discover spiritual living with Fanbe Group's premium plots in Vrindavan, Mathura, and Braj Bhoomi. RERA approved, transparent pricing, easy EMI starting ₹5,000/month. Trusted by 15,000+ families." />
+        <meta name="description" content="Discover spiritual living with Fanbe Group's premium plots in Vrindavan, Mathura, and Braj Bhoomi. Transparent pricing, easy EMI starting ₹5,000/month. Trusted by 15,000+ families." />
         <meta name="keywords" content="Plots near Vrindavan with EMI, Investment plots near Khatu Shyam Ji, Trusted real estate developer Mathura, Gated colony plots Vrindavan, Residential plots Kosi Kalan, Channel Partner Fanbe Group" />
       </Helmet>
 
-      {/* Hero Slider - Full Width Responsive */}
-      <section className="relative h-[85vh] md:h-[90vh] overflow-hidden">
+      {/* Hero Slider - Original Style */}
+      <section className="relative h-[460px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f]">
         <AnimatePresence mode="wait">
-          <motion.div 
-            key={currentSlide} 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            transition={{ duration: 0.8 }}
-            className="absolute inset-0"
-          >
-            {/* Background Image with Lazy Loading */}
-            <img 
-              src={currentSlideData.image}
-              alt={`${currentSlideData.seoTag} - Fanbe Group property`}
-              loading={currentSlide === 0 ? 'eager' : 'lazy'}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            
-            {/* 30% Dark Gradient Overlay */}
-            <div className={`absolute inset-0 bg-gradient-to-r ${currentSlideData.overlayGradient}`} />
-            
-            {/* Content Container */}
-            <div className="relative h-full flex items-center px-4 md:px-16 lg:px-24">
-              <div className={`w-full max-w-6xl mx-auto ${
-                currentSlideData.textAlign === 'center' ? 'text-center' : 'text-left'
-              }`}>
-                
-                {/* H1 Tag for First Slide (SEO) */}
+          <motion.div key={currentSlide} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="absolute inset-0">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0F3A5F]/95 to-[#0F3A5F]/70" />
+            <div className="relative h-full flex items-center justify-center px-16 md:px-24">
+              <div className="w-full max-w-3xl text-white text-center">
+                {/* H1 only on first slide for SEO */}
                 {currentSlide === 0 ? (
-                  <motion.h1 
-                    initial={{ y: 30, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.3, duration: 0.6 }}
-                    className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl"
-                    style={{ fontFamily: 'Poppins, sans-serif' }}
-                  >
+                  <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
+                    className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
                     {currentSlideData.title}
                   </motion.h1>
                 ) : (
-                  <motion.h2 
-                    initial={{ y: 30, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.3, duration: 0.6 }}
-                    className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-tight drop-shadow-2xl"
-                    style={{ fontFamily: 'Poppins, sans-serif' }}
-                  >
+                  <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
+                    className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
                     {currentSlideData.title}
                   </motion.h2>
                 )}
-
-                <motion.p 
-                  initial={{ y: 30, opacity: 0 }} 
-                  animate={{ y: 0, opacity: 1 }} 
-                  transition={{ delay: 0.45, duration: 0.6 }}
-                  className="text-lg md:text-2xl lg:text-3xl text-[#D4AF37] mb-6 md:mb-8 font-bold drop-shadow-xl"
-                  style={{ fontFamily: 'Montserrat, sans-serif' }}
-                >
+                <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.45 }}
+                  className="text-lg md:text-xl lg:text-2xl text-[#D4AF37] mb-4 md:mb-6">
                   {currentSlideData.subtitle}
                 </motion.p>
-
-                {/* Description Text */}
-                {currentSlideData.description && (
-                  <motion.p 
-                    initial={{ y: 30, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.55, duration: 0.6 }}
-                    className="text-base md:text-xl text-white/90 mb-6 md:mb-8 max-w-3xl leading-relaxed drop-shadow-lg"
-                    style={{ marginLeft: currentSlideData.textAlign === 'center' ? 'auto' : '0', marginRight: currentSlideData.textAlign === 'center' ? 'auto' : '0' }}
-                  >
-                    {currentSlideData.description}
-                  </motion.p>
-                )}
-
-                {/* Feature Icons (Slide 3) */}
-                {currentSlideData.features && (
-                  <motion.div 
-                    initial={{ y: 30, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.6, duration: 0.6 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8 max-w-4xl mx-auto"
-                  >
-                    {currentSlideData.features.map((feature, idx) => (
-                      <div key={idx} className="bg-white/10 backdrop-blur-md rounded-xl p-4 flex flex-col items-center gap-2 border border-white/20">
-                        <feature.icon className="w-8 h-8 md:w-10 md:h-10 text-[#D4AF37]" />
-                        <span className="text-white text-xs md:text-sm font-bold text-center">{feature.text}</span>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-
-                {/* Bullet Points (Slide 4) */}
                 {currentSlideData.points && (
-                  <motion.ul 
-                    initial={{ y: 30, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.6, duration: 0.6 }}
-                    className="space-y-3 mb-8 max-w-2xl mx-auto"
-                  >
+                  <motion.ul initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
+                    className="space-y-2 md:space-y-3 mb-6 md:mb-8 max-w-xl mx-auto">
                     {currentSlideData.points.map((point, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-left">
-                        <CheckCircle className="w-6 h-6 text-[#D4AF37] flex-shrink-0 mt-1" />
-                        <span className="text-white text-sm md:text-base leading-relaxed drop-shadow-lg">{point}</span>
+                      <li key={idx} className="flex items-start gap-2 md:gap-3 justify-center">
+                        <CheckCircle className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                        <span className="text-sm md:text-base leading-snug text-left">{point}</span>
                       </li>
                     ))}
                   </motion.ul>
                 )}
-
-                {/* CTA Buttons */}
-                <motion.div 
-                  initial={{ y: 30, opacity: 0 }} 
-                  animate={{ y: 0, opacity: 1 }} 
-                  transition={{ delay: 0.7, duration: 0.6 }}
-                  className={`flex flex-col sm:flex-row gap-4 ${
-                    currentSlideData.textAlign === 'center' ? 'justify-center' : 'justify-start'
-                  }`}
-                >
-                  {currentSlideData.cta.whatsapp ? (
-                    <Button 
-                      size="lg" 
-                      className="w-full sm:w-auto h-14 md:h-16 px-8 md:px-12 bg-[#D4AF37] hover:bg-[#B8941E] text-[#0F3A5F] font-black text-base md:text-xl rounded-xl shadow-2xl hover:scale-105 transition-all"
-                      onClick={handleCTAClick}
-                    >
-                      {CtaIcon && <CtaIcon className="mr-2 w-5 h-5" />}
+                {currentSlideData.description && (
+                  <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 }}
+                    className="text-base md:text-xl mb-6 md:mb-8">
+                    {currentSlideData.description}
+                  </motion.p>
+                )}
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.65 }}
+                  className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
+                  {currentSlideData.cta ? (
+                    <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl"
+                      onClick={() => window.open('https://wa.me/918076146988?text=मैं%20चैनल%20पार्टनर%20बनने%20में%20रुचि%20रखता%20हूं', '_blank')}>
+                      {CtaIcon && <CtaIcon className="mr-2" />}
                       {currentSlideData.cta.text}
                     </Button>
                   ) : (
-                    <Link to={currentSlideData.cta.link}>
-                      <Button 
-                        size="lg" 
-                        className="w-full sm:w-auto h-14 md:h-16 px-8 md:px-12 bg-[#D4AF37] hover:bg-[#B8941E] text-[#0F3A5F] font-black text-base md:text-xl rounded-xl shadow-2xl hover:scale-105 transition-all"
-                      >
-                        {CtaIcon && <CtaIcon className="mr-2 w-5 h-5" />}
-                        {currentSlideData.cta.text}
+                    <Link to="/projects">
+                      <Button size="lg" className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B8941E] text-black font-bold text-base md:text-lg px-6 md:px-8 py-5 md:py-6 shadow-xl">
+                        Explore Projects <ChevronRight className="ml-2" />
                       </Button>
                     </Link>
                   )}
-                  
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    className="w-full sm:w-auto h-14 md:h-16 px-8 md:px-12 border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] font-bold text-base md:text-xl rounded-xl backdrop-blur-sm bg-white/10"
-                    onClick={() => window.open('https://wa.me/918076146988', '_blank')}
-                  >
-                    <MessageCircle className="mr-2 w-5 h-5" /> WhatsApp Us
+                  <Button size="lg" variant="outline"
+                    className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-[#0F3A5F] text-base md:text-lg px-6 md:px-8 py-5 md:py-6"
+                    onClick={() => window.open('https://wa.me/918076146988', '_blank')}>
+                    <Phone className="mr-2" /> Contact Us
                   </Button>
                 </motion.div>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
-
-        {/* Navigation Arrows */}
-        <button 
-          onClick={prevSlide} 
-          className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-3 md:p-4 rounded-full backdrop-blur-sm transition-all z-10 hover:scale-110"
-          aria-label="Previous slide"
-        >
-          <ChevronLeft className="w-6 h-6 md:w-7 md:h-7 text-white" />
+        <button onClick={prevSlide} className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10">
+          <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </button>
-        <button 
-          onClick={nextSlide} 
-          className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-3 md:p-4 rounded-full backdrop-blur-sm transition-all z-10 hover:scale-110"
-          aria-label="Next slide"
-        >
-          <ChevronRight className="w-6 h-6 md:w-7 md:h-7 text-white" />
+        <button onClick={nextSlide} className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-2.5 md:p-3 rounded-full backdrop-blur-sm transition-all z-10">
+          <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </button>
-
-        {/* Slide Indicators */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {slides.map((_, idx) => (
-            <button 
-              key={idx} 
-              onClick={() => setCurrentSlide(idx)}
-              className={`h-2.5 rounded-full transition-all ${
-                idx === currentSlide ? 'w-10 bg-[#D4AF37]' : 'w-2.5 bg-white/50 hover:bg-white/80'
-              }`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
+            <button key={idx} onClick={() => setCurrentSlide(idx)}
+              className={`h-2 rounded-full transition-all ${idx === currentSlide ? 'w-8 bg-[#D4AF37]' : 'w-2 bg-white/50'}`} />
           ))}
         </div>
-
-        {/* Floating WhatsApp Icon */}
-        <a 
-          href="https://wa.me/918076146988" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 bg-[#25D366] hover:bg-[#1da851] text-white p-4 rounded-full shadow-2xl z-50 hover:scale-110 transition-all animate-bounce"
-          aria-label="Chat on WhatsApp"
-        >
-          <MessageCircle className="w-7 h-7" />
-        </a>
       </section>
 
-      {/* Stats */}
-      <section className="py-16 bg-white relative z-20 -mt-20 rounded-t-[3rem] shadow-[0_-20px_40px_rgba(0,0,0,0.1)]">
+      {/* Stats - Updated to 15,000+ Families & Removed RERA */}
+      <section className="py-16 bg-white relative z-20 -mt-10 rounded-t-[3rem] shadow-[0_-20px_40px_rgba(0,0,0,0.1)]">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
@@ -445,13 +300,19 @@ const HomePage = ({ onBookSiteVisit }) => {
                 viewport={{ once: true }} transition={{ delay: idx * 0.1 }}
                 className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group"
               >
+                {/* Logo area with full-cover + zoom effect */}
                 <div className="bg-gradient-to-br from-[#0F3A5F] to-[#1a5a8f] h-[240px] relative overflow-hidden">
+                  {/* Gold overlay on hover */}
                   <div className="absolute inset-0 bg-[#D4AF37]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Logo fills entire div + 110% zoom on hover */}
                   <img
                     src={dbImages[project.slug] || project.logo}
-                    alt={`${project.nameEn} - ${project.location}`}
+                    alt={`${project.nameEn} - ${project.location} - Fanbe Group plots`}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                   />
+                  
+                  {/* Star badge for highlights */}
                   {project.highlight && (
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
                       <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />

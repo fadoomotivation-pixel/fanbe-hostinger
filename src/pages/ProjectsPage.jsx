@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
@@ -7,9 +7,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA - Optimized for fast loading (no images in listing)
+// PROJECT DATA - Optimized for fast loading (images loaded from Supabase)
 // ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
@@ -31,6 +38,7 @@ const projects = [
     statusLabel: 'Best Seller',
     availability: 'available',
     logoGradient: 'from-amber-500 to-orange-600',
+    slug: 'shree-kunj-bihari',
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
@@ -51,6 +59,7 @@ const projects = [
     statusLabel: 'Limited Plots',
     availability: 'available',
     logoGradient: 'from-rose-500 to-pink-600',
+    slug: 'khatu-shyam-enclave',
   },
   {
     id: 'shree-jagannath-dham',
@@ -63,14 +72,15 @@ const projects = [
     priceDisplay: '₹8,025',
     startingPrice: 401250,
     startingDisplay: '₹4.01L',
-    bookingPct: 12.5,
-    emi: 6502,
-    emiDisplay: '₹6,502',
+    bookingPct: 10,
+    emi: 6687,
+    emiDisplay: '₹6,687',
     emiMonths: 54,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
     logoGradient: 'from-blue-500 to-indigo-600',
+    slug: 'jagannath-dham',
   },
   {
     id: 'brij-vatika',
@@ -83,14 +93,15 @@ const projects = [
     priceDisplay: '₹15,525',
     startingPrice: 776250,
     startingDisplay: '₹7.76L',
-    bookingPct: 35,
-    emi: 12615,
-    emiDisplay: '₹12,615',
+    bookingPct: 10,
+    emi: 17465,
+    emiDisplay: '₹17,465',
     emiMonths: 40,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
     logoGradient: 'from-emerald-500 to-teal-600',
+    slug: 'brij-vatika',
   },
   {
     id: 'shree-gokul-vatika',
@@ -103,14 +114,15 @@ const projects = [
     priceDisplay: '₹10,025',
     startingPrice: 501250,
     startingDisplay: '₹5.01L',
-    bookingPct: 35,
-    emi: 13576,
-    emiDisplay: '₹13,576',
+    bookingPct: 10,
+    emi: 18796,
+    emiDisplay: '₹18,796',
     emiMonths: 24,
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
     logoGradient: 'from-green-500 to-lime-600',
+    slug: 'gokul-vatika',
   },
   {
     id: 'maa-semri-vatika',
@@ -121,16 +133,17 @@ const projects = [
     region: 'mathura',
     pricePerSqYd: 15525,
     priceDisplay: '₹15,525',
-    startingPrice: 776250,
-    startingDisplay: '₹7.76L',
-    bookingPct: 35,
-    emi: 21024,
-    emiDisplay: '₹21,024',
+    startingPrice: 931500,
+    startingDisplay: '₹9.31L',
+    bookingPct: 15,
+    emi: 32990,
+    emiDisplay: '₹32,990',
     emiMonths: 24,
     status: 'new',
     statusLabel: 'New Launch',
     availability: 'available',
     logoGradient: 'from-purple-500 to-violet-600',
+    slug: 'maa-simri-vatika',
   },
 ];
 
@@ -149,6 +162,191 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PROJECT CARD COMPONENT with Hover Detection
+// ═══════════════════════════════════════════════════════════════════════════
+const ProjectCard = ({ project, index }) => {
+  const [hoveredProject, setHoveredProject] = useState(null);
+  const [projectImage, setProjectImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+
+  // Fetch project image from Supabase when hovered
+  useEffect(() => {
+    if (hoveredProject === project.id) {
+      loadProjectImage();
+    }
+  }, [hoveredProject]);
+
+  const loadProjectImage = async () => {
+    if (projectImage || imageLoading) return; // Already loaded or loading
+    
+    setImageLoading(true);
+    try {
+      // Fetch project from Supabase by slug
+      const { data, error } = await supabase
+        .from('projects')
+        .select('image_url, logo_url')
+        .eq('slug', project.slug)
+        .single();
+
+      if (!error && data) {
+        setProjectImage({
+          imageUrl: data.image_url,
+          logoUrl: data.logo_url
+        });
+      }
+    } catch (err) {
+      console.error('Error loading project image:', err);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setHoveredProject(project.id);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredProject(null);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
+    >
+      {/* Logo Header - Shows Supabase image on hover, gradient otherwise */}
+      <div className="relative overflow-hidden min-h-[200px]">
+        {/* Animated Expand on Hover */}
+        <AnimatePresence mode="wait">
+          {hoveredProject === project.id && projectImage?.imageUrl ? (
+            <motion.div
+              key="image"
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 w-full h-full"
+            >
+              <img
+                src={projectImage.imageUrl}
+                alt={project.name}
+                className="w-full h-full object-cover"
+              />
+              {/* Gradient overlay for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="gradient"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className={`bg-gradient-to-br ${project.logoGradient} h-full flex flex-col items-center justify-center p-8`}
+            >
+              {/* Logo Image from Supabase or Icon */}
+              {projectImage?.logoUrl ? (
+                <img
+                  src={projectImage.logoUrl}
+                  alt={`${project.name} logo`}
+                  className="w-20 h-20 object-contain mb-3 drop-shadow-lg"
+                />
+              ) : (
+                <div className="text-6xl mb-2">{project.icon}</div>
+              )}
+              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">
+                {project.nameShort}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Status Badge */}
+        <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
+          {project.statusLabel}
+        </span>
+
+        {/* Auto-expand indicator on hover */}
+        {hoveredProject === project.id && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
+          >
+            <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
+              <FileText className="w-3 h-3" />
+              Click to view details
+            </span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-5 flex flex-col flex-1">
+        <h3 className="text-lg font-bold text-[#0F3A5F] mb-1 leading-tight">{project.name}</h3>
+        <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
+          <MapPin className="w-3 h-3" />{project.location}
+        </p>
+
+        {/* Pricing Box */}
+        <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
+              <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
+                <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
+              <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
+            <div>
+              <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
+              <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
+            </div>
+            <div className="text-[9px] text-gray-400 text-right">
+              {project.emiMonths} months<br />0% interest
+            </div>
+          </div>
+        </div>
+
+        {/* Booking Info */}
+        <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+          <Shield className="w-3 h-3 text-[#D4AF37]" />
+          Book at {project.bookingPct}% · Instant Registry
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="grid grid-cols-2 gap-2 mt-auto">
+          <Link to={`/projects/${project.id}`} className="block">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs transition-all"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
+            </Button>
+          </Link>
+          <Button
+            size="sm"
+            className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs shadow-md hover:shadow-lg transition-all"
+            onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(project.name)}`, '_blank')}
+          >
+            <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectsPage = () => {
@@ -162,7 +360,7 @@ const ProjectsPage = () => {
   const [showStickyCTA, setShowStickyCTA] = useState(false);
 
   // Scroll detection for sticky CTA
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       setShowStickyCTA(window.scrollY > 400);
     };
@@ -348,7 +546,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ PROJECT GRID ═════════════════════════════════════════════════ */}
+      {/* ═══ PROJECT GRID with Hover Detection ═══════════════════════════ */}
       <section className="py-12">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -361,84 +559,7 @@ const ProjectsPage = () => {
                 className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
               >
                 {filteredProjects.map((project, idx) => (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
-                  >
-                    {/* Logo Header - Text based, no images */}
-                    <div className={`relative bg-gradient-to-br ${project.logoGradient} p-8 flex flex-col items-center justify-center min-h-[160px]`}>
-                      {/* Status Badge */}
-                      <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg`}>
-                        {project.statusLabel}
-                      </span>
-
-                      {/* Icon + Short Name */}
-                      <div className="text-6xl mb-2">{project.icon}</div>
-                      <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">{project.nameShort}</div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <h3 className="text-lg font-bold text-[#0F3A5F] mb-1 leading-tight">{project.name}</h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
-                        <MapPin className="w-3 h-3" />{project.location}
-                      </p>
-
-                      {/* Pricing Box */}
-                      <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Rate/sq yd</div>
-                            <div className="text-xl font-bold text-[#0F3A5F] flex items-baseline">
-                              <IndianRupee className="w-4 h-4 mr-0.5" />{project.priceDisplay.replace('₹', '')}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Starting</div>
-                            <div className="text-xl font-bold text-[#D4AF37]">{project.startingDisplay}</div>
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 flex items-center justify-between">
-                          <div>
-                            <div className="text-[9px] text-gray-400 uppercase tracking-wide">EMI/month</div>
-                            <div className="text-sm font-bold text-[#0F3A5F]">{project.emiDisplay}</div>
-                          </div>
-                          <div className="text-[9px] text-gray-400 text-right">
-                            {project.emiMonths} months<br />0% interest
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Booking Info */}
-                      <div className="text-xs text-gray-500 mb-4 flex items-center gap-1">
-                        <Shield className="w-3 h-3 text-[#D4AF37]" />
-                        Book at {project.bookingPct}% · Instant Registry
-                      </div>
-
-                      {/* CTA Buttons */}
-                      <div className="grid grid-cols-2 gap-2 mt-auto">
-                        <Link to={`/projects/${project.id}`} className="block">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full border-2 border-[#0F3A5F] text-[#0F3A5F] hover:bg-[#0F3A5F] hover:text-white font-semibold text-xs transition-all"
-                          >
-                            <FileText className="w-3.5 h-3.5 mr-1.5" />View Details
-                          </Button>
-                        </Link>
-                        <Button
-                          size="sm"
-                          className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8941E] hover:from-[#B8941E] hover:to-[#96760F] text-black font-bold text-xs shadow-md hover:shadow-lg transition-all"
-                          onClick={() => window.open(`https://wa.me/918076146988?text=I want pricing for ${encodeURIComponent(project.name)}`, '_blank')}
-                        >
-                          <Calculator className="w-3.5 h-3.5 mr-1.5" />Check Pricing
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
+                  <ProjectCard key={project.id} project={project} index={idx} />
                 ))}
               </motion.div>
             ) : (

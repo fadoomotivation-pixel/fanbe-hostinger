@@ -58,7 +58,7 @@ const projects = [
   },
   {
     id: 'semri-vatika',
-    slug: 'maa-simri-vatika',
+    slug: 'maa-semri-vatika',
     nameEn: 'Maa Semri Vatika',
     logo: '/images/projects/semri_vatika.png',
     location: 'Semri, Mathura',

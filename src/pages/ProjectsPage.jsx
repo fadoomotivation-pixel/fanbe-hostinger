@@ -9,12 +9,7 @@ import { Button } from '@/components/ui/button';
 import SEOHelmet from '@/components/SEOHelmet';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Supabase Storage URL for Hero Images
-// ═══════════════════════════════════════════════════════════════════════════
-const SUPABASE_STORAGE_BASE = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images/projects';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PROJECT DATA - Using Local Logos (same as homepage) + Supabase Hero Images
+// PROJECT DATA
 // ═══════════════════════════════════════════════════════════════════════════
 const projects = [
   {
@@ -34,11 +29,8 @@ const projects = [
     status: 'bestseller',
     statusLabel: 'Best Seller',
     availability: 'available',
-    logoGradient: 'from-amber-500 to-orange-600',
+    logoGradient: 'from-amber-500 via-orange-500 to-orange-600',
     slug: 'shree-kunj-bihari',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/kunj-bihari-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/shree-kunj-bihari/hero.jpg`,
   },
   {
     id: 'shree-khatu-shyam-ji-enclave',
@@ -57,11 +49,8 @@ const projects = [
     status: 'limited',
     statusLabel: 'Limited Plots',
     availability: 'available',
-    logoGradient: 'from-rose-500 to-pink-600',
+    logoGradient: 'from-rose-500 via-pink-500 to-pink-600',
     slug: 'khatu-shyam-enclave',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/khatu-shyam-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/khatu-shyam-enclave/hero.jpg`,
   },
   {
     id: 'shree-jagannath-dham',
@@ -80,11 +69,8 @@ const projects = [
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-blue-500 to-indigo-600',
+    logoGradient: 'from-blue-500 via-indigo-500 to-indigo-600',
     slug: 'jagannath-dham',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/jagannath-dham-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/jagannath-dham/hero.jpg`,
   },
   {
     id: 'brij-vatika',
@@ -103,11 +89,8 @@ const projects = [
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-emerald-500 to-teal-600',
+    logoGradient: 'from-emerald-500 via-teal-500 to-teal-600',
     slug: 'brij-vatika',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/brij-vatika-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/brij-vatika/hero.jpg`,
   },
   {
     id: 'shree-gokul-vatika',
@@ -126,11 +109,8 @@ const projects = [
     status: 'available',
     statusLabel: 'Available',
     availability: 'available',
-    logoGradient: 'from-green-500 to-lime-600',
+    logoGradient: 'from-green-500 via-lime-500 to-lime-600',
     slug: 'gokul-vatika',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/gokul-vatika-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/gokul-vatika/hero.jpg`,
   },
   {
     id: 'maa-semri-vatika',
@@ -149,11 +129,8 @@ const projects = [
     status: 'new',
     statusLabel: 'New Launch',
     availability: 'available',
-    logoGradient: 'from-purple-500 to-violet-600',
+    logoGradient: 'from-purple-500 via-violet-500 to-violet-600',
     slug: 'maa-simri-vatika',
-    // Local logo (same as homepage) + Supabase hero
-    logoUrl: '/logos/maa-simri-vatika-logo.png',
-    heroUrl: `${SUPABASE_STORAGE_BASE}/maa-simri-vatika/hero.jpg`,
   },
 ];
 
@@ -172,7 +149,7 @@ const statusColors = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PROJECT CARD with Hover Detection - Local Logos + Supabase Hero Images
+// PROJECT CARD - Elegant Name Display with Hover Effect
 // ═══════════════════════════════════════════════════════════════════════════
 const ProjectCard = ({ project, index }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -186,78 +163,95 @@ const ProjectCard = ({ project, index }) => {
       onMouseLeave={() => setIsHovered(false)}
       className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
     >
-      {/* Header with Logo/Hero Image */}
-      <div className="relative overflow-hidden min-h-[200px]">
-        <AnimatePresence mode="wait">
-          {isHovered ? (
-            // Show Hero Image on Hover (from Supabase)
+      {/* Elegant Header with Project Name */}
+      <div className="relative overflow-hidden">
+        <motion.div
+          animate={{
+            scale: isHovered ? 1.05 : 1,
+          }}
+          transition={{ duration: 0.3 }}
+          className={`bg-gradient-to-br ${project.logoGradient} p-10 relative`}
+        >
+          {/* Decorative pattern overlay */}
+          <div className="absolute inset-0 opacity-10">
+            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <pattern id={`pattern-${project.id}`} x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle cx="20" cy="20" r="1" fill="white" />
+              </pattern>
+              <rect width="100%" height="100%" fill={`url(#pattern-${project.id})`} />
+            </svg>
+          </div>
+
+          {/* Project Name - Elegant Typography */}
+          <div className="relative z-10 text-center">
             <motion.div
-              key="hero"
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
+              animate={{
+                y: isHovered ? -5 : 0,
+              }}
               transition={{ duration: 0.3 }}
-              className="absolute inset-0 w-full h-full"
             >
-              <img
-                src={project.heroUrl}
-                alt={project.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Fallback to gradient if hero image fails
-                  e.target.parentElement.style.display = 'none';
-                }}
-              />
-              {/* Gradient overlay for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-              
-              {/* Hover indicator */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
-              >
-                <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
-                  <FileText className="w-3 h-3" />
-                  Click to view details
-                </span>
-              </motion.div>
-            </motion.div>
-          ) : (
-            // Show Logo on Default State (from /logos/ folder - same as homepage)
-            <motion.div
-              key="logo"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className={`bg-gradient-to-br ${project.logoGradient} h-full flex flex-col items-center justify-center p-8 relative`}
-            >
-              <img
-                src={project.logoUrl}
-                alt={`${project.name} logo`}
-                className="w-24 h-24 object-contain drop-shadow-2xl"
-                onError={(e) => {
-                  // Fallback to project initials if logo fails
-                  e.target.style.display = 'none';
-                }}
-              />
-              {/* Fallback text if logo doesn't load */}
-              <div className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase mt-3">
+              {/* Decorative line above */}
+              <div className="flex items-center justify-center mb-4">
+                <div className="h-px bg-white/40 w-8"></div>
+                <div className="mx-3 text-white/60 text-xs font-light tracking-widest uppercase">
+                  Premium Project
+                </div>
+                <div className="h-px bg-white/40 w-8"></div>
+              </div>
+
+              {/* Project Name */}
+              <h3 className="text-2xl font-bold text-white mb-2 leading-tight px-4">
+                {project.name}
+              </h3>
+
+              {/* Short Code */}
+              <div className="text-white/80 text-sm font-medium tracking-[0.3em] uppercase">
                 {project.nameShort}
               </div>
+
+              {/* Decorative line below */}
+              <div className="mt-4 flex items-center justify-center">
+                <div className="h-px bg-white/30 w-12"></div>
+              </div>
             </motion.div>
+          </div>
+
+          {/* Shine effect on hover */}
+          {isHovered && (
+            <motion.div
+              initial={{ x: '-100%', opacity: 0 }}
+              animate={{ x: '100%', opacity: 0.3 }}
+              transition={{ duration: 0.6 }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent"
+            />
           )}
-        </AnimatePresence>
+        </motion.div>
 
         {/* Status Badge */}
         <span className={`absolute top-3 right-3 ${statusColors[project.status]} text-xs font-bold px-3 py-1 rounded-full shadow-lg z-10`}>
           {project.statusLabel}
         </span>
+
+        {/* Hover Indicator */}
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute bottom-3 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg z-10"
+            >
+              <span className="text-xs font-semibold text-[#0F3A5F] flex items-center gap-2">
+                <FileText className="w-3 h-3" />
+                Click to view details
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Content */}
       <div className="p-5 flex flex-col flex-1">
-        <h3 className="text-lg font-bold text-[#0F3A5F] mb-1 leading-tight">{project.name}</h3>
         <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
           <MapPin className="w-3 h-3" />{project.location}
         </p>
@@ -517,7 +511,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ PROJECT GRID ═════════════════════════════════════════════════ */}
+      {/* ═══ PROJECT GRID ═══════════════════════════════════════════════════ */}
       <section className="py-12">
         <div className="container mx-auto px-4">
           <AnimatePresence mode="wait">
@@ -552,7 +546,7 @@ const ProjectsPage = () => {
         </div>
       </section>
 
-      {/* ═══ STICKY CTA BAR ═══════════════════════════════════════════════ */}
+      {/* ═══ STICKY CTA BAR ══════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showStickyCTA && (
           <motion.div

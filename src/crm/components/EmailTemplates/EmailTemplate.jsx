@@ -21,9 +21,9 @@ const EmailTemplate = ({ children, title }) => {
       {/* Footer */}
       <div className="bg-gray-50 p-6 text-center text-xs text-gray-500 border-t border-gray-100">
         <p className="mb-2 font-bold text-[#0F3A5F]">Fanbe Group Real Estate</p>
-        <p>Mathura-Vrindavan Road, Uttar Pradesh, India</p>
+        <p>Plot No. 35, Balaji Tower, 2nd Floor, Ballabhgarh, Haryana 121004</p>
         <p className="mt-2">
-          <a href="tel:+919876543210" className="text-blue-600 hover:underline mx-2">+91 98765 43210</a> | 
+          <a href="tel:+918076146988" className="text-blue-600 hover:underline mx-2">+91 80761 46988</a> |
           <a href="mailto:info@fanbegroup.com" className="text-blue-600 hover:underline mx-2">info@fanbegroup.com</a>
         </p>
         <p className="mt-4 text-gray-400">© {new Date().getFullYear()} Fanbe Group. All rights reserved.</p>

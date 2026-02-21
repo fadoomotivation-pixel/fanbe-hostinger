@@ -82,7 +82,7 @@ export const projectsData = [
       { icon: 'Receipt', text: '0% Interest EMI' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Shree%20Kunj%20Bihari%20Enclave%20-%20Plots%20in%20Kosi%20Kalan',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20am%20interested%20in%20Shree%20Kunj%20Bihari%20Enclave%20-%20Plots%20in%20Kosi%20Kalan',
     brochureUrl: '#',
     
     meta: {
@@ -204,7 +204,7 @@ export const projectsData = [
       { icon: 'Receipt', text: 'Flexible EMI Plans' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Khatu%20Shyam%20Enclave%20-%20Plots%20near%20Khatu%20Shyam%20Mandir',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20am%20interested%20in%20Khatu%20Shyam%20Enclave%20-%20Plots%20near%20Khatu%20Shyam%20Mandir',
     brochureUrl: '#',
     ctaTheme: 'saffron',
     
@@ -287,7 +287,7 @@ export const projectsData = [
       { icon: 'Receipt', text: 'Premium Value' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Brij%20Vatika%20-%20Plots%20near%20Vrindavan%20Prem%20Mandir',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20am%20interested%20in%20Brij%20Vatika%20-%20Plots%20near%20Vrindavan%20Prem%20Mandir',
     brochureUrl: '#',
     
     meta: {
@@ -377,7 +377,7 @@ export const projectsData = [
       { icon: 'Receipt', text: '0% Interest' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20want%20to%20book%20a%20plot%20at%20Jagannath%20Dham%20-%20Plots%20in%20Kosi',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20want%20to%20book%20a%20plot%20at%20Jagannath%20Dham%20-%20Plots%20in%20Kosi',
     brochureUrl: '#',
     ctaUrgent: true,
     
@@ -483,7 +483,7 @@ export const projectsData = [
       { icon: 'Receipt', text: '0% Interest' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Gokul%20Vatika%20-%20Investment%20Plots%20Mathura%20NH2',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20am%20interested%20in%20Gokul%20Vatika%20-%20Investment%20Plots%20Mathura%20NH2',
     brochureUrl: '#',
     
     meta: {
@@ -604,7 +604,7 @@ export const projectsData = [
       { icon: 'Receipt', text: '24-Month EMI' }
     ],
 
-    whatsappUrl: 'https://wa.me/919319169463?text=I%20am%20interested%20in%20Maa%20Simri%20Vatika%20-%20Luxury%20Plots%20near%20Vrindavan',
+    whatsappUrl: 'https://wa.me/918076146988?text=I%20am%20interested%20in%20Maa%20Simri%20Vatika%20-%20Luxury%20Plots%20near%20Vrindavan',
     brochureUrl: '#',
     ctaTheme: 'luxury',
     

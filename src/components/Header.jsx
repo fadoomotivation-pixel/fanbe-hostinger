@@ -25,13 +25,19 @@ const Header = ({ onBookSiteVisit }) => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (!e.target.closest('.projects-dropdown-container')) {
+      if (!e.target.closest('.projects-dropdown-container') && !e.target.closest('.mobile-projects-toggle')) {
         setProjectsDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setProjectsDropdownOpen(false);
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const isActive = (href) => location.pathname === href;
 
@@ -216,8 +222,8 @@ const Header = ({ onBookSiteVisit }) => {
                     return (
                       <div key={item.name}>
                         <button
-                          onClick={() => setProjectsDropdownOpen(!projectsDropdownOpen)}
-                          className={`w-full text-left text-base font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-between ${
+                          onClick={() => setProjectsDropdownOpen(prev => !prev)}
+                          className={`mobile-projects-toggle w-full text-left text-base font-medium px-4 py-3 rounded-lg transition-colors flex items-center justify-between ${
                             isActive(item.href) || location.pathname.startsWith('/projects/')
                               ? 'bg-white/10 text-white'
                               : 'text-gray-300 hover:bg-white/5'

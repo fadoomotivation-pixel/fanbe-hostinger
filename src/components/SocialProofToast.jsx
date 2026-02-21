@@ -50,11 +50,11 @@ const NOTIFICATIONS = [
 
 // ── Config ───────────────────────────────────────────────────
 const CFG = {
-  initialDelay:    5000,
-  displayDuration: 7500,
-  minInterval:     14000,
-  maxInterval:     38000,
-  waNumber:        '919319169463',
+  initialDelay:    25000,   // 25s — let user browse first
+  displayDuration: 8000,    // 8s visible
+  minInterval:     35000,   // 35s min between toasts
+  maxInterval:     70000,   // 70s max between toasts
+  waNumber:        '918076146988',
 };
 
 // ── Utilities ─────────────────────────────────────────────────

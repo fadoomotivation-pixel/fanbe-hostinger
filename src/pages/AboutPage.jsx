@@ -81,7 +81,7 @@ const AboutPage = () => {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
-                href="https://wa.me/919319169463?text=Fanbe%20Group%20ke%20baare%20mein%20jaankari%20chahiye"
+                href="https://wa.me/918076146988?text=Fanbe%20Group%20ke%20baare%20mein%20jaankari%20chahiye"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-xl font-bold text-lg flex items-center gap-2 transition-all hover:scale-105 shadow-lg w-full sm:w-auto justify-center"
@@ -90,7 +90,7 @@ const AboutPage = () => {
                 WhatsApp Pe Pucho
               </a>
               <a
-                href="tel:+919319169463"
+                href="tel:+918076146988"
                 className="bg-[#D4AF37] hover:bg-[#b5952f] text-[#0F3A5F] px-8 py-4 rounded-xl font-bold text-lg flex items-center gap-2 transition-all hover:scale-105 shadow-lg w-full sm:w-auto justify-center"
               >
                 <Phone size={22} />
@@ -600,7 +600,7 @@ const AboutPage = () => {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
               <a
-                href="https://wa.me/919319169463?text=Mujhe%20Fanbe%20Group%20ke%20projects%20ke%20baare%20mein%20details%20chahiye"
+                href="https://wa.me/918076146988?text=Mujhe%20Fanbe%20Group%20ke%20projects%20ke%20baare%20mein%20details%20chahiye"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-green-500 hover:bg-green-600 text-white px-10 py-4 rounded-xl font-bold text-lg flex items-center gap-2 transition-all hover:scale-105 shadow-lg w-full sm:w-auto justify-center"
@@ -609,7 +609,7 @@ const AboutPage = () => {
                 Abhi WhatsApp Karo
               </a>
               <a
-                href="tel:+919319169463"
+                href="tel:+918076146988"
                 className="bg-white hover:bg-gray-100 text-[#0F3A5F] px-10 py-4 rounded-xl font-bold text-lg flex items-center gap-2 transition-all hover:scale-105 shadow-lg w-full sm:w-auto justify-center"
               >
                 <Phone size={22} />

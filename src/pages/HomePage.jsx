@@ -207,8 +207,9 @@ const Counter = ({ end, duration = 2 }) => {
 
   // Format the count based on the end value format
   const formatCount = () => {
+    if (count === end) return end;
     if (typeof end === 'string' && end.includes('+')) {
-      return count === end ? end : `${count.toLocaleString()}+`;
+      return `${count.toLocaleString()}+`;
     }
     if (typeof end === 'string' && end.includes('%')) {
       return `${count}%`;

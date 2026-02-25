@@ -1,14 +1,13 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Key, Copy, Download, Mail, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Key, Copy, Download, Mail, CheckCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { sendEmail } from '@/lib/emailService';
-import { hashPassword } from '@/lib/authUtils';
+import { supabaseAdmin } from '@/lib/supabase';
 
 const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
   const { toast } = useToast();
@@ -18,6 +17,7 @@ const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [generatedPass, setGeneratedPass] = useState('');
   const [strength, setStrength] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
   const cardRef = React.useRef(null);
 
   if (!employee) return null;
@@ -47,20 +47,58 @@ const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
       toast({ title: "Generated", description: "Random password generated." });
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
       if (!newPassword || newPassword !== confirmPassword) {
           toast({ title: "Error", description: "Passwords do not match or are empty.", variant: "destructive" });
           return;
       }
       
-      const hashed = hashPassword(newPassword);
+      if (newPassword.length < 6) {
+          toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" });
+          return;
+      }
+
+      setIsResetting(true);
       
-      // Call parent handler to update state/storage
-      onResetSuccess(employee.id, hashed);
-      
-      setGeneratedPass(newPassword);
-      setStep(2);
-      toast({ title: "Success", description: "Password reset successfully." });
+      try {
+          console.log('[ResetPassword] Updating password for user:', employee.id);
+          
+          // Use Supabase Admin API to update user password
+          const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+              employee.id,
+              { password: newPassword }
+          );
+
+          if (error) {
+              console.error('[ResetPassword] Supabase error:', error);
+              toast({ 
+                  title: "Error", 
+                  description: error.message || "Failed to reset password.", 
+                  variant: "destructive" 
+              });
+              return;
+          }
+
+          console.log('[ResetPassword] Password updated successfully');
+          
+          // Call parent handler to refresh employee list
+          if (onResetSuccess) {
+              await onResetSuccess();
+          }
+          
+          setGeneratedPass(newPassword);
+          setStep(2);
+          toast({ title: "Success", description: "Password reset successfully in Supabase." });
+      } catch (err) {
+          console.error('[ResetPassword] Unexpected error:', err);
+          toast({ 
+              title: "Error", 
+              description: "An unexpected error occurred.", 
+              variant: "destructive" 
+          });
+      } finally {
+          setIsResetting(false);
+      }
   };
 
   const handleCopy = () => {
@@ -132,6 +170,7 @@ const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
                             value={newPassword}
                             onChange={handlePasswordChange}
                             className="pr-10"
+                            placeholder="Minimum 6 characters"
                         />
                         <button 
                             type="button"
@@ -154,6 +193,7 @@ const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
                         type="password" 
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
                     />
                 </div>
             </div>
@@ -182,8 +222,14 @@ const ResetPasswordModal = ({ isOpen, onClose, employee, onResetSuccess }) => {
         <DialogFooter>
             {step === 1 ? (
                 <>
-                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleReset} className="bg-blue-600 hover:bg-blue-700 text-white">Reset Password</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={isResetting}>Cancel</Button>
+                    <Button onClick={handleReset} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isResetting}>
+                        {isResetting ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Resetting...</>
+                        ) : (
+                            'Reset Password'
+                        )}
+                    </Button>
                 </>
             ) : (
                 <Button onClick={() => { resetState(); onClose(); }} className="w-full">Done</Button>

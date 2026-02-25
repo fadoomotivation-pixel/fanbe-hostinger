@@ -19,36 +19,37 @@ const CRMLogin = () => {
   const location = useLocation();
   const { toast } = useToast();
 
+  // Fix: Move handleRedirect inside useEffect and add proper dependencies
   useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated && user) {
-       handleRedirect(user.role);
-    }
-  }, [isAuthenticated, user]);
+    // Only redirect if authenticated AND we're on the login page
+    if (isAuthenticated && user && location.pathname === '/crm/login') {
+      const handleRedirect = (role) => {
+        // Check if there's a return url
+        const from = location.state?.from?.pathname;
+        if (from && !from.includes('/login')) {
+          navigate(from, { replace: true });
+          return;
+        }
 
-  const handleRedirect = (role) => {
-    // Check if there's a return url
-    const from = location.state?.from?.pathname;
-    if (from && !from.includes('/login')) {
-      navigate(from, { replace: true });
-      return;
+        // Default redirects
+        switch (role) {
+          case ROLES.SUPER_ADMIN:
+            navigate('/crm/admin/dashboard', { replace: true });
+            break;
+          case ROLES.SUB_ADMIN:
+            navigate('/crm/admin/dashboard', { replace: true });
+            break;
+          case ROLES.SALES_EXECUTIVE:
+            navigate('/crm/sales/dashboard', { replace: true });
+            break;
+          default:
+            navigate('/crm/sales/dashboard', { replace: true });
+        }
+      };
+      
+      handleRedirect(user.role);
     }
-
-    // Default redirects
-    switch (role) {
-      case ROLES.SUPER_ADMIN:
-        navigate('/crm/admin/dashboard');
-        break;
-      case ROLES.SUB_ADMIN:
-        navigate('/crm/admin/dashboard');
-        break;
-      case ROLES.SALES_EXECUTIVE:
-        navigate('/crm/sales/dashboard');
-        break;
-      default:
-        navigate('/crm/sales/dashboard');
-    }
-  };
+  }, [isAuthenticated, user, navigate, location.pathname, location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,10 +71,7 @@ const CRMLogin = () => {
 
       if (result.success) {
         toast({ title: 'Welcome Back!', description: `Logged in successfully` });
-        // Do NOT navigate here — let the useEffect below handle the redirect
-        // once AuthContext has applied the user state update. Calling navigate()
-        // immediately after login() causes ProtectedRoute to see isAuthenticated=false
-        // (state hasn't flushed yet), redirecting back to /crm/login (throttle loop).
+        // The useEffect will handle the redirect once auth state updates
       } else {
         setError(result.message || 'Login failed');
         toast({ title: 'Login Failed', description: result.message || 'Login failed', variant: 'destructive' });

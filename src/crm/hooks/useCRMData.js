@@ -166,13 +166,19 @@ export const useCRMData = () => {
   // ── Lead CRUD — all go to Supabase ───────────────────────────
   const addLead = async (lead) => {
     try {
+      // Convert budget to string to handle Hindi text formats like "₹3–5 लाख"
+      let budgetValue = lead.budget || '';
+      if (budgetValue && typeof budgetValue !== 'string') {
+        budgetValue = String(budgetValue);
+      }
+      
       const doc = {
         full_name:          lead.name,
         phone:              lead.phone,
         email:              lead.email            || '',
         source:             lead.source           || 'Manual Import',
         status:             'Active',
-        budget:             lead.budget           || null,
+        budget:             budgetValue,
         interest_level:     lead.interestLevel    || lead.interest_level || 'Cold',
         notes:              lead.notes            || '',
         call_attempt:       lead.callAttempt      || '',
@@ -215,7 +221,12 @@ export const useCRMData = () => {
       if (updates.phone            !== undefined) mapped.phone              = updates.phone;
       if (updates.email            !== undefined) mapped.email              = updates.email;
       if (updates.source           !== undefined) mapped.source             = updates.source;
-      if (updates.budget           !== undefined) mapped.budget             = updates.budget;
+      if (updates.budget           !== undefined) {
+        // Convert budget to string
+        mapped.budget = updates.budget && typeof updates.budget !== 'string' 
+          ? String(updates.budget) 
+          : updates.budget;
+      }
       if (updates.status           !== undefined) mapped.final_status       = updates.status;
       if (updates.interestLevel    !== undefined) mapped.interest_level     = updates.interestLevel;
       if (updates.notes            !== undefined) mapped.notes              = updates.notes;

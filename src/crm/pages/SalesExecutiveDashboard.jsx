@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress'; // Ensure this exists or use simple div
+import { Progress } from '@/components/ui/progress';
 import { format } from 'date-fns';
+import FollowUpReminders from '@/crm/components/FollowUpReminders';
 
 const SalesExecutiveDashboard = () => {
   const { user } = useAuth();
@@ -25,9 +26,9 @@ const SalesExecutiveDashboard = () => {
 
   // Daily Metrics
   const today = new Date().toISOString().split('T')[0];
-  const callsToday = myCalls.filter(c => c.timestamp.startsWith(today));
-  const visitsToday = myVisits.filter(v => v.timestamp.startsWith(today));
-  const bookingsToday = myBookings.filter(b => b.timestamp.startsWith(today));
+  const callsToday = myCalls.filter(c => c.timestamp?.startsWith(today));
+  const visitsToday = myVisits.filter(v => v.timestamp?.startsWith(today));
+  const bookingsToday = myBookings.filter(b => b.timestamp?.startsWith(today));
   
   const connectedCallsToday = callsToday.filter(c => c.status === 'Connected');
   const totalRevenue = myBookings.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
@@ -160,16 +161,27 @@ const SalesExecutiveDashboard = () => {
                   <div className="space-y-3">
                      <p className="text-xs font-semibold text-gray-500 uppercase">Recently Assigned</p>
                      {myLeads.slice(0, 3).map(lead => (
-                        <div key={lead.id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <Link 
+                           key={lead.id} 
+                           to={`/crm/sales/lead/${lead.id}`}
+                           className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
                            <div>
                               <p className="font-medium text-sm">{lead.name}</p>
                               <p className="text-xs text-gray-500">{lead.project} • {lead.phone}</p>
                            </div>
-                           <div className={`px-2 py-1 rounded text-xs ${lead.status === 'Open' ? 'bg-red-100 text-red-700' : 'bg-gray-100'}`}>
+                           <div className={`px-2 py-1 rounded text-xs ${
+                              lead.status === 'Booked' ? 'bg-green-100 text-green-700' :
+                              lead.status === 'FollowUp' ? 'bg-yellow-100 text-yellow-700' :
+                              lead.status === 'Open' ? 'bg-red-100 text-red-700' : 'bg-gray-100'
+                           }`}>
                               {lead.status}
                            </div>
-                        </div>
+                        </Link>
                      ))}
+                     {myLeads.length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">No leads assigned yet</p>
+                     )}
                   </div>
                </CardContent>
             </Card>
@@ -178,6 +190,9 @@ const SalesExecutiveDashboard = () => {
          {/* Sidebar Column */}
          <div className="space-y-6">
             
+            {/* Follow-up Reminders */}
+            <FollowUpReminders />
+
             {/* Targets */}
             <Card>
                <CardHeader className="pb-2"><CardTitle className="text-lg">Performance vs Target</CardTitle></CardHeader>
@@ -213,7 +228,7 @@ const SalesExecutiveDashboard = () => {
                            <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${act.type === 'booking' ? 'bg-green-500' : act.type === 'visit' ? 'bg-purple-500' : 'bg-blue-500'}`} />
                            <div>
                               <p className="font-medium">{act.label}</p>
-                              <p className="text-xs text-gray-500">{new Date(act.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                              <p className="text-xs text-gray-500">{act.timestamp ? new Date(act.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'N/A'}</p>
                               <p className="text-xs text-gray-400 truncate w-40">{act.notes || 'No notes'}</p>
                            </div>
                         </div>

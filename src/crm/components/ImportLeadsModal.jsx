@@ -262,7 +262,8 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
     let assignedTo = null;
     let assignedToName = null;
     
-    if (selectedEmployeeId) {
+    // FIX: Properly handle the "unassigned" selection
+    if (selectedEmployeeId && selectedEmployeeId !== 'unassigned' && selectedEmployeeId.trim() !== '') {
         const emp = employees.find(e => e.id === selectedEmployeeId);
         if (emp) {
             assignedTo = emp.id;
@@ -285,6 +286,7 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                      name: item.name,
                      phone: item.phone,
                      budget: item.budget,
+                     email: item.email || '',
                      source: item.source,
                      assignedTo: assignedTo,
                      assignedToName: assignedToName,

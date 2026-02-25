@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,17 +15,17 @@ import { format, isToday, isYesterday, isThisWeek, parseISO, startOfDay, endOfDa
 const MyLeads = () => {
   const { user } = useAuth();
   const { leads, addLead } = useCRMData();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all'); // all, today, yesterday, this_week, custom
+  const [dateFilter, setDateFilter] = useState('all');
   const [customDate, setCustomDate] = useState('');
   const [groupByDate, setGroupByDate] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
 
   const myLeads = leads.filter(l => l.assignedTo === user?.id);
 
-  // Filter leads by date
   const getFilteredLeadsByDate = (leadsArray) => {
     if (dateFilter === 'all') return leadsArray;
 
@@ -56,7 +57,6 @@ const MyLeads = () => {
     return matchesSearch && matchesStatus && matchesProject;
   });
 
-  // Group leads by assignment date
   const groupLeadsByDate = (leadsArray) => {
     const grouped = {};
     
@@ -84,7 +84,6 @@ const MyLeads = () => {
       grouped[dateKey].push(lead);
     });
 
-    // Sort groups by date (most recent first)
     const sortedGroups = Object.entries(grouped).sort((a, b) => {
       const order = ['Today', 'Yesterday', 'This Week'];
       const aIndex = order.indexOf(a[0]);
@@ -114,9 +113,13 @@ const MyLeads = () => {
   };
 
   const renderLeadRow = (lead) => (
-    <TableRow key={lead.id}>
+    <TableRow 
+      key={lead.id} 
+      className="cursor-pointer hover:bg-gray-50"
+      onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
+    >
       <TableCell>
-        <div className="font-medium">{lead.name}</div>
+        <div className="font-medium text-blue-600">{lead.name}</div>
         <div className="text-xs text-gray-500">{lead.phone}</div>
       </TableCell>
       <TableCell>{lead.project}</TableCell>
@@ -131,7 +134,7 @@ const MyLeads = () => {
       <TableCell>
         {lead.lastActivity ? format(parseISO(lead.lastActivity), 'MMM dd') : 'Never'}
       </TableCell>
-      <TableCell className="text-right space-x-2">
+      <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
         <Button variant="ghost" size="icon" onClick={() => window.location.href=`tel:${lead.phone}`}>
           <Phone className="h-4 w-4 text-blue-600" />
         </Button>
@@ -156,7 +159,6 @@ const MyLeads = () => {
 
       <Card>
          <CardContent className="p-4 space-y-4">
-            {/* Search and Filters Row 1 */}
             <div className="flex flex-col md:flex-row gap-4">
                <div className="flex-1 relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -186,7 +188,6 @@ const MyLeads = () => {
                </Select>
             </div>
 
-            {/* Date Filter Row 2 */}
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
                <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
@@ -225,7 +226,6 @@ const MyLeads = () => {
                </Button>
             </div>
 
-            {/* Results Count */}
             <div className="flex items-center justify-between text-sm text-gray-500 border-t pt-3">
                <span>Showing {filteredLeads.length} of {myLeads.length} leads</span>
                {dateFilter !== 'all' && (
@@ -239,10 +239,8 @@ const MyLeads = () => {
                )}
             </div>
 
-            {/* Leads Table */}
             <div className="rounded-md border">
                {groupByDate ? (
-                  // Grouped View
                   <div className="divide-y">
                      {Object.entries(groupedLeads).map(([dateGroup, groupLeads]) => (
                         <Collapsible key={dateGroup} open={openGroups[dateGroup]} onOpenChange={() => toggleGroup(dateGroup)}>
@@ -281,7 +279,6 @@ const MyLeads = () => {
                      )}
                   </div>
                ) : (
-                  // Regular Table View
                   <Table>
                      <TableHeader>
                         <TableRow>

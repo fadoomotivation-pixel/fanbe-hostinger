@@ -48,6 +48,8 @@ import BookingAnalytics from './crm/pages/BookingAnalytics';
 
 // New Sales Executive Imports
 import MyLeads from './crm/pages/MyLeads';
+import LeadDetail from './crm/pages/LeadDetail';
+import EditLead from './crm/pages/EditLead';
 import EmployeeLeadList from './crm/pages/EmployeeLeadList';
 import EmployeeLeadDetails from './crm/pages/EmployeeLeadDetails';
 import EmployeeDashboard from './crm/pages/EmployeeDashboard';
@@ -80,7 +82,6 @@ import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 
 // New Settings Imports
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
-// StaffManagement removed, replaced by EmployeeManagement
 import SecuritySettings from './crm/pages/SecuritySettings';
 
 const AppRoutes = ({ onBookSiteVisit }) => {
@@ -99,7 +100,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
         {/* Protected CRM Routes */}
         <Route path="/crm/*" element={
           <ProtectedRoute>
-             {/* Special route for Developer Console (no standard layout) */}
              {location.pathname === '/crm/developer-console' ? (
                  <DeveloperConsole />
              ) : (
@@ -121,7 +121,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                       </ProtectedRoute>
                    } />
                    
-                   {/* Renamed Route */}
                    <Route path="admin/employees" element={
                       <ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>
                    } />
@@ -145,11 +144,8 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                    
                    {/* New Settings Routes */}
                    <Route path="admin/settings/account" element={<SuperAdminSettings />} />
-                   
-                   {/* Renamed setting route */}
                    <Route path="admin/settings/staff" element={<EmployeeManagement />} />
                    <Route path="admin/settings/employee" element={<EmployeeManagement />} />
-
                    <Route path="admin/settings/security" element={<SecuritySettings />} />
                    
                    <Route path="admin/notifications" element={<NotificationSettings />} />
@@ -170,7 +166,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                       <ProtectedRoute allowedRoles={['super_admin']}><HomepageContentEditor /></ProtectedRoute>
                    } />
                    
-                   {/* Fallback check for dev console if nested */}
                    <Route path="developer-console" element={
                       <ProtectedRoute allowedRoles={['super_admin']}><DeveloperConsole /></ProtectedRoute>
                    } />
@@ -194,10 +189,12 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                    {/* Sales Routes */}
                    <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
-                   {/* Fallback to desktop dash if not mobile */}
                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
                    
                    <Route path="sales/my-leads" element={<MyLeads />} />
+                   <Route path="sales/lead/:id" element={<LeadDetail />} />
+                   <Route path="sales/edit-lead/:id" element={<EditLead />} />
+                   
                    {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
                    {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
 
@@ -219,7 +216,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
         } />
       </Routes>
       
-      {/* Mobile Bottom Nav (Visible only on mobile for logged-in users) */}
       {isMobile && user && <MobileBottomNav onLogout={() => { window.location.href = '/crm/login'; localStorage.removeItem('crm_user'); }} />}
       </>
     );
@@ -239,7 +235,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   );
 };
 
-// Simple wrapper to serve correct dashboard
 const SmartDashboard = () => {
    const { user } = useAuth();
    if (user?.role === 'sub_admin') return <SubAdminDashboard />;
@@ -268,7 +263,6 @@ function App() {
       </main>
       {!isCRM && <Footer />}
       {!isCRM && <FloatingWhatsAppButton />}
-      {/* CRO: Social Proof Toast — shown only on public website, hidden on CRM */}
       {!isCRM && <SocialProofToast />}
       <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={handleCloseSiteVisitModal} />
       <Toaster />

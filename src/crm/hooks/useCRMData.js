@@ -180,6 +180,7 @@ export const useCRMData = () => {
         site_visit_status:  lead.siteVisitStatus  || 'not_planned',
         final_status:       lead.status           || 'FollowUp',
         assigned_to:        lead.assignedTo       || null,
+        assigned_to_name:   lead.assignedToName   || null,
         created_by:         lead.createdBy        || null,
         project:            lead.project          || null,
         // ✅ FIXED: write to next_followup_date

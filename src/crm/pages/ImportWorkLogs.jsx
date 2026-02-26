@@ -3,10 +3,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2 } from 'lucide-react';
-import { ROLES } from '@/lib/permissions';
 
 const ImportWorkLogs = () => {
   const { user } = useAuth();
@@ -18,7 +17,7 @@ const ImportWorkLogs = () => {
   const [error, setError] = useState(null);
 
   // Check if user is Super Admin
-  if (user?.role !== ROLES.SUPER_ADMIN) {
+  if (user?.role !== 'super_admin') {
     return (
       <div className="max-w-2xl mx-auto py-10 px-4">
         <Alert variant="destructive">

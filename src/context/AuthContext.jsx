@@ -79,30 +79,8 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 30-minute inactivity session timeout
-  useEffect(() => {
-    if (!user) return;
-
-    let timeoutId;
-    const timeoutDuration = 30 * 60 * 1000;
-
-    const resetTimer = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        alert('Session expired due to inactivity');
-        logout();
-      }, timeoutDuration);
-    };
-
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    events.forEach(event => document.addEventListener(event, resetTimer));
-    resetTimer();
-
-    return () => {
-      clearTimeout(timeoutId);
-      events.forEach(event => document.removeEventListener(event, resetTimer));
-    };
-  }, [user]);
+  // NOTE: Inactivity auto sign-out has been intentionally removed.
+  // Supabase handles token refresh automatically - session stays active.
 
   const login = async (usernameOrEmail, password) => {
     console.log(`[Auth] Attempting Supabase login for: ${usernameOrEmail}`);

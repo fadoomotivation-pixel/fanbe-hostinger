@@ -29,6 +29,16 @@ const ImportLeads = () => {
     );
   }
 
+  const downloadSampleCSV = () => {
+    // Create a link element and trigger download
+    const link = document.createElement('a');
+    link.href = '/sample_leads_import.csv';
+    link.download = 'sample_leads_import.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const parseCSV = (text) => {
     const lines = text.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
@@ -257,7 +267,7 @@ const ImportLeads = () => {
               variant="outline"
               size="sm"
               className="border-blue-300 text-blue-700 hover:bg-blue-100"
-              onClick={() => window.open('/sample_leads_import.csv', '_blank')}
+              onClick={downloadSampleCSV}
             >
               <Download size={16} className="mr-2" />
               Download Sample

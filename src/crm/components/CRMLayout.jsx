@@ -1,4 +1,4 @@
-
+// src/crm/components/CRMLayout.jsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -10,14 +10,15 @@ import SubAdminFAB from '@/components/SubAdminFAB';
 import EmployeeFAB from '@/crm/components/EmployeeFAB';
 import { ROLES } from '@/lib/permissions';
 
+const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN, ROLES.HR_MANAGER];
+
 const CRMLayout = ({ children }) => {
   const { user } = useAuth();
   const { leads, employees } = useCRMData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Run schedulers when layout loads
-    if (user?.role === 'super_admin') {
+    if (user?.role === ROLES.SUPER_ADMIN) {
       checkDailyDigest(leads, employees);
     }
   }, [user, leads, employees]);
@@ -26,50 +27,60 @@ const CRMLayout = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0F3A5F] mx-auto"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0F3A5F] mx-auto" />
           <p className="mt-4 text-gray-500 text-sm">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // --- Admin Layout (Super Admin & Sub Admin) ---
-  if ([ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN].includes(user.role)) {
+  // ── Admin / Sub-Admin / HR-Manager Layout ─────────────────────────────────
+  if (ADMIN_ROLES.includes(user.role)) {
     return (
       <div className="flex min-h-screen bg-gray-100">
+        {/* Sidebar */}
         <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        
-        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300 relative">
-          {/* Mobile Header */}
-          <header className="lg:hidden bg-white shadow-sm h-16 flex items-center px-4 sticky top-0 z-30">
-            <button 
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
+
+          {/* ── Mobile Top Bar ── */}
+          <header className="lg:hidden bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
+            <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-md"
+              aria-label="Open menu"
+              className="p-2 -ml-1 text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-lg touch-manipulation"
             >
-              <Menu size={24} />
+              <Menu size={22} />
             </button>
-            <span className="ml-3 font-semibold text-lg text-[#0F3A5F]">Fanbe CRM</span>
+            <span className="font-bold text-base text-[#0F3A5F] tracking-tight">
+              {user.role === ROLES.HR_MANAGER ? '🏢 HR Portal' : 'Fanbe CRM'}
+            </span>
+            {/* Avatar badge top-right */}
+            <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
           </header>
 
-          <main className="flex-1 p-4 md:p-8 overflow-y-auto overflow-x-hidden">
+          {/* ── Page Content ── */}
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
             {children}
           </main>
 
-          {/* Sub Admin Floating Action Button */}
+          {/* Sub Admin FAB only */}
           {user.role === ROLES.SUB_ADMIN && <SubAdminFAB />}
         </div>
       </div>
     );
   }
 
-  // --- Sales Executive Layout ---
+  // ── Sales Executive / Telecaller Layout ─────────────────────────────────
   return (
     <div className="flex min-h-screen bg-gray-50">
       <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300 relative">
+      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
         <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full">
           {children}
         </main>
         <EmployeeFAB />

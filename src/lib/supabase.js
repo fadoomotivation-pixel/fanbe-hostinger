@@ -10,17 +10,42 @@ const supabaseServiceRoleKey =
 
 console.log('[Supabase] Using URL:', supabaseUrl);
 
-// Primary Supabase client (uses anon key, respects RLS)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Singleton pattern - prevents multiple GoTrueClient instances warning
+let _supabase = null;
+let _supabaseAdmin = null;
 
-// Admin client using service_role key — bypasses RLS and can call auth.admin.* APIs.
-// Never auto-signs-in or persists a session, so the logged-in admin session is unaffected.
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false,
-  },
-});
+const getSupabaseClient = () => {
+  if (!_supabase) {
+    _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storageKey: 'sb-fanbe-auth-token',
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      }
+    });
+  }
+  return _supabase;
+};
+
+const getSupabaseAdminClient = () => {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        storageKey: 'sb-fanbe-admin-token',
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+  return _supabaseAdmin;
+};
+
+// Primary Supabase client (uses anon key, respects RLS)
+export const supabase = getSupabaseClient();
+
+// Admin client using service_role key - bypasses RLS
+export const supabaseAdmin = getSupabaseAdminClient();
 
 export default supabase;

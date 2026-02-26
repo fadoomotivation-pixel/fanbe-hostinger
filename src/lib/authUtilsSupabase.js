@@ -13,7 +13,6 @@ export const login = async (usernameOrEmail, password) => {
     let email = usernameOrEmail;
 
     if (!usernameOrEmail.includes('@')) {
-      // username lookup — use admin client to bypass RLS
       const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('email')
@@ -41,7 +40,6 @@ export const login = async (usernameOrEmail, password) => {
       return { success: false, message: authError.message };
     }
 
-    // Load profile using admin client to bypass RLS
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
@@ -58,7 +56,6 @@ export const login = async (usernameOrEmail, password) => {
       return { success: false, message: 'Account is suspended. Contact admin.' };
     }
 
-    // Update last_login
     await supabaseAdmin
       .from('profiles')
       .update({ last_login: new Date().toISOString() })
@@ -118,14 +115,12 @@ export const isAuthenticated = async () => {
 // ==========================================
 // USER MANAGEMENT (Admin only)
 // ALL operations use supabaseAdmin (service_role key)
-// This bypasses RLS entirely — safe because only admin UI calls these functions
 // ==========================================
 
 export const addUser = async (userData) => {
   try {
     console.log('[Supabase] Creating user:', userData.username);
 
-    // 1. Check username uniqueness
     const { data: existingUsername } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -136,7 +131,6 @@ export const addUser = async (userData) => {
       return { success: false, message: 'Username already exists' };
     }
 
-    // 2. Check email uniqueness
     const { data: existingEmail } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -147,9 +141,6 @@ export const addUser = async (userData) => {
       return { success: false, message: 'Email already in use' };
     }
 
-    // 3. Create auth user via admin API
-    // - email_confirm: true  →  skip email verification, account works immediately
-    // - This never signs in the new user, admin session is preserved
     const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: userData.email.toLowerCase(),
       password: userData.password,
@@ -171,7 +162,6 @@ export const addUser = async (userData) => {
 
     console.log('[Supabase] Auth user created with ID:', authData.user.id);
 
-    // 4. Insert profile using supabaseAdmin — bypasses RLS so insert always succeeds
     const profileDoc = {
       id: authData.user.id,
       username: userData.username.toLowerCase(),
@@ -192,7 +182,6 @@ export const addUser = async (userData) => {
 
     if (profileError) {
       console.error('[Supabase] Profile insert error:', profileError);
-      // Auth user was created but profile failed — delete auth user to keep DB clean
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return { success: false, message: `Profile creation failed: ${profileError.message}` };
     }
@@ -228,6 +217,21 @@ export const getAllUsers = async () => {
   }
 };
 
+// Get users by specific role
+export const getUsersByRole = async (role) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('role', role)
+      .order('joining_date', { ascending: false });
+    if (error) return [];
+    return data || [];
+  } catch (error) {
+    return [];
+  }
+};
+
 export const updateUser = async (userId, updates) => {
   try {
     const { password, email, id, ...safeUpdates } = updates;
@@ -244,14 +248,12 @@ export const updateUser = async (userId, updates) => {
 
 export const deleteUser = async (userId) => {
   try {
-    // Delete profile first
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('id', userId);
     if (profileError) throw profileError;
 
-    // Delete auth user too
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (authError) console.warn('[Supabase] Auth user delete warning:', authError.message);
 
@@ -301,10 +303,12 @@ export const generateRandomPassword = () => {
 const getDefaultPermissions = (role) => {
   const permissions = {
     super_admin:     ['all'],
+    sub_admin:       ['view_reports', 'view_leads', 'view_staff', 'view_hr_summary'],
+    hr_manager:      ['manage_hr', 'mark_attendance', 'approve_leaves', 'generate_payroll', 'upload_documents', 'manage_hr_employees'],
     manager:         ['manage_team', 'assign_leads', 'view_reports', 'manage_properties'],
     team_lead:       ['assign_leads', 'view_reports', 'manage_leads', 'schedule_visits'],
-    sub_admin:       ['view_reports', 'view_leads', 'view_staff'],
     sales_executive: ['manage_leads', 'schedule_visits', 'create_bookings', 'make_calls'],
+    telecaller:      ['make_calls', 'schedule_appointments'],
   };
   return permissions[role] || [];
 };

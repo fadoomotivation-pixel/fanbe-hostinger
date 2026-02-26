@@ -39,6 +39,7 @@ import AdminPerformanceDashboard from './crm/pages/AdminPerformanceDashboard';
 import ProjectManagement from './crm/pages/ProjectManagement';
 import SubAdminDashboard from './crm/pages/SubAdminDashboard';
 import SubAdminManagement from './crm/pages/SubAdminManagement';
+import HRManagerManagement from './crm/pages/HRManagerManagement';
 import StaffManagementSubAdmin from './crm/pages/StaffManagementSubAdmin';
 import StaffPerformanceSubAdmin from './crm/pages/StaffPerformanceSubAdmin';
 import RevenueAnalytics from './crm/pages/RevenueAnalytics';
@@ -75,24 +76,25 @@ import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
 import SecuritySettings from './crm/pages/SecuritySettings';
 
-// ✅ HR Module (Phase 1 + 2 + 3 + 4)
+// ✅ HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
 import HRDashboard     from './crm/pages/hr/HRDashboard';
 import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
+// ── Smart Dashboard: role-based redirect ──────────────────────────────
 const SmartDashboard = () => {
   const { user } = useAuth();
-  if (user?.role === 'sub_admin') return <SubAdminDashboard />;
+  if (user?.role === 'sub_admin')  return <SubAdminDashboard />;
   return <CRMAdminDashboard />;
 };
 
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location = useLocation();
   const isMobile = useMobile();
-  const { user } = useAuth();
-  const isCRM = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const { user }  = useAuth();
+  const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
 
   if (isCRM) {
     return (
@@ -113,10 +115,12 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                       </>
                     )}
 
+                    {/* ── Super Admin + Sub Admin ── */}
                     <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />
                     <Route path="admin/employees" element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
                     <Route path="admin/employee-management" element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
                     <Route path="admin/sub-admins" element={<ProtectedRoute allowedRoles={['super_admin']}><SubAdminManagement /></ProtectedRoute>} />
+                    <Route path="admin/hr-managers" element={<ProtectedRoute allowedRoles={['super_admin']}><HRManagerManagement /></ProtectedRoute>} />
                     <Route path="admin/leads" element={<LeadManagement />} />
                     <Route path="admin/customers" element={<CustomerManagement />} />
                     <Route path="admin/invoices" element={<InvoiceManagement />} />
@@ -148,13 +152,21 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/call-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><CallAnalytics /></ProtectedRoute>} />
                     <Route path="admin/booking-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><BookingAnalytics /></ProtectedRoute>} />
 
-                    {/* ✅ HR Module Routes (Phase 1–4) */}
+                    {/* ✅ HR Module — Admin & Sub Admin paths (sub_admin gets READ-ONLY dashboard only) */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
-                    <Route path="admin/hr/employees"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HREmployeeMaster /></ProtectedRoute>} />
-                    <Route path="admin/hr/attendance" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRAttendance /></ProtectedRoute>} />
-                    <Route path="admin/hr/payroll"    element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRPayroll /></ProtectedRoute>} />
-                    <Route path="admin/hr/documents"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDocuments /></ProtectedRoute>} />
+                    <Route path="admin/hr/employees"  element={<ProtectedRoute allowedRoles={['super_admin']}><HREmployeeMaster /></ProtectedRoute>} />
+                    <Route path="admin/hr/attendance" element={<ProtectedRoute allowedRoles={['super_admin']}><HRAttendance /></ProtectedRoute>} />
+                    <Route path="admin/hr/payroll"    element={<ProtectedRoute allowedRoles={['super_admin']}><HRPayroll /></ProtectedRoute>} />
+                    <Route path="admin/hr/documents"  element={<ProtectedRoute allowedRoles={['super_admin']}><HRDocuments /></ProtectedRoute>} />
 
+                    {/* ✅ HR Manager dedicated portal — /crm/hr/* (hr_manager role only) */}
+                    <Route path="hr/dashboard"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRDashboard /></ProtectedRoute>} />
+                    <Route path="hr/employees"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HREmployeeMaster /></ProtectedRoute>} />
+                    <Route path="hr/attendance" element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRAttendance /></ProtectedRoute>} />
+                    <Route path="hr/payroll"    element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRPayroll /></ProtectedRoute>} />
+                    <Route path="hr/documents"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRDocuments /></ProtectedRoute>} />
+
+                    {/* ── Sales Executive / Employee routes ── */}
                     <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
                     {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
                     <Route path="sales/my-leads" element={<MyLeads />} />

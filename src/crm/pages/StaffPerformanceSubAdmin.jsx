@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,15 +32,15 @@ const StaffPerformanceSubAdmin = () => {
   const staffLeads = leads.filter(l => selectedStaffId === 'all' || l.assignedTo === selectedStaffId);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 pb-10">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#0F3A5F]">Executive CRM Staff Performance</h1>
-          <p className="text-sm text-gray-500">Analyze team productivity and results</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0F3A5F]">Fanbe CRM Staff Performance</h1>
+          <p className="text-xs sm:text-sm text-gray-500">Analyze team productivity and results</p>
         </div>
-        <div className="w-[200px]">
+        <div className="w-full sm:w-[200px]">
            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
-             <SelectTrigger><SelectValue placeholder="Select Staff" /></SelectTrigger>
+             <SelectTrigger className="text-xs h-9"><SelectValue placeholder="Select Staff" /></SelectTrigger>
              <SelectContent>
                <SelectItem value="all">All Staff</SelectItem>
                {salesStaff.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
@@ -101,13 +100,15 @@ const StaffPerformanceSubAdmin = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          {/* Chart */}
          <Card className="lg:col-span-2 shadow-sm">
-           <CardHeader><CardTitle>Daily Activity Trend</CardTitle></CardHeader>
-           <CardContent className="h-[300px]">
+           <CardHeader className="pb-2">
+             <CardTitle className="text-sm font-semibold">Daily Activity Trend</CardTitle>
+           </CardHeader>
+           <CardContent className="h-[280px]">
              <ResponsiveContainer width="100%" height="100%">
-               <BarChart data={chartData}>
+               <BarChart data={chartData} margin={{ top:4, right:10, left:-10, bottom:4 }}>
                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                 <XAxis dataKey="date" tickFormatter={val => new Date(val).getDate()} />
-                 <YAxis />
+                 <XAxis dataKey="date" tickFormatter={val => new Date(val).getDate()} tick={{ fontSize: 10 }} />
+                 <YAxis tick={{ fontSize: 10 }} />
                  <Tooltip />
                  <Bar dataKey="totalCalls" name="Total Calls" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                  <Bar dataKey="connectedCalls" name="Connected" fill="#22c55e" radius={[4, 4, 0, 0]} />
@@ -118,8 +119,10 @@ const StaffPerformanceSubAdmin = () => {
 
          {/* Call Logs / Recent History */}
          <Card className="lg:col-span-1 shadow-sm">
-           <CardHeader><CardTitle>Recent Logs</CardTitle></CardHeader>
-           <div className="max-h-[300px] overflow-y-auto p-4 space-y-3">
+           <CardHeader className="pb-2">
+             <CardTitle className="text-sm font-semibold">Recent Logs</CardTitle>
+           </CardHeader>
+           <div className="max-h-[280px] overflow-y-auto p-4 space-y-3">
               {relevantLogs.slice(0, 10).map((log, i) => (
                 <div key={i} className="flex items-center justify-between text-sm border-b pb-2">
                    <div>
@@ -139,7 +142,9 @@ const StaffPerformanceSubAdmin = () => {
       
       {/* Leads Table */}
       <Card className="shadow-sm">
-        <CardHeader><CardTitle>Assigned Leads</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Assigned Leads</CardTitle>
+        </CardHeader>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

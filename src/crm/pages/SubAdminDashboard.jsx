@@ -1,5 +1,5 @@
 // src/crm/pages/SubAdminDashboard.jsx
-// ✅ Sub-admin: business ops dashboard — fully mobile-first
+// ✅ Fanbe Admin: business ops dashboard — fully mobile-first
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -44,7 +44,7 @@ const QuickAction = ({ icon: Icon, label, sub, path, color }) => {
   );
 };
 
-// ✅ Sub Admin quick actions — HR write pages removed (only HR overview allowed)
+// ✅ Fanbe Admin quick actions — HR write pages removed (only HR overview allowed)
 const QUICK_ACTIONS = [
   { icon: Users,         label: 'Leads',           sub: 'All leads, filters, assign',   path: '/crm/admin/leads',             color: 'bg-blue-500' },
   { icon: UserCheck,     label: 'Staff',           sub: 'Add, edit, view staff',         path: '/crm/admin/staff-management',  color: 'bg-purple-500' },
@@ -118,7 +118,7 @@ const SubAdminDashboard = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-[#0F3A5F]">
             👋 Welcome, {user?.name?.split(' ')[0] || 'Executive'}
           </h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Business Ops — full overview</p>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Fanbe Admin Console — full overview</p>
         </div>
         <Select value={dateRange} onValueChange={setDateRange}>
           <SelectTrigger className="w-[140px] text-xs h-9">

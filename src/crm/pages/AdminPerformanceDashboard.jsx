@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +19,7 @@ const AdminPerformanceDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Sub Admin Metrics
+  // Admin Metrics
   const totalLeads = leads.length;
   const realTotalCalls = workLogs.reduce((sum, log) => sum + log.totalCalls, 0);
   const realConnected = workLogs.reduce((sum, log) => sum + log.connectedCalls, 0);
@@ -50,7 +49,7 @@ const AdminPerformanceDashboard = () => {
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div>
         <h1 className="text-2xl font-bold text-[#0F3A5F]">Performance Analytics</h1>
-        <p className="text-gray-500">Sub Admin Console • Overview</p>
+        <p className="text-gray-500">Fanbe Admin Console • Overview</p>
       </div>
 
       {/* Summary Cards */}

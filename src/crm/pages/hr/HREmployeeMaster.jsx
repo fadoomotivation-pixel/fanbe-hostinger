@@ -1,6 +1,6 @@
 // src/crm/pages/hr/HREmployeeMaster.jsx
-// Reads from CRM 'employees' table (same as employee-management)
-// HR-specific fields (salary, department, designation) stored in hr_employee_meta
+// Reads from 'profiles' table (same source as EmployeeManagement)
+// HR-specific fields stored in hr_employee_meta linked by emp_id (profiles.id)
 import React, { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Edit, Search, Loader2, Users, IndianRupee, Eye, RefreshCw } from 'lucide-react';
+import { Edit, Search, Loader2, Users, IndianRupee, Eye, RefreshCw } from 'lucide-react';
 
 const BRANCHES     = ['Head Office', 'Ghaziabad', 'Noida', 'Delhi', 'Greater Noida'];
 const DEPARTMENTS  = ['Sales', 'Marketing', 'HR', 'Accounts', 'IT', 'Operations', 'Management'];
@@ -31,8 +31,8 @@ const emptyMeta = {
 
 const HREmployeeMaster = () => {
   const { toast } = useToast();
-  const [employees, setEmployees] = useState([]); // from 'employees' table
-  const [metaMap,   setMetaMap]   = useState({}); // emp_id -> hr_employee_meta row
+  const [profiles,  setProfiles]  = useState([]);  // from 'profiles' table
+  const [metaMap,   setMetaMap]   = useState({});  // id -> hr_employee_meta row
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [search,    setSearch]    = useState('');
@@ -40,19 +40,18 @@ const HREmployeeMaster = () => {
 
   const [isMetaOpen, setIsMetaOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
-  const [selected,   setSelected]  = useState(null); // full employee row
+  const [selected,   setSelected]  = useState(null);
   const [metaForm,   setMetaForm]  = useState(emptyMeta);
 
-  // ── Load ───────────────────────────────────────────────────────────────
+  // ── Load ──────────────────────────────────────────────────────────────
   const load = async () => {
     setLoading(true);
-    const [empRes, metaRes] = await Promise.all([
-      supabaseAdmin.from('employees').select('*').order('name'),
+    const [profRes, metaRes] = await Promise.all([
+      supabaseAdmin.from('profiles').select('*').neq('role', 'super_admin').order('name'),
       supabaseAdmin.from('hr_employee_meta').select('*'),
     ]);
-    if (empRes.error)  toast({ title: 'Error loading employees', description: empRes.error.message, variant: 'destructive' });
-    setEmployees(empRes.data  || []);
-    // build lookup by emp_id
+    if (profRes.error) toast({ title: 'Error loading profiles', description: profRes.error.message, variant: 'destructive' });
+    setProfiles(profRes.data || []);
     const map = {};
     (metaRes.data || []).forEach(m => { map[m.emp_id] = m; });
     setMetaMap(map);
@@ -60,25 +59,28 @@ const HREmployeeMaster = () => {
   };
   useEffect(() => { load(); }, []);
 
-  // ── Displayed list ─────────────────────────────────────────────────────
-  const displayed = employees.filter(e => {
-    const matchS = statusFilter === 'All' ||
-      (statusFilter === 'Active'   && e.is_active !== false) ||
-      (statusFilter === 'Inactive' && e.is_active === false);
-    const matchQ = !search ||
-      e.name?.toLowerCase().includes(search.toLowerCase()) ||
-      e.email?.toLowerCase().includes(search.toLowerCase()) ||
-      e.phone?.includes(search) ||
-      e.role?.toLowerCase().includes(search.toLowerCase());
+  // ── Filtered list ─────────────────────────────────────────────────────
+  const displayed = profiles.filter(p => {
+    const matchS =
+      statusFilter === 'All' ||
+      (statusFilter === 'Active'   && p.status === 'Active') ||
+      (statusFilter === 'Inactive' && p.status !== 'Active');
+    const matchQ =
+      !search ||
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.email?.toLowerCase().includes(search.toLowerCase()) ||
+      p.phone?.includes(search) ||
+      p.role?.toLowerCase().includes(search.toLowerCase()) ||
+      p.username?.toLowerCase().includes(search.toLowerCase());
     return matchS && matchQ;
   });
 
-  // ── Save / Update HR Meta ─────────────────────────────────────────────
+  // ── Save HR Meta ───────────────────────────────────────────────────────
   const handleSaveMeta = async (e) => {
     e.preventDefault();
     if (!selected) return;
     setSaving(true);
-    const empId = selected.id; // CRM employees use 'id' as UUID PK
+    const empId    = selected.id;
     const existing = metaMap[empId];
     const payload  = { ...metaForm, emp_id: empId, updated_at: new Date().toISOString() };
     let error;
@@ -94,26 +96,27 @@ const HREmployeeMaster = () => {
     await load();
   };
 
-  const openMeta = (emp) => {
-    setSelected(emp);
-    const existing = metaMap[emp.id] || {};
+  const openMeta = (profile) => {
+    setSelected(profile);
+    const existing = metaMap[profile.id] || {};
     setMetaForm({ ...emptyMeta, ...existing });
     setIsMetaOpen(true);
   };
-  const openView = (emp) => { setSelected(emp); setIsViewOpen(true); };
+  const openView = (profile) => { setSelected(profile); setIsViewOpen(true); };
   const f = (k, v) => setMetaForm(p => ({ ...p, [k]: v }));
 
   // ── Stats ─────────────────────────────────────────────────────────────
-  const totalActive = employees.filter(e => e.is_active !== false).length;
+  const totalActive = profiles.filter(p => p.status === 'Active').length;
   const totalSalary = Object.values(metaMap).reduce((s, m) => s + Number(m.salary || 0), 0);
 
-  const roleLabel = (role) => {
-    const map = {
-      super_admin: 'Super Admin', sub_admin: 'Sub Admin',
-      sales_executive: 'Sales Exec', manager: 'Manager', telecaller: 'Telecaller'
-    };
-    return map[role] || role || '—';
-  };
+  const roleLabel = (role) => ({
+    super_admin:     'Super Admin',
+    sub_admin:       'Sub Admin',
+    sales_executive: 'Sales Exec',
+    manager:         'Manager',
+    team_lead:       'Team Lead',
+    telecaller:      'Telecaller',
+  }[role] || role || '—');
 
   return (
     <div className="space-y-6 pb-10">
@@ -121,7 +124,7 @@ const HREmployeeMaster = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0F3A5F]">Employee Master</h1>
-          <p className="text-sm text-gray-500">HR view of all CRM employees — click ✏️ to fill HR details (salary, dept, bank)</p>
+          <p className="text-sm text-gray-500">HR view of all CRM employees — click ✏️ to fill HR details</p>
         </div>
         <Button onClick={load} variant="outline" className="border-[#0F3A5F] text-[#0F3A5F]">
           <RefreshCw className="mr-2 h-4 w-4" /> Refresh
@@ -133,7 +136,7 @@ const HREmployeeMaster = () => {
         <Card className="border-l-4 border-blue-500">
           <CardContent className="p-4 flex items-center gap-3">
             <Users className="h-8 w-8 text-blue-500" />
-            <div><p className="text-xs text-gray-500 uppercase">Total</p><p className="text-2xl font-bold">{employees.length}</p></div>
+            <div><p className="text-xs text-gray-500 uppercase">Total</p><p className="text-2xl font-bold">{profiles.length}</p></div>
           </CardContent>
         </Card>
         <Card className="border-l-4 border-green-500">
@@ -151,7 +154,7 @@ const HREmployeeMaster = () => {
         <Card className="border-l-4 border-violet-500">
           <CardContent className="p-4 flex items-center gap-3">
             <IndianRupee className="h-8 w-8 text-violet-500" />
-            <div><p className="text-xs text-gray-500 uppercase">Monthly Payroll</p><p className="text-lg font-bold text-violet-600">₹{(totalSalary/1000).toFixed(1)}K</p></div>
+            <div><p className="text-xs text-gray-500 uppercase">Monthly Payroll</p><p className="text-lg font-bold text-violet-600">₹{(totalSalary / 1000).toFixed(1)}K</p></div>
           </CardContent>
         </Card>
       </div>
@@ -178,38 +181,38 @@ const HREmployeeMaster = () => {
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-              <span className="ml-2 text-gray-500">Loading employees...</span>
+              <span className="ml-2 text-gray-500">Loading...</span>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#0F3A5F] hover:bg-[#0F3A5F]">
-                    {['#','Name','Role','Dept','Designation','Salary','DOJ','HR Profile','Actions'].map(h=>(
+                    {['#', 'Name', 'Role', 'Dept', 'Designation', 'Salary', 'DOJ', 'HR Profile', 'Actions'].map(h => (
                       <TableHead key={h} className="text-white font-semibold text-xs whitespace-nowrap">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayed.map((emp, i) => {
-                    const meta = metaMap[emp.id] || {};
-                    const hasProfile = !!metaMap[emp.id];
+                  {displayed.map((p, i) => {
+                    const meta       = metaMap[p.id] || {};
+                    const hasProfile = !!metaMap[p.id];
                     return (
-                      <TableRow key={emp.id} className="hover:bg-gray-50">
-                        <TableCell className="text-sm text-gray-500">{i+1}</TableCell>
+                      <TableRow key={p.id} className="hover:bg-gray-50">
+                        <TableCell className="text-sm text-gray-500">{i + 1}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                              {(emp.name||'?').charAt(0).toUpperCase()}
+                              {(p.name || '?').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-medium text-sm">{emp.name}</p>
-                              <p className="text-xs text-gray-400">{emp.email}</p>
+                              <p className="font-medium text-sm">{p.name}</p>
+                              <p className="text-xs text-gray-400">{p.email}</p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">{roleLabel(emp.role)}</Badge>
+                          <Badge variant="outline" className="text-xs">{roleLabel(p.role)}</Badge>
                         </TableCell>
                         <TableCell className="text-sm">{meta.department || <span className="text-gray-300">—</span>}</TableCell>
                         <TableCell className="text-sm">{meta.designation || <span className="text-gray-300">—</span>}</TableCell>
@@ -226,10 +229,10 @@ const HREmployeeMaster = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openView(emp)} title="View">
+                            <Button variant="ghost" size="icon" onClick={() => openView(p)} title="View">
                               <Eye className="h-4 w-4 text-gray-500" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openMeta(emp)} title="Edit HR Profile">
+                            <Button variant="ghost" size="icon" onClick={() => openMeta(p)} title="Edit HR Profile">
                               <Edit className="h-4 w-4 text-blue-600" />
                             </Button>
                           </div>
@@ -238,9 +241,9 @@ const HREmployeeMaster = () => {
                     );
                   })}
                   {displayed.length === 0 && (
-                    <TableRow><TableCell colSpan={9} className="text-center py-12 text-gray-400">
-                      No employees found.
-                    </TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-12 text-gray-400">No employees found.</TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -261,56 +264,56 @@ const HREmployeeMaster = () => {
           <form onSubmit={handleSaveMeta}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1"><Label>Branch</Label>
-                <Select value={metaForm.branch} onValueChange={v=>f('branch',v)}>
+                <Select value={metaForm.branch} onValueChange={v => f('branch', v)}>
                   <SelectTrigger><SelectValue placeholder="Select Branch" /></SelectTrigger>
-                  <SelectContent>{BRANCHES.map(b=><SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  <SelectContent>{BRANCHES.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1"><Label>Department</Label>
-                <Select value={metaForm.department} onValueChange={v=>f('department',v)}>
+                <Select value={metaForm.department} onValueChange={v => f('department', v)}>
                   <SelectTrigger><SelectValue placeholder="Select Dept" /></SelectTrigger>
-                  <SelectContent>{DEPARTMENTS.map(d=><SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1"><Label>Designation</Label>
-                <Select value={metaForm.designation} onValueChange={v=>f('designation',v)}>
+                <Select value={metaForm.designation} onValueChange={v => f('designation', v)}>
                   <SelectTrigger><SelectValue placeholder="Select Designation" /></SelectTrigger>
-                  <SelectContent>{DESIGNATIONS.map(d=><SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  <SelectContent>{DESIGNATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1"><Label>Salary (₹)</Label>
-                <Input type="number" value={metaForm.salary} onChange={e=>f('salary',e.target.value)} placeholder="Monthly CTC" />
+                <Input type="number" value={metaForm.salary} onChange={e => f('salary', e.target.value)} placeholder="Monthly CTC" />
               </div>
               <div className="space-y-1"><Label>Date of Joining</Label>
-                <Input type="date" value={metaForm.doj} onChange={e=>f('doj',e.target.value)} />
+                <Input type="date" value={metaForm.doj} onChange={e => f('doj', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>Date of Birth</Label>
-                <Input type="date" value={metaForm.dob} onChange={e=>f('dob',e.target.value)} />
+                <Input type="date" value={metaForm.dob} onChange={e => f('dob', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>Father's Name</Label>
-                <Input value={metaForm.father_name} onChange={e=>f('father_name',e.target.value)} />
+                <Input value={metaForm.father_name} onChange={e => f('father_name', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>Aadhaar No</Label>
-                <Input value={metaForm.aadhar_no} onChange={e=>f('aadhar_no',e.target.value)} />
+                <Input value={metaForm.aadhar_no} onChange={e => f('aadhar_no', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>PAN No</Label>
-                <Input value={metaForm.pan_no} onChange={e=>f('pan_no',e.target.value)} />
+                <Input value={metaForm.pan_no} onChange={e => f('pan_no', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>Bank Name</Label>
-                <Input value={metaForm.bank_name} onChange={e=>f('bank_name',e.target.value)} />
+                <Input value={metaForm.bank_name} onChange={e => f('bank_name', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>Account No</Label>
-                <Input value={metaForm.account_no} onChange={e=>f('account_no',e.target.value)} />
+                <Input value={metaForm.account_no} onChange={e => f('account_no', e.target.value)} />
               </div>
               <div className="space-y-1"><Label>IFSC Code</Label>
-                <Input value={metaForm.ifsc} onChange={e=>f('ifsc',e.target.value)} />
+                <Input value={metaForm.ifsc} onChange={e => f('ifsc', e.target.value)} />
               </div>
               <div className="md:col-span-2 space-y-1"><Label>Address</Label>
-                <Input value={metaForm.address} onChange={e=>f('address',e.target.value)} />
+                <Input value={metaForm.address} onChange={e => f('address', e.target.value)} />
               </div>
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={()=>setIsMetaOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setIsMetaOpen(false)}>Cancel</Button>
               <Button type="submit" className="bg-[#0F3A5F]" disabled={saving}>
                 {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save HR Profile'}
               </Button>
@@ -336,20 +339,26 @@ const HREmployeeMaster = () => {
                     <p className="text-blue-200 text-sm">{meta.designation || roleLabel(selected.role)} • {meta.department || '—'}</p>
                     <p className="text-blue-200 text-xs">{selected.email}</p>
                   </div>
-                  <Badge className={`ml-auto ${selected.is_active !== false ? 'bg-green-500' : 'bg-red-500'}`}>
-                    {selected.is_active !== false ? 'Active' : 'Inactive'}
+                  <Badge className={`ml-auto ${selected.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}>
+                    {selected.status}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {[
-                    ['Email', selected.email], ['Phone', selected.phone || '—'],
-                    ['Role', roleLabel(selected.role)], ['Branch', meta.branch || '—'],
-                    ['Department', meta.department || '—'], ['Designation', meta.designation || '—'],
-                    ['Salary', meta.salary ? `₹${Number(meta.salary).toLocaleString('en-IN')}` : '—'],
-                    ['Date of Joining', meta.doj ? new Date(meta.doj).toLocaleDateString('en-IN') : '—'],
-                    ['Aadhaar', meta.aadhar_no || '—'], ['PAN', meta.pan_no || '—'],
-                    ['Bank', meta.bank_name || '—'], ['Account No', meta.account_no || '—'],
-                    ['IFSC', meta.ifsc || '—'], ['Address', meta.address || '—'],
+                    ['Username',    selected.username],
+                    ['Phone',       selected.phone || '—'],
+                    ['Role',        roleLabel(selected.role)],
+                    ['Branch',      meta.branch || '—'],
+                    ['Department',  meta.department || '—'],
+                    ['Designation', meta.designation || '—'],
+                    ['Salary',      meta.salary ? `₹${Number(meta.salary).toLocaleString('en-IN')}` : '—'],
+                    ['Joining Date',meta.doj ? new Date(meta.doj).toLocaleDateString('en-IN') : '—'],
+                    ['Aadhaar',     meta.aadhar_no || '—'],
+                    ['PAN',         meta.pan_no || '—'],
+                    ['Bank',        meta.bank_name || '—'],
+                    ['Account No',  meta.account_no || '—'],
+                    ['IFSC',        meta.ifsc || '—'],
+                    ['Address',     meta.address || '—'],
                   ].map(([label, val]) => (
                     <div key={label} className="bg-gray-50 p-2 rounded">
                       <p className="text-xs text-gray-400 uppercase">{label}</p>
@@ -361,8 +370,8 @@ const HREmployeeMaster = () => {
             );
           })()}
           <DialogFooter>
-            <Button variant="outline" onClick={()=>setIsViewOpen(false)}>Close</Button>
-            <Button className="bg-[#0F3A5F]" onClick={()=>{ setIsViewOpen(false); openMeta(selected); }}>Edit HR Profile</Button>
+            <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
+            <Button className="bg-[#0F3A5F]" onClick={() => { setIsViewOpen(false); openMeta(selected); }}>Edit HR Profile</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

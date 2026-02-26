@@ -75,6 +75,8 @@ import DeveloperConsole from './crm/pages/DeveloperConsole';
 import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
 import SecuritySettings from './crm/pages/SecuritySettings';
+import ImportWorkLogs from './crm/pages/ImportWorkLogs';
+import ClearCacheUtility from './crm/pages/ClearCacheUtility';
 
 // ✅ HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
@@ -136,6 +138,8 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/daily-reports" element={<AdminDailyReports />} />
                     <Route path="admin/performance" element={<AdminPerformanceDashboard />} />
                     <Route path="admin/projects" element={<ProjectManagement />} />
+                    <Route path="admin/import-work-logs" element={<ProtectedRoute allowedRoles={['super_admin']}><ImportWorkLogs /></ProtectedRoute>} />
+                    <Route path="clear-cache" element={<ClearCacheUtility />} />
 
                     <Route path="admin/cms" element={<ContentManagementDashboard />} />
                     <Route path="admin/cms/homepage" element={<HomepageSettings />} />

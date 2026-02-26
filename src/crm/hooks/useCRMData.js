@@ -1,14 +1,15 @@
 // src/crm/hooks/useCRMData.js
 // ✅ Leads    → Supabase
 // ✅ Employees → Supabase profiles table
-// ✅ Calls, SiteVisits, Bookings → Supabase (FIXED)
+// ✅ Calls, SiteVisits, Bookings → Supabase
+// ✅ WorkLogs → Computed from calls (REAL DATA)
 // Tasks, EOD Reports → localStorage (will migrate later)
 import { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
 import {
   sampleCustomers, sampleInvoices,
-  samplePayments, sampleSettings, sampleWhatsAppTemplates, sampleWorkLogs
+  samplePayments, sampleSettings, sampleWhatsAppTemplates
 } from '../data/sampleData';
 
 const STORAGE_KEYS = {
@@ -17,7 +18,6 @@ const STORAGE_KEYS = {
   PAYMENTS:        'crm_payments',
   SETTINGS:        'crm_settings',
   WA_TEMPLATES:    'crm_wa_templates',
-  WORK_LOGS:       'crm_work_logs',
   TASKS:           'crm_tasks',
   EOD_REPORTS:     'crm_eod_reports',
   PROMO_MATERIALS: 'crm_promo_materials',
@@ -25,33 +25,35 @@ const STORAGE_KEYS = {
 };
 
 export const useCRMData = () => {
-  // ── Supabase state ──────────────────────────────────────────
+  // ── Supabase state ────────────────────────────────────────
   const [leads, setLeads]           = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [employees, setEmployees]   = useState([]);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   
-  // ✅ FIXED: Now using Supabase
+  // ✅ NOW USING SUPABASE
   const [calls, setCalls]           = useState([]);
   const [callsLoading, setCallsLoading] = useState(true);
   const [siteVisits, setSiteVisits] = useState([]);
   const [siteVisitsLoading, setSiteVisitsLoading] = useState(true);
   const [bookings, setBookings]     = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
+  
+  // ✅ COMPUTED from calls data (NOT localStorage)
+  const [workLogs, setWorkLogs]     = useState([]);
 
-  // ── localStorage state (will migrate later) ─────────────────
+  // ── localStorage state (will migrate later) ─────────────────────────
   const [customers, setCustomers]         = useState([]);
   const [invoices, setInvoices]           = useState([]);
   const [payments, setPayments]           = useState([]);
   const [settings, setSettings]           = useState(sampleSettings);
   const [waTemplates, setWaTemplates]     = useState([]);
-  const [workLogs, setWorkLogs]           = useState([]);
   const [promoMaterials, setPromoMaterials] = useState([]);
   const [tasks, setTasks]                 = useState([]);
   const [eodReports, setEodReports]       = useState([]);
   const [auditLogs, setAuditLogs]         = useState([]);
 
-  // ── Load localStorage data once ─────────────────────────────
+  // ── Load localStorage data once ─────────────────────────────────
   useEffect(() => {
     const get = (key, def) => {
       const item = localStorage.getItem(key);
@@ -62,14 +64,13 @@ export const useCRMData = () => {
     setPayments(get(STORAGE_KEYS.PAYMENTS, samplePayments));
     setSettings(get(STORAGE_KEYS.SETTINGS, sampleSettings));
     setWaTemplates(get(STORAGE_KEYS.WA_TEMPLATES, sampleWhatsAppTemplates));
-    setWorkLogs(get(STORAGE_KEYS.WORK_LOGS, sampleWorkLogs));
     setPromoMaterials(get(STORAGE_KEYS.PROMO_MATERIALS, []));
     setTasks(get(STORAGE_KEYS.TASKS, []));
     setEodReports(get(STORAGE_KEYS.EOD_REPORTS, []));
     setAuditLogs(get(STORAGE_KEYS.AUDIT_LOGS, []));
   }, []);
 
-  // ── Load all Supabase data ──────────────────────────────────
+  // ── Load all Supabase data ──────────────────────────────────────
   useEffect(() => {
     fetchLeads();
     fetchEmployees();
@@ -78,7 +79,83 @@ export const useCRMData = () => {
     fetchBookings();
   }, []);
 
-  // ── LEADS ───────────────────────────────────────────────────
+  // ── Compute workLogs from calls, siteVisits, bookings data ──────────────────
+  useEffect(() => {
+    if (callsLoading || siteVisitsLoading || bookingsLoading) return;
+
+    // Aggregate by employeeId and date
+    const logsMap = {};
+
+    calls.forEach(c => {
+      const date = new Date(c.timestamp).toISOString().split('T')[0];
+      const key = `${c.employeeId}_${date}`;
+      if (!logsMap[key]) {
+        logsMap[key] = {
+          id: key,
+          employeeId: c.employeeId,
+          date,
+          totalCalls: 0,
+          connectedCalls: 0,
+          siteVisits: 0,
+          bookings: 0,
+          conversionRate: 0,
+        };
+      }
+      logsMap[key].totalCalls += 1;
+      if (c.status === 'connected' || c.status === 'interested') {
+        logsMap[key].connectedCalls += 1;
+      }
+    });
+
+    siteVisits.forEach(sv => {
+      const date = new Date(sv.timestamp).toISOString().split('T')[0];
+      const key = `${sv.employeeId}_${date}`;
+      if (!logsMap[key]) {
+        logsMap[key] = {
+          id: key,
+          employeeId: sv.employeeId,
+          date,
+          totalCalls: 0,
+          connectedCalls: 0,
+          siteVisits: 0,
+          bookings: 0,
+          conversionRate: 0,
+        };
+      }
+      logsMap[key].siteVisits += 1;
+    });
+
+    bookings.forEach(b => {
+      const date = new Date(b.timestamp).toISOString().split('T')[0];
+      const key = `${b.employeeId}_${date}`;
+      if (!logsMap[key]) {
+        logsMap[key] = {
+          id: key,
+          employeeId: b.employeeId,
+          date,
+          totalCalls: 0,
+          connectedCalls: 0,
+          siteVisits: 0,
+          bookings: 0,
+          conversionRate: 0,
+        };
+      }
+      logsMap[key].bookings += 1;
+    });
+
+    // Calculate conversion rates
+    Object.values(logsMap).forEach(log => {
+      if (log.totalCalls > 0) {
+        log.conversionRate = Math.round((log.connectedCalls / log.totalCalls) * 100);
+      }
+    });
+
+    const computed = Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date));
+    setWorkLogs(computed);
+    console.log(`[WorkLogs] Computed ${computed.length} work logs from real Supabase data`);
+  }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
+
+  // ── LEADS ───────────────────────────────────────────────────────
   const fetchLeads = async () => {
     try {
       setLeadsLoading(true);
@@ -245,7 +322,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ───────────────────────────────────────────────
+  // ── EMPLOYEES ─────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -284,7 +361,7 @@ export const useCRMData = () => {
     }
   };
 
-  // ── CALLS ✅ NOW USING SUPABASE ─────────────────────────────
+  // ── CALLS ✅ NOW USING SUPABASE ─────────────────────────────────
   const fetchCalls = async () => {
     try {
       setCallsLoading(true);
@@ -331,7 +408,7 @@ export const useCRMData = () => {
     }
   };
 
-  // ── SITE VISITS ✅ NOW USING SUPABASE ───────────────────────
+  // ── SITE VISITS ✅ NOW USING SUPABASE ─────────────────────────────
   const fetchSiteVisits = async () => {
     try {
       setSiteVisitsLoading(true);
@@ -380,7 +457,7 @@ export const useCRMData = () => {
     }
   };
 
-  // ── BOOKINGS ✅ NOW USING SUPABASE ──────────────────────────
+  // ── BOOKINGS ✅ NOW USING SUPABASE ──────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
@@ -430,7 +507,7 @@ export const useCRMData = () => {
     }
   };
 
-  // ── localStorage helpers (for remaining items) ──────────────
+  // ── localStorage helpers (for remaining items) ─────────────────────────
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
     switch (key) {
@@ -472,10 +549,10 @@ export const useCRMData = () => {
   };
 
   const clearDummyData = async () => {
-    // Clear localStorage
+    // Clear localStorage cache
+    localStorage.removeItem('crm_work_logs');
     saveData(STORAGE_KEYS.TASKS, []);
     saveData(STORAGE_KEYS.EOD_REPORTS, []);
-    saveData(STORAGE_KEYS.WORK_LOGS, []);
     
     // Refresh Supabase data
     await fetchCalls();
@@ -505,9 +582,12 @@ export const useCRMData = () => {
     // Supabase - Bookings ✅
     bookings, bookingsLoading, fetchBookings, addBookingLog,
     
+    // Computed from real Supabase data ✅
+    workLogs,
+    
     // localStorage (remaining)
     customers, invoices, payments,
-    settings, waTemplates, workLogs, promoMaterials,
+    settings, waTemplates, promoMaterials,
     tasks, eodReports, auditLogs,
     addPromoMaterial, deletePromoMaterial,
     addTask, updateTask, addEodReport, addAuditLog,

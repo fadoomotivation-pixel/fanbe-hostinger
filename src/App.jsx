@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState } from 'react';
-import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from './components/ScrollToTop';
@@ -37,8 +37,6 @@ import EmployeeWorkHistory from './crm/pages/EmployeeWorkHistory';
 import AdminDailyReports from './crm/pages/AdminDailyReports';
 import AdminPerformanceDashboard from './crm/pages/AdminPerformanceDashboard';
 import ProjectManagement from './crm/pages/ProjectManagement';
-
-// Sub Admin Imports
 import SubAdminDashboard from './crm/pages/SubAdminDashboard';
 import SubAdminManagement from './crm/pages/SubAdminManagement';
 import StaffManagementSubAdmin from './crm/pages/StaffManagementSubAdmin';
@@ -46,8 +44,6 @@ import StaffPerformanceSubAdmin from './crm/pages/StaffPerformanceSubAdmin';
 import RevenueAnalytics from './crm/pages/RevenueAnalytics';
 import CallAnalytics from './crm/pages/CallAnalytics';
 import BookingAnalytics from './crm/pages/BookingAnalytics';
-
-// Sales Executive Imports
 import MyLeads from './crm/pages/MyLeads';
 import LeadDetail from './crm/pages/LeadDetail';
 import EditLead from './crm/pages/EditLead';
@@ -60,16 +56,12 @@ import Bookings from './crm/pages/Bookings';
 import Tasks from './crm/pages/Tasks';
 import EODReports from './crm/pages/EODReports';
 import SalesTools from './crm/pages/SalesTools';
-
-// Mobile Optimized Pages
 import MobileEmployeeDashboard from './crm/pages/MobileEmployeeDashboard';
 import MobileLeadList from './crm/pages/MobileLeadList';
 import MobileLeadDetails from './crm/pages/MobileLeadDetails';
 import MobileBottomNav from './crm/components/MobileBottomNav';
 import { useMobile } from '@/lib/useMobile';
 import { useAuth } from '@/context/AuthContext';
-
-// CMS Imports
 import ContentManagementDashboard from './crm/pages/ContentManagementDashboard';
 import HomepageSettings from './crm/pages/HomepageSettings';
 import ProjectPagesEditor from './crm/pages/ProjectPagesEditor';
@@ -80,15 +72,20 @@ import PromotionMaterialsViewer from './crm/pages/PromotionMaterialsViewer';
 import HomepageContentEditor from './crm/pages/HomepageContentEditor';
 import DeveloperConsole from './crm/pages/DeveloperConsole';
 import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
-
-// Settings Imports
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
 import SecuritySettings from './crm/pages/SecuritySettings';
 
-// ✅ HR Module Imports (Phase 1 + Phase 2)
+// ✅ HR Module (Phase 1 + 2 + 3)
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
 import HRDashboard from './crm/pages/hr/HRDashboard';
 import HRAttendance from './crm/pages/hr/HRAttendance';
+import HRPayroll from './crm/pages/hr/HRPayroll';
+
+const SmartDashboard = () => {
+  const { user } = useAuth();
+  if (user?.role === 'sub_admin') return <SubAdminDashboard />;
+  return <CRMAdminDashboard />;
+};
 
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location = useLocation();
@@ -99,128 +96,86 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   if (isCRM) {
     return (
       <>
-      <Routes>
-        <Route path="/crm/login" element={<CRMLogin />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        
-        <Route path="/crm/*" element={
-          <ProtectedRoute>
-             {location.pathname === '/crm/developer-console' ? (
-                 <DeveloperConsole />
-             ) : (
-             <CRMLayout>
-                <Routes>
-                   {isMobile && user?.role === 'sales_executive' && (
-                       <>
-                           <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
-                           <Route path="my-leads" element={<MobileLeadList />} />
-                           <Route path="lead/:leadId" element={<MobileLeadDetails />} />
-                       </>
-                   )}
+        <Routes>
+          <Route path="/crm/login" element={<CRMLogin />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/crm/*" element={
+            <ProtectedRoute>
+              {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
+                <CRMLayout>
+                  <Routes>
+                    {isMobile && user?.role === 'sales_executive' && (
+                      <>
+                        <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
+                        <Route path="my-leads" element={<MobileLeadList />} />
+                        <Route path="lead/:leadId" element={<MobileLeadDetails />} />
+                      </>
+                    )}
 
-                   {/* Super Admin Routes */}
-                   <Route path="admin/dashboard" element={
-                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}>
-                         <SmartDashboard />
-                      </ProtectedRoute>
-                   } />
-                   <Route path="admin/employees" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>
-                   } />
-                   <Route path="admin/employee-management" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>
-                   } />
-                   <Route path="admin/sub-admins" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><SubAdminManagement /></ProtectedRoute>
-                   } />
-                   <Route path="admin/leads" element={<LeadManagement />} />
-                   <Route path="admin/customers" element={<CustomerManagement />} />
-                   <Route path="admin/invoices" element={<InvoiceManagement />} />
-                   <Route path="admin/settings" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><MasterSettings /></ProtectedRoute>
-                   } />
-                   <Route path="admin/crm-settings" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><CRMSettings /></ProtectedRoute>
-                   } />
-                   <Route path="admin/settings/account"   element={<SuperAdminSettings />} />
-                   <Route path="admin/settings/staff"     element={<EmployeeManagement />} />
-                   <Route path="admin/settings/employee"  element={<EmployeeManagement />} />
-                   <Route path="admin/settings/security"  element={<SecuritySettings />} />
-                   <Route path="admin/notifications"      element={<NotificationSettings />} />
-                   <Route path="admin/wa-templates"       element={<WhatsAppTemplates />} />
-                   <Route path="admin/work-history"       element={<EmployeeWorkHistory />} />
-                   <Route path="admin/daily-reports"      element={<AdminDailyReports />} />
-                   <Route path="admin/performance"        element={<AdminPerformanceDashboard />} />
-                   <Route path="admin/projects"           element={<ProjectManagement />} />
+                    <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />
+                    <Route path="admin/employees" element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
+                    <Route path="admin/employee-management" element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
+                    <Route path="admin/sub-admins" element={<ProtectedRoute allowedRoles={['super_admin']}><SubAdminManagement /></ProtectedRoute>} />
+                    <Route path="admin/leads" element={<LeadManagement />} />
+                    <Route path="admin/customers" element={<CustomerManagement />} />
+                    <Route path="admin/invoices" element={<InvoiceManagement />} />
+                    <Route path="admin/settings" element={<ProtectedRoute allowedRoles={['super_admin']}><MasterSettings /></ProtectedRoute>} />
+                    <Route path="admin/crm-settings" element={<ProtectedRoute allowedRoles={['super_admin']}><CRMSettings /></ProtectedRoute>} />
+                    <Route path="admin/settings/account" element={<SuperAdminSettings />} />
+                    <Route path="admin/settings/staff" element={<EmployeeManagement />} />
+                    <Route path="admin/settings/employee" element={<EmployeeManagement />} />
+                    <Route path="admin/settings/security" element={<SecuritySettings />} />
+                    <Route path="admin/notifications" element={<NotificationSettings />} />
+                    <Route path="admin/wa-templates" element={<WhatsAppTemplates />} />
+                    <Route path="admin/work-history" element={<EmployeeWorkHistory />} />
+                    <Route path="admin/daily-reports" element={<AdminDailyReports />} />
+                    <Route path="admin/performance" element={<AdminPerformanceDashboard />} />
+                    <Route path="admin/projects" element={<ProjectManagement />} />
 
-                   {/* CMS Routes */}
-                   <Route path="admin/cms"                        element={<ContentManagementDashboard />} />
-                   <Route path="admin/cms/homepage"               element={<HomepageSettings />} />
-                   <Route path="admin/cms/projects"               element={<ProjectPagesEditor />} />
-                   <Route path="admin/cms/navigation"             element={<NavigationMenuEditor />} />
-                   <Route path="admin/cms/promotion-materials"    element={<PromotionMaterialsManager />} />
-                   <Route path="admin/cms/project-documents"      element={<ProjectDocumentsPage />} />
-                   <Route path="homepage-content-editor" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><HomepageContentEditor /></ProtectedRoute>
-                   } />
-                   <Route path="developer-console" element={
-                      <ProtectedRoute allowedRoles={['super_admin']}><DeveloperConsole /></ProtectedRoute>
-                   } />
+                    <Route path="admin/cms" element={<ContentManagementDashboard />} />
+                    <Route path="admin/cms/homepage" element={<HomepageSettings />} />
+                    <Route path="admin/cms/projects" element={<ProjectPagesEditor />} />
+                    <Route path="admin/cms/navigation" element={<NavigationMenuEditor />} />
+                    <Route path="admin/cms/promotion-materials" element={<PromotionMaterialsManager />} />
+                    <Route path="admin/cms/project-documents" element={<ProjectDocumentsPage />} />
+                    <Route path="homepage-content-editor" element={<ProtectedRoute allowedRoles={['super_admin']}><HomepageContentEditor /></ProtectedRoute>} />
+                    <Route path="developer-console" element={<ProtectedRoute allowedRoles={['super_admin']}><DeveloperConsole /></ProtectedRoute>} />
 
-                   {/* Sub Admin Routes */}
-                   <Route path="admin/staff-management" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><StaffManagementSubAdmin /></ProtectedRoute>
-                   } />
-                   <Route path="admin/staff-performance" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><StaffPerformanceSubAdmin /></ProtectedRoute>
-                   } />
-                   <Route path="admin/revenue-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><RevenueAnalytics /></ProtectedRoute>
-                   } />
-                   <Route path="admin/call-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><CallAnalytics /></ProtectedRoute>
-                   } />
-                   <Route path="admin/booking-analytics" element={
-                      <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><BookingAnalytics /></ProtectedRoute>
-                   } />
+                    <Route path="admin/staff-management" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><StaffManagementSubAdmin /></ProtectedRoute>} />
+                    <Route path="admin/staff-performance" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><StaffPerformanceSubAdmin /></ProtectedRoute>} />
+                    <Route path="admin/revenue-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><RevenueAnalytics /></ProtectedRoute>} />
+                    <Route path="admin/call-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><CallAnalytics /></ProtectedRoute>} />
+                    <Route path="admin/booking-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><BookingAnalytics /></ProtectedRoute>} />
 
-                   {/* ✅ HR Module Routes (Phase 1 + Phase 2) */}
-                   <Route path="admin/hr/dashboard" element={
-                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}><HRDashboard /></ProtectedRoute>
-                   } />
-                   <Route path="admin/hr/employees" element={
-                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}><HREmployeeMaster /></ProtectedRoute>
-                   } />
-                   <Route path="admin/hr/attendance" element={
-                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}><HRAttendance /></ProtectedRoute>
-                   } />
+                    {/* ✅ HR Module Routes */}
+                    <Route path="admin/hr/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
+                    <Route path="admin/hr/employees" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HREmployeeMaster /></ProtectedRoute>} />
+                    <Route path="admin/hr/attendance" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRAttendance /></ProtectedRoute>} />
+                    <Route path="admin/hr/payroll" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRPayroll /></ProtectedRoute>} />
 
-                   {/* Sales Routes */}
-                   <Route path="sales/dashboard"     element={<SalesExecutiveDashboard />} />
-                   {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
-                   <Route path="sales/my-leads"      element={<MyLeads />} />
-                   <Route path="sales/lead/:id"      element={<LeadDetail />} />
-                   <Route path="sales/edit-lead/:id" element={<EditLead />} />
-                   {!isMobile && <Route path="my-leads"          element={<EmployeeLeadList />} />}
-                   {!isMobile && <Route path="lead/:leadId"      element={<EmployeeLeadDetails />} />}
-                   <Route path="sales/daily-calling" element={<DailyCalling />} />
-                   <Route path="sales/site-visits"   element={<SiteVisits />} />
-                   <Route path="sales/bookings"      element={<Bookings />} />
-                   <Route path="sales/tasks"         element={<Tasks />} />
-                   <Route path="sales/eod-reports"   element={<EODReports />} />
-                   <Route path="sales/tools"         element={user?.role === 'super_admin' ? <PromotionMaterialsManager /> : <PromotionMaterialsViewer />} />
-                   <Route path="sales/performance"   element={<SalesExecutivePerformance />} />
-                   <Route path="sales/daily-log"     element={<DailyWorkLog />} />
-
-                   {/* Shared */}
-                   <Route path="profile" element={<CRMProfile />} />
-                </Routes>
-             </CRMLayout>
-             )}
-          </ProtectedRoute>
-        } />
-      </Routes>
-      {isMobile && user && <MobileBottomNav onLogout={() => { window.location.href = '/crm/login'; localStorage.removeItem('crm_user'); }} />}
+                    <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
+                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
+                    <Route path="sales/my-leads" element={<MyLeads />} />
+                    <Route path="sales/lead/:id" element={<LeadDetail />} />
+                    <Route path="sales/edit-lead/:id" element={<EditLead />} />
+                    {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
+                    {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
+                    <Route path="sales/daily-calling" element={<DailyCalling />} />
+                    <Route path="sales/site-visits" element={<SiteVisits />} />
+                    <Route path="sales/bookings" element={<Bookings />} />
+                    <Route path="sales/tasks" element={<Tasks />} />
+                    <Route path="sales/eod-reports" element={<EODReports />} />
+                    <Route path="sales/tools" element={user?.role === 'super_admin' ? <PromotionMaterialsManager /> : <PromotionMaterialsViewer />} />
+                    <Route path="sales/performance" element={<SalesExecutivePerformance />} />
+                    <Route path="sales/daily-log" element={<DailyWorkLog />} />
+                    <Route path="profile" element={<CRMProfile />} />
+                  </Routes>
+                </CRMLayout>
+              )}
+            </ProtectedRoute>
+          } />
+        </Routes>
+        {isMobile && user && <MobileBottomNav onLogout={() => { window.location.href = '/crm/login'; localStorage.removeItem('crm_user'); }} />}
       </>
     );
   }
@@ -237,12 +192,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
       </Routes>
     </AnimatePresence>
   );
-};
-
-const SmartDashboard = () => {
-   const { user } = useAuth();
-   if (user?.role === 'sub_admin') return <SubAdminDashboard />;
-   return <CRMAdminDashboard />;
 };
 
 function App() {

@@ -1,5 +1,5 @@
 -- ============================================================
--- HR Module — Supabase SQL Schema (Phase 1 + 2 + 3)
+-- HR Module — Supabase SQL Schema (Phase 1 + 2 + 3 + 4)
 -- Run ENTIRE FILE in Supabase → SQL Editor
 -- Safe to re-run — uses IF NOT EXISTS throughout
 -- ============================================================
@@ -124,12 +124,33 @@ CREATE INDEX IF NOT EXISTS hr_payroll_emp_idx    ON public.hr_payroll(emp_id);
 CREATE INDEX IF NOT EXISTS hr_payroll_month_idx  ON public.hr_payroll(month, year);
 CREATE INDEX IF NOT EXISTS hr_payroll_status_idx ON public.hr_payroll(status);
 
+-- ── Phase 4: Document Vault ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.hr_documents (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  emp_id       TEXT NOT NULL REFERENCES public.hr_employees(emp_id) ON DELETE CASCADE,
+  category     TEXT NOT NULL DEFAULT 'Other',
+  doc_name     TEXT NOT NULL,
+  file_path    TEXT NOT NULL,
+  file_url     TEXT,
+  file_type    TEXT,
+  file_size    BIGINT,
+  expiry_date  DATE,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.hr_documents ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access" ON public.hr_documents;
+CREATE POLICY "Service role full access" ON public.hr_documents
+  FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS hr_documents_emp_idx  ON public.hr_documents(emp_id);
+CREATE INDEX IF NOT EXISTS hr_documents_cat_idx  ON public.hr_documents(category);
+
 -- ============================================================
--- ALL DONE! Tables: hr_employees, hr_attendance,
---   hr_leaves, hr_holidays, hr_payroll
--- Pages:
---   /crm/admin/hr/dashboard
---   /crm/admin/hr/employees
---   /crm/admin/hr/attendance
---   /crm/admin/hr/payroll
+-- ✅ ALL DONE — 5 Tables created:
+--   hr_employees | hr_attendance | hr_leaves
+--   hr_holidays  | hr_payroll    | hr_documents
+--
+-- Also create Supabase Storage bucket manually:
+--   Name: hr-documents
+--   Public: true (or use signed URLs if private)
 -- ============================================================

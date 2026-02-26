@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2 } from 'lucide-react';
-import { ROLES } from '@/lib/permissions';
 
 const ImportLeads = () => {
   const { user } = useAuth();
@@ -17,7 +16,7 @@ const ImportLeads = () => {
   const [error, setError] = useState(null);
 
   // Check if user is Super Admin
-  if (user?.role !== ROLES.SUPER_ADMIN) {
+  if (user?.role !== 'super_admin') {
     return (
       <div className="max-w-2xl mx-auto py-10 px-4">
         <Alert variant="destructive">
@@ -187,7 +186,7 @@ const ImportLeads = () => {
               name: row['Lead Name'],
               phone: row['Phone Number'].replace(/\s+/g, ''),
               email: row['Email'] || '',
-              source: row['Lead Source'] || 'Manual Import',
+              source: row['Lead Source'] || 'CSV Import',
               budget: row['Budget'] || '', // Text field, can be anything
               callAttempt: row['Call Attempt'] || '',
               callStatus: row['Call Status'] || '',

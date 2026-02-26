@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert.jsx';
 import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2 } from 'lucide-react';
 
 const ImportLeads = () => {

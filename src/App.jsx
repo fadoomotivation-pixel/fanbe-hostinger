@@ -75,11 +75,12 @@ import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
 import SecuritySettings from './crm/pages/SecuritySettings';
 
-// ✅ HR Module (Phase 1 + 2 + 3)
+// ✅ HR Module (Phase 1 + 2 + 3 + 4)
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
-import HRDashboard from './crm/pages/hr/HRDashboard';
-import HRAttendance from './crm/pages/hr/HRAttendance';
-import HRPayroll from './crm/pages/hr/HRPayroll';
+import HRDashboard     from './crm/pages/hr/HRDashboard';
+import HRAttendance   from './crm/pages/hr/HRAttendance';
+import HRPayroll      from './crm/pages/hr/HRPayroll';
+import HRDocuments    from './crm/pages/hr/HRDocuments';
 
 const SmartDashboard = () => {
   const { user } = useAuth();
@@ -147,11 +148,12 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/call-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><CallAnalytics /></ProtectedRoute>} />
                     <Route path="admin/booking-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><BookingAnalytics /></ProtectedRoute>} />
 
-                    {/* ✅ HR Module Routes */}
-                    <Route path="admin/hr/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
-                    <Route path="admin/hr/employees" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HREmployeeMaster /></ProtectedRoute>} />
+                    {/* ✅ HR Module Routes (Phase 1–4) */}
+                    <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
+                    <Route path="admin/hr/employees"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HREmployeeMaster /></ProtectedRoute>} />
                     <Route path="admin/hr/attendance" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRAttendance /></ProtectedRoute>} />
-                    <Route path="admin/hr/payroll" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRPayroll /></ProtectedRoute>} />
+                    <Route path="admin/hr/payroll"    element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRPayroll /></ProtectedRoute>} />
+                    <Route path="admin/hr/documents"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDocuments /></ProtectedRoute>} />
 
                     <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
                     {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}

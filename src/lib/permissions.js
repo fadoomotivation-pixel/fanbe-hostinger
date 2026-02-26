@@ -57,6 +57,7 @@ const MENU_STRUCTURE = {
     { label: 'Employee Master',      path: '/crm/admin/hr/employees',     icon: 'UserPlus',        group: 'HR' },
     { label: 'Attendance',           path: '/crm/admin/hr/attendance',    icon: 'ClipboardList',   group: 'HR' },
     { label: 'Payroll',              path: '/crm/admin/hr/payroll',       icon: 'IndianRupee',     group: 'HR' },
+    { label: 'Documents',            path: '/crm/admin/hr/documents',     icon: 'FolderOpen',      group: 'HR' },
     { label: 'My Profile',           path: '/crm/profile',                icon: 'User' },
   ],
   [ROLES.MANAGER]: [
@@ -71,6 +72,7 @@ const MENU_STRUCTURE = {
     { label: 'Employee Master',      path: '/crm/admin/hr/employees',     icon: 'UserPlus',        group: 'HR' },
     { label: 'Attendance',           path: '/crm/admin/hr/attendance',    icon: 'ClipboardList',   group: 'HR' },
     { label: 'Payroll',              path: '/crm/admin/hr/payroll',       icon: 'IndianRupee',     group: 'HR' },
+    { label: 'Documents',            path: '/crm/admin/hr/documents',     icon: 'FolderOpen',      group: 'HR' },
     { label: 'My Profile',           path: '/crm/profile',                icon: 'User' },
   ],
   [ROLES.SUB_ADMIN]: [
@@ -86,6 +88,7 @@ const MENU_STRUCTURE = {
     { label: 'Employee Master',      path: '/crm/admin/hr/employees',     icon: 'UserPlus',        group: 'HR' },
     { label: 'Attendance',           path: '/crm/admin/hr/attendance',    icon: 'ClipboardList',   group: 'HR' },
     { label: 'Payroll',              path: '/crm/admin/hr/payroll',       icon: 'IndianRupee',     group: 'HR' },
+    { label: 'Documents',            path: '/crm/admin/hr/documents',     icon: 'FolderOpen',      group: 'HR' },
     { label: 'My Profile',           path: '/crm/profile',                icon: 'User' },
   ],
   [ROLES.SALES_EXECUTIVE]: [

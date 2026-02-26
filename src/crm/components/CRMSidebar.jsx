@@ -5,7 +5,7 @@ import {
   UserCheck, FileText, X, BarChart2, ClipboardList,
   Image as ImageIcon, Globe, Monitor, Menu as MenuIcon,
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
-  User, CheckSquare, CalendarCheck, IndianRupee
+  User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -17,7 +17,7 @@ const IconMap = {
   UserCheck, FileText, X, BarChart2, ClipboardList,
   ImageIcon, Globe, Monitor, MenuIcon, Layers, Shield,
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
-  CalendarCheck, IndianRupee
+  CalendarCheck, IndianRupee, FolderOpen
 };
 
 const GROUP_CONFIG = {
@@ -46,9 +46,9 @@ const CRMSidebar = ({ isOpen, onClose }) => {
   const getRoleLabel = (role) => {
     switch (role) {
       case ROLES.SUPER_ADMIN: return 'Super Admin';
-      case ROLES.SUB_ADMIN: return 'Executive CRM';
-      case ROLES.EMPLOYEE: return 'Sales Executive';
-      default: return 'User';
+      case ROLES.SUB_ADMIN:   return 'Executive CRM';
+      case ROLES.EMPLOYEE:    return 'Sales Executive';
+      default:                return 'User';
     }
   };
 

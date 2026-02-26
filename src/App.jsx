@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState } from 'react';
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -83,6 +84,10 @@ import ProjectDocumentsPage from './pages/crm/admin/cms/ProjectDocumentsPage';
 // New Settings Imports
 import SuperAdminSettings from './crm/pages/SuperAdminSettings';
 import SecuritySettings from './crm/pages/SecuritySettings';
+
+// ✅ Phase 1: HR Module Imports
+import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
+import HRDashboard from './crm/pages/hr/HRDashboard';
 
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location = useLocation();
@@ -185,6 +190,14 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                    } />
                    <Route path="admin/booking-analytics" element={
                       <ProtectedRoute allowedRoles={['sub_admin', 'super_admin']}><BookingAnalytics /></ProtectedRoute>
+                   } />
+
+                   {/* ✅ Phase 1: HR Module Routes */}
+                   <Route path="admin/hr/dashboard" element={
+                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}><HRDashboard /></ProtectedRoute>
+                   } />
+                   <Route path="admin/hr/employees" element={
+                      <ProtectedRoute allowedRoles={['super_admin', 'sub_admin']}><HREmployeeMaster /></ProtectedRoute>
                    } />
 
                    {/* Sales Routes */}

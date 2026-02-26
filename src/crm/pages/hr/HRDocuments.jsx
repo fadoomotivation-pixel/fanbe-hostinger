@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Upload, Trash2, Download, Eye, Search,
   Loader2, FileText, FileImage, FileCheck, File, PlusCircle,
-  ShieldCheck, IdCard, Briefcase, BookOpen
+  ShieldCheck, CreditCard, Briefcase, BookOpen
 } from 'lucide-react';
 
 const DOC_CATEGORIES = [
@@ -35,8 +35,8 @@ const DOC_CATEGORIES = [
 const CATEGORY_ICONS = {
   'Offer Letter':              FileCheck,
   'Appointment Letter':        FileCheck,
-  'ID Proof (Aadhar)':         IdCard,
-  'ID Proof (PAN)':            IdCard,
+  'ID Proof (Aadhar)':         CreditCard,
+  'ID Proof (PAN)':            CreditCard,
   'Address Proof':             ShieldCheck,
   'Educational Certificate':   BookOpen,
   'Experience Letter':         Briefcase,
@@ -140,7 +140,6 @@ const HRDocuments = () => {
     const ext      = uploadForm.file.name.split('.').pop();
     const filePath = `hr-docs/${uploadForm.emp_id}/${Date.now()}_${uploadForm.category.replace(/[^a-z0-9]/gi,'_')}.${ext}`;
 
-    // Upload to Supabase Storage bucket: hr-documents
     const { data: storageData, error: storageErr } = await supabaseAdmin
       .storage.from('hr-documents')
       .upload(filePath, uploadForm.file, { cacheControl: '3600', upsert: false });
@@ -151,10 +150,8 @@ const HRDocuments = () => {
       return;
     }
 
-    // Get public URL
     const { data: urlData } = supabaseAdmin.storage.from('hr-documents').getPublicUrl(filePath);
 
-    // Save metadata to DB
     const { error: dbErr } = await supabaseAdmin.from('hr_documents').insert({
       emp_id:       uploadForm.emp_id,
       category:     uploadForm.category,
@@ -179,9 +176,7 @@ const HRDocuments = () => {
 
   // ── Delete ────────────────────────────────────────────────
   const handleDelete = async (doc) => {
-    // Delete from storage
     await supabaseAdmin.storage.from('hr-documents').remove([doc.file_path]);
-    // Delete from DB
     await supabaseAdmin.from('hr_documents').delete().eq('id', doc.id);
     toast({ title: '🗑️ Document deleted', variant: 'destructive' });
     await load();
@@ -375,7 +370,6 @@ const HRDocuments = () => {
               />
             </div>
 
-            {/* File picker */}
             <div className="space-y-1">
               <Label>Choose File * <span className="text-gray-400 font-normal text-xs">(PDF, JPG, PNG — max 10 MB)</span></Label>
               <div

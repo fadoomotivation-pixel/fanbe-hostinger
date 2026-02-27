@@ -30,6 +30,51 @@ const ImportLeads = () => {
     );
   }
 
+  // Parse date from multiple formats: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY, etc.
+  const parseFlexibleDate = (dateString) => {
+    if (!dateString || !dateString.trim()) return null;
+    
+    const cleaned = dateString.trim();
+    
+    // Try parsing as-is first (works for YYYY-MM-DD and ISO formats)
+    let parsed = new Date(cleaned);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0]; // Return YYYY-MM-DD
+    }
+    
+    // Try DD/MM/YYYY or DD-MM-YYYY format (common in Excel exports)
+    const dmyMatch = cleaned.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+    
+    // Try MM/DD/YYYY format
+    const mdyMatch = cleaned.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (mdyMatch) {
+      const [, month, day, year] = mdyMatch;
+      parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+    
+    // Try YYYY/MM/DD format
+    const ymdMatch = cleaned.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+    if (ymdMatch) {
+      const [, year, month, day] = ymdMatch;
+      parsed = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+    
+    return null;
+  };
+
   const parseCSV = (text) => {
     const lines = text.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
@@ -116,8 +161,10 @@ const ImportLeads = () => {
       errors.push('Invalid or missing phone number');
     }
     
-    if (!row.date || isNaN(Date.parse(row.date))) {
-      errors.push('Invalid date format (use YYYY-MM-DD)');
+    // Flexible date validation
+    const parsedDate = parseFlexibleDate(row.date);
+    if (!parsedDate) {
+      errors.push(`Invalid date format: ${row.date}`);
     }
     
     // Optional but validated if present
@@ -125,11 +172,16 @@ const ImportLeads = () => {
       errors.push('Interest level must be hot, warm, or cold');
     }
     
-    if (row.call_status && !['connected', 'not answered', 'call back requested', 'busy', 'switched off', 'invalid number'].includes(row.call_status.toLowerCase())) {
-      errors.push('Invalid call status');
+    // More flexible call status matching
+    if (row.call_status) {
+      const status = row.call_status.toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+      const validStatuses = ['connected', 'not answered', 'call back requested', 'busy', 'switched off', 'switch off', 'invalid number', 'not reached', 'call back'];
+      if (!validStatuses.some(vs => status.includes(vs) || vs.includes(status))) {
+        errors.push(`Invalid call status: ${row.call_status}`);
+      }
     }
     
-    if (row.final_status && !['new', 'follow up', 'site visit', 'booked', 'lost', 'not interested'].includes(row.final_status.toLowerCase())) {
+    if (row.final_status && !['new', 'follow up', 'site visit', 'booked', 'lost', 'not interested'].includes(row.final_status.toLowerCase().replace(/[\s_-]+/g, ' '))) {
       errors.push('Invalid final status');
     }
     
@@ -178,6 +230,14 @@ const ImportLeads = () => {
             // Normalize phone number
             const phone = normalizePhone(row.phone);
             
+            // Parse date flexibly
+            const parsedDate = parseFlexibleDate(row.date);
+            if (!parsedDate) {
+              errors.push(`Row ${rowNumber}: Could not parse date: ${row.date}`);
+              errorCount++;
+              continue;
+            }
+            
             // Check for duplicate phone number
             const { data: existingLead } = await supabaseAdmin
               .from('leads')
@@ -204,19 +264,32 @@ const ImportLeads = () => {
               employeeId = employee.id;
             }
             
+            // Normalize call status
+            let callStatus = null;
+            if (row.call_status) {
+              const status = row.call_status.toLowerCase().replace(/[\s_-]+/g, '_');
+              if (status.includes('connect')) callStatus = 'connected';
+              else if (status.includes('not_answer') || status.includes('no_answer')) callStatus = 'not_answered';
+              else if (status.includes('call_back')) callStatus = 'call_back_requested';
+              else if (status.includes('busy')) callStatus = 'busy';
+              else if (status.includes('switch_off') || status.includes('switched_off')) callStatus = 'switched_off';
+              else if (status.includes('not_reach')) callStatus = 'not_answered';
+              else callStatus = status;
+            }
+            
             // Create lead object
             const leadData = {
               name: row.lead_name.trim(),
               phone: phone,
               email: row.email || null,
               source: row.lead_source || 'Import',
-              status: row.final_status ? row.final_status.toLowerCase().replace(' ', '_') : 'new',
+              status: row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'new',
               interest_level: row.interest_level ? row.interest_level.toLowerCase() : 'warm',
               project_name: row.project_name || null,
               budget: row.budget || null,
               notes: row.notes || row.buyer_feedback || '',
               assigned_to: employeeId,
-              created_at: new Date(row.date).toISOString(),
+              created_at: new Date(parsedDate + 'T00:00:00Z').toISOString(),
               updated_at: new Date().toISOString(),
             };
             
@@ -234,17 +307,20 @@ const ImportLeads = () => {
             }
             
             // If call data provided, create call record
-            if (row.call_status && row.call_attempt) {
+            if (callStatus && row.call_attempt) {
               await supabaseAdmin.from('calls').insert({
                 employee_id: employeeId,
                 lead_id: newLead.id,
                 lead_name: row.lead_name,
+                phone: phone,
                 project_name: row.project_name || null,
                 call_type: 'outbound',
-                status: row.call_status.toLowerCase().replace(' ', '_'),
-                duration: row.call_status.toLowerCase() === 'connected' ? 120 : 0,
+                status: callStatus,
+                duration: callStatus === 'connected' ? 120 : 0,
                 notes: row.buyer_feedback || 'Imported call',
-                created_at: new Date(row.date).toISOString(),
+                feedback: row.buyer_feedback || '',
+                call_date: parsedDate,
+                created_at: new Date(parsedDate + 'T00:00:00Z').toISOString(),
               });
             }
             
@@ -254,31 +330,36 @@ const ImportLeads = () => {
                 employee_id: employeeId,
                 lead_id: newLead.id,
                 lead_name: row.lead_name,
+                phone: phone,
                 project_name: row.project_name || null,
-                visit_date: row.date,
+                visit_date: parsedDate,
                 visit_time: '14:00',
                 status: row.site_visit_status === 'visited' ? 'completed' : 'scheduled',
                 location: row.project_name || 'Site',
                 duration: 60,
                 notes: row.buyer_feedback || 'Imported site visit',
                 feedback: row.buyer_feedback || '',
-                created_at: new Date(row.date).toISOString(),
+                interest_level: row.interest_level ? row.interest_level.toLowerCase() : null,
+                created_at: new Date(parsedDate + 'T00:00:00Z').toISOString(),
               });
             }
             
             // If follow-up date provided, create task
             if (row.next_followup_date && row.next_followup_date.trim()) {
-              await supabaseAdmin.from('tasks').insert({
-                employee_id: employeeId,
-                title: `Follow up: ${row.lead_name}`,
-                description: row.buyer_feedback || 'Follow up call',
-                type: 'call',
-                priority: row.interest_level === 'hot' ? 'high' : 'medium',
-                status: 'pending',
-                due_date: row.next_followup_date,
-                related_lead_id: newLead.id,
-                created_at: new Date().toISOString(),
-              });
+              const followupDate = parseFlexibleDate(row.next_followup_date);
+              if (followupDate) {
+                await supabaseAdmin.from('tasks').insert({
+                  employee_id: employeeId,
+                  title: `Follow up: ${row.lead_name}`,
+                  description: row.buyer_feedback || 'Follow up call',
+                  type: 'call',
+                  priority: row.interest_level === 'hot' ? 'high' : 'medium',
+                  status: 'pending',
+                  due_date: followupDate,
+                  related_lead_id: newLead.id,
+                  created_at: new Date().toISOString(),
+                });
+              }
             }
             
             successCount++;
@@ -352,7 +433,7 @@ const ImportLeads = () => {
               date,lead_name,phone,lead_source,call_attempt,call_status,interest_level,buyer_feedback,next_followup_date,site_visit_status,final_status,budget,assigned_to_email,project_name,notes
             </p>
             <p className="text-xs text-gray-600 whitespace-nowrap">
-              2026-02-27,A Singh,+918851481867,Website,1st,connected,hot,today visit,2026-02-28,visited,site visit,₹8–12 लाख,nidhi@fanbegroup.com,Maa Simri Vatika,follow up
+              31/01/2026,A Singh,8851481867,Website,1st,connected,hot,today visit,01/02/2026,visited,site visit,₹8–12 लाख,nidhi@fanbegroup.com,Maa Simri Vatika,follow up
             </p>
           </div>
           
@@ -360,7 +441,7 @@ const ImportLeads = () => {
             <div>
               <p className="font-semibold text-gray-700 mb-1">📋 Required Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>date</code> - YYYY-MM-DD</li>
+                <li><code>date</code> - DD/MM/YYYY or YYYY-MM-DD</li>
                 <li><code>lead_name</code> - Full name</li>
                 <li><code>phone</code> - 10-digit number</li>
               </ul>
@@ -369,7 +450,7 @@ const ImportLeads = () => {
             <div>
               <p className="font-semibold text-gray-700 mb-1">📞 Call Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>call_status</code> - connected, not answered, busy</li>
+                <li><code>call_status</code> - connected, not answered, busy, etc.</li>
                 <li><code>interest_level</code> - hot, warm, cold</li>
                 <li><code>buyer_feedback</code> - Free text</li>
               </ul>
@@ -379,7 +460,7 @@ const ImportLeads = () => {
               <p className="font-semibold text-gray-700 mb-1">✅ Optional Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
                 <li><code>lead_source</code> - Website, Facebook, etc.</li>
-                <li><code>next_followup_date</code> - YYYY-MM-DD</li>
+                <li><code>next_followup_date</code> - Any date format</li>
                 <li><code>site_visit_status</code> - visited, planned, not planned</li>
                 <li><code>final_status</code> - new, follow up, site visit, booked, lost</li>
                 <li><code>budget</code> - Price range</li>
@@ -393,7 +474,7 @@ const ImportLeads = () => {
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-xs text-yellow-800">
-              <strong>Important:</strong> Phone numbers should be 10 digits. System will automatically add +91 prefix. Duplicate phone numbers will be skipped.
+              <strong>Flexible Formatting:</strong> Date formats accepted: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY. Phone numbers will auto-add +91 prefix. Duplicate phones are skipped.
             </AlertDescription>
           </Alert>
         </CardContent>

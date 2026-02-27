@@ -41,7 +41,7 @@ const ImportWorkLogs = () => {
       
       const row = {};
       headers.forEach((header, index) => {
-        row[header] = values[index]?.trim().replace(/^"|"$/g, ''); // Remove quotes
+        row[header] = values[index]?.trim().replace(/^\"|\"$/g, ''); // Remove quotes
       });
       data.push(row);
     }
@@ -97,6 +97,16 @@ const ImportWorkLogs = () => {
     }
     
     return errors;
+  };
+
+  // Function to download sample CSV
+  const handleDownloadSample = () => {
+    const link = document.createElement('a');
+    link.href = '/sample_work_logs_import.csv';
+    link.download = 'sample_work_logs_import.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleImport = async () => {
@@ -240,7 +250,7 @@ const ImportWorkLogs = () => {
               variant="outline"
               size="sm"
               className="border-blue-300 text-blue-700 hover:bg-blue-100"
-              onClick={() => window.open('/sample_work_logs_import.csv', '_blank')}
+              onClick={handleDownloadSample}
             >
               <Download size={16} className="mr-2" />
               Download Sample

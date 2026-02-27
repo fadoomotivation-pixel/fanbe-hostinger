@@ -249,6 +249,7 @@ const MENU_STRUCTURE = {
     { label: 'Dashboard',             path: '/crm/admin/dashboard',           icon: 'LayoutDashboard' },
     { label: 'Projects/Inventory',    path: '/crm/admin/projects',            icon: 'Layers' },
     { label: 'Leads Management',      path: '/crm/admin/leads',               icon: 'Users' },
+    { label: 'Import Leads',          path: '/crm/admin/import-leads',        icon: 'UserPlus' },
     { label: 'Employee Management',   path: '/crm/admin/employees',           icon: 'UserCheck' },
     { label: 'Sub Admin Management',  path: '/crm/admin/sub-admins',          icon: 'Shield' },
     { label: 'HR Manager Setup',      path: '/crm/admin/hr-managers',         icon: 'Briefcase' },
@@ -276,6 +277,7 @@ const MENU_STRUCTURE = {
   [ROLES.SUB_ADMIN]: [
     { label: 'Dashboard',            path: '/crm/admin/dashboard',           icon: 'LayoutDashboard' },
     { label: 'Leads Management',     path: '/crm/admin/leads',               icon: 'Users' },
+    { label: 'Import Leads',         path: '/crm/admin/import-leads',        icon: 'UserPlus' },
     { label: 'Projects/Inventory',   path: '/crm/admin/projects',            icon: 'Layers' },
     { label: 'Staff Management',     path: '/crm/admin/staff-management',    icon: 'UserCheck' },
     { label: 'Staff Performance',    path: '/crm/admin/staff-performance',   icon: 'TrendingUp' },
@@ -373,6 +375,7 @@ export const canAccessPage = (role, path) => {
     if (path.includes('/notifications')) return false;
     if (path.includes('/hr/'))           return false;
     if (path.includes('/import-work-logs')) return false;
+    if (path.includes('/import-leads'))  return false;
     return true;
   }
 

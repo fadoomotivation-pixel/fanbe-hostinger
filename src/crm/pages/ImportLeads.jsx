@@ -4,60 +4,58 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx';
-import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2 } from 'lucide-react';
+import { supabaseAdmin } from '@/lib/supabase';
+import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2, Users } from 'lucide-react';
 
 const ImportLeads = () => {
   const { user } = useAuth();
-  const { employees, addLead, fetchLeads } = useCRMData();
+  const { employees, projects, fetchLeads } = useCRMData();
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState([]);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // Check if user is Super Admin
-  if (user?.role !== 'super_admin') {
+  // Check if user is Super Admin or Sub Admin
+  if (!['super_admin', 'sub_admin'].includes(user?.role)) {
     return (
       <div className="max-w-2xl mx-auto py-10 px-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Access denied. Only Super Admin can import leads.
+            Access denied. Only Super Admin and Sub Admin can import leads.
           </AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  const downloadSampleCSV = () => {
-    // Create a link element and trigger download
-    const link = document.createElement('a');
-    link.href = '/sample_leads_import.csv';
-    link.download = 'sample_leads_import.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const parseCSV = (text) => {
     const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
     
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       
-      // Handle quoted values with commas
-      const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-      const values = lines[i].split(regex);
+      // Handle CSV with commas in quoted fields
+      const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
+      const values = [];
+      let match;
+      
+      while ((match = regex.exec(lines[i])) !== null) {
+        let value = match[1];
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1).replace(/""/g, '"');
+        }
+        values.push(value.trim());
+      }
       
       if (values.length < headers.length) continue;
       
       const row = {};
       headers.forEach((header, index) => {
-        let value = values[index]?.trim() || '';
-        value = value.replace(/^"|"$/g, ''); // Remove surrounding quotes
-        row[header] = value === '' ? null : value;
+        row[header] = values[index] || '';
       });
       data.push(row);
     }
@@ -90,36 +88,61 @@ const ImportLeads = () => {
     reader.readAsText(selectedFile);
   };
 
-  const validateRow = (row, rowNum) => {
+  const normalizePhone = (phone) => {
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // Handle different formats
+    if (cleaned.startsWith('91') && cleaned.length === 12) {
+      return '+' + cleaned;
+    } else if (cleaned.startsWith('0') && cleaned.length === 11) {
+      return '+91' + cleaned.slice(1);
+    } else if (cleaned.length === 10) {
+      return '+91' + cleaned;
+    }
+    
+    return '+91' + cleaned; // Default fallback
+  };
+
+  const validateRow = (row, rowNumber) => {
     const errors = [];
     
     // Required fields
-    if (!row['Lead Name']) {
-      errors.push('Missing Lead Name');
-    }
-    if (!row['Phone Number']) {
-      errors.push('Missing Phone Number');
+    if (!row.lead_name || row.lead_name.length < 2) {
+      errors.push('Invalid or missing lead name');
     }
     
-    // Phone validation (10 digits)
-    if (row['Phone Number'] && !/^\d{10}$/.test(row['Phone Number'].replace(/\s+/g, ''))) {
-      errors.push('Invalid phone number format (must be 10 digits)');
+    if (!row.phone || row.phone.length < 10) {
+      errors.push('Invalid or missing phone number');
     }
     
-    // Email validation (if provided)
-    if (row['Email'] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row['Email'])) {
-      errors.push('Invalid email format');
+    if (!row.date || isNaN(Date.parse(row.date))) {
+      errors.push('Invalid date format (use YYYY-MM-DD)');
     }
     
-    // Validate Assigned To email (if provided)
-    if (row['Assigned To']) {
-      const assignee = employees.find(e => e.email === row['Assigned To']);
-      if (!assignee) {
-        errors.push(`Assigned To email not found: ${row['Assigned To']}`);
-      }
+    // Optional but validated if present
+    if (row.interest_level && !['hot', 'warm', 'cold'].includes(row.interest_level.toLowerCase())) {
+      errors.push('Interest level must be hot, warm, or cold');
+    }
+    
+    if (row.call_status && !['connected', 'not answered', 'call back requested', 'busy', 'switched off', 'invalid number'].includes(row.call_status.toLowerCase())) {
+      errors.push('Invalid call status');
+    }
+    
+    if (row.final_status && !['new', 'follow up', 'site visit', 'booked', 'lost', 'not interested'].includes(row.final_status.toLowerCase())) {
+      errors.push('Invalid final status');
     }
     
     return errors;
+  };
+
+  const handleDownloadSample = () => {
+    const link = document.createElement('a');
+    link.href = '/sample_leads_import.csv';
+    link.download = 'sample_leads_import.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleImport = async () => {
@@ -137,101 +160,140 @@ const ImportLeads = () => {
           
           let successCount = 0;
           let errorCount = 0;
-          const errorDetails = [];
+          let duplicateCount = 0;
+          const errors = [];
           
           for (let i = 0; i < csvData.length; i++) {
             const row = csvData[i];
-            const rowNum = i + 2; // +2 because index 0 = row 2 (after header)
+            const rowNumber = i + 2; // +2 because row 1 is header and arrays are 0-indexed
             
             // Validate row
-            const validationErrors = validateRow(row, rowNum);
+            const validationErrors = validateRow(row, rowNumber);
             if (validationErrors.length > 0) {
-              errorDetails.push(`Row ${rowNum}: ${validationErrors.join(', ')}`);
+              errors.push(`Row ${rowNumber} (${row.lead_name || 'Unknown'}): ${validationErrors.join(', ')}`);
               errorCount++;
               continue;
             }
             
-            // Find assigned employee
-            let assignedTo = null;
-            let assignedToName = null;
-            if (row['Assigned To']) {
-              const employee = employees.find(e => e.email === row['Assigned To']);
-              if (employee) {
-                assignedTo = employee.id;
-                assignedToName = employee.name;
-              }
-            }
+            // Normalize phone number
+            const phone = normalizePhone(row.phone);
             
-            // Map interest level
-            const interestLevelMap = {
-              'Hot': 'Hot',
-              'Warm': 'Warm',
-              'Cold': 'Cold',
-              'Very Hot': 'Hot',
-              'Medium': 'Warm',
-            };
-            const interestLevel = interestLevelMap[row['Interest Level']] || 'Cold';
+            // Check for duplicate phone number
+            const { data: existingLead } = await supabaseAdmin
+              .from('leads')
+              .select('id, name')
+              .eq('phone', phone)
+              .single();
             
-            // Map statuses
-            const statusMap = {
-              'FollowUp': 'FollowUp',
-              'Follow Up': 'FollowUp',
-              'Follow-Up': 'FollowUp',
-              'Booked': 'Booked',
-              'Lost': 'Lost',
-              'Open': 'Open',
-            };
-            const finalStatus = statusMap[row['Final Status']] || 'FollowUp';
-            
-            const siteVisitStatusMap = {
-              'Scheduled': 'scheduled',
-              'Completed': 'completed',
-              'Not Planned': 'not_planned',
-              'Cancelled': 'cancelled',
-            };
-            const siteVisitStatus = siteVisitStatusMap[row['Site Visit Status']] || 'not_planned';
-            
-            // Prepare lead object
-            const leadData = {
-              name: row['Lead Name'],
-              phone: row['Phone Number'].replace(/\s+/g, ''),
-              email: row['Email'] || '',
-              source: row['Lead Source'] || 'CSV Import',
-              budget: row['Budget'] || '', // Text field, can be anything
-              callAttempt: row['Call Attempt'] || '',
-              callStatus: row['Call Status'] || '',
-              interestLevel: interestLevel,
-              notes: [row['Buyer Feedback'], row['Notes']].filter(Boolean).join('\n') || '',
-              followUpDate: row['Next Follow-up Date'] || null,
-              siteVisitStatus: siteVisitStatus,
-              status: finalStatus,
-              assignedTo: assignedTo,
-              assignedToName: assignedToName,
-              project: row['Project'] || null,
-              createdBy: user.id,
-            };
-            
-            // Add lead to Supabase
-            const result = await addLead(leadData);
-            
-            if (result) {
-              successCount++;
-            } else {
-              errorDetails.push(`Row ${rowNum}: Failed to add lead to database`);
+            if (existingLead) {
+              errors.push(`Row ${rowNumber}: Duplicate phone ${phone} (Existing lead: ${existingLead.name})`);
+              duplicateCount++;
               errorCount++;
+              continue;
             }
+            
+            // Find employee by email (if provided)
+            let employeeId = null;
+            if (row.assigned_to_email) {
+              const employee = employees.find(e => e.email === row.assigned_to_email);
+              if (!employee) {
+                errors.push(`Row ${rowNumber}: Employee not found (${row.assigned_to_email})`);
+                errorCount++;
+                continue;
+              }
+              employeeId = employee.id;
+            }
+            
+            // Create lead object
+            const leadData = {
+              name: row.lead_name.trim(),
+              phone: phone,
+              email: row.email || null,
+              source: row.lead_source || 'Import',
+              status: row.final_status ? row.final_status.toLowerCase().replace(' ', '_') : 'new',
+              interest_level: row.interest_level ? row.interest_level.toLowerCase() : 'warm',
+              project_name: row.project_name || null,
+              budget: row.budget || null,
+              notes: row.notes || row.buyer_feedback || '',
+              assigned_to: employeeId,
+              created_at: new Date(row.date).toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+            
+            // Insert lead
+            const { data: newLead, error: leadError } = await supabaseAdmin
+              .from('leads')
+              .insert(leadData)
+              .select()
+              .single();
+            
+            if (leadError) {
+              errors.push(`Row ${rowNumber} (${row.lead_name}): ${leadError.message}`);
+              errorCount++;
+              continue;
+            }
+            
+            // If call data provided, create call record
+            if (row.call_status && row.call_attempt) {
+              await supabaseAdmin.from('calls').insert({
+                employee_id: employeeId,
+                lead_id: newLead.id,
+                lead_name: row.lead_name,
+                project_name: row.project_name || null,
+                call_type: 'outbound',
+                status: row.call_status.toLowerCase().replace(' ', '_'),
+                duration: row.call_status.toLowerCase() === 'connected' ? 120 : 0,
+                notes: row.buyer_feedback || 'Imported call',
+                created_at: new Date(row.date).toISOString(),
+              });
+            }
+            
+            // If site visit data provided, create site visit record
+            if (row.site_visit_status === 'visited' || row.site_visit_status === 'planned') {
+              await supabaseAdmin.from('site_visits').insert({
+                employee_id: employeeId,
+                lead_id: newLead.id,
+                lead_name: row.lead_name,
+                project_name: row.project_name || null,
+                visit_date: row.date,
+                visit_time: '14:00',
+                status: row.site_visit_status === 'visited' ? 'completed' : 'scheduled',
+                location: row.project_name || 'Site',
+                duration: 60,
+                notes: row.buyer_feedback || 'Imported site visit',
+                feedback: row.buyer_feedback || '',
+                created_at: new Date(row.date).toISOString(),
+              });
+            }
+            
+            // If follow-up date provided, create task
+            if (row.next_followup_date && row.next_followup_date.trim()) {
+              await supabaseAdmin.from('tasks').insert({
+                employee_id: employeeId,
+                title: `Follow up: ${row.lead_name}`,
+                description: row.buyer_feedback || 'Follow up call',
+                type: 'call',
+                priority: row.interest_level === 'hot' ? 'high' : 'medium',
+                status: 'pending',
+                due_date: row.next_followup_date,
+                related_lead_id: newLead.id,
+                created_at: new Date().toISOString(),
+              });
+            }
+            
+            successCount++;
           }
           
-          // Refresh leads
+          // Refresh leads data
           await fetchLeads();
           
           setResult({
             success: successCount,
             errors: errorCount,
-            details: errorDetails.slice(0, 15), // Show first 15 errors
+            duplicates: duplicateCount,
+            details: errors.slice(0, 20), // Show first 20 errors
           });
         } catch (err) {
-          console.error('Import error:', err);
           setError('Import error: ' + err.message);
         } finally {
           setImporting(false);
@@ -247,9 +309,12 @@ const ImportLeads = () => {
   return (
     <div className="max-w-5xl mx-auto py-6 px-4 space-y-6 pb-20">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#0F3A5F]">Import Leads from CSV</h1>
-        <p className="text-sm text-gray-500 mt-1">Upload CSV file to bulk import leads into the system</p>
+      <div className="flex items-center gap-3">
+        <Users className="h-8 w-8 text-[#0F3A5F]" />
+        <div>
+          <h1 className="text-2xl font-bold text-[#0F3A5F]">Import Leads (Bulk Upload)</h1>
+          <p className="text-sm text-gray-500 mt-1">Upload CSV file to import leads with call logs and follow-ups</p>
+        </div>
       </div>
 
       {/* Download Sample */}
@@ -260,14 +325,14 @@ const ImportLeads = () => {
               <FileText className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="font-medium text-blue-900">Download Sample CSV Template</p>
-                <p className="text-xs text-blue-700">Use this template with the exact column format</p>
+                <p className="text-xs text-blue-700">Use this template to format your lead data correctly</p>
               </div>
             </div>
             <Button
               variant="outline"
               size="sm"
               className="border-blue-300 text-blue-700 hover:bg-blue-100"
-              onClick={downloadSampleCSV}
+              onClick={handleDownloadSample}
             >
               <Download size={16} className="mr-2" />
               Download Sample
@@ -282,45 +347,53 @@ const ImportLeads = () => {
           <CardTitle className="text-base">Required CSV Format</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="bg-gray-50 p-3 rounded-lg overflow-x-auto">
-            <p className="text-xs font-mono text-gray-700 whitespace-nowrap">
-              Lead Name,Phone Number,Email,Lead Source,Budget,Call Attempt,Call Status,Interest Level,Buyer Feedback,Next Follow-up Date,Site Visit Status,Final Status,Assigned To,Project,Notes
+          <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+            <p className="text-xs font-mono text-gray-700 mb-2 whitespace-nowrap">
+              date,lead_name,phone,lead_source,call_attempt,call_status,interest_level,buyer_feedback,next_followup_date,site_visit_status,final_status,budget,assigned_to_email,project_name,notes
+            </p>
+            <p className="text-xs text-gray-600 whitespace-nowrap">
+              2026-02-27,A Singh,+918851481867,Website,1st,connected,hot,today visit,2026-02-28,visited,site visit,₹8–12 लाख,nidhi@fanbegroup.com,Maa Simri Vatika,follow up
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="font-semibold text-gray-700 mb-2">Required Fields:</p>
+              <p className="font-semibold text-gray-700 mb-1">📋 Required Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>Lead Name</code> - Full name</li>
-                <li><code>Phone Number</code> - 10 digits</li>
+                <li><code>date</code> - YYYY-MM-DD</li>
+                <li><code>lead_name</code> - Full name</li>
+                <li><code>phone</code> - 10-digit number</li>
               </ul>
             </div>
+            
             <div>
-              <p className="font-semibold text-gray-700 mb-2">Optional Fields:</p>
+              <p className="font-semibold text-gray-700 mb-1">📞 Call Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>Email</code> - Valid email</li>
-                <li><code>Budget</code> - Any text (e.g., "50-75 Lakh")</li>
-                <li><code>Lead Source</code> - Text</li>
-                <li><code>Call Attempt</code> - Text</li>
-                <li><code>Call Status</code> - Text</li>
+                <li><code>call_status</code> - connected, not answered, busy</li>
+                <li><code>interest_level</code> - hot, warm, cold</li>
+                <li><code>buyer_feedback</code> - Free text</li>
               </ul>
             </div>
+            
             <div>
-              <p className="font-semibold text-gray-700 mb-2">More Fields:</p>
+              <p className="font-semibold text-gray-700 mb-1">✅ Optional Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>Interest Level</code> - Hot/Warm/Cold</li>
-                <li><code>Assigned To</code> - Employee email</li>
-                <li><code>Project</code> - Project name</li>
-                <li><code>Notes</code> - Any text</li>
+                <li><code>lead_source</code> - Website, Facebook, etc.</li>
+                <li><code>next_followup_date</code> - YYYY-MM-DD</li>
+                <li><code>site_visit_status</code> - visited, planned, not planned</li>
+                <li><code>final_status</code> - new, follow up, site visit, booked, lost</li>
+                <li><code>budget</code> - Price range</li>
+                <li><code>assigned_to_email</code> - Employee email</li>
+                <li><code>project_name</code> - Project name</li>
+                <li><code>notes</code> - Additional notes</li>
               </ul>
             </div>
           </div>
-          
+
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-xs text-yellow-800">
-              <strong>Null values are allowed</strong> - Leave fields empty if data is not available. Budget can be text like "50-75 Lakh" or "1-2 Crore".
+              <strong>Important:</strong> Phone numbers should be 10 digits. System will automatically add +91 prefix. Duplicate phone numbers will be skipped.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -356,6 +429,7 @@ const ImportLeads = () => {
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-sm font-medium text-green-800">{file.name}</span>
+                <span className="text-xs text-green-600">({preview.length} leads preview)</span>
               </div>
               <Button
                 variant="ghost"
@@ -378,30 +452,40 @@ const ImportLeads = () => {
       {preview.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Preview (First 5 Rows)</CardTitle>
+            <CardTitle className="text-base">Preview (First 5 Leads)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-2 text-left font-semibold">Name</th>
-                    <th className="px-2 py-2 text-left font-semibold">Phone</th>
-                    <th className="px-2 py-2 text-left font-semibold">Source</th>
-                    <th className="px-2 py-2 text-left font-semibold">Budget</th>
-                    <th className="px-2 py-2 text-left font-semibold">Status</th>
-                    <th className="px-2 py-2 text-left font-semibold">Assigned</th>
+                    <th className="px-3 py-2 text-left font-semibold">Name</th>
+                    <th className="px-3 py-2 text-left font-semibold">Phone</th>
+                    <th className="px-3 py-2 text-left font-semibold">Source</th>
+                    <th className="px-3 py-2 text-center font-semibold">Interest</th>
+                    <th className="px-3 py-2 text-left font-semibold">Status</th>
+                    <th className="px-3 py-2 text-left font-semibold">Budget</th>
+                    <th className="px-3 py-2 text-left font-semibold">Assigned To</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {preview.map((row, i) => (
                     <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-2 py-2">{row['Lead Name'] || '-'}</td>
-                      <td className="px-2 py-2">{row['Phone Number'] || '-'}</td>
-                      <td className="px-2 py-2">{row['Lead Source'] || '-'}</td>
-                      <td className="px-2 py-2">{row['Budget'] || '-'}</td>
-                      <td className="px-2 py-2">{row['Final Status'] || '-'}</td>
-                      <td className="px-2 py-2">{row['Assigned To'] || '-'}</td>
+                      <td className="px-3 py-2 font-medium">{row.lead_name}</td>
+                      <td className="px-3 py-2">{row.phone}</td>
+                      <td className="px-3 py-2">{row.lead_source || 'Import'}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`px-2 py-0.5 rounded text-xs ${
+                          row.interest_level === 'hot' ? 'bg-red-100 text-red-700' :
+                          row.interest_level === 'warm' ? 'bg-orange-100 text-orange-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {row.interest_level || 'warm'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">{row.final_status || 'new'}</td>
+                      <td className="px-3 py-2">{row.budget || '-'}</td>
+                      <td className="px-3 py-2 text-xs text-gray-500">{row.assigned_to_email || 'Unassigned'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -421,7 +505,7 @@ const ImportLeads = () => {
           {importing ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Importing Leads...
+              Importing Leads... This may take a few minutes
             </>
           ) : (
             <>
@@ -452,29 +536,37 @@ const ImportLeads = () => {
                   <p className="text-green-800">
                     ✓ <strong>{result.success}</strong> leads imported successfully
                   </p>
-                  {result.errors > 0 && (
-                    <p className="text-orange-700">
-                      ⚠ <strong>{result.errors}</strong> rows had errors
+                  {result.duplicates > 0 && (
+                    <p className="text-yellow-700">
+                      ⚠ <strong>{result.duplicates}</strong> duplicates skipped (phone already exists)
+                    </p>
+                  )}
+                  {result.errors - result.duplicates > 0 && (
+                    <p className="text-red-700">
+                      ✗ <strong>{result.errors - result.duplicates}</strong> rows had validation errors
                     </p>
                   )}
                 </div>
                 
                 {result.details && result.details.length > 0 && (
-                  <div className="mt-3 p-3 bg-white rounded border border-orange-200 max-h-60 overflow-y-auto">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">Error Details:</p>
-                    <ul className="text-xs text-gray-600 space-y-0.5">
+                  <div className="mt-3 p-3 bg-white rounded border border-orange-200 max-h-64 overflow-y-auto">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">Error Details (First 20):</p>
+                    <ul className="text-xs text-gray-600 space-y-1">
                       {result.details.map((err, i) => (
-                        <li key={i}>• {err}</li>
+                        <li key={i} className="flex items-start gap-1">
+                          <span className="text-red-500 flex-shrink-0">•</span>
+                          <span>{err}</span>
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 
-                <div className="flex gap-2 mt-4">
+                <div className="mt-4 flex gap-2">
                   <Button
                     onClick={() => window.location.href = '/crm/admin/leads'}
                   >
-                    View Leads
+                    View All Leads
                   </Button>
                   <Button
                     variant="outline"
@@ -484,7 +576,7 @@ const ImportLeads = () => {
                       setResult(null);
                     }}
                   >
-                    Import More
+                    Import More Leads
                   </Button>
                 </div>
               </div>

@@ -7,15 +7,21 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Filter, Phone, MessageCircle, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Plus, Filter, Phone, MessageCircle, Calendar, ChevronDown, ChevronUp, Clock, Bell } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import projects from '@/data/projects';
 import { format, isToday, isYesterday, isThisWeek, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { useLeadPriority } from '@/crm/hooks/useLeadPriority';
+import FollowUpBadge from '@/crm/components/FollowUpBadge';
+import FollowUpScheduler from '@/crm/components/FollowUpScheduler';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/use-toast';
 
 const MyLeads = () => {
   const { user } = useAuth();
   const { leads, addLead } = useCRMData();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projectFilter, setProjectFilter] = useState('all');
@@ -23,15 +29,23 @@ const MyLeads = () => {
   const [customDate, setCustomDate] = useState('');
   const [groupByDate, setGroupByDate] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
+  const [schedulerOpen, setSchedulerOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
 
-  const myLeads = leads.filter(l => l.assignedTo === user?.id);
+  const myLeads = leads.filter(l => l.assignedTo === user?.id || l.assigned_to === user?.id);
+
+  // Use the priority hook to sort leads intelligently
+  const { leads: prioritySortedLeads, summary } = useLeadPriority(myLeads, {
+    filterByAssignee: user?.id,
+    includeCompleted: false
+  });
 
   const getFilteredLeadsByDate = (leadsArray) => {
     if (dateFilter === 'all') return leadsArray;
 
     return leadsArray.filter(lead => {
-      if (!lead.createdAt) return false;
-      const leadDate = parseISO(lead.createdAt);
+      if (!lead.createdAt && !lead.created_at) return false;
+      const leadDate = parseISO(lead.createdAt || lead.created_at);
 
       switch(dateFilter) {
         case 'today':
@@ -50,8 +64,10 @@ const MyLeads = () => {
     });
   };
 
-  const filteredLeads = getFilteredLeadsByDate(myLeads).filter(l => {
-    const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm);
+  // Use priority-sorted leads instead of raw leads
+  const filteredLeads = getFilteredLeadsByDate(prioritySortedLeads).filter(l => {
+    const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (l.phone && l.phone.includes(searchTerm));
     const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
     const matchesProject = projectFilter === 'all' || l.project === projectFilter;
     return matchesSearch && matchesStatus && matchesProject;
@@ -61,13 +77,13 @@ const MyLeads = () => {
     const grouped = {};
     
     leadsArray.forEach(lead => {
-      if (!lead.createdAt) {
+      if (!lead.createdAt && !lead.created_at) {
         if (!grouped['No Date']) grouped['No Date'] = [];
         grouped['No Date'].push(lead);
         return;
       }
 
-      const leadDate = parseISO(lead.createdAt);
+      const leadDate = parseISO(lead.createdAt || lead.created_at);
       let dateKey;
 
       if (isToday(leadDate)) {
@@ -112,6 +128,33 @@ const MyLeads = () => {
     }
   };
 
+  // Handle schedule follow-up
+  const handleScheduleFollowUp = async (followUpData) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update(followUpData)
+        .eq('id', selectedLead.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: '✅ Follow-up Scheduled!',
+        description: `Reminder set for ${format(parseISO(followUpData.follow_up_date), 'MMM dd, yyyy')}`,
+      });
+      
+      // Refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: '❌ Failed to schedule',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const renderLeadRow = (lead) => (
     <TableRow 
       key={lead.id} 
@@ -121,6 +164,14 @@ const MyLeads = () => {
       <TableCell>
         <div className="font-medium text-blue-600">{lead.name}</div>
         <div className="text-xs text-gray-500">{lead.phone}</div>
+        {/* Show follow-up badge */}
+        <div className="mt-1">
+          <FollowUpBadge 
+            followUpDate={lead.follow_up_date}
+            followUpTime={lead.follow_up_time}
+            size="small"
+          />
+        </div>
       </TableCell>
       <TableCell>{lead.project}</TableCell>
       <TableCell>
@@ -129,12 +180,24 @@ const MyLeads = () => {
         </span>
       </TableCell>
       <TableCell className="text-xs text-gray-500">
-        {lead.createdAt ? format(parseISO(lead.createdAt), 'MMM dd, hh:mm a') : 'N/A'}
+        {(lead.createdAt || lead.created_at) ? format(parseISO(lead.createdAt || lead.created_at), 'MMM dd, hh:mm a') : 'N/A'}
       </TableCell>
       <TableCell>
-        {lead.lastActivity ? format(parseISO(lead.lastActivity), 'MMM dd') : 'Never'}
+        {(lead.lastActivity || lead.last_activity) ? format(parseISO(lead.lastActivity || lead.last_activity), 'MMM dd') : 'Never'}
       </TableCell>
       <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          title="Schedule Follow-up"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedLead(lead);
+            setSchedulerOpen(true);
+          }}
+        >
+          <Calendar className="h-4 w-4 text-purple-600" />
+        </Button>
         <Button variant="ghost" size="icon" onClick={() => window.location.href=`tel:${lead.phone}`}>
           <Phone className="h-4 w-4 text-blue-600" />
         </Button>
@@ -146,16 +209,42 @@ const MyLeads = () => {
   );
 
   const groupedLeads = groupByDate ? groupLeadsByDate(filteredLeads) : null;
+  const urgentCount = summary.overdue + summary.today;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
          <div>
             <h1 className="text-2xl font-bold text-[#0F3A5F]">My Leads</h1>
-            <p className="text-gray-500">Manage and track your potential clients</p>
+            <p className="text-gray-500">Manage and track your potential clients (auto-sorted by priority)</p>
          </div>
          <Button><Plus className="mr-2 h-4 w-4" /> Add New Lead</Button>
       </div>
+
+      {/* Urgent Follow-ups Alert */}
+      {urgentCount > 0 && (
+        <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Bell className="h-6 w-6 text-red-600 animate-pulse" />
+              <div className="flex-1">
+                <p className="font-semibold text-red-800">
+                  ⚠️ {urgentCount} {urgentCount === 1 ? 'lead needs' : 'leads need'} immediate follow-up!
+                </p>
+                <p className="text-sm text-red-600 mt-0.5">
+                  {summary.overdue > 0 && `${summary.overdue} overdue`}
+                  {summary.overdue > 0 && summary.today > 0 && ' • '}
+                  {summary.today > 0 && `${summary.today} scheduled today`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-red-500">Top Priority</p>
+                <Clock className="h-4 w-4 text-red-600 mx-auto" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
          <CardContent className="p-4 space-y-4">
@@ -226,8 +315,15 @@ const MyLeads = () => {
                </Button>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-gray-500 border-t pt-3">
-               <span>Showing {filteredLeads.length} of {myLeads.length} leads</span>
+            <div className="flex items-center justify-between text-sm border-t pt-3">
+               <div>
+                 <span className="text-gray-700 font-medium">Showing {filteredLeads.length} of {myLeads.length} leads</span>
+                 {urgentCount > 0 && (
+                   <span className="ml-3 text-red-600 font-semibold">
+                     • {urgentCount} urgent follow-ups at top
+                   </span>
+                 )}
+               </div>
                {dateFilter !== 'all' && (
                   <Button 
                      variant="ghost" 
@@ -301,6 +397,14 @@ const MyLeads = () => {
             </div>
          </CardContent>
       </Card>
+
+      {/* Follow-up Scheduler Modal */}
+      <FollowUpScheduler
+        isOpen={schedulerOpen}
+        onClose={() => setSchedulerOpen(false)}
+        onSave={handleScheduleFollowUp}
+        lead={selectedLead}
+      />
     </div>
   );
 };

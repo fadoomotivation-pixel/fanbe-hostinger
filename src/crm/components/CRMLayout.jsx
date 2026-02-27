@@ -8,6 +8,8 @@ import { checkDailyDigest } from '@/lib/dailyDigestScheduler';
 import { Menu } from 'lucide-react';
 import SubAdminFAB from '@/components/SubAdminFAB';
 import EmployeeFAB from '@/crm/components/EmployeeFAB';
+import SubAdminBottomNav from '@/crm/components/SubAdminBottomNav';
+import MobileBottomNav from '@/crm/components/MobileBottomNav';
 import { ROLES } from '@/lib/permissions';
 
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN, ROLES.HR_MANAGER];
@@ -63,12 +65,17 @@ const CRMLayout = ({ children }) => {
           </header>
 
           {/* ── Page Content ── */}
-          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden pb-20 lg:pb-8">
             {children}
           </main>
 
-          {/* Sub Admin FAB only */}
+          {/* Sub Admin FAB only (for desktop quick actions) */}
           {user.role === ROLES.SUB_ADMIN && <SubAdminFAB />}
+          
+          {/* SubAdmin Mobile Bottom Navigation */}
+          {user.role === ROLES.SUB_ADMIN && (
+            <SubAdminBottomNav onMenuClick={() => setSidebarOpen(true)} />
+          )}
         </div>
       </div>
     );
@@ -80,10 +87,13 @@ const CRMLayout = ({ children }) => {
       <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
         <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full pb-20 lg:pb-6">
           {children}
         </main>
         <EmployeeFAB />
+        
+        {/* Employee Mobile Bottom Navigation */}
+        <MobileBottomNav />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
-Lead Name,Phone Number,Email,Lead Source,Budget,Call Attempt,Call Status,Interest Level,Buyer Feedback,Next Follow-up Date,Site Visit Status,Final Status,Assigned To,Project,Notes
-Rajesh Kumar,9876543210,rajesh@example.com,Facebook Ads,50-75 Lakh,First Call,Connected,Hot,"Interested in 2BHK",2026-03-01,Scheduled,FollowUp,nidhi@fanbegroup.com,Kunj Bihari,"Very interested customer"
-Priya Sharma,9876543211,priya@example.com,Website,1-2 Crore,Second Call,Not Answered,Warm,,2026-03-02,Not Planned,FollowUp,kanchan@fanbegroup.com,Brij Vatika,
-Amit Singh,9876543212,,MagicBricks,75 Lakh - 1 Cr,First Call,Connected,Hot,"Looking for investment plot",2026-03-03,Completed,FollowUp,charu@fanbegroup.com,Kunj Bihari,"Site visit done yesterday"
-Sneha Verma,9876543213,sneha@example.com,Walk-in,50 Lakh,Third Call,Interested,Warm,"Comparing with other projects",,Scheduled,FollowUp,pooja@fanbegroup.com,Brij Vatika,"Follow up next week"
-Vikram Malhotra,9876543214,vikram@example.com,Referral,2-3 Crore,First Call,Connected,Hot,"Ready to book",,Completed,Booked,ankita@fanbegroup.com,Kunj Bihari,"Booking confirmed"
+date,lead_name,phone,lead_source,call_attempt,call_status,interest_level,buyer_feedback,next_followup_date,site_visit_status,final_status,budget,assigned_to_email,project_name,notes
+2026-02-27,A Singh,+918851481867,Website,1st,connected,hot,today visit,2026-02-28,visited,site visit,₹8–12 लाख,nidhi@fanbegroup.com,Maa Simri Vatika,follow up for booking
+2026-02-27,Abhayraj,+919958446794,Reference,1st,connected,warm,not more interest in kosi attract in barsana,2026-02-28,not planned,follow up,₹5–8 लाख,nidhi@fanbegroup.com,Shree Kunj Bihari Enclave,follow up tomorrow
+2026-02-27,Vikram Singh,+917877709609,Facebook,1st,connected,warm,far location,2026-03-01,not planned,follow up,₹3–5 लाख,employee@fanbegroup.com,Brij Vatika,i will connect after 2 days
+2026-02-27,Abhishek,+919259297410,JustDial,2nd,call back requested,cold,switch off,2026-02-28,not planned,follow up,₹3–5 लाख,employee@fanbegroup.com,Shree Gokul Vatika,follow up tomorrow
+2026-02-27,Abhishek Kumar,+918429217415,99acres,1st,call back requested,cold,busy,2026-02-28,not planned,follow up,₹5–8 लाख,nidhi@fanbegroup.com,Shree Jagannath Dham,follow up tomorrow

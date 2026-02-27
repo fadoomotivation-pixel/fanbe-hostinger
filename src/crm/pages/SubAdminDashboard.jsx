@@ -21,6 +21,8 @@ import {
   SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import FollowUpSummaryWidget from '@/crm/components/FollowUpSummaryWidget';
+import SalesPerformanceReport from '@/crm/components/SalesPerformanceReport';
 
 // ── Quick Action Tile ─────────────────────────────────────────────────────────
 const QuickAction = ({ icon: Icon, label, sub, path, color }) => {
@@ -166,6 +168,12 @@ const SubAdminDashboard = () => {
             <p className="text-[10px] text-orange-600 mt-1.5">Conv: {convRate}%</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* NEW: Performance & Follow-up Widgets Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FollowUpSummaryWidget leads={leads} showAllLeads={true} />
+        <SalesPerformanceReport leads={leads} employees={employees} compact={true} />
       </div>
 
       {/* ── Quick Actions ───────────────────────────────────────────────── */}

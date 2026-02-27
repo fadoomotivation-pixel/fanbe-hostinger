@@ -7,7 +7,7 @@ import {
   Image as ImageIcon, Globe, Monitor, Menu as MenuIcon,
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
-  Briefcase, MapPin, MessageSquare, UserCircle,
+  Briefcase, MapPin, MessageSquare, UserCircle, Upload,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -21,7 +21,7 @@ const IconMap = {
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
   CalendarCheck, IndianRupee, FolderOpen,
   // ✅ New icons added for HR & new menu items
-  Briefcase, MapPin, MessageSquare, UserCircle,
+  Briefcase, MapPin, MessageSquare, UserCircle, Upload,
 };
 
 // Group header visual config

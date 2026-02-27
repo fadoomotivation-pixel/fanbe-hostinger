@@ -266,6 +266,7 @@ const MENU_STRUCTURE = {
     { label: 'Payroll',               path: '/crm/admin/hr/payroll',          icon: 'IndianRupee',     group: 'HR' },
     { label: 'Documents',             path: '/crm/admin/hr/documents',        icon: 'FolderOpen',      group: 'HR' },
     { label: 'Content Management',    path: '/crm/admin/cms',                 icon: 'Globe',           group: 'System' },
+    { label: 'Import Work Logs',      path: '/crm/admin/import-work-logs',    icon: 'Upload',          group: 'System' },
     { label: 'WA Templates',          path: '/crm/admin/wa-templates',        icon: 'MessageSquare',   group: 'System' },
     { label: 'Notifications',         path: '/crm/admin/notifications',       icon: 'Bell',            group: 'System' },
     { label: 'My Profile',            path: '/crm/profile',                   icon: 'User' },
@@ -351,6 +352,7 @@ export const canAccessPage = (role, path) => {
     if (path.includes('/notifications'))           return false;
     if (path.includes('/wa-templates'))            return false;
     if (path.includes('/cms'))                     return false;
+    if (path.includes('/import-work-logs'))        return false;
     if (path.includes('/homepage-content-editor')) return false;
     if (path.includes('/developer-console'))       return false;
     if (path.includes('/settings/security'))       return false;
@@ -370,6 +372,7 @@ export const canAccessPage = (role, path) => {
     if (path.includes('/cms'))           return false;
     if (path.includes('/notifications')) return false;
     if (path.includes('/hr/'))           return false;
+    if (path.includes('/import-work-logs')) return false;
     return true;
   }
 

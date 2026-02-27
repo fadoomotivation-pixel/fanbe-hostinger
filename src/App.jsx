@@ -86,7 +86,7 @@ import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
-// ── Smart Dashboard: role-based redirect ──────────────────────────────
+// ── Smart Dashboard: role-based redirect ────────────────────────────────
 const SmartDashboard = () => {
   const { user } = useAuth();
   if (user?.role === 'sub_admin')  return <SubAdminDashboard />;
@@ -140,7 +140,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/performance" element={<AdminPerformanceDashboard />} />
                     <Route path="admin/projects" element={<ProjectManagement />} />
                     <Route path="admin/import-work-logs" element={<ProtectedRoute allowedRoles={['super_admin']}><ImportWorkLogs /></ProtectedRoute>} />
-                    <Route path="admin/import-leads" element={<ProtectedRoute allowedRoles={['super_admin']}><ImportLeads /></ProtectedRoute>} />
+                    <Route path="admin/import-leads" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><ImportLeads /></ProtectedRoute>} />
                     <Route path="clear-cache" element={<ClearCacheUtility />} />
 
                     <Route path="admin/cms" element={<ContentManagementDashboard />} />

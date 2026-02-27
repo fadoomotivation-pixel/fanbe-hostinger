@@ -238,15 +238,20 @@ const ImportLeads = () => {
               continue;
             }
             
-            // Check for duplicate phone number
-            const { data: existingLead } = await supabaseAdmin
+            // Check for duplicate phone number - FIX: Use array instead of .single()
+            const { data: existingLeads, error: checkError } = await supabaseAdmin
               .from('leads')
               .select('id, name')
               .eq('phone', phone)
-              .single();
+              .limit(1);
             
-            if (existingLead) {
-              errors.push(`Row ${rowNumber}: Duplicate phone ${phone} (Existing lead: ${existingLead.name})`);
+            if (checkError) {
+              console.error('Duplicate check error:', checkError);
+              // Continue anyway, let unique constraint handle it
+            }
+            
+            if (existingLeads && existingLeads.length > 0) {
+              errors.push(`Row ${rowNumber}: Duplicate phone ${phone} (Existing lead: ${existingLeads[0].name})`);
               duplicateCount++;
               errorCount++;
               continue;
@@ -293,15 +298,21 @@ const ImportLeads = () => {
               updated_at: new Date().toISOString(),
             };
             
-            // Insert lead
-            const { data: newLead, error: leadError } = await supabaseAdmin
+            // Insert lead - FIX: Remove .single() to avoid 406 error
+            const { data: newLeadArray, error: leadError } = await supabaseAdmin
               .from('leads')
               .insert(leadData)
-              .select()
-              .single();
+              .select();
             
             if (leadError) {
               errors.push(`Row ${rowNumber} (${row.lead_name}): ${leadError.message}`);
+              errorCount++;
+              continue;
+            }
+            
+            const newLead = newLeadArray && newLeadArray.length > 0 ? newLeadArray[0] : null;
+            if (!newLead) {
+              errors.push(`Row ${rowNumber} (${row.lead_name}): Failed to create lead`);
               errorCount++;
               continue;
             }

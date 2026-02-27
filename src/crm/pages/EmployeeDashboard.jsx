@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
@@ -12,6 +11,8 @@ import {
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
+import FollowUpSummaryWidget from '@/crm/components/FollowUpSummaryWidget';
+import MyPerformanceWidget from '@/crm/components/MyPerformanceWidget';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -171,6 +172,12 @@ const EmployeeDashboard = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* NEW: Performance & Follow-up Widgets Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MyPerformanceWidget leads={myLeads} />
+        <FollowUpSummaryWidget leads={myLeads} showAllLeads={false} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -39,7 +39,12 @@ const LeadManagement = () => {
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
-  // ── Lead buckets ─────────────────────────────────────────────
+  // ── Filter sales employees only (no admin/subadmin) ────────────────────
+  const salesEmployees = employees.filter(emp => 
+    ['employee', 'sales_executive', 'telecaller'].includes(emp.role?.toLowerCase())
+  );
+
+  // ── Lead buckets ─────────────────────────────────────────────────────────────
   const myLeads = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
 
   const unassignedLeads = myLeads.filter(l => !l.assignedTo);
@@ -270,14 +275,14 @@ const LeadManagement = () => {
                   onChange={e => setSearchTerm(e.target.value)}
                 />
               </div>
-              {/* Employee filter */}
+              {/* Employee filter - NOW ONLY SALES ROLES */}
               <Select value={filterEmployee} onValueChange={setFilterEmployee}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Filter by Employee" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees ({assignedLeads.length})</SelectItem>
-                  {employees.map(emp => (
+                  {salesEmployees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
                       {emp.name}
                       <span className="ml-2 text-xs text-gray-400">
@@ -299,10 +304,10 @@ const LeadManagement = () => {
               )}
             </div>
 
-            {/* Per-employee mini stats */}
-            {filterEmployee === 'all' && employees.length > 0 && (
+            {/* Per-employee mini stats - NOW ONLY SALES ROLES */}
+            {filterEmployee === 'all' && salesEmployees.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {employees.map(emp => (
+                {salesEmployees.map(emp => (
                   <button
                     key={emp.id}
                     onClick={() => setFilterEmployee(emp.id)}
@@ -400,14 +405,14 @@ const LeadManagement = () => {
       <ImportLeadsModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        employees={employees}
+        employees={salesEmployees}
       />
 
       <AssignmentModal
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
         leads={leadsToAssign}
-        employees={employees}
+        employees={salesEmployees}
         onAssign={handleAssignment}
       />
 

@@ -321,8 +321,9 @@ const ImportLeads = () => {
               else normalizedCallStatus = cs;
             }
 
-            // Create lead object — matches exact columns from addLead() in useCRMData.js
+            // Create lead object — DB has both `name` (NOT NULL) and `full_name` columns
             const leadData = {
+              name:               row.lead_name.trim(),
               full_name:          row.lead_name.trim(),
               phone:              phone,
               email:              row.email || '',

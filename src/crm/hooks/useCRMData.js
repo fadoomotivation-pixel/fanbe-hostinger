@@ -213,6 +213,7 @@ export const useCRMData = () => {
       }
       
       const doc = {
+        name:               lead.name,
         full_name:          lead.name,
         phone:              lead.phone,
         email:              lead.email            || '',

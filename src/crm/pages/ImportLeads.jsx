@@ -75,6 +75,38 @@ const ImportLeads = () => {
     return null;
   };
 
+  // Parse a single CSV/TSV line, handling quoted fields with commas inside
+  const parseLine = (line, delimiter) => {
+    if (delimiter === '\t') return line.split('\t').map(v => v.trim());
+
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (inQuotes) {
+        if (char === '"' && i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          current += char;
+        }
+      } else if (char === '"') {
+        inQuotes = true;
+      } else if (char === delimiter) {
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+    return values;
+  };
+
   const parseCSV = (text) => {
     const lines = text.trim().split('\n');
 
@@ -82,30 +114,13 @@ const ImportLeads = () => {
     const headerLine = lines[0];
     const delimiter = headerLine.includes('\t') ? '\t' : ',';
 
-    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase());
+    const headers = parseLine(headerLine, delimiter).map(h => h.trim().toLowerCase());
 
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
 
-      let values;
-      if (delimiter === '\t') {
-        // Tab-separated: split by tab
-        values = lines[i].split('\t').map(v => v.trim());
-      } else {
-        // Comma-separated: handle commas in quoted fields
-        const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
-        values = [];
-        let match;
-
-        while ((match = regex.exec(lines[i])) !== null) {
-          let value = match[1];
-          if (value.startsWith('"') && value.endsWith('"')) {
-            value = value.slice(1, -1).replace(/""/g, '"');
-          }
-          values.push(value.trim());
-        }
-      }
+      const values = parseLine(lines[i], delimiter);
 
       const row = {};
       headers.forEach((header, index) => {

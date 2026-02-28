@@ -321,37 +321,39 @@ const ImportLeads = () => {
               else normalizedCallStatus = cs;
             }
 
-            // Create lead object matching actual DB column names
+            // Create lead object — matches exact columns from addLead() in useCRMData.js
             const leadData = {
-              name:               row.lead_name.trim(),
               full_name:          row.lead_name.trim(),
               phone:              phone,
               email:              row.email || '',
               source:             row.lead_source || 'Import',
               status:             'Active',
-              final_status:       row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'new',
+              budget:             row.budget || '',
               interest_level:     row.interest_level ? row.interest_level.toLowerCase() : 'warm',
-              project:            row.project_name || null,
-              budget:             row.budget || null,
               notes:              row.notes || row.buyer_feedback || '',
               call_attempt:       row.call_attempt || '',
               call_status:        normalizedCallStatus,
               site_visit_status:  row.site_visit_status || 'not_planned',
+              final_status:       row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'FollowUp',
               assigned_to:        employeeId,
               assigned_to_name:   assignedToName,
               created_by:         user?.id || null,
+              project:            row.project_name || null,
               next_followup_date: row.next_followup_date ? parseFlexibleDate(row.next_followup_date) : null,
               created_at:         new Date(parsedDate + 'T00:00:00Z').toISOString(),
               updated_at:         new Date().toISOString(),
             };
-            
-            // Insert lead - FIX: Remove .single() to avoid 406 error
+
+            console.log(`[Import] Row ${rowNumber} inserting:`, JSON.stringify(leadData));
+
+            // Insert lead
             const { data: newLeadArray, error: leadError } = await supabaseAdmin
               .from('leads')
               .insert(leadData)
               .select();
-            
+
             if (leadError) {
+              console.error(`[Import] Row ${rowNumber} insert error:`, leadError);
               errors.push(`Row ${rowNumber} (${row.lead_name}): ${leadError.message}`);
               errorCount++;
               continue;

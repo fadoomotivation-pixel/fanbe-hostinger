@@ -273,7 +273,7 @@ const ImportLeads = () => {
             // Check for duplicate phone number - FIX: Use array instead of .single()
             const { data: existingLeads, error: checkError } = await supabaseAdmin
               .from('leads')
-              .select('id, name')
+              .select('id, full_name')
               .eq('phone', phone)
               .limit(1);
             
@@ -283,7 +283,7 @@ const ImportLeads = () => {
             }
             
             if (existingLeads && existingLeads.length > 0) {
-              errors.push(`Row ${rowNumber}: Duplicate phone ${phone} (Existing lead: ${existingLeads[0].name})`);
+              errors.push(`Row ${rowNumber}: Duplicate phone ${phone} (Existing lead: ${existingLeads[0].full_name})`);
               duplicateCount++;
               errorCount++;
               continue;
@@ -301,33 +301,47 @@ const ImportLeads = () => {
               employeeId = employee.id;
             }
             
-            // Normalize call status
-            let callStatus = null;
-            if (row.call_status) {
-              const status = row.call_status.toLowerCase().replace(/[\s_-]+/g, '_');
-              if (status.includes('connect')) callStatus = 'connected';
-              else if (status.includes('not_answer') || status.includes('no_answer')) callStatus = 'not_answered';
-              else if (status.includes('call_back')) callStatus = 'call_back_requested';
-              else if (status.includes('busy')) callStatus = 'busy';
-              else if (status.includes('switch_off') || status.includes('switched_off')) callStatus = 'switched_off';
-              else if (status.includes('not_reach')) callStatus = 'not_answered';
-              else callStatus = status;
+            // Find assigned employee name
+            let assignedToName = null;
+            if (employeeId) {
+              const employee = employees.find(e => e.id === employeeId);
+              assignedToName = employee ? employee.name : null;
             }
-            
-            // Create lead object
+
+            // Normalize call status
+            let normalizedCallStatus = '';
+            if (row.call_status) {
+              const cs = row.call_status.toLowerCase().replace(/[\s_-]+/g, '_');
+              if (cs.includes('connect')) normalizedCallStatus = 'connected';
+              else if (cs.includes('not_answer') || cs.includes('no_answer')) normalizedCallStatus = 'not_answered';
+              else if (cs.includes('call_back')) normalizedCallStatus = 'call_back_requested';
+              else if (cs.includes('busy')) normalizedCallStatus = 'busy';
+              else if (cs.includes('switch')) normalizedCallStatus = 'switched_off';
+              else if (cs.includes('not_reach')) normalizedCallStatus = 'not_answered';
+              else normalizedCallStatus = cs;
+            }
+
+            // Create lead object matching actual DB column names
             const leadData = {
-              name: row.lead_name.trim(),
-              phone: phone,
-              email: row.email || null,
-              source: row.lead_source || 'Import',
-              status: row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'new',
-              interest_level: row.interest_level ? row.interest_level.toLowerCase() : 'warm',
-              project_name: row.project_name || null,
-              budget: row.budget || null,
-              notes: row.notes || row.buyer_feedback || '',
-              assigned_to: employeeId,
-              created_at: new Date(parsedDate + 'T00:00:00Z').toISOString(),
-              updated_at: new Date().toISOString(),
+              full_name:          row.lead_name.trim(),
+              phone:              phone,
+              email:              row.email || '',
+              source:             row.lead_source || 'Import',
+              status:             'Active',
+              final_status:       row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'new',
+              interest_level:     row.interest_level ? row.interest_level.toLowerCase() : 'warm',
+              project:            row.project_name || null,
+              budget:             row.budget || null,
+              notes:              row.notes || row.buyer_feedback || '',
+              call_attempt:       row.call_attempt || '',
+              call_status:        normalizedCallStatus,
+              site_visit_status:  row.site_visit_status || 'not_planned',
+              assigned_to:        employeeId,
+              assigned_to_name:   assignedToName,
+              created_by:         user?.id || null,
+              next_followup_date: row.next_followup_date ? parseFlexibleDate(row.next_followup_date) : null,
+              created_at:         new Date(parsedDate + 'T00:00:00Z').toISOString(),
+              updated_at:         new Date().toISOString(),
             };
             
             // Insert lead - FIX: Remove .single() to avoid 406 error
@@ -350,7 +364,7 @@ const ImportLeads = () => {
             }
             
             // If call data provided, create call record
-            if (callStatus && row.call_attempt) {
+            if (normalizedCallStatus && row.call_attempt) {
               await supabaseAdmin.from('calls').insert({
                 employee_id: employeeId,
                 lead_id: newLead.id,
@@ -358,8 +372,8 @@ const ImportLeads = () => {
                 phone: phone,
                 project_name: row.project_name || null,
                 call_type: 'outbound',
-                status: callStatus,
-                duration: callStatus === 'connected' ? 120 : 0,
+                status: normalizedCallStatus,
+                duration: normalizedCallStatus === 'connected' ? 120 : 0,
                 notes: row.buyer_feedback || 'Imported call',
                 feedback: row.buyer_feedback || '',
                 call_date: parsedDate,

@@ -323,6 +323,7 @@ const ImportLeads = () => {
 
             // Create lead object matching actual DB column names
             const leadData = {
+              name:               row.lead_name.trim(),
               full_name:          row.lead_name.trim(),
               phone:              phone,
               email:              row.email || '',

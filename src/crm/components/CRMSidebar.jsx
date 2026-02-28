@@ -8,7 +8,7 @@ import {
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap,
+  Search, Zap, Award,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -23,7 +23,7 @@ const IconMap = {
   CalendarCheck, IndianRupee, FolderOpen,
   // ✅ New icons added for HR & new menu items
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap,
+  Search, Zap, Award,
 };
 
 // Group header visual config

@@ -54,6 +54,7 @@ import EmployeeDashboard from './crm/pages/EmployeeDashboard';
 import DailyCalling from './crm/pages/DailyCalling';
 import LeadSearch from './crm/pages/LeadSearch';
 import SmartGuidance from './crm/pages/SmartGuidance';
+import EmployeeIntelligence from './crm/pages/EmployeeIntelligence';
 import SiteVisits from './crm/pages/SiteVisits';
 import Bookings from './crm/pages/Bookings';
 import Tasks from './crm/pages/Tasks';
@@ -159,6 +160,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/revenue-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><RevenueAnalytics /></ProtectedRoute>} />
                     <Route path="admin/call-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><CallAnalytics /></ProtectedRoute>} />
                     <Route path="admin/booking-analytics" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><BookingAnalytics /></ProtectedRoute>} />
+                    <Route path="admin/employee-intelligence" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><EmployeeIntelligence /></ProtectedRoute>} />
 
                     {/* ✅ HR Module — Admin & Sub Admin paths (sub_admin gets READ-ONLY dashboard only) */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />

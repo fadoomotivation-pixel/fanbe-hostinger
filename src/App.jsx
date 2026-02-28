@@ -52,6 +52,8 @@ import EmployeeLeadList from './crm/pages/EmployeeLeadList';
 import EmployeeLeadDetails from './crm/pages/EmployeeLeadDetails';
 import EmployeeDashboard from './crm/pages/EmployeeDashboard';
 import DailyCalling from './crm/pages/DailyCalling';
+import LeadSearch from './crm/pages/LeadSearch';
+import SmartGuidance from './crm/pages/SmartGuidance';
 import SiteVisits from './crm/pages/SiteVisits';
 import Bookings from './crm/pages/Bookings';
 import Tasks from './crm/pages/Tasks';
@@ -180,6 +182,8 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/edit-lead/:id" element={<EditLead />} />
                     {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
                     {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
+                    <Route path="sales/lead-search" element={<LeadSearch />} />
+                    <Route path="sales/smart-guidance" element={<SmartGuidance />} />
                     <Route path="sales/daily-calling" element={<DailyCalling />} />
                     <Route path="sales/site-visits" element={<SiteVisits />} />
                     <Route path="sales/bookings" element={<Bookings />} />

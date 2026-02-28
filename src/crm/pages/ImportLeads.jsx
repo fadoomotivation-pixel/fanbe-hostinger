@@ -77,31 +77,44 @@ const ImportLeads = () => {
 
   const parseCSV = (text) => {
     const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    
+
+    // Auto-detect delimiter: if header line has tabs, use tab; otherwise use comma
+    const headerLine = lines[0];
+    const delimiter = headerLine.includes('\t') ? '\t' : ',';
+
+    const headers = headerLine.split(delimiter).map(h => h.trim().toLowerCase());
+
     const data = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      
-      // Handle CSV with commas in quoted fields
-      const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
-      const values = [];
-      let match;
-      
-      while ((match = regex.exec(lines[i])) !== null) {
-        let value = match[1];
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1).replace(/""/g, '"');
+
+      let values;
+      if (delimiter === '\t') {
+        // Tab-separated: split by tab
+        values = lines[i].split('\t').map(v => v.trim());
+      } else {
+        // Comma-separated: handle commas in quoted fields
+        const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
+        values = [];
+        let match;
+
+        while ((match = regex.exec(lines[i])) !== null) {
+          let value = match[1];
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1).replace(/""/g, '"');
+          }
+          values.push(value.trim());
         }
-        values.push(value.trim());
       }
-      
-      if (values.length < headers.length) continue;
-      
+
       const row = {};
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
       });
+
+      // Skip rows where all values are empty
+      if (Object.values(row).every(v => !v)) continue;
+
       data.push(row);
     }
     return data;
@@ -111,8 +124,8 @@ const ImportLeads = () => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
     
-    if (!selectedFile.name.endsWith('.csv')) {
-      setError('Please upload a CSV file');
+    if (!selectedFile.name.endsWith('.csv') && !selectedFile.name.endsWith('.tsv')) {
+      setError('Please upload a CSV or TSV file');
       return;
     }
     
@@ -161,10 +174,12 @@ const ImportLeads = () => {
       errors.push('Invalid or missing phone number');
     }
     
-    // Flexible date validation
-    const parsedDate = parseFlexibleDate(row.date);
-    if (!parsedDate) {
-      errors.push(`Invalid date format: ${row.date}`);
+    // Flexible date validation - date is optional, defaults to today
+    if (row.date && row.date.trim()) {
+      const parsedDate = parseFlexibleDate(row.date);
+      if (!parsedDate) {
+        errors.push(`Invalid date format: ${row.date}`);
+      }
     }
     
     // Optional but validated if present
@@ -230,8 +245,10 @@ const ImportLeads = () => {
             // Normalize phone number
             const phone = normalizePhone(row.phone);
             
-            // Parse date flexibly
-            const parsedDate = parseFlexibleDate(row.date);
+            // Parse date flexibly - default to today if empty
+            const parsedDate = (row.date && row.date.trim())
+              ? parseFlexibleDate(row.date)
+              : new Date().toISOString().split('T')[0];
             if (!parsedDate) {
               errors.push(`Row ${rowNumber}: Could not parse date: ${row.date}`);
               errorCount++;
@@ -452,9 +469,9 @@ const ImportLeads = () => {
             <div>
               <p className="font-semibold text-gray-700 mb-1">📋 Required Fields:</p>
               <ul className="list-disc list-inside text-gray-600 text-xs space-y-1">
-                <li><code>date</code> - DD/MM/YYYY or YYYY-MM-DD</li>
                 <li><code>lead_name</code> - Full name</li>
                 <li><code>phone</code> - 10-digit number</li>
+                <li><code>date</code> - DD/MM/YYYY or YYYY-MM-DD (optional, defaults to today)</li>
               </ul>
             </div>
             
@@ -485,7 +502,7 @@ const ImportLeads = () => {
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-xs text-yellow-800">
-              <strong>Flexible Formatting:</strong> Date formats accepted: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY. Phone numbers will auto-add +91 prefix. Duplicate phones are skipped.
+              <strong>Flexible Formatting:</strong> Supports both CSV (comma) and TSV (tab) files. Date formats: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY (leave blank for today). Phone numbers will auto-add +91 prefix. Duplicate phones are skipped.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -500,7 +517,7 @@ const ImportLeads = () => {
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.tsv"
               onChange={handleFileChange}
               className="hidden"
               id="csv-upload"

@@ -76,21 +76,39 @@ jobs:
           host = os.environ.get("FTP_SERVER", "")
           user = os.environ.get("FTP_USERNAME", "")
           password = os.environ.get("FTP_PASSWORD", "")
+          suffix = ".fanbegroup.com"
 
-          try:
-              ftp = ftplib.FTP(host=host, timeout=20)
-              ftp.login(user=user, passwd=password)
-              ftp.quit()
-              print("auth_ok=true")
+          candidates = []
+          if user:
+              candidates.append(user)
+              if "." not in user:
+                  candidates.append(f"{user}{suffix}")
+
+          tried = []
+          selected_user = None
+
+          for candidate in candidates:
+              try:
+                  ftp = ftplib.FTP(host=host, timeout=20)
+                  ftp.login(user=candidate, passwd=password)
+                  ftp.quit()
+                  selected_user = candidate
+                  break
+              except Exception as exc:
+                  tried.append(f"{candidate}: {exc}")
+
+          if selected_user:
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
                   f.write("auth_ok=true\n")
-              print("✅ FTP authentication successful.")
-          except Exception as exc:
+                  f.write(f"username={selected_user}\n")
+              print(f"✅ FTP authentication successful with username: {selected_user}")
+          else:
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
                   f.write("auth_ok=false\n")
               print("::warning::FTP authentication failed. Deployment step will be skipped.")
               print("::warning::Common Hostinger fixes: use FTP host without ftp://, use full FTP username (e.g. user.domain.com), and reset FTP password in hPanel.")
-              print(f"::warning::FTP login error: {exc}")
+              if tried:
+                  print("::warning::FTP attempts: " + " | ".join(tried))
           PY
 
       - name: Deploy to Hostinger via FTP
@@ -98,8 +116,10 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@4.3.3
         with:
           server: ${{ steps.ftp-creds.outputs.server }}
-          username: ${{ steps.ftp-creds.outputs.username }}
+          username: ${{ steps.ftp-auth.outputs.username }}
           password: ${{ steps.ftp-creds.outputs.password }}
+          port: 21
+          protocol: ftp
           local-dir: ./dist/
           server-dir: /public_html/
           dangerous-clean-slate: false

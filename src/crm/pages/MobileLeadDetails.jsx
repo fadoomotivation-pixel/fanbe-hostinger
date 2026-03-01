@@ -4,7 +4,7 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Phone, Clock, DollarSign, MapPin } from 'lucide-react';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -50,7 +50,12 @@ const MobileLeadDetails = () => {
   const lead = leads.find(l => l.id === leadId);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
-  const [statusForm, setStatusForm] = useState({ status: '', notes: '' });
+  const [statusForm, setStatusForm] = useState({
+    status: lead?.status || 'Open',
+    followUpDate: lead?.followUpDate?.split('T')[0] || '',
+    followUpTime: lead?.followUpTime || '',
+    notes: '',
+  });
 
   if (!lead) return <div className="p-8 text-center">Lead not found</div>;
 
@@ -64,7 +69,12 @@ const MobileLeadDetails = () => {
   };
 
   const handleUpdate = () => {
-    updateLead(lead.id, { status: statusForm.status });
+    const isFollowUp = statusForm.status === 'FollowUp';
+    updateLead(lead.id, {
+      status: statusForm.status,
+      followUpDate: isFollowUp ? statusForm.followUpDate : '',
+      followUpTime: isFollowUp ? statusForm.followUpTime : '',
+    });
     if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
     toast({ title: 'Success', description: 'Status Updated' });
     setIsUpdateOpen(false);
@@ -170,7 +180,15 @@ const MobileLeadDetails = () => {
 
         <Button
           className="w-full h-12 text-base font-bold"
-          onClick={() => { setStatusForm({ status: lead.status, notes: '' }); setIsUpdateOpen(true); }}
+          onClick={() => {
+            setStatusForm({
+              status: lead.status,
+              followUpDate: lead?.followUpDate?.split('T')[0] || '',
+              followUpTime: lead?.followUpTime || '',
+              notes: '',
+            });
+            setIsUpdateOpen(true);
+          }}
         >
           Update Status
         </Button>
@@ -178,11 +196,21 @@ const MobileLeadDetails = () => {
 
       {/* Update Dialog */}
       <Dialog open={isUpdateOpen} onOpenChange={setIsUpdateOpen}>
-        <DialogContent className="max-w-[90%] rounded-xl">
-          <DialogHeader><DialogTitle>Update Status</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <Select value={statusForm.status} onValueChange={v => setStatusForm({ ...statusForm, status: v })}>
-              <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
+        <DialogContent className="w-[92vw] max-w-md rounded-2xl border-0 p-0 shadow-2xl">
+          <DialogHeader className="border-b bg-slate-50 px-5 py-4 text-left">
+            <DialogTitle className="text-lg font-semibold text-slate-900">Update Lead Status</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Keep status updates consistent across desktop and mobile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 px-5 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">New Status</label>
+              <Select value={statusForm.status} onValueChange={v => setStatusForm({ ...statusForm, status: v })}>
+              <SelectTrigger className="h-10 border-slate-200">
+                <SelectValue placeholder="Select Status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Open">Open</SelectItem>
                 <SelectItem value="FollowUp">Follow Up</SelectItem>
@@ -190,12 +218,44 @@ const MobileLeadDetails = () => {
                 <SelectItem value="Lost">Lost</SelectItem>
               </SelectContent>
             </Select>
-            <Textarea
-              placeholder="Add a note about this update..."
-              value={statusForm.notes}
-              onChange={e => setStatusForm({ ...statusForm, notes: e.target.value })}
-            />
-            <Button onClick={handleUpdate} className="w-full">Save Update</Button>
+            </div>
+
+            {statusForm.status === 'FollowUp' && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Follow-up Date</label>
+                  <Input
+                    type="date"
+                    value={statusForm.followUpDate}
+                    onChange={e => setStatusForm({ ...statusForm, followUpDate: e.target.value })}
+                    className="h-10 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Time</label>
+                  <Input
+                    type="time"
+                    value={statusForm.followUpTime}
+                    onChange={e => setStatusForm({ ...statusForm, followUpTime: e.target.value })}
+                    className="h-10 border-slate-200"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Reason / Remarks</label>
+              <Textarea
+                placeholder="Why is the status changing?"
+                value={statusForm.notes}
+                onChange={e => setStatusForm({ ...statusForm, notes: e.target.value })}
+                className="min-h-[100px] resize-none border-slate-200"
+              />
+            </div>
+
+            <Button onClick={handleUpdate} className="h-11 w-full text-sm font-semibold">
+              Update Status
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

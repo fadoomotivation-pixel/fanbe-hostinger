@@ -159,18 +159,34 @@ export const useCRMData = () => {
   const fetchLeads = async () => {
     try {
       setLeadsLoading(true);
-      const { data, error } = await supabaseAdmin
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Supabase caps queries at 1000 rows by default — paginate to get all
+      const PAGE_SIZE = 1000;
+      let allData = [];
+      let from = 0;
+      let keepGoing = true;
 
-      if (error) {
-        console.error('[Leads] Fetch error:', error.message);
-        setLeads([]);
-        return;
+      while (keepGoing) {
+        const { data, error } = await supabaseAdmin
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          console.error('[Leads] Fetch error:', error.message);
+          setLeads([]);
+          return;
+        }
+
+        allData = allData.concat(data || []);
+        if (!data || data.length < PAGE_SIZE) {
+          keepGoing = false;
+        } else {
+          from += PAGE_SIZE;
+        }
       }
 
-      const normalized = (data || []).map(row => ({
+      const normalized = allData.map(row => ({
         id:               row.id,
         name:             row.full_name          || '',
         phone:            row.phone              || '',

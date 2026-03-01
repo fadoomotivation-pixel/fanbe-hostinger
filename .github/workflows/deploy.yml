@@ -51,9 +51,10 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           local-dir: ./dist/
-          # Hostinger FTP can reject absolute/chrooted paths during mkdir; use relative public_html path.
-          server-dir: public_html/
-          # Avoid deleting target root on each run; use incremental sync to prevent mkdir path race/errors.
+          # Many Hostinger FTP accounts are chrooted to public_html already; deploy to FTP root.
+          # If your account root is different, set secret FTP_SERVER_DIR and switch this value accordingly.
+          server-dir: /
+          # Incremental sync is safer on Hostinger and avoids mkdir/delete race issues.
           dangerous-clean-slate: false
 
       - name: Deployment complete

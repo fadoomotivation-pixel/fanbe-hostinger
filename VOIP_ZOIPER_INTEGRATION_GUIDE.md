@@ -282,91 +282,944 @@ The employee selects **Zoiper5** and optionally checks **"Always"** to make it t
 
 ---
 
-### Way 2: Dedicated VoIP Button with Zoiper Intent (1-2 hours)
+### Way 2: Add VoIP Button in Your CRM (1-2 hours)
 
-**How it works:** Add a separate "VoIP Call" button in the CRM alongside the existing
-phone and WhatsApp buttons. This button uses `sip:` URI scheme which specifically
-targets VoIP apps like Zoiper.
+> This section explains your CRM code in simple language and shows
+> **exactly** which files to change, step by step.
 
-**What to do:**
+---
 
-Add a button that uses the `sip:` URI scheme:
+#### How Your CRM Calling Works Right Now
 
-```html
-<a href="sip:+919876543210">VoIP Call</a>
+Your CRM is a **React** app. When an employee opens it on their Android phone
+in Chrome, they see their assigned leads. Each lead card has buttons:
+
+```
+┌──────────────────────────────────────┐
+│  Rajesh Kumar                        │
+│  Shree Kunj Bihari  •  Open         │
+│                                      │
+│  [ Phone ]  [ WhatsApp ]            │  ← Current buttons
+└──────────────────────────────────────┘
 ```
 
-Or in React (your CRM uses React):
+When employee taps **Phone** → the code runs `window.location.href = 'tel:9876543210'`
+→ this opens the regular phone dialer (SIM call).
+
+When employee taps **WhatsApp** → the code opens `wa.me/919876543210`
+→ this opens WhatsApp chat.
+
+**What we will do:** Add a purple **VoIP** button between them:
+
+```
+┌──────────────────────────────────────┐
+│  Rajesh Kumar                        │
+│  Shree Kunj Bihari  •  Open         │
+│                                      │
+│  [ Phone ] [ VoIP ] [ WhatsApp ]    │  ← After change
+│   (blue)   (purple)   (green)        │
+└──────────────────────────────────────┘
+```
+
+When employee taps **VoIP** → the code runs `window.location.href = 'sip:+919876543210'`
+→ this opens **Zoiper 5** (not the phone dialer).
+
+---
+
+#### Understanding the Pattern: How WhatsAppButton Works
+
+Your CRM already has a reusable **WhatsAppButton** component.
+We will create a **VoIPCallButton** that works the exact same way.
+
+**File:** `src/crm/components/WhatsAppButton.jsx`
+
+Here's how WhatsAppButton works (explained line by line):
 
 ```jsx
-// VoIP Call Button Component
-const VoIPCallButton = ({ phoneNumber, leadName }) => {
+// WhatsAppButton takes these inputs (called "props"):
+//   phoneNumber = the lead's phone number
+//   leadName    = the lead's name (for the message)
+const WhatsAppButton = ({ leadName, projectName, phoneNumber, className, size }) => {
 
-  const handleVoIPCall = () => {
-    // Clean the phone number (remove spaces, dashes)
-    const cleanNumber = phoneNumber.replace(/[\s\-()]/g, '');
+  const handleWhatsAppClick = (e) => {
+    e.stopPropagation();  // Don't trigger the card click behind the button
 
-    // Add country code if not present
-    const fullNumber = cleanNumber.startsWith('+91')
-      ? cleanNumber
-      : cleanNumber.startsWith('91')
-        ? `+${cleanNumber}`
-        : `+91${cleanNumber}`;
+    // Step 1: Clean phone number — remove spaces, dashes, brackets
+    //   "98765 43210" → "9876543210"
+    const cleanedPhone = phoneNumber.replace(/[^0-9]/g, '');
 
-    // Open with sip: URI — this will trigger Zoiper on Android
-    window.location.href = `sip:${fullNumber}`;
+    // Step 2: Check if number is at least 10 digits
+    if (cleanedPhone.length < 10) {
+      alert("Invalid phone number format");
+      return;
+    }
+
+    // Step 3: Add India country code (91) if number is just 10 digits
+    //   "9876543210" → "919876543210"
+    const formattedPhone = cleanedPhone.length === 10 ? `91${cleanedPhone}` : cleanedPhone;
+
+    // Step 4: Open WhatsApp with this link
+    const url = `https://wa.me/${formattedPhone}?text=Hi ${leadName}...`;
+    window.open(url, '_blank');
   };
 
+  // Step 5: Show a green button with WhatsApp icon
   return (
-    <button
-      onClick={handleVoIPCall}
-      style={{
-        backgroundColor: '#7C3AED',
-        color: 'white',
-        padding: '8px 16px',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
-      }}
-    >
-      VoIP Call
-    </button>
+    <Button onClick={handleWhatsAppClick} className="bg-[#25D366] text-white">
+      <MessageCircle /> WhatsApp
+    </Button>
   );
 };
 ```
 
-**Where to place this button:** Next to the existing Phone and WhatsApp buttons
-on the lead card/list in your CRM.
+**Our VoIPCallButton will follow the exact same pattern:**
+- Step 1: Clean phone number ✓
+- Step 2: Validate length ✓
+- Step 3: Add country code ✓
+- Step 4: Open `sip:` link instead of `wa.me` ← only this line is different
+- Step 5: Purple button instead of green ← different color
 
-**Android Intent alternative (more reliable):**
+---
 
-If `sip:` links don't trigger Zoiper on some phones, use an Android intent URL:
+#### Step A: Create the VoIPCallButton Component
 
-```javascript
-function callViaZoiper(phoneNumber) {
-  const cleanNumber = phoneNumber.replace(/[\s\-()]/g, '');
+Create a **new file**: `src/crm/components/VoIPCallButton.jsx`
 
-  // Try sip: first
-  window.location.href = `sip:${cleanNumber}`;
+Copy-paste this entire code:
 
-  // If Zoiper is not installed, this will fail silently
-  // You can add a fallback after a timeout
-  setTimeout(() => {
-    // If still on same page, Zoiper might not be installed
-    // Redirect to Play Store
-    if (document.hasFocus()) {
-      const install = confirm('Zoiper app not found. Install from Play Store?');
-      if (install) {
-        window.location.href = 'https://play.google.com/store/apps/details?id=com.zoiper.android.app';
-      }
+```jsx
+// src/crm/components/VoIPCallButton.jsx
+// ==========================================
+// VoIP Call Button — opens Zoiper 5 to make a SIP call
+// Works exactly like WhatsAppButton but opens Zoiper instead
+// ==========================================
+
+import React from 'react';
+import { Headphones } from 'lucide-react';           // icon from your icon library
+import { Button } from '@/components/ui/button';      // your existing Button component
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// This component takes these inputs:
+//   phoneNumber = lead's phone number (required)
+//   className   = extra CSS classes (optional)
+//   size        = button size: "sm", "default", "lg" (optional)
+//   variant     = button style (optional)
+const VoIPCallButton = ({ phoneNumber, className, size = "default", variant = "default" }) => {
+
+  // This function runs when employee taps the VoIP button
+  const handleVoIPCall = (e) => {
+    e.stopPropagation();  // Don't trigger the lead card click
+
+    // Check: do we have a phone number?
+    if (!phoneNumber) {
+      alert("No phone number available");
+      return;
     }
-  }, 2000);
-}
+
+    // Step 1: Clean phone number — remove everything except digits
+    //   "98765 43210"  → "9876543210"
+    //   "+91-9876543210" → "919876543210"
+    const cleanedPhone = phoneNumber.replace(/[^0-9]/g, '');
+
+    // Step 2: Check if number is valid (at least 10 digits)
+    if (cleanedPhone.length < 10) {
+      alert("Invalid phone number format");
+      return;
+    }
+
+    // Step 3: Add India country code (+91) if it's just 10 digits
+    //   "9876543210" → "+919876543210"
+    //   "919876543210" → "+919876543210"
+    let fullNumber;
+    if (cleanedPhone.length === 10) {
+      fullNumber = `+91${cleanedPhone}`;
+    } else if (cleanedPhone.startsWith('91') && cleanedPhone.length === 12) {
+      fullNumber = `+${cleanedPhone}`;
+    } else {
+      fullNumber = `+${cleanedPhone}`;
+    }
+
+    // Step 4: Open Zoiper using sip: link
+    //   "sip:+919876543210" → Android asks Zoiper to dial this number
+    //   This is similar to how "tel:" opens the phone dialer
+    //   but "sip:" specifically opens VoIP apps like Zoiper
+    window.location.href = `sip:${fullNumber}`;
+  };
+
+  // Step 5: Show a purple button with headphone icon
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={handleVoIPCall}
+            className={`bg-[#7C3AED] hover:bg-[#6D28D9] text-white ${className}`}
+            size={size}
+            variant={variant === "ghost" ? "ghost" : "default"}
+          >
+            <Headphones size={18} className="mr-2" />
+            VoIP
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Call via Zoiper (VoIP)</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
+
+export default VoIPCallButton;
 ```
 
-**Pros:** Clear separation between VoIP and regular calls
-**Cons:** Small code addition needed
+> **What is `sip:`?** Just like `tel:` opens the phone dialer and `https://wa.me` opens
+> WhatsApp, `sip:` opens VoIP apps. When Zoiper is installed on Android, it
+> registers itself as the handler for `sip:` links. So tapping this button
+> will open Zoiper and start dialing the number.
+
+---
+
+#### Step B: Add VoIP Button to Each Page
+
+Now you need to add the VoIPCallButton in every page where employees see call buttons.
+Below are **all 12 places** with exact before/after code.
+
+> **How to read this section:**
+> 1. Open the file shown
+> 2. Find the "BEFORE" code (search for it in the file)
+> 3. Replace it with the "AFTER" code
+> 4. Save the file
+> 5. Move to the next file
+
+---
+
+##### File 1 of 12: `src/crm/pages/MobileLeadList.jsx`
+
+> **What is this page?** The main lead list employees see on their Android phone.
+> Each lead shows as a card with Phone and WhatsApp buttons at the bottom.
+
+**Step 1:** Add the import at the top of the file.
+
+Find this line (near the top):
+```jsx
+import WhatsAppButton from '@/crm/components/WhatsAppButton';
+```
+
+Add this line **right below it**:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add the VoIP button between Phone and WhatsApp.
+
+Find this code (around line 56-65):
+```jsx
+<div className="flex gap-2" onClick={e => e.stopPropagation()}>
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full" onClick={() => window.location.href=`tel:${lead.phone}`}>
+        <Phone size={14} />
+    </Button>
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+</div>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-2" onClick={e => e.stopPropagation()}>
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full" onClick={() => window.location.href=`tel:${lead.phone}`}>
+        <Phone size={14} />
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+</div>
+```
+
+> **What changed?** We added `<VoIPCallButton>` between the Phone button and WhatsAppButton.
+> It takes the same `phoneNumber` prop from the lead. That's it!
+
+---
+
+##### File 2 of 12: `src/crm/pages/MobileLeadDetails.jsx`
+
+> **What is this page?** When employee taps a lead card, they see this detail page
+> with the lead's profile, big round Call and WhatsApp buttons, notes, etc.
+
+**Step 1:** Add the import at the top.
+
+Find:
+```jsx
+import WhatsAppButton from '@/crm/components/WhatsAppButton';
+```
+
+Add below it:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button in the action buttons area.
+
+Find this code (around line 96-106):
+```jsx
+<div className="flex gap-3 justify-center mt-4">
+    <Button className="rounded-full w-12 h-12 p-0" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone size={20} />
+    </Button>
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        projectName={lead.project}
+        className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
+    />
+</div>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-3 justify-center mt-4">
+    <Button className="rounded-full w-12 h-12 p-0" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone size={20} />
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
+    />
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        projectName={lead.project}
+        className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
+    />
+</div>
+```
+
+---
+
+##### File 3 of 12: `src/crm/pages/MobileEmployeeDashboard.jsx`
+
+> **What is this page?** The employee's home screen on mobile. Shows quick stats,
+> quick actions, and follow-up reminders with Phone + WhatsApp buttons.
+
+**Step 1:** Add the import at the top.
+
+Find:
+```jsx
+import WhatsAppButton from '@/crm/components/WhatsAppButton';
+```
+
+Add below it:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button in the follow-ups section.
+
+Find this code (around line 98-107):
+```jsx
+<div className="flex gap-2">
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full" onClick={() => window.location.href=`tel:${lead.phone}`}>
+        <Phone size={14} />
+    </Button>
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+</div>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-2">
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full" onClick={() => window.location.href=`tel:${lead.phone}`}>
+        <Phone size={14} />
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+    <WhatsAppButton
+        leadName={lead.name}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 rounded-full"
+    />
+</div>
+```
+
+---
+
+##### File 4 of 12: `src/crm/components/ActionButtonGroup.jsx`
+
+> **What is this component?** A group of action buttons (Call, WhatsApp, Status) shown on
+> lead cards with swipe actions. Used by the LeadActionCard component.
+
+**Step 1:** Add the import at the top.
+
+Find:
+```jsx
+import { Phone, MessageCircle, ChevronDown } from 'lucide-react';
+```
+
+Add below the existing imports:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button between Call and WhatsApp.
+
+Find this code (the full button grid, around line 9-60):
+```jsx
+<div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
+    {/* Call Button */}
+    <Button
+        className="bg-[#1E88E5] hover:bg-[#1976D2] text-white h-11 md:h-12 w-full shadow-sm active:scale-95 transition-transform"
+        onClick={(e) => { e.stopPropagation(); onAction('call', lead); }}
+    >
+        <Phone className="mr-2 h-5 w-5" /> Call
+    </Button>
+
+    {/* WhatsApp Button */}
+    <Button
+        className="bg-[#25D366] hover:bg-[#20bd5a] text-white h-11 md:h-12 w-full shadow-sm active:scale-95 transition-transform"
+        onClick={(e) => { e.stopPropagation(); onAction('whatsapp', lead); }}
+    >
+        <MessageCircle className="mr-2 h-5 w-5" /> WhatsApp
+    </Button>
+
+    {/* Status Button */}
+```
+
+Replace with:
+```jsx
+<div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-4">
+    {/* Call Button */}
+    <Button
+        className="bg-[#1E88E5] hover:bg-[#1976D2] text-white h-11 md:h-12 w-full shadow-sm active:scale-95 transition-transform"
+        onClick={(e) => { e.stopPropagation(); onAction('call', lead); }}
+    >
+        <Phone className="mr-2 h-5 w-5" /> Call
+    </Button>
+
+    {/* VoIP Button — opens Zoiper */}
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        className="h-11 md:h-12 w-full shadow-sm active:scale-95 transition-transform"
+    />
+
+    {/* WhatsApp Button */}
+    <Button
+        className="bg-[#25D366] hover:bg-[#20bd5a] text-white h-11 md:h-12 w-full shadow-sm active:scale-95 transition-transform"
+        onClick={(e) => { e.stopPropagation(); onAction('whatsapp', lead); }}
+    >
+        <MessageCircle className="mr-2 h-5 w-5" /> WhatsApp
+    </Button>
+
+    {/* Status Button */}
+```
+
+> **Note:** We also changed `grid-cols-3` to `grid-cols-4` because now there are 4 buttons.
+
+---
+
+##### File 5 of 12: `src/crm/pages/MyLeads.jsx`
+
+> **What is this page?** Desktop "My Leads" page with a table of assigned leads.
+> Each row has icons for Follow-up, Phone, and WhatsApp.
+
+**Step 1:** Add the import at the top (near the other imports):
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button between Phone and WhatsApp icons.
+
+Find this code (around line 201-206):
+```jsx
+<Button variant="ghost" size="icon" onClick={() => window.location.href=`tel:${lead.phone}`}>
+    <Phone className="h-4 w-4 text-blue-600" />
+</Button>
+<Button variant="ghost" size="icon" onClick={() => window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank')}>
+    <MessageCircle className="h-4 w-4 text-green-600" />
+</Button>
+```
+
+Replace with:
+```jsx
+<Button variant="ghost" size="icon" onClick={() => window.location.href=`tel:${lead.phone}`}>
+    <Phone className="h-4 w-4 text-blue-600" />
+</Button>
+<VoIPCallButton
+    phoneNumber={lead.phone}
+    size="sm"
+    variant="ghost"
+    className="h-8 w-8 p-0"
+/>
+<Button variant="ghost" size="icon" onClick={() => window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank')}>
+    <MessageCircle className="h-4 w-4 text-green-600" />
+</Button>
+```
+
+---
+
+##### File 6 of 12: `src/crm/pages/EmployeeLeadDetails.jsx`
+
+> **What is this page?** Detailed lead view for employees with quick action buttons
+> (Call, WhatsApp, Update Status) in a 3-column grid.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button in the quick actions grid.
+
+Find this code (around line 154-167):
+```jsx
+<div className="grid grid-cols-3 gap-4">
+    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone className="mr-2 h-4 w-4" /> Call
+    </Button>
+    <WhatsAppButton
+        leadName={lead.name}
+        projectName={lead.project}
+        phoneNumber={lead.phone}
+        className="w-full"
+    />
+    <Button variant="outline" className="w-full border-blue-600 text-blue-600" onClick={() => setIsUpdateModalOpen(true)}>
+        Update Status
+    </Button>
+</div>
+```
+
+Replace with:
+```jsx
+<div className="grid grid-cols-4 gap-4">
+    <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone className="mr-2 h-4 w-4" /> Call
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        className="w-full"
+    />
+    <WhatsAppButton
+        leadName={lead.name}
+        projectName={lead.project}
+        phoneNumber={lead.phone}
+        className="w-full"
+    />
+    <Button variant="outline" className="w-full border-blue-600 text-blue-600" onClick={() => setIsUpdateModalOpen(true)}>
+        Update Status
+    </Button>
+</div>
+```
+
+> **Note:** Changed `grid-cols-3` to `grid-cols-4` for the extra button.
+
+---
+
+##### File 7 of 12: `src/crm/pages/LeadSearch.jsx`
+
+> **What is this page?** Search results page where employees can find leads.
+> Each result has Phone and WhatsApp icon buttons.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button between Phone and WhatsApp.
+
+Find this code (around line 147-162):
+```jsx
+<Button
+    variant="ghost"
+    size="icon"
+    title="Call"
+    onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${lead.phone}`; }}
+>
+    <Phone className="h-4 w-4 text-blue-600" />
+</Button>
+<Button
+    variant="ghost"
+    size="icon"
+    title="WhatsApp"
+    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank'); }}
+>
+    <MessageCircle className="h-4 w-4 text-green-600" />
+</Button>
+```
+
+Replace with:
+```jsx
+<Button
+    variant="ghost"
+    size="icon"
+    title="Call"
+    onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${lead.phone}`; }}
+>
+    <Phone className="h-4 w-4 text-blue-600" />
+</Button>
+<VoIPCallButton
+    phoneNumber={lead.phone}
+    size="sm"
+    variant="ghost"
+    className="h-8 w-8 p-0"
+/>
+<Button
+    variant="ghost"
+    size="icon"
+    title="WhatsApp"
+    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank'); }}
+>
+    <MessageCircle className="h-4 w-4 text-green-600" />
+</Button>
+```
+
+---
+
+##### File 8 of 12: `src/crm/pages/SmartGuidance.jsx`
+
+> **What is this page?** AI-powered lead recommendations that suggest which
+> leads to call. Has Call and WhatsApp buttons for each recommendation.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button between Call and WhatsApp.
+
+Find this code (around line 285-301):
+```jsx
+<Button
+    variant="default"
+    size="sm"
+    className="bg-green-600 hover:bg-green-700 text-white"
+    onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${lead.phone}`; }}
+>
+    <Phone className="h-4 w-4 mr-1" />
+    Call
+</Button>
+<Button
+    variant="ghost"
+    size="sm"
+    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank'); }}
+>
+    <MessageCircle className="h-4 w-4 mr-1 text-green-600" />
+    <span className="text-xs">WhatsApp</span>
+</Button>
+```
+
+Replace with:
+```jsx
+<Button
+    variant="default"
+    size="sm"
+    className="bg-green-600 hover:bg-green-700 text-white"
+    onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${lead.phone}`; }}
+>
+    <Phone className="h-4 w-4 mr-1" />
+    Call
+</Button>
+<VoIPCallButton
+    phoneNumber={lead.phone}
+    size="sm"
+    className="px-2"
+/>
+<Button
+    variant="ghost"
+    size="sm"
+    onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank'); }}
+>
+    <MessageCircle className="h-4 w-4 mr-1 text-green-600" />
+    <span className="text-xs">WhatsApp</span>
+</Button>
+```
+
+---
+
+##### File 9 of 12: `src/crm/pages/EmployeeDashboard.jsx`
+
+> **What is this page?** Desktop employee dashboard. Shows overdue follow-ups
+> with Phone and WhatsApp buttons for each overdue lead.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button in overdue follow-ups section.
+
+Find this code (around line 202-212):
+```jsx
+<div className="flex gap-2">
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-red-200" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone size={14} className="text-red-600" />
+    </Button>
+    <WhatsAppButton
+        leadName={lead.name}
+        projectName={lead.project}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 bg-green-500 hover:bg-green-600"
+    />
+</div>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-2">
+    <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-red-200" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone size={14} className="text-red-600" />
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2"
+    />
+    <WhatsAppButton
+        leadName={lead.name}
+        projectName={lead.project}
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 px-2 bg-green-500 hover:bg-green-600"
+    />
+</div>
+```
+
+---
+
+##### File 10 of 12: `src/crm/components/LeadActionCard.jsx`
+
+> **What is this component?** Swipeable lead cards with gesture actions.
+> The phone number is shown as a `tel:` link. We add a VoIP call link next to it.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add a small VoIP link next to the phone number.
+
+Find this code (around line 68-75):
+```jsx
+<div>
+    <h3 className="text-lg font-bold text-gray-900">{lead.name}</h3>
+    <a
+        href={`tel:${lead.phone}`}
+        onClick={(e) => e.stopPropagation()}
+        className="text-[#1E88E5] font-medium text-base mt-0.5 block"
+    >
+        {lead.phone}
+    </a>
+</div>
+```
+
+Replace with:
+```jsx
+<div>
+    <h3 className="text-lg font-bold text-gray-900">{lead.name}</h3>
+    <div className="flex items-center gap-2 mt-0.5">
+        <a
+            href={`tel:${lead.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[#1E88E5] font-medium text-base"
+        >
+            {lead.phone}
+        </a>
+        <VoIPCallButton
+            phoneNumber={lead.phone}
+            size="sm"
+            className="h-6 px-2 text-xs"
+        />
+    </div>
+</div>
+```
+
+---
+
+##### File 11 of 12: `src/crm/pages/LeadDetail.jsx`
+
+> **What is this page?** Admin/manager view of a lead's full details.
+> Has quick action buttons (Call, WhatsApp, Log Call, Schedule Visit).
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2:** Add VoIP button in quick actions.
+
+Find this code (around line 176-182):
+```jsx
+<div className="flex gap-2 pt-4 border-t">
+    <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone className="h-4 w-4 mr-2" /> Call
+    </Button>
+    <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank')}>
+        <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+    </Button>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-2 pt-4 border-t">
+    <Button variant="outline" size="sm" onClick={() => window.location.href = `tel:${lead.phone}`}>
+        <Phone className="h-4 w-4 mr-2" /> Call
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        size="sm"
+        className="px-3"
+    />
+    <Button variant="outline" size="sm" onClick={() => window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank')}>
+        <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+    </Button>
+```
+
+---
+
+##### File 12 of 12: `src/crm/components/LeadTable.jsx`
+
+> **What is this component?** The lead table used in admin/management pages.
+> Has both a desktop table view and a mobile card view.
+> Call/WhatsApp actions are delegated via `onAction('call', lead)` callback.
+
+**Step 1:** Add the import at the top:
+```jsx
+import VoIPCallButton from '@/crm/components/VoIPCallButton';
+```
+
+**Step 2a:** Add VoIP button in **desktop table** row (around line 217-223).
+
+Find:
+```jsx
+<div className="flex justify-end gap-2">
+    <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full" onClick={(e) => { e.stopPropagation(); onAction('call', lead); }}>
+        <Phone size={14} />
+    </Button>
+    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100 rounded-full" onClick={(e) => { e.stopPropagation(); onAction('whatsapp', lead); }}>
+        <MessageSquare size={14} />
+    </Button>
+```
+
+Replace with:
+```jsx
+<div className="flex justify-end gap-2">
+    <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full" onClick={(e) => { e.stopPropagation(); onAction('call', lead); }}>
+        <Phone size={14} />
+    </Button>
+    <VoIPCallButton
+        phoneNumber={lead.phone}
+        size="sm"
+        className="h-8 w-8 p-0 rounded-full"
+    />
+    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 bg-green-50 hover:bg-green-100 rounded-full" onClick={(e) => { e.stopPropagation(); onAction('whatsapp', lead); }}>
+        <MessageSquare size={14} />
+    </Button>
+```
+
+**Step 2b:** Add VoIP button in **mobile card** view (around line 268-271).
+
+Find:
+```jsx
+<div className="flex gap-2 pt-2 border-t mt-1">
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('call', lead)}><Phone size={14} className="mr-1" /> Call</Button>
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('whatsapp', lead)}><MessageSquare size={14} className="mr-1" /> WA</Button>
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('viewNotes', lead)}><StickyNote size={14} className="mr-1" /> Notes</Button>
+</div>
+```
+
+Replace with:
+```jsx
+<div className="flex gap-2 pt-2 border-t mt-1">
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('call', lead)}><Phone size={14} className="mr-1" /> Call</Button>
+    <VoIPCallButton phoneNumber={lead.phone} size="sm" className="flex-1" />
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('whatsapp', lead)}><MessageSquare size={14} className="mr-1" /> WA</Button>
+    <Button variant="outline" size="sm" className="flex-1" onClick={() => onAction('viewNotes', lead)}><StickyNote size={14} className="mr-1" /> Notes</Button>
+</div>
+```
+
+---
+
+#### Step C: Test on Android Phone
+
+After making all changes:
+
+1. **Build and deploy** your CRM (or run locally with `npm run dev`)
+2. Open the CRM on an **Android phone** in **Chrome browser**
+3. Go to **My Leads** page
+4. You should see three buttons on each lead card: **Phone (blue)**, **VoIP (purple)**, **WhatsApp (green)**
+5. Tap the **purple VoIP button**
+6. Android should show: **"Open with Zoiper5"** (or open Zoiper directly if set as default)
+7. Zoiper starts dialing the lead's number
+
+**If "Complete action using" popup appears:**
+- Select **Zoiper5**
+- Check **"Always"** to make it the default for `sip:` links
+- Next time the VoIP button will directly open Zoiper
+
+**If nothing happens when tapping VoIP:**
+- Check that Zoiper 5 is installed on the phone
+- Check that the SIP account is registered (green checkmark in Zoiper)
+- Try the `tel:` approach from Way 1 as a fallback
+
+---
+
+#### Quick Summary of All Changes
+
+| # | File | What You Added |
+|---|------|----------------|
+| 1 | `src/crm/components/VoIPCallButton.jsx` | **NEW FILE** — the reusable VoIP button |
+| 2 | `src/crm/pages/MobileLeadList.jsx` | Import + VoIP button in lead cards |
+| 3 | `src/crm/pages/MobileLeadDetails.jsx` | Import + VoIP button in profile section |
+| 4 | `src/crm/pages/MobileEmployeeDashboard.jsx` | Import + VoIP button in follow-ups |
+| 5 | `src/crm/components/ActionButtonGroup.jsx` | Import + VoIP button in action grid |
+| 6 | `src/crm/pages/MyLeads.jsx` | Import + VoIP button in table actions |
+| 7 | `src/crm/pages/EmployeeLeadDetails.jsx` | Import + VoIP button in quick actions |
+| 8 | `src/crm/pages/LeadSearch.jsx` | Import + VoIP button in search results |
+| 9 | `src/crm/pages/SmartGuidance.jsx` | Import + VoIP button in AI recommendations |
+| 10 | `src/crm/pages/EmployeeDashboard.jsx` | Import + VoIP button in overdue follow-ups |
+| 11 | `src/crm/components/LeadActionCard.jsx` | Import + VoIP button next to phone number |
+| 12 | `src/crm/pages/LeadDetail.jsx` | Import + VoIP button in quick actions |
+| 13 | `src/crm/components/LeadTable.jsx` | Import + VoIP button in desktop table + mobile cards |
+
+**Total: 1 new file + 12 file edits. Each edit is just 2 changes: add import + add button.**
+
+---
+
+#### How `sip:` vs `tel:` Works on Android
+
+```
+Employee taps blue "Phone" button
+  → code runs: window.location.href = "tel:9876543210"
+  → Android opens: Phone Dialer (regular SIM call)
+  → Uses employee's personal SIM number
+  → Lead sees employee's personal number
+
+Employee taps purple "VoIP" button
+  → code runs: window.location.href = "sip:+919876543210"
+  → Android opens: Zoiper 5 (VoIP call over internet)
+  → Uses company's SIP/virtual number
+  → Lead sees company's business number
+```
+
+Both buttons call the same lead — the difference is **which app makes the call**.
 
 ---
 

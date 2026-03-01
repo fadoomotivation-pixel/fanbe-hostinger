@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+// ✅ NEW: Mobile Update Components
+import MobileUpdateStatus from '@/components/crm/MobileUpdateStatus';
+import FloatingUpdateButton from '@/components/crm/FloatingUpdateButton';
 
 /**
  * Parse notes field: Supabase string OR legacy array of {text, timestamp, author}
@@ -51,6 +54,9 @@ const MobileLeadDetails = () => {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [statusForm, setStatusForm] = useState({ status: '', notes: '' });
+  
+  // ✅ NEW: Mobile Update Modal State
+  const [showMobileUpdate, setShowMobileUpdate] = useState(false);
 
   if (!lead) return <div className="p-8 text-center">Lead not found</div>;
 
@@ -68,6 +74,32 @@ const MobileLeadDetails = () => {
     if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
     toast({ title: 'Success', description: 'Status Updated' });
     setIsUpdateOpen(false);
+  };
+
+  // ✅ NEW: Mobile Update Handler
+  const handleMobileStatusUpdate = async (status, followUpDate, followUpTime, remarks) => {
+    try {
+      await updateLead(leadId, {
+        status,
+        follow_up_date: followUpDate,
+        follow_up_time: followUpTime,
+        remarks: remarks || lead.remarks,
+        updated_at: new Date().toISOString()
+      });
+      
+      toast({
+        title: "Status updated successfully!",
+        description: `Lead status changed to ${status}`,
+      });
+    } catch (error) {
+      console.error('Update failed:', error);
+      toast({
+        title: "Failed to update status",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   return (
@@ -176,7 +208,7 @@ const MobileLeadDetails = () => {
         </Button>
       </div>
 
-      {/* Update Dialog */}
+      {/* OLD Update Dialog - Keep for compatibility */}
       <Dialog open={isUpdateOpen} onOpenChange={setIsUpdateOpen}>
         <DialogContent className="max-w-[90%] rounded-xl">
           <DialogHeader><DialogTitle>Update Status</DialogTitle></DialogHeader>
@@ -199,6 +231,16 @@ const MobileLeadDetails = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ✅ NEW: Mobile Update Components */}
+      <FloatingUpdateButton onClick={() => setShowMobileUpdate(true)} />
+      <MobileUpdateStatus
+        isOpen={showMobileUpdate}
+        onClose={() => setShowMobileUpdate(false)}
+        currentStatus={lead?.status || 'New Lead'}
+        leadId={leadId}
+        onUpdate={handleMobileStatusUpdate}
+      />
     </div>
   );
 };

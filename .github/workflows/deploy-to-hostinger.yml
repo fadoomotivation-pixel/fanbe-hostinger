@@ -9,13 +9,13 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -29,97 +29,14 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Resolve FTP credentials
-        id: ftp-creds
-        env:
-          FTP_SERVER_PRIMARY: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME_PRIMARY: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD_PRIMARY: ${{ secrets.FTP_PASSWORD }}
-          FTP_SERVER_FALLBACK: ${{ secrets.HOSTINGER_FTP_HOST }}
-          FTP_USERNAME_FALLBACK: ${{ secrets.HOSTINGER_FTP_USER }}
-          FTP_PASSWORD_FALLBACK: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
-        run: |
-          FTP_SERVER_VALUE="${FTP_SERVER_PRIMARY:-$FTP_SERVER_FALLBACK}"
-          FTP_USERNAME_VALUE="${FTP_USERNAME_PRIMARY:-$FTP_USERNAME_FALLBACK}"
-          FTP_PASSWORD_VALUE="${FTP_PASSWORD_PRIMARY:-$FTP_PASSWORD_FALLBACK}"
-
-          # Normalize common Hostinger copy/paste formats (e.g., ftp://IP)
-          FTP_SERVER_VALUE="${FTP_SERVER_VALUE#ftp://}"
-          FTP_SERVER_VALUE="${FTP_SERVER_VALUE#ftps://}"
-          FTP_SERVER_VALUE="${FTP_SERVER_VALUE%/}"
-
-          if [ -n "$FTP_SERVER_VALUE" ] && [ -n "$FTP_USERNAME_VALUE" ] && [ -n "$FTP_PASSWORD_VALUE" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-            echo "server=$FTP_SERVER_VALUE" >> "$GITHUB_OUTPUT"
-            echo "username=$FTP_USERNAME_VALUE" >> "$GITHUB_OUTPUT"
-            echo "password=$FTP_PASSWORD_VALUE" >> "$GITHUB_OUTPUT"
-            echo "✅ FTP secrets found. FTP deployment will run."
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ FTP secrets missing. Skipping FTP deploy step."
-            echo "   Add FTP_SERVER/FTP_USERNAME/FTP_PASSWORD (or HOSTINGER_FTP_HOST/HOSTINGER_FTP_USER/HOSTINGER_FTP_PASSWORD)"
-            echo "   if you want this workflow to deploy via FTP."
-          fi
-
-      - name: Verify FTP login
-        id: ftp-auth
-        if: steps.ftp-creds.outputs.ready == 'true'
-        env:
-          FTP_SERVER: ${{ steps.ftp-creds.outputs.server }}
-          FTP_USERNAME: ${{ steps.ftp-creds.outputs.username }}
-          FTP_PASSWORD: ${{ steps.ftp-creds.outputs.password }}
-        run: |
-          python - <<'PY'
-          import ftplib
-          import os
-
-          host = os.environ.get("FTP_SERVER", "")
-          user = os.environ.get("FTP_USERNAME", "")
-          password = os.environ.get("FTP_PASSWORD", "")
-          suffix = ".fanbegroup.com"
-
-          candidates = []
-          if user:
-              candidates.append(user)
-              if "." not in user:
-                  candidates.append(f"{user}{suffix}")
-
-          tried = []
-          selected_user = None
-
-          for candidate in candidates:
-              try:
-                  ftp = ftplib.FTP(host=host, timeout=20)
-                  ftp.login(user=candidate, passwd=password)
-                  ftp.quit()
-                  selected_user = candidate
-                  break
-              except Exception as exc:
-                  tried.append(f"{candidate}: {exc}")
-
-          if selected_user:
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("auth_ok=true\n")
-                  f.write(f"username={selected_user}\n")
-              print(f"✅ FTP authentication successful with username: {selected_user}")
-          else:
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-                  f.write("auth_ok=false\n")
-              print("::warning::FTP authentication failed. Deployment step will be skipped.")
-              print("::warning::Common Hostinger fixes: use FTP host without ftp://, use full FTP username (e.g. user.domain.com), and reset FTP password in hPanel.")
-              if tried:
-                  print("::warning::FTP attempts: " + " | ".join(tried))
-          PY
-
       - name: Deploy to Hostinger via FTP
-        if: steps.ftp-creds.outputs.ready == 'true' && steps.ftp-auth.outputs.auth_ok == 'true'
-        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ steps.ftp-creds.outputs.server }}
-          username: ${{ steps.ftp-auth.outputs.username }}
-          password: ${{ steps.ftp-creds.outputs.password }}
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
           port: 21
-          protocol: ftp
           local-dir: ./dist/
           server-dir: /public_html/
           dangerous-clean-slate: false
+          log-level: verbose

@@ -12,8 +12,8 @@ export default defineConfig({
     },
   },
   build: {
-    // Increase warning limit to avoid noise
-    chunkSizeWarningLimit: 1000,
+    // Keep Hostinger/GitHub logs clean: this app intentionally ships a larger main bundle.
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
         // Hash ALL assets including CSS so old cache never loads wrong file

@@ -1,44 +1,61 @@
-# Automated deployment to Hostinger
 name: Deploy to Hostinger
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: hostinger-deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build project
-      run: npm run build
-    
-    - name: Deploy to Hostinger via FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: 145.79.213.160
-        username: u891384752.fanbegroup.com
-        password: ${{ secrets.FTP_PASSWORD }}
-        port: 21
-        local-dir: ./dist/
-        server-dir: /public_html/
-        dangerous-clean-slate: true
-        
-    - name: Deployment complete
-      run: |
-        echo "✅ Deployed successfully to Hostinger!"
-        echo "🌐 Site: https://fanbegroup.com"
-        echo "📱 Mobile UI: https://fanbegroup.com/crm"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Validate required deployment secrets
+        run: |
+          if [ -z "${{ secrets.FTP_PASSWORD }}" ]; then
+            echo "❌ Missing required secret: FTP_PASSWORD"
+            echo "Add it in: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "✅ Required secret FTP_PASSWORD is configured"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          # Optional; app also has fallback values in code.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          # Keep server/username explicit so deploy doesn't fail when optional secrets are missing.
+          server: 145.79.213.160
+          username: u891384752.fanbegroup.com
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          local-dir: ./dist/
+          server-dir: /public_html/
+          dangerous-clean-slate: true
+
+      - name: Deployment complete
+        run: |
+          echo "✅ Deployed successfully to Hostinger!"
+          echo "🌐 Site: https://fanbegroup.com"
+          echo "📱 Mobile UI: https://fanbegroup.com/crm"

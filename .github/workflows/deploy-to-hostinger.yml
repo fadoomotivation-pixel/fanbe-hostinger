@@ -43,6 +43,11 @@ jobs:
           FTP_USERNAME_VALUE="${FTP_USERNAME_PRIMARY:-$FTP_USERNAME_FALLBACK}"
           FTP_PASSWORD_VALUE="${FTP_PASSWORD_PRIMARY:-$FTP_PASSWORD_FALLBACK}"
 
+          # Normalize common Hostinger copy/paste formats (e.g., ftp://IP)
+          FTP_SERVER_VALUE="${FTP_SERVER_VALUE#ftp://}"
+          FTP_SERVER_VALUE="${FTP_SERVER_VALUE#ftps://}"
+          FTP_SERVER_VALUE="${FTP_SERVER_VALUE%/}"
+
           if [ -n "$FTP_SERVER_VALUE" ] && [ -n "$FTP_USERNAME_VALUE" ] && [ -n "$FTP_PASSWORD_VALUE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
             echo "server=$FTP_SERVER_VALUE" >> "$GITHUB_OUTPUT"
@@ -56,8 +61,40 @@ jobs:
             echo "   if you want this workflow to deploy via FTP."
           fi
 
-      - name: Deploy to Hostinger via FTP
+      - name: Verify FTP login
+        id: ftp-auth
         if: steps.ftp-creds.outputs.ready == 'true'
+        env:
+          FTP_SERVER: ${{ steps.ftp-creds.outputs.server }}
+          FTP_USERNAME: ${{ steps.ftp-creds.outputs.username }}
+          FTP_PASSWORD: ${{ steps.ftp-creds.outputs.password }}
+        run: |
+          python - <<'PY'
+          import ftplib
+          import os
+
+          host = os.environ.get("FTP_SERVER", "")
+          user = os.environ.get("FTP_USERNAME", "")
+          password = os.environ.get("FTP_PASSWORD", "")
+
+          try:
+              ftp = ftplib.FTP(host=host, timeout=20)
+              ftp.login(user=user, passwd=password)
+              ftp.quit()
+              print("auth_ok=true")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("auth_ok=true\n")
+              print("✅ FTP authentication successful.")
+          except Exception as exc:
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  f.write("auth_ok=false\n")
+              print("::warning::FTP authentication failed. Deployment step will be skipped.")
+              print("::warning::Common Hostinger fixes: use FTP host without ftp://, use full FTP username (e.g. user.domain.com), and reset FTP password in hPanel.")
+              print(f"::warning::FTP login error: {exc}")
+          PY
+
+      - name: Deploy to Hostinger via FTP
+        if: steps.ftp-creds.outputs.ready == 'true' && steps.ftp-auth.outputs.auth_ok == 'true'
         uses: SamKirkland/FTP-Deploy-Action@4.3.3
         with:
           server: ${{ steps.ftp-creds.outputs.server }}

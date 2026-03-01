@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { Phone, Calendar, User, Mail, DollarSign, Clock, MapPin, ArrowLeft, MessageSquare } from 'lucide-react';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
@@ -76,10 +76,11 @@ const EmployeeLeadDetails = () => {
   };
 
   const handleUpdateStatus = () => {
+    const isFollowUp = statusForm.status === 'FollowUp';
     updateLead(lead.id, {
       status:        statusForm.status,
-      followUpDate:  statusForm.followUpDate,
-      followUpTime:  statusForm.followUpTime,
+      followUpDate:  isFollowUp ? statusForm.followUpDate : '',
+      followUpTime:  isFollowUp ? statusForm.followUpTime : '',
     });
     if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales Exec (Status Update)');
     setIsUpdateModalOpen(false);
@@ -201,16 +202,22 @@ const EmployeeLeadDetails = () => {
 
       {/* Update Status Modal */}
       <Dialog open={isUpdateModalOpen} onOpenChange={setIsUpdateModalOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Update Lead Status</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
+        <DialogContent className="sm:max-w-[620px] rounded-2xl border-0 p-0 shadow-2xl">
+          <DialogHeader className="border-b bg-slate-50 px-6 py-4 text-left">
+            <DialogTitle className="text-xl font-semibold text-slate-900">Update Lead Status</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500">
+              Use the same status flow on desktop and mobile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 px-6 py-5">
             <div className="space-y-2">
-              <label className="text-sm font-medium">New Status</label>
+              <label className="text-sm font-medium text-slate-700">New Status</label>
               <Select
                 value={statusForm.status}
                 onValueChange={(val) => setStatusForm({ ...statusForm, status: val })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 border-slate-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Open">Open</SelectItem>
                   <SelectItem value="FollowUp">Follow Up</SelectItem>
@@ -223,35 +230,38 @@ const EmployeeLeadDetails = () => {
             {statusForm.status === 'FollowUp' && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Follow-up Date</label>
+                  <label className="text-sm font-medium text-slate-700">Follow-up Date</label>
                   <Input
                     type="date"
                     value={statusForm.followUpDate}
                     onChange={(e) => setStatusForm({ ...statusForm, followUpDate: e.target.value })}
+                    className="h-10 border-slate-200"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Time</label>
+                  <label className="text-sm font-medium text-slate-700">Time</label>
                   <Input
                     type="time"
                     value={statusForm.followUpTime}
                     onChange={(e) => setStatusForm({ ...statusForm, followUpTime: e.target.value })}
+                    className="h-10 border-slate-200"
                   />
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Reason / Remarks</label>
+              <label className="text-sm font-medium text-slate-700">Reason / Remarks</label>
               <Textarea
                 placeholder="Why is the status changing?"
                 value={statusForm.notes}
                 onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
+                className="min-h-[120px] resize-none border-slate-200"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleUpdateStatus}>Update Status</Button>
+          <DialogFooter className="border-t bg-slate-50 px-6 py-4">
+            <Button onClick={handleUpdateStatus} className="min-w-36">Update Status</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

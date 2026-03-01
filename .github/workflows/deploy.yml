@@ -24,8 +24,10 @@ jobs:
           cache: 'npm'
 
       - name: Validate required deployment secrets
+        env:
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          if [ -z "${{ secrets.FTP_PASSWORD }}" ]; then
+          if [ -z "$FTP_PASSWORD" ]; then
             echo "❌ Missing required secret: FTP_PASSWORD"
             echo "Add it in: Settings → Secrets and variables → Actions"
             exit 1

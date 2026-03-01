@@ -2,13 +2,20 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Phone, Clock, DollarSign, MapPin } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock3, Phone } from 'lucide-react';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+
+const statusStyles = {
+  Booked: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  FollowUp: 'bg-amber-100 text-amber-700 border-amber-200',
+  Lost: 'bg-rose-100 text-rose-700 border-rose-200',
+  Open: 'bg-blue-100 text-blue-700 border-blue-200',
+};
 
 /**
  * Parse notes field: Supabase string OR legacy array of {text, timestamp, author}
@@ -18,8 +25,8 @@ const parseNotes = (notes) => {
 
   if (Array.isArray(notes)) {
     return notes.map(n => ({
-      text:      n.text      || String(n),
-      author:    n.author    || 'Team',
+      text: n.text || String(n),
+      author: n.author || 'Team',
       timestamp: n.timestamp || null,
     }));
   }
@@ -50,11 +57,26 @@ const MobileLeadDetails = () => {
   const lead = leads.find(l => l.id === leadId);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
-  const [statusForm, setStatusForm] = useState({ status: '', notes: '' });
+  const [statusForm, setStatusForm] = useState({
+    status: lead?.status || 'Open',
+    followUpDate: lead?.followUpDate?.split('T')[0] || '',
+    followUpTime: lead?.followUpTime || '',
+    notes: '',
+  });
 
   if (!lead) return <div className="p-8 text-center">Lead not found</div>;
 
   const parsedNotes = parseNotes(lead.notes);
+
+  const openUpdateModal = () => {
+    setStatusForm({
+      status: lead.status,
+      followUpDate: lead?.followUpDate?.split('T')[0] || '',
+      followUpTime: lead?.followUpTime || '',
+      notes: '',
+    });
+    setIsUpdateOpen(true);
+  };
 
   const handleAddNote = () => {
     if (!noteText.trim()) return;
@@ -64,138 +86,202 @@ const MobileLeadDetails = () => {
   };
 
   const handleUpdate = () => {
-    updateLead(lead.id, { status: statusForm.status });
-    if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
-    toast({ title: 'Success', description: 'Status Updated' });
+    const isFollowUp = statusForm.status === 'FollowUp';
+    updateLead(lead.id, {
+      status: statusForm.status,
+      followUpDate: isFollowUp ? statusForm.followUpDate : '',
+      followUpTime: isFollowUp ? statusForm.followUpTime : '',
+    });
+
+    if (statusForm.notes.trim()) {
+      addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
+    }
+
+    toast({ title: 'Success', description: 'Lead updated successfully.' });
     setIsUpdateOpen(false);
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24">
-      {/* Header */}
-      <div className="bg-white p-4 flex items-center gap-4 border-b sticky top-0 z-10 shadow-sm">
-        <button onClick={() => navigate(-1)}><ArrowLeft size={24} /></button>
-        <h1 className="font-bold text-lg truncate">{lead.name}</h1>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pb-28">
+      <div className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:bg-slate-50"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold text-slate-900">{lead.name}</p>
+            <p className="truncate text-xs text-slate-500">{lead.project}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* Main Info */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 text-center">
-          <div className="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-3">
-            {lead.name.charAt(0)}
+      <div className="space-y-4 p-4">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-lg font-bold text-slate-900">{lead.name}</p>
+              <p className="text-sm text-slate-500">{lead.source || 'Lead source unavailable'}</p>
+            </div>
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[lead.status] || statusStyles.Open}`}>
+              {lead.status}
+            </span>
           </div>
-          <h2 className="text-xl font-bold text-gray-900">{lead.name}</h2>
-          <p className="text-gray-500 mb-1">{lead.project}</p>
-          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-            lead.status === 'Booked'   ? 'bg-green-100 text-green-700' :
-            lead.status === 'FollowUp' ? 'bg-yellow-100 text-yellow-700' :
-            lead.status === 'Lost'     ? 'bg-red-100 text-red-700' :
-                                         'bg-blue-100 text-blue-700'
-          }`}>{lead.status}</span>
 
-          <div className="flex gap-3 justify-center mt-4">
-            <Button className="rounded-full w-12 h-12 p-0" onClick={() => window.location.href = `tel:${lead.phone}`}>
-              <Phone size={20} />
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button
+              className="h-11 rounded-xl bg-slate-900 text-sm font-semibold hover:bg-slate-800"
+              onClick={() => window.location.href = `tel:${lead.phone}`}
+            >
+              <Phone className="mr-2 h-4 w-4" /> Call
             </Button>
             <WhatsAppButton
               leadName={lead.name}
               phoneNumber={lead.phone}
               projectName={lead.project}
-              className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
+              className="h-11 rounded-xl text-sm font-semibold"
             />
           </div>
-        </div>
+        </section>
 
-        {/* Details Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Budget</p>
-            <p className="font-medium text-sm">{lead.budget ? `₹${lead.budget}` : 'N/A'}</p>
+        <section className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Budget</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">{lead.budget ? `₹${lead.budget}` : 'N/A'}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Phone</p>
-            <p className="font-medium text-sm">{lead.phone}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Phone</p>
+            <p className="mt-1 truncate text-sm font-semibold text-slate-800">{lead.phone}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Source</p>
-            <p className="font-medium text-sm">{lead.source}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Interest</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">{lead.interestLevel || 'Cold'}</p>
           </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Interest</p>
-            <p className="font-medium text-sm">{lead.interestLevel || 'Cold'}</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-400">Next task</p>
+            <p className="mt-1 text-sm font-semibold text-slate-800">{lead.status === 'FollowUp' ? 'Follow-up' : 'Status update'}</p>
           </div>
           {lead.followUpDate && (
-            <div className="bg-white p-3 rounded-lg border col-span-2">
-              <p className="text-xs text-gray-400">Follow-up Date</p>
-              <p className="font-medium text-sm text-orange-600">
-                {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+            <div className="col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
+              <p className="text-xs font-medium text-amber-700">Follow-up scheduled</p>
+              <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-amber-800">
+                <CalendarDays className="h-4 w-4" /> {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+                {lead.followUpTime && (
+                  <>
+                    <Clock3 className="ml-2 h-4 w-4" /> {lead.followUpTime}
+                  </>
+                )}
               </p>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Notes Section */}
-        <div className="bg-white p-4 rounded-xl border">
-          <h3 className="font-bold text-gray-800 mb-3 text-sm">Notes & History</h3>
-
-          {/* Add Note */}
-          <div className="flex gap-2 mb-3">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-slate-800">Notes & History</h3>
+          <div className="mt-3 flex gap-2">
             <Input
-              placeholder="Add a note..."
+              placeholder="Add quick note for team..."
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddNote()}
-              className="text-sm"
+              className="h-10 border-slate-200"
             />
-            <Button size="sm" onClick={handleAddNote}>Add</Button>
+            <Button className="h-10 px-4" onClick={handleAddNote}>Add</Button>
           </div>
 
-          {/* Notes List */}
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
             {parsedNotes.length > 0 ? (
-              parsedNotes.slice(0, 5).map((note, i) => (
-                <div key={i} className="text-xs bg-gray-50 p-2 rounded border border-gray-100">
-                  <p className="text-gray-800">{note.text}</p>
-                  <div className="flex justify-between mt-1 text-[10px] text-gray-400">
+              parsedNotes.slice(0, 8).map((note, i) => (
+                <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs leading-relaxed text-slate-700">{note.text}</p>
+                  <div className="mt-2 flex justify-between text-[10px] text-slate-400">
                     <span>{note.author}</span>
                     <span>{note.timestamp ? new Date(note.timestamp).toLocaleDateString('en-IN') : ''}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-400 text-center py-2">No notes yet.</p>
+              <p className="py-5 text-center text-xs text-slate-400">No notes yet.</p>
             )}
           </div>
-        </div>
+        </section>
+      </div>
 
-        <Button
-          className="w-full h-12 text-base font-bold"
-          onClick={() => { setStatusForm({ status: lead.status, notes: '' }); setIsUpdateOpen(true); }}
-        >
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white/95 p-3 backdrop-blur">
+        <Button className="h-12 w-full rounded-xl text-base font-semibold" onClick={openUpdateModal}>
           Update Status
         </Button>
       </div>
 
-      {/* Update Dialog */}
       <Dialog open={isUpdateOpen} onOpenChange={setIsUpdateOpen}>
-        <DialogContent className="max-w-[90%] rounded-xl">
-          <DialogHeader><DialogTitle>Update Status</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <Select value={statusForm.status} onValueChange={v => setStatusForm({ ...statusForm, status: v })}>
-              <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="FollowUp">Follow Up</SelectItem>
-                <SelectItem value="Booked">Booked</SelectItem>
-                <SelectItem value="Lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-            <Textarea
-              placeholder="Add a note about this update..."
-              value={statusForm.notes}
-              onChange={e => setStatusForm({ ...statusForm, notes: e.target.value })}
-            />
-            <Button onClick={handleUpdate} className="w-full">Save Update</Button>
+        <DialogContent className="w-[94vw] max-w-md rounded-2xl border-0 p-0 shadow-2xl">
+          <DialogHeader className="border-b bg-slate-50 px-5 py-4 text-left">
+            <DialogTitle className="text-lg font-semibold text-slate-900">Update Lead Status</DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Quick update designed for fast field work.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 px-5 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">New Status</label>
+              <Select value={statusForm.status} onValueChange={v => setStatusForm({ ...statusForm, status: v })}>
+                <SelectTrigger className="h-10 border-slate-200">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="FollowUp">Follow Up</SelectItem>
+                  <SelectItem value="Booked">Booked</SelectItem>
+                  <SelectItem value="Lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {statusForm.status === 'FollowUp' && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Follow-up Date</label>
+                  <Input
+                    type="date"
+                    value={statusForm.followUpDate}
+                    onChange={e => setStatusForm({ ...statusForm, followUpDate: e.target.value })}
+                    className="h-10 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Time</label>
+                  <Input
+                    type="time"
+                    value={statusForm.followUpTime}
+                    onChange={e => setStatusForm({ ...statusForm, followUpTime: e.target.value })}
+                    className="h-10 border-slate-200"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Reason / Remarks</label>
+              <Textarea
+                placeholder="Add context for manager and next caller..."
+                value={statusForm.notes}
+                onChange={e => setStatusForm({ ...statusForm, notes: e.target.value })}
+                className="min-h-[110px] resize-none border-slate-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="h-11" onClick={() => setIsUpdateOpen(false)}>
+                Cancel
+              </Button>
+              <Button className="h-11 font-semibold" onClick={handleUpdate}>
+                Save Update
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

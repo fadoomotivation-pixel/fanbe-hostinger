@@ -19,47 +19,30 @@ export const AuthProvider = ({ children }) => {
     initializeData();
 
     // Check for an existing session on mount
-    const initSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('[Auth] getSession error:', error);
-          setUser(null);
-          return;
-        }
-
-        if (session) {
-          console.log('[Auth] Existing session found:', session.user.email);
-          try {
-            const profile = await getUserDetails(session.user.id);
-            if (profile) {
-              setUser({
-                id: session.user.id,
-                username: profile.username,
-                name: profile.name,
-                email: profile.email,
-                role: profile.role,
-                permissions: profile.permissions || [],
-                lastLogin: profile.last_login || new Date().toISOString(),
-              });
-              console.log('[Auth] Session restored:', profile.name);
-            }
-          } catch (profileError) {
-            console.error('[Auth] Error loading user profile:', profileError);
-            setUser(null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        console.log('[Auth] Existing session found:', session.user.email);
+        try {
+          const profile = await getUserDetails(session.user.id);
+          if (profile) {
+            setUser({
+              id: session.user.id,
+              username: profile.username,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role,
+              permissions: profile.permissions || [],
+              lastLogin: profile.last_login || new Date().toISOString(),
+            });
+            console.log('[Auth] Session restored:', profile.name);
           }
+        } catch (error) {
+          console.error('[Auth] Error loading user profile:', error);
+          setUser(null);
         }
-      } catch (sessionError) {
-        console.error('[Auth] Session initialization failed:', sessionError);
-        setUser(null);
-      } finally {
-        // Always clear splash/loading even if Supabase is temporarily unreachable.
-        setLoading(false);
       }
-    };
-
-    initSession();
+      setLoading(false);
+    });
 
     // Listen to future auth state changes (login / logout / token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

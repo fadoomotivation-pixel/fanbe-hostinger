@@ -9,10 +9,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      FTP_SERVER: ${{ secrets.FTP_SERVER != '' && secrets.FTP_SERVER || secrets.HOSTINGER_FTP_HOST }}
-      FTP_USERNAME: ${{ secrets.FTP_USERNAME != '' && secrets.FTP_USERNAME || secrets.HOSTINGER_FTP_USER }}
-      FTP_PASSWORD: ${{ secrets.FTP_PASSWORD != '' && secrets.FTP_PASSWORD || secrets.HOSTINGER_FTP_PASSWORD }}
     
     steps:
       - name: Checkout code
@@ -33,11 +29,25 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Validate FTP secrets
-        id: ftp-secrets
+      - name: Resolve FTP credentials
+        id: ftp-creds
+        env:
+          FTP_SERVER_PRIMARY: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME_PRIMARY: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD_PRIMARY: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_FALLBACK: ${{ secrets.HOSTINGER_FTP_HOST }}
+          FTP_USERNAME_FALLBACK: ${{ secrets.HOSTINGER_FTP_USER }}
+          FTP_PASSWORD_FALLBACK: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
         run: |
-          if [ -n "$FTP_SERVER" ] && [ -n "$FTP_USERNAME" ] && [ -n "$FTP_PASSWORD" ]; then
+          FTP_SERVER_VALUE="${FTP_SERVER_PRIMARY:-$FTP_SERVER_FALLBACK}"
+          FTP_USERNAME_VALUE="${FTP_USERNAME_PRIMARY:-$FTP_USERNAME_FALLBACK}"
+          FTP_PASSWORD_VALUE="${FTP_PASSWORD_PRIMARY:-$FTP_PASSWORD_FALLBACK}"
+
+          if [ -n "$FTP_SERVER_VALUE" ] && [ -n "$FTP_USERNAME_VALUE" ] && [ -n "$FTP_PASSWORD_VALUE" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "server=$FTP_SERVER_VALUE" >> "$GITHUB_OUTPUT"
+            echo "username=$FTP_USERNAME_VALUE" >> "$GITHUB_OUTPUT"
+            echo "password=$FTP_PASSWORD_VALUE" >> "$GITHUB_OUTPUT"
             echo "✅ FTP secrets found. FTP deployment will run."
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -47,12 +57,12 @@ jobs:
           fi
 
       - name: Deploy to Hostinger via FTP
-        if: steps.ftp-secrets.outputs.ready == 'true'
+        if: steps.ftp-creds.outputs.ready == 'true'
         uses: SamKirkland/FTP-Deploy-Action@4.3.3
         with:
-          server: ${{ env.FTP_SERVER }}
-          username: ${{ env.FTP_USERNAME }}
-          password: ${{ env.FTP_PASSWORD }}
+          server: ${{ steps.ftp-creds.outputs.server }}
+          username: ${{ steps.ftp-creds.outputs.username }}
+          password: ${{ steps.ftp-creds.outputs.password }}
           local-dir: ./dist/
           server-dir: /public_html/
           dangerous-clean-slate: false

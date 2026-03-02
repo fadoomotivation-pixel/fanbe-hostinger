@@ -21,7 +21,6 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-firebase': ['firebase'],
           'vendor-ui-radix': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-select',
@@ -51,7 +50,6 @@ export default defineConfig({
             'xlsx',
             'uuid',
             'qrcode.react',
-            'prismjs',
             'clsx',
             'tailwind-merge',
             'class-variance-authority',

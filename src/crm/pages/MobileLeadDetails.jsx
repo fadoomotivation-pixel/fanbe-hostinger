@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Phone, Clock, DollarSign, MapPin } from 'lucide-react';
+import { ArrowLeft, Phone, IndianRupee, Tag, MapPin, Calendar, CheckCircle2 } from 'lucide-react';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,12 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 
-/**
- * Parse notes field: Supabase string OR legacy array of {text, timestamp, author}
- */
 const parseNotes = (notes) => {
   if (!notes) return [];
-
   if (Array.isArray(notes)) {
     return notes.map(n => ({
       text:      n.text      || String(n),
@@ -23,22 +19,25 @@ const parseNotes = (notes) => {
       timestamp: n.timestamp || null,
     }));
   }
-
   if (typeof notes === 'string' && notes.trim() !== '') {
     return notes
       .split('\n')
       .filter(line => line.trim() !== '')
       .map(line => {
         const match = line.match(/^\[(.+?)\]\s*(.+?):\s*(.*)$/);
-        if (match) {
-          return { timestamp: match[1], author: match[2].trim(), text: match[3].trim() };
-        }
+        if (match) return { timestamp: match[1], author: match[2].trim(), text: match[3].trim() };
         return { text: line.trim(), author: 'Team', timestamp: null };
       })
       .reverse();
   }
-
   return [];
+};
+
+const statusConfig = {
+  Booked:   { bg: 'bg-emerald-500', hover: 'hover:bg-emerald-600', label: 'Booked' },
+  FollowUp: { bg: 'bg-amber-500',   hover: 'hover:bg-amber-600',   label: 'Follow Up' },
+  Lost:     { bg: 'bg-red-500',     hover: 'hover:bg-red-600',     label: 'Lost' },
+  Open:     { bg: 'bg-blue-500',    hover: 'hover:bg-blue-600',    label: 'Open' },
 };
 
 const MobileLeadDetails = () => {
@@ -51,14 +50,19 @@ const MobileLeadDetails = () => {
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [statusForm, setStatusForm] = useState({
-    status: lead?.status || 'Open',
-    followUpDate: lead?.followUpDate?.split('T')[0] || '',
-    followUpTime: lead?.followUpTime || '',
+    status:         lead?.status          || 'Open',
+    followUpDate:   lead?.followUpDate?.split('T')[0] || '',
+    followUpTime:   lead?.followUpTime    || '',
+    tokenAmount:    lead?.tokenAmount     || '',
+    partialPayment: lead?.partialPayment  || '',
+    paymentMode:    lead?.paymentMode     || 'Cash',
+    unitNumber:     lead?.unitNumber      || '',
     notes: '',
   });
 
-  if (!lead) return <div className="p-8 text-center">Lead not found</div>;
+  if (!lead) return <div className="p-8 text-center text-gray-500">Lead not found</div>;
 
+  const sc = statusConfig[lead.status] || statusConfig.Open;
   const parsedNotes = parseNotes(lead.notes);
 
   const handleAddNote = () => {
@@ -70,121 +74,186 @@ const MobileLeadDetails = () => {
 
   const handleUpdate = () => {
     const isFollowUp = statusForm.status === 'FollowUp';
+    const isBooked   = statusForm.status === 'Booked';
     updateLead(lead.id, {
-      status: statusForm.status,
-      followUpDate: isFollowUp ? statusForm.followUpDate : '',
-      followUpTime: isFollowUp ? statusForm.followUpTime : '',
+      status:        statusForm.status,
+      followUpDate:  isFollowUp ? statusForm.followUpDate : '',
+      followUpTime:  isFollowUp ? statusForm.followUpTime : '',
+      ...(isBooked && {
+        tokenAmount:    statusForm.tokenAmount,
+        partialPayment: statusForm.partialPayment,
+        paymentMode:    statusForm.paymentMode,
+        unitNumber:     statusForm.unitNumber,
+      }),
     });
     if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
-    toast({ title: 'Success', description: 'Status Updated' });
+    toast({ title: 'Success', description: 'Status updated.' });
     setIsUpdateOpen(false);
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24">
-      {/* Header */}
-      <div className="bg-white p-4 flex items-center gap-4 border-b sticky top-0 z-10 shadow-sm">
-        <button onClick={() => navigate(-1)}><ArrowLeft size={24} /></button>
-        <h1 className="font-bold text-lg truncate">{lead.name}</h1>
-      </div>
+    <div className="bg-gray-50 min-h-screen pb-28">
 
-      <div className="p-4 space-y-6">
-        {/* Main Info */}
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 text-center">
-          <div className="h-16 w-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-3">
+      {/* Coloured hero header */}
+      <div className={`${sc.bg} px-4 pt-10 pb-16 relative`}>
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 p-2 bg-white/20 rounded-full text-white"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="text-center">
+          <div className="h-20 w-20 bg-white/20 text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-2 border-2 border-white/40">
             {lead.name.charAt(0)}
           </div>
-          <h2 className="text-xl font-bold text-gray-900">{lead.name}</h2>
-          <p className="text-gray-500 mb-1">{lead.project}</p>
-          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-            lead.status === 'Booked'   ? 'bg-green-100 text-green-700' :
-            lead.status === 'FollowUp' ? 'bg-yellow-100 text-yellow-700' :
-            lead.status === 'Lost'     ? 'bg-red-100 text-red-700' :
-                                         'bg-blue-100 text-blue-700'
-          }`}>{lead.status}</span>
-
-          <div className="flex gap-3 justify-center mt-4">
-            <Button className="rounded-full w-12 h-12 p-0" onClick={() => window.location.href = `tel:${lead.phone}`}>
-              <Phone size={20} />
-            </Button>
-            <WhatsAppButton
-              leadName={lead.name}
-              phoneNumber={lead.phone}
-              projectName={lead.project}
-              className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
-            />
-          </div>
+          <h1 className="text-xl font-bold text-white">{lead.name}</h1>
+          <p className="text-white/80 text-sm mt-0.5">{lead.project}</p>
+          <span className="mt-2 inline-block bg-white/20 text-white text-xs px-3 py-1 rounded-full border border-white/30">
+            {sc.label}
+          </span>
         </div>
+      </div>
 
-        {/* Details Grid */}
+      {/* Call / WhatsApp floating above fold */}
+      <div className="flex gap-3 justify-center -mt-6 mb-2 px-6">
+        <button
+          onClick={() => window.location.href = `tel:${lead.phone}`}
+          className="flex-1 flex items-center justify-center gap-2 bg-white shadow-md rounded-xl py-3 text-blue-600 font-semibold text-sm border border-gray-100 active:scale-95 transition-transform"
+        >
+          <Phone size={16} /> Call
+        </button>
+        <WhatsAppButton
+          leadName={lead.name}
+          phoneNumber={lead.phone}
+          projectName={lead.project}
+          className="flex-1 flex items-center justify-center gap-2 bg-white shadow-md rounded-xl py-3 text-green-600 font-semibold text-sm border border-gray-100 active:scale-95 transition-transform"
+          label="WhatsApp"
+        />
+      </div>
+
+      <div className="px-4 space-y-4">
+
+        {/* Booking details banner (shown only when Booked) */}
+        {lead.status === 'Booked' && (lead.tokenAmount || lead.unitNumber) && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <h3 className="font-bold text-emerald-800 text-sm">Booking Details</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {lead.tokenAmount && (
+                <div>
+                  <p className="text-xs text-emerald-600">Token Amount</p>
+                  <p className="font-bold text-emerald-900">₹{Number(lead.tokenAmount).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              {lead.partialPayment && (
+                <div>
+                  <p className="text-xs text-emerald-600">Partial Payment</p>
+                  <p className="font-bold text-emerald-900">₹{Number(lead.partialPayment).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              {lead.paymentMode && (
+                <div>
+                  <p className="text-xs text-emerald-600">Payment Mode</p>
+                  <p className="font-bold text-emerald-900">{lead.paymentMode}</p>
+                </div>
+              )}
+              {lead.unitNumber && (
+                <div>
+                  <p className="text-xs text-emerald-600">Unit / Plot No.</p>
+                  <p className="font-bold text-emerald-900">{lead.unitNumber}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Info grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Budget</p>
-            <p className="font-medium text-sm">{lead.budget ? `₹${lead.budget}` : 'N/A'}</p>
-          </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Phone</p>
-            <p className="font-medium text-sm">{lead.phone}</p>
-          </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Source</p>
-            <p className="font-medium text-sm">{lead.source}</p>
-          </div>
-          <div className="bg-white p-3 rounded-lg border">
-            <p className="text-xs text-gray-400">Interest</p>
-            <p className="font-medium text-sm">{lead.interestLevel || 'Cold'}</p>
-          </div>
+          {[
+            { icon: <IndianRupee size={13} />, label: 'Budget',   value: lead.budget ? `₹${lead.budget}` : 'N/A',     color: 'text-blue-600' },
+            { icon: <Phone size={13} />,       label: 'Phone',    value: lead.phone,                                    color: 'text-gray-600' },
+            { icon: <Tag size={13} />,         label: 'Source',   value: lead.source,                                   color: 'text-purple-600' },
+            { icon: <MapPin size={13} />,      label: 'Interest', value: lead.interestLevel || 'Cold',                  color: 'text-orange-600' },
+          ].map(({ icon, label, value, color }) => (
+            <div key={label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+              <div className={`flex items-center gap-1 ${color} mb-1`}>
+                {icon}
+                <p className="text-xs font-medium">{label}</p>
+              </div>
+              <p className="font-semibold text-sm text-gray-900 truncate">{value}</p>
+            </div>
+          ))}
+
           {lead.followUpDate && (
-            <div className="bg-white p-3 rounded-lg border col-span-2">
-              <p className="text-xs text-gray-400">Follow-up Date</p>
-              <p className="font-medium text-sm text-orange-600">
-                {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+            <div className="col-span-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <div className="flex items-center gap-1 text-amber-600 mb-1">
+                <Calendar size={13} />
+                <p className="text-xs font-medium">Follow-up Scheduled</p>
+              </div>
+              <p className="font-semibold text-sm text-amber-900">
+                {new Date(lead.followUpDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {lead.followUpTime && ` at ${lead.followUpTime}`}
               </p>
             </div>
           )}
         </div>
 
-        {/* Notes Section */}
-        <div className="bg-white p-4 rounded-xl border">
-          <h3 className="font-bold text-gray-800 mb-3 text-sm">Notes & History</h3>
-
-          {/* Add Note */}
-          <div className="flex gap-2 mb-3">
-            <Input
-              placeholder="Add a note..."
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddNote()}
-              className="text-sm"
-            />
-            <Button size="sm" onClick={handleAddNote}>Add</Button>
+        {/* Notes */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-4 pt-4 pb-2 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-sm">Notes & History</h3>
           </div>
+          <div className="p-4">
+            <div className="flex gap-2 mb-3">
+              <Input
+                placeholder="Add a note..."
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                className="text-sm border-gray-200"
+              />
+              <Button size="sm" onClick={handleAddNote} className="shrink-0">Add</Button>
+            </div>
 
-          {/* Notes List */}
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {parsedNotes.length > 0 ? (
-              parsedNotes.slice(0, 5).map((note, i) => (
-                <div key={i} className="text-xs bg-gray-50 p-2 rounded border border-gray-100">
-                  <p className="text-gray-800">{note.text}</p>
-                  <div className="flex justify-between mt-1 text-[10px] text-gray-400">
-                    <span>{note.author}</span>
-                    <span>{note.timestamp ? new Date(note.timestamp).toLocaleDateString('en-IN') : ''}</span>
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              {parsedNotes.length > 0 ? (
+                parsedNotes.slice(0, 5).map((note, i) => (
+                  <div key={i} className="flex gap-2">
+                    <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      {note.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                      <p className="text-xs text-gray-800 leading-snug">{note.text}</p>
+                      <div className="flex justify-between mt-1 text-[10px] text-gray-400">
+                        <span>{note.author}</span>
+                        <span>{note.timestamp ? new Date(note.timestamp).toLocaleDateString('en-IN') : ''}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-gray-400 text-center py-2">No notes yet.</p>
-            )}
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 text-center py-3">No notes yet. Add the first one!</p>
+              )}
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Sticky bottom CTA */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg z-20">
         <Button
-          className="w-full h-12 text-base font-bold"
+          className={`w-full h-12 text-base font-bold ${sc.bg} ${sc.hover} text-white`}
           onClick={() => {
             setStatusForm({
-              status: lead.status,
-              followUpDate: lead?.followUpDate?.split('T')[0] || '',
-              followUpTime: lead?.followUpTime || '',
+              status:         lead.status,
+              followUpDate:   lead?.followUpDate?.split('T')[0] || '',
+              followUpTime:   lead?.followUpTime    || '',
+              tokenAmount:    lead?.tokenAmount     || '',
+              partialPayment: lead?.partialPayment  || '',
+              paymentMode:    lead?.paymentMode     || 'Cash',
+              unitNumber:     lead?.unitNumber      || '',
               notes: '',
             });
             setIsUpdateOpen(true);
@@ -197,31 +266,34 @@ const MobileLeadDetails = () => {
       {/* Update Dialog */}
       <Dialog open={isUpdateOpen} onOpenChange={setIsUpdateOpen}>
         <DialogContent className="w-[92vw] max-w-md rounded-2xl border-0 p-0 shadow-2xl">
-          <DialogHeader className="border-b bg-slate-50 px-5 py-4 text-left">
+          <DialogHeader className="border-b bg-slate-50 px-5 py-4 text-left rounded-t-2xl">
             <DialogTitle className="text-lg font-semibold text-slate-900">Update Lead Status</DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Keep status updates consistent across desktop and mobile.
+              Changes sync across all devices instantly.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 px-5 py-4">
+          <div className="space-y-4 px-5 py-4 max-h-[72vh] overflow-y-auto">
+
+            {/* Status select */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">New Status</label>
               <Select value={statusForm.status} onValueChange={v => setStatusForm({ ...statusForm, status: v })}>
-              <SelectTrigger className="h-10 border-slate-200">
-                <SelectValue placeholder="Select Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="FollowUp">Follow Up</SelectItem>
-                <SelectItem value="Booked">Booked</SelectItem>
-                <SelectItem value="Lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
+                <SelectTrigger className="h-10 border-slate-200">
+                  <SelectValue placeholder="Select Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="FollowUp">Follow Up</SelectItem>
+                  <SelectItem value="Booked">Booked</SelectItem>
+                  <SelectItem value="Lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
+            {/* Follow-up fields */}
             {statusForm.status === 'FollowUp' && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Follow-up Date</label>
                   <Input
@@ -243,13 +315,68 @@ const MobileLeadDetails = () => {
               </div>
             )}
 
+            {/* Booking fields */}
+            {statusForm.status === 'Booked' && (
+              <div className="space-y-3 bg-emerald-50 rounded-xl p-3 border border-emerald-200">
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Booking Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-700">Token Amount (₹)</label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 50000"
+                      value={statusForm.tokenAmount}
+                      onChange={e => setStatusForm({ ...statusForm, tokenAmount: e.target.value })}
+                      className="h-9 border-slate-200 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-700">Partial Payment (₹)</label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 200000"
+                      value={statusForm.partialPayment}
+                      onChange={e => setStatusForm({ ...statusForm, partialPayment: e.target.value })}
+                      className="h-9 border-slate-200 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-700">Payment Mode</label>
+                    <Select value={statusForm.paymentMode} onValueChange={v => setStatusForm({ ...statusForm, paymentMode: v })}>
+                      <SelectTrigger className="h-9 border-slate-200 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Cheque">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-700">Unit / Plot No.</label>
+                    <Input
+                      placeholder="e.g. A-204"
+                      value={statusForm.unitNumber}
+                      onChange={e => setStatusForm({ ...statusForm, unitNumber: e.target.value })}
+                      className="h-9 border-slate-200 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Remarks */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Reason / Remarks</label>
               <Textarea
                 placeholder="Why is the status changing?"
                 value={statusForm.notes}
                 onChange={e => setStatusForm({ ...statusForm, notes: e.target.value })}
-                className="min-h-[100px] resize-none border-slate-200"
+                className="min-h-[80px] resize-none border-slate-200 text-sm"
               />
             </div>
 

@@ -61,6 +61,13 @@ const computeEmployeeMetrics = (employee, leads, calls, siteVisits, bookings, da
 
   const assignedLeads = leads.filter(l => l.assignedTo === empId || l.assigned_to === empId);
 
+  const empTokenLeads = assignedLeads.filter(l => {
+    const tokenValue = Number(l.tokenAmount || l.token_amount || 0);
+    if (tokenValue <= 0) return false;
+    const tokenDate = new Date(l.lastActivity || l.updatedAt || l.createdAt || Date.now());
+    return isWithinInterval(tokenDate, { start, end });
+  });
+
   // Raw metrics
   const totalCalls = empCalls.length;
   const connectedCalls = empCalls.filter(c =>
@@ -71,6 +78,7 @@ const computeEmployeeMetrics = (employee, leads, calls, siteVisits, bookings, da
   ).length;
   const totalBookings = empBookings.length;
   const bookingRevenue = empBookings.reduce((sum, b) => sum + (b.amount || 0), 0);
+  const tokenReceived = empTokenLeads.reduce((sum, l) => sum + Number(l.tokenAmount || l.token_amount || 0), 0);
 
   // Conversion rate: bookings / connected calls (or 0 if no connected calls)
   const conversionRate = connectedCalls > 0
@@ -95,6 +103,7 @@ const computeEmployeeMetrics = (employee, leads, calls, siteVisits, bookings, da
     completedVisits,
     totalBookings,
     bookingRevenue,
+    tokenReceived,
     conversionRate,
     followUpRate,
     assignedLeadCount: assignedLeads.length,
@@ -182,6 +191,7 @@ const EmployeeIntelligence = () => {
     visits:   rankedEmployees.reduce((s, e) => s + e.completedVisits, 0),
     bookings: rankedEmployees.reduce((s, e) => s + e.totalBookings, 0),
     revenue:  rankedEmployees.reduce((s, e) => s + e.bookingRevenue, 0),
+    tokens:   rankedEmployees.reduce((s, e) => s + e.tokenReceived, 0),
   }), [rankedEmployees]);
 
   const getScoreColor = (score) => {
@@ -302,7 +312,7 @@ const EmployeeIntelligence = () => {
           )}
 
           {/* ── Team Totals ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Card>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
@@ -333,6 +343,17 @@ const EmployeeIntelligence = () => {
                 <div>
                   <p className="text-xl font-bold text-[#0F3A5F]">{totals.bookings}</p>
                   <p className="text-xs text-gray-400">Bookings</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                  <IndianRupee className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-[#0F3A5F]">{formatCurrency(totals.tokens)}</p>
+                  <p className="text-xs text-gray-400">Token Received</p>
                 </div>
               </CardContent>
             </Card>
@@ -403,6 +424,7 @@ const EmployeeIntelligence = () => {
                         <TableHead className="text-center">Bookings</TableHead>
                         <TableHead className="text-center">Conversion</TableHead>
                         <TableHead className="text-center">Follow-up</TableHead>
+                        <TableHead className="text-right">Token</TableHead>
                         <TableHead className="text-right">Revenue</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -441,6 +463,9 @@ const EmployeeIntelligence = () => {
                             <span className={emp.followUpRate >= 70 ? 'text-green-600' : emp.followUpRate >= 40 ? 'text-yellow-600' : 'text-red-600'}>
                               {emp.followUpRate}%
                             </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-amber-700">
+                            {emp.tokenReceived > 0 ? `₹${formatCurrency(emp.tokenReceived)}` : '—'}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {emp.bookingRevenue > 0 ? `₹${formatCurrency(emp.bookingRevenue)}` : '—'}

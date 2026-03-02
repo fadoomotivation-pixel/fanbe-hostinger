@@ -10,6 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 
+const normalizeLeadStatus = (status) => {
+  if (!status) return 'Open';
+  const cleaned = String(status).trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (cleaned === 'followup') return 'FollowUp';
+  if (cleaned === 'booked') return 'Booked';
+  if (cleaned === 'lost') return 'Lost';
+  return 'Open';
+};
+
 const parseNotes = (notes) => {
   if (!notes) return [];
   if (Array.isArray(notes)) {
@@ -43,16 +52,17 @@ const statusConfig = {
 const MobileLeadDetails = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
-  const { leads, updateLead, addLeadNote } = useCRMData();
+  const { leads, updateLead, addLeadNote, addBookingLog } = useCRMData();
   const { toast } = useToast();
 
   const lead = leads.find(l => l.id === leadId);
   const [isUpdateOpen, setIsUpdateOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [statusForm, setStatusForm] = useState({
-    status:         lead?.status          || 'Open',
+    status:         normalizeLeadStatus(lead?.status),
     followUpDate:   lead?.followUpDate?.split('T')[0] || '',
     followUpTime:   lead?.followUpTime    || '',
+    bookingAmount:  lead?.bookingAmount   || lead?.partialPayment || '',
     tokenAmount:    lead?.tokenAmount     || '',
     partialPayment: lead?.partialPayment  || '',
     paymentMode:    lead?.paymentMode     || 'Cash',
@@ -62,7 +72,8 @@ const MobileLeadDetails = () => {
 
   if (!lead) return <div className="p-8 text-center text-gray-500">Lead not found</div>;
 
-  const sc = statusConfig[lead.status] || statusConfig.Open;
+  const currentLeadStatus = normalizeLeadStatus(lead.status);
+  const sc = statusConfig[currentLeadStatus] || statusConfig.Open;
   const parsedNotes = parseNotes(lead.notes);
 
   const handleAddNote = () => {
@@ -72,23 +83,57 @@ const MobileLeadDetails = () => {
     toast({ title: 'Note Added', description: 'Note saved successfully.' });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     const isFollowUp = statusForm.status === 'FollowUp';
     const isBooked   = statusForm.status === 'Booked';
-    updateLead(lead.id, {
-      status:        statusForm.status,
-      followUpDate:  isFollowUp ? statusForm.followUpDate : '',
-      followUpTime:  isFollowUp ? statusForm.followUpTime : '',
-      ...(isBooked && {
-        tokenAmount:    statusForm.tokenAmount,
-        partialPayment: statusForm.partialPayment,
-        paymentMode:    statusForm.paymentMode,
-        unitNumber:     statusForm.unitNumber,
-      }),
-    });
-    if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
-    toast({ title: 'Success', description: 'Status updated.' });
-    setIsUpdateOpen(false);
+
+    if (isFollowUp && !statusForm.followUpDate) {
+      toast({ title: 'Follow-up date missing', description: 'Please select follow-up date first.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await updateLead(lead.id, {
+        status:        statusForm.status,
+        followUpDate:  isFollowUp ? statusForm.followUpDate : '',
+        followUpTime:  isFollowUp ? statusForm.followUpTime : '',
+        ...(isBooked && {
+          bookingAmount:  statusForm.bookingAmount,
+          tokenAmount:    statusForm.tokenAmount,
+          partialPayment: statusForm.partialPayment,
+          paymentMode:    statusForm.paymentMode,
+          unitNumber:     statusForm.unitNumber,
+        }),
+      });
+
+      const wasBooked = currentLeadStatus === 'Booked';
+      if (isBooked && !wasBooked) {
+        const amount = Number(statusForm.bookingAmount || statusForm.partialPayment || statusForm.tokenAmount || 0);
+        const employeeId = lead.assignedTo || lead.assigned_to;
+        if (employeeId) {
+          await addBookingLog({
+            employeeId,
+          leadId: lead.id,
+          leadName: lead.name,
+          projectName: lead.project,
+          unitNumber: statusForm.unitNumber,
+          bookingAmount: amount,
+          amount,
+          paymentMode: statusForm.paymentMode,
+            notes: `Token: ₹${statusForm.tokenAmount || 0}${statusForm.notes ? ` | ${statusForm.notes}` : ''}`,
+          });
+        } else {
+          console.warn('[MobileLeadDetails] Missing employee assignment for booking log', lead.id);
+        }
+      }
+
+      if (statusForm.notes) addLeadNote(lead.id, statusForm.notes, 'Sales (Mobile)');
+      toast({ title: 'Success', description: 'Status updated.' });
+      setIsUpdateOpen(false);
+    } catch (error) {
+      console.error('[MobileLeadDetails] Failed to update status:', error);
+      toast({ title: 'Update failed', description: 'Please retry. If issue continues, contact admin.', variant: 'destructive' });
+    }
   };
 
   return (
@@ -134,7 +179,7 @@ const MobileLeadDetails = () => {
       <div className="px-4 space-y-4">
 
         {/* Booking details banner (shown only when Booked) */}
-        {lead.status === 'Booked' && (lead.tokenAmount || lead.unitNumber) && (
+        {currentLeadStatus === 'Booked' && (lead.tokenAmount || lead.unitNumber) && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 size={16} className="text-emerald-600" />
@@ -247,9 +292,10 @@ const MobileLeadDetails = () => {
           className={`w-full h-12 text-base font-bold ${sc.bg} ${sc.hover} text-white`}
           onClick={() => {
             setStatusForm({
-              status:         lead.status,
+              status:         normalizeLeadStatus(lead.status),
               followUpDate:   lead?.followUpDate?.split('T')[0] || '',
               followUpTime:   lead?.followUpTime    || '',
+              bookingAmount:  lead?.bookingAmount   || lead?.partialPayment || '',
               tokenAmount:    lead?.tokenAmount     || '',
               partialPayment: lead?.partialPayment  || '',
               paymentMode:    lead?.paymentMode     || 'Cash',
@@ -320,6 +366,16 @@ const MobileLeadDetails = () => {
               <div className="space-y-3 bg-emerald-50 rounded-xl p-3 border border-emerald-200">
                 <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Booking Details</p>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-700">Booking Amount (₹)</label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 850000"
+                      value={statusForm.bookingAmount}
+                      onChange={e => setStatusForm({ ...statusForm, bookingAmount: e.target.value })}
+                      className="h-9 border-slate-200 text-sm"
+                    />
+                  </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-slate-700">Token Amount (₹)</label>
                     <Input

@@ -9,25 +9,25 @@ import {
 import { Download, Calendar, DollarSign, TrendingUp } from 'lucide-react';
 
 const RevenueAnalytics = () => {
-  const { customers, projects } = useCRMData();
+  const { bookings, leads } = useCRMData();
   const [dateRange, setDateRange] = useState('year');
 
   // ─── Calculate Real Stats ────────────────────────────────────────────────────────────────────────────────
-  const totalRevenue = customers.reduce((acc, c) => acc + (c.bookingAmount || 0), 0);
-  const bookingCount = customers.filter(c => c.status === 'Booked').length;
+  const totalRevenue = bookings.reduce((acc, b) => acc + (b.amount || 0), 0);
+  const bookingCount = bookings.length;
   const avgRevenuePerBooking = bookingCount > 0 ? Math.round(totalRevenue / bookingCount) : 0;
   const projectedMonthlyRevenue = totalRevenue > 0 ? Math.round(totalRevenue / 12) : 0; // Rough yearly projection / 12
 
   // ─── Monthly Revenue Trend (from customers' createdAt or updatedAt) ──────────────────────────────────────
   const monthlyDataMap = {};
-  customers.forEach(c => {
-    if (!c.bookingAmount || c.bookingAmount <= 0) return;
-    const date = new Date(c.updatedAt || c.createdAt || Date.now());
+  bookings.forEach(b => {
+    if (!b.amount || b.amount <= 0) return;
+    const date = new Date(b.bookingDate || b.timestamp || Date.now());
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     if (!monthlyDataMap[monthKey]) {
       monthlyDataMap[monthKey] = { name: monthKey, revenue: 0, bookings: 0 };
     }
-    monthlyDataMap[monthKey].revenue += c.bookingAmount;
+    monthlyDataMap[monthKey].revenue += b.amount;
     monthlyDataMap[monthKey].bookings += 1;
   });
   const monthlyData = Object.values(monthlyDataMap).sort((a, b) => a.name.localeCompare(b.name)).slice(-6); // Last 6 months
@@ -39,18 +39,19 @@ const RevenueAnalytics = () => {
 
   // ─── Revenue by Project ───────────────────────────────────────────────────────────────────────────────────
   const projectRevenueMap = {};
-  customers.forEach(c => {
-    if (!c.bookingAmount || c.bookingAmount <= 0) return;
-    const projId = c.projectId || 'Unassigned';
+  bookings.forEach(b => {
+    if (!b.amount || b.amount <= 0) return;
+    const lead = leads.find(l => l.id === b.leadId);
+    const projId = lead?.project || b.projectName || 'Unassigned';
     if (!projectRevenueMap[projId]) {
       projectRevenueMap[projId] = 0;
     }
-    projectRevenueMap[projId] += c.bookingAmount;
+    projectRevenueMap[projId] += b.amount;
   });
-  const projectRevenueData = Object.entries(projectRevenueMap).map(([projId, value]) => {
-    const proj = projects.find(p => p.id === projId);
-    return { name: proj?.name || projId, value };
-  }).sort((a, b) => b.value - a.value).slice(0, 5); // Top 5
+  const projectRevenueData = Object.entries(projectRevenueMap).map(([projName, value]) => ({
+    name: projName,
+    value,
+  })).sort((a, b) => b.value - a.value).slice(0, 5); // Top 5
 
   // ─── Render ───────────────────────────────────────────────────────────────────────────────────────────────
   return (

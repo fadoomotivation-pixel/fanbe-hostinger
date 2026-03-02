@@ -12,26 +12,49 @@ export default defineConfig({
     },
   },
   build: {
-    // Increase warning limit to avoid noise
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
-        // Hash ALL assets including CSS so old cache never loads wrong file
         entryFileNames: `assets/[name]-[hash]-${timestamp}.js`,
         chunkFileNames: `assets/[name]-[hash]-${timestamp}.js`,
         assetFileNames: `assets/[name]-[hash]-${timestamp}.[ext]`,
-        // Code splitting for faster mobile load
         manualChunks: {
-          // Vendor chunk - React core
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Supabase chunk
           'vendor-supabase': ['@supabase/supabase-js'],
-          // UI components chunk
-          'vendor-ui': [
+          'vendor-firebase': ['firebase'],
+          'vendor-ui-radix': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-select',
             '@radix-ui/react-tabs',
             '@radix-ui/react-toast',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-collapsible',
+            '@radix-ui/react-label',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-radio-group',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-slider',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-slot',
+          ],
+          'vendor-charts': ['recharts'],
+          'vendor-utils': [
+            'date-fns',
+            'lucide-react',
+            'framer-motion',
+            'html2canvas',
+            'jszip',
+            'papaparse',
+            'xlsx',
+            'uuid',
+            'qrcode.react',
+            'prismjs',
+            'clsx',
+            'tailwind-merge',
+            'class-variance-authority',
           ],
         },
       }

@@ -1,17 +1,16 @@
-
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import App from '@/App';
-import { AuthProvider } from '@/context/AuthContext';
-import '@/index.css';
+import React, { Suspense } from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary'
+import { PageLoader } from './components/LoadingSpinner'
+import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <>
-    <AuthProvider>
-      <BrowserRouter>
+  <React.StrictMode>
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
         <App />
-      </BrowserRouter>
-    </AuthProvider>
-  </>
-);
+      </Suspense>
+    </ErrorBoundary>
+  </React.StrictMode>,
+)

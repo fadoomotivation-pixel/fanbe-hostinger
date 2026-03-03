@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from './components/ScrollToTop';
@@ -89,6 +89,9 @@ import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
+// ✅ Mobile employee roles
+const MOBILE_EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
+
 // ── Smart Dashboard: role-based redirect ────────────────────────────────
 const SmartDashboard = () => {
   const { user } = useAuth();
@@ -101,6 +104,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   const isMobile = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const hasMobileEmployeeRoutes = isMobile && MOBILE_EMPLOYEE_ROLES.includes(user?.role);
 
   if (isCRM) {
     return (
@@ -113,13 +117,19 @@ const AppRoutes = ({ onBookSiteVisit }) => {
               {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
                 <CRMLayout>
                   <Routes>
-                    {isMobile && user?.role === 'sales_executive' && (
+                    {hasMobileEmployeeRoutes && (
                       <>
                         <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
                         <Route path="my-leads" element={<MobileLeadList />} />
                         <Route path="lead/:leadId" element={<MobileLeadDetails />} />
                       </>
                     )}
+
+                    {/* ── Legacy redirects ── */}
+                    <Route path="dashboard" element={<Navigate to="/crm/admin/dashboard" replace />} />
+                    <Route path="leads" element={<Navigate to="/crm/admin/leads" replace />} />
+                    <Route path="staff" element={<Navigate to="/crm/admin/staff-management" replace />} />
+                    <Route path="reports" element={<Navigate to="/crm/admin/staff-performance" replace />} />
 
                     {/* ── Super Admin + Sub Admin ── */}
                     <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />

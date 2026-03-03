@@ -137,7 +137,7 @@ const MobileLeadDetails = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-28">
+    <div className="bg-gray-50 min-h-screen pb-36">
 
       {/* Coloured hero header */}
       <div className={`${sc.bg} px-4 pt-10 pb-16 relative`}>
@@ -286,8 +286,8 @@ const MobileLeadDetails = () => {
         </div>
       </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg z-20">
+      {/* Sticky bottom CTA - Fixed position above mobile bottom nav */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg z-20 lg:bottom-0">
         <Button
           className={`w-full h-12 text-base font-bold ${sc.bg} ${sc.hover} text-white`}
           onClick={() => {

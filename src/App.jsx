@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from './components/ScrollToTop';
@@ -63,7 +63,6 @@ import SalesTools from './crm/pages/SalesTools';
 import MobileEmployeeDashboard from './crm/pages/MobileEmployeeDashboard';
 import MobileLeadList from './crm/pages/MobileLeadList';
 import MobileLeadDetails from './crm/pages/MobileLeadDetails';
-import MobileBottomNav from './crm/components/MobileBottomNav';
 import { useMobile } from '@/lib/useMobile';
 import { useAuth } from '@/context/AuthContext';
 import ContentManagementDashboard from './crm/pages/ContentManagementDashboard';
@@ -96,11 +95,14 @@ const SmartDashboard = () => {
   return <CRMAdminDashboard />;
 };
 
+const MOBILE_EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
+
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location = useLocation();
   const isMobile = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const hasMobileEmployeeRoutes = isMobile && MOBILE_EMPLOYEE_ROLES.includes(user?.role);
 
   if (isCRM) {
     return (
@@ -113,13 +115,19 @@ const AppRoutes = ({ onBookSiteVisit }) => {
               {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
                 <CRMLayout>
                   <Routes>
-                    {isMobile && user?.role === 'sales_executive' && (
+                    {hasMobileEmployeeRoutes && (
                       <>
                         <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
                         <Route path="my-leads" element={<MobileLeadList />} />
                         <Route path="lead/:leadId" element={<MobileLeadDetails />} />
                       </>
                     )}
+
+                    {/* Legacy Sub-Admin route aliases (backward compatibility for old bookmarks/nav) */}
+                    <Route path="dashboard" element={<Navigate to="/crm/admin/dashboard" replace />} />
+                    <Route path="leads" element={<Navigate to="/crm/admin/leads" replace />} />
+                    <Route path="staff" element={<Navigate to="/crm/admin/staff-management" replace />} />
+                    <Route path="reports" element={<Navigate to="/crm/admin/staff-performance" replace />} />
 
                     {/* ── Super Admin + Sub Admin ── */}
                     <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />
@@ -201,7 +209,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
             </ProtectedRoute>
           } />
         </Routes>
-        {isMobile && user && <MobileBottomNav onLogout={() => { window.location.href = '/crm/login'; localStorage.removeItem('crm_user'); }} />}
       </>
     );
   }

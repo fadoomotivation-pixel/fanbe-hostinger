@@ -10,28 +10,28 @@ const SubAdminBottomNav = ({ onMenuClick }) => {
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      path: '/crm/dashboard',
+      path: '/crm/admin/dashboard',
       color: 'text-blue-600'
     },
     {
       id: 'leads',
       label: 'Leads',
       icon: Users,
-      path: '/crm/leads',
+      path: '/crm/admin/leads',
       color: 'text-blue-600'
     },
     {
       id: 'staff',
       label: 'Staff',
       icon: UserCog,
-      path: '/crm/staff',
+      path: '/crm/admin/staff-management',
       color: 'text-blue-600'
     },
     {
       id: 'reports',
       label: 'Reports',
       icon: BarChart3,
-      path: '/crm/reports',
+      path: '/crm/admin/staff-performance',
       color: 'text-blue-600'
     }
   ];

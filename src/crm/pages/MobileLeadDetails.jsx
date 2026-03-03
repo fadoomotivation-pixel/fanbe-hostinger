@@ -137,30 +137,39 @@ const MobileLeadDetails = () => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-28">
+    <div className="bg-gray-50 min-h-screen pb-36">
 
-      {/* Coloured hero header */}
-      <div className={`${sc.bg} px-4 pt-10 pb-16 relative`}>
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 p-2 bg-white/20 rounded-full text-white"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="text-center">
-          <div className="h-20 w-20 bg-white/20 text-white rounded-full flex items-center justify-center text-3xl font-bold mx-auto mb-2 border-2 border-white/40">
-            {lead.name.charAt(0)}
+      {/* Compact lead header */}
+      <div className={`${sc.bg} px-4 pt-4 pb-4 sticky top-0 z-10 shadow-sm`}>
+        <div className="flex items-start gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 bg-white/20 rounded-full text-white shrink-0"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="h-10 w-10 bg-white/20 text-white rounded-full flex items-center justify-center text-sm font-bold border border-white/40 shrink-0">
+                {lead.name.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-bold text-white truncate">{lead.name}</h1>
+                <p className="text-white/80 text-xs truncate">{lead.project}</p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-xl font-bold text-white">{lead.name}</h1>
-          <p className="text-white/80 text-sm mt-0.5">{lead.project}</p>
-          <span className="mt-2 inline-block bg-white/20 text-white text-xs px-3 py-1 rounded-full border border-white/30">
+
+          <span className="inline-flex items-center bg-white/20 text-white text-[11px] px-2.5 py-1 rounded-full border border-white/30 shrink-0">
             {sc.label}
           </span>
         </div>
       </div>
 
-      {/* Call / WhatsApp floating above fold */}
-      <div className="flex gap-3 justify-center -mt-6 mb-2 px-6">
+      {/* Call / WhatsApp quick actions */}
+      <div className="flex gap-3 justify-center mt-3 mb-2 px-4">
         <button
           onClick={() => window.location.href = `tel:${lead.phone}`}
           className="flex-1 flex items-center justify-center gap-2 bg-white shadow-md rounded-xl py-3 text-blue-600 font-semibold text-sm border border-gray-100 active:scale-95 transition-transform"
@@ -287,7 +296,7 @@ const MobileLeadDetails = () => {
       </div>
 
       {/* Sticky bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg z-20">
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-lg z-20 lg:bottom-0">
         <Button
           className={`w-full h-12 text-base font-bold ${sc.bg} ${sc.hover} text-white`}
           onClick={() => {

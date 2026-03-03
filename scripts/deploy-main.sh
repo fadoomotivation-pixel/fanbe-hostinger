@@ -2,27 +2,27 @@
 set -euo pipefail
 
 REPO_DIR="${1:-$PWD}"
-
 cd "$REPO_DIR"
 
-echo "[1/5] Switching to main"
+echo "[1/4] git checkout main"
 git checkout main
 
-echo "[2/5] Pull latest"
+echo "[2/4] git pull origin main"
 git pull origin main
 
-echo "[3/5] Build check"
+echo "[3/4] npm run build"
 npm run build
 
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "[4/5] Uncommitted changes found. Creating commit before push..."
-  git add .
-  git commit -m "chore: deploy updates"
-else
-  echo "[4/5] Working tree clean (no new commit needed)."
+  echo ""
+  echo "❌ Deployment blocked: you have local file changes."
+  echo "Run these first, then re-run this script:"
+  echo "  git add ."
+  echo "  git commit -m 'your message'"
+  exit 1
 fi
 
-echo "[5/5] Push to origin/main"
+echo "[4/4] git push origin main"
 git push origin main
 
-echo "Done. If Hostinger is connected to main, deployment should trigger automatically."
+echo "✅ Done. If Hostinger is linked to origin/main, deployment is triggered by this push."

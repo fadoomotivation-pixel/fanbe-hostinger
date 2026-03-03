@@ -47,6 +47,19 @@ npm run preview
 
 This project is configured for deployment on Hostinger.
 
+### Git Bash deploy (recommended)
+
+```bash
+cd ~/Downloads/fanbe-hostinger-CLEAN/hostinger-clean
+git checkout main
+git pull origin main
+npm run build
+git push origin main
+```
+
+If push shows `Everything up-to-date`, there is no new commit to deploy.
+Run `git add . && git commit -m "your message" && git push origin main` after making changes.
+
 ### Hostinger Settings
 
 - **Framework**: Vite

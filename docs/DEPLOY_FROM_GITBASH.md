@@ -1,6 +1,6 @@
-# Deploy from Git Bash (safe + simple)
+# Deploy from Git Bash (exact flow)
 
-Use this from your local clone:
+Use exactly this sequence:
 
 ```bash
 cd ~/Downloads/fanbe-hostinger-CLEAN/hostinger-clean
@@ -10,7 +10,11 @@ npm run build
 git push origin main
 ```
 
-## If you edited files before deploy
+## Why your deploy may not happen
+
+If `git push origin main` prints **`Everything up-to-date`**, there is no new commit to deploy.
+
+If you changed files, do this before push:
 
 ```bash
 git add .
@@ -18,20 +22,22 @@ git commit -m "your message"
 git push origin main
 ```
 
-## One-command option (recommended)
+## Quick status checks
 
-This repo now includes a helper script:
+```bash
+git status --short
+git rev-parse --short HEAD
+```
+
+- `git status --short` empty = clean working tree.
+- New deployment requires a **new commit hash** on `main`.
+
+## Optional helper
+
+You can run the same flow via helper script:
 
 ```bash
 bash scripts/deploy-main.sh ~/Downloads/fanbe-hostinger-CLEAN/hostinger-clean
 ```
 
-What it does:
-
-1. Checkout `main`
-2. Pull latest `origin/main`
-3. Run `npm run build`
-4. Auto-commit only if there are uncommitted changes
-5. Push to `origin/main`
-
-> Note: If Hostinger is linked to `main`, pushing to `main` triggers deploy automatically.
+The helper runs the same 4 commands and stops if local changes are uncommitted.

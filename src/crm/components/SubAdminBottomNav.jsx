@@ -1,10 +1,8 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, UserCog, BarChart3, Menu } from 'lucide-react';
 
 const SubAdminBottomNav = ({ onMenuClick }) => {
-  const navigate = useNavigate();
-
   const navItems = [
     {
       id: 'dashboard',

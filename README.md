@@ -73,3 +73,15 @@ This project is configured for deployment on Hostinger.
 
 Private - All rights reserved
 # Trigger rebuild Tue Feb 17 11:42:27 IST 2026
+
+## Quick Deploy
+
+```bash
+cd ~/Downloads/fanbe-hostinger-CLEAN/hostinger-clean
+git add .
+git commit -m "your changes"
+npm run build
+git push origin main
+```
+
+See docs/DEPLOY_FROM_GITBASH.md for details.

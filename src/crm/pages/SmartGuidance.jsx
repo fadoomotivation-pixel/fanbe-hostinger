@@ -8,9 +8,17 @@ import { Button } from '@/components/ui/button';
 import {
   Phone, MessageCircle, MapPin, Star, Clock, Brain,
   Sparkles, TrendingUp, Flame, Zap, Target, Calendar,
-  Bell, AlertCircle
+  Bell, AlertCircle, Trophy, BarChart2, Shield,
+  Activity, ArrowUp, ArrowDown, ThumbsUp, Eye,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours, isToday, isPast, parseISO, isValid } from 'date-fns';
+import {
+  calculateMyPerformance,
+  calculateLeadMomentum,
+  calculatePipelineHealth,
+  generateObjectionHandlers
+} from '@/crm/utils/performanceSyncEngine';
 
 // AI Success Probability Scorer
 const calculateSuccessProbability = (lead, calls, notes) => {
@@ -24,13 +32,13 @@ const calculateSuccessProbability = (lead, calls, notes) => {
   if (lead.budget && parseInt(lead.budget) > 0) score += 20;
 
   const leadCalls = calls.filter(c => c.leadId === lead.id);
-  const connectedCalls = leadCalls.filter(c => 
+  const connectedCalls = leadCalls.filter(c =>
     c.status === 'Connected' || c.status === 'connected' || c.status === 'interested'
   );
   if (connectedCalls.length > 0) score += 10;
   if (connectedCalls.length >= 2) score += 10;
 
-  const leadNotes = notes.filter(n => n.leadId === lead.id);
+  const leadNotes = Array.isArray(notes) ? notes.filter(n => n.leadId === lead.id) : [];
   if (leadNotes.length > 2) score += 10;
 
   const positiveWords = ['interested', 'ready', 'yes', 'good', 'like', 'want', 'need'];
@@ -41,13 +49,18 @@ const calculateSuccessProbability = (lead, calls, notes) => {
     if (negativeWords.some(w => text.includes(w))) score -= 10;
   });
 
+  // Also check lead.notes field (string-based notes from Supabase)
+  const notesText = (lead.notes || '').toLowerCase();
+  if (positiveWords.some(w => notesText.includes(w))) score += 5;
+  if (negativeWords.some(w => notesText.includes(w))) score -= 5;
+
   return Math.min(100, Math.max(0, score));
 };
 
 // Best Time to Call Predictor
 const predictBestTimeToCall = (lead, calls) => {
-  const leadCalls = calls.filter(c => 
-    c.leadId === lead.id && 
+  const leadCalls = calls.filter(c =>
+    c.leadId === lead.id &&
     (c.status === 'Connected' || c.status === 'connected')
   );
 
@@ -122,7 +135,7 @@ const calculateLeadStars = (lead, calls) => {
   let stars = 1;
 
   if (lead.budget && parseInt(lead.budget) > 0) stars++;
-  
+
   const interest = lead.interestLevel || lead.interest_level || 'Cold';
   if (interest === 'Hot') stars += 2;
   else if (interest === 'Warm') stars += 1;
@@ -145,7 +158,6 @@ const isFollowUpToday = (followUpDate) => {
     if (!isValid(date)) return false;
     return isToday(date) || isPast(date);
   } catch (error) {
-    console.error('Date parse error:', error);
     return false;
   }
 };
@@ -154,23 +166,19 @@ const isFollowUpToday = (followUpDate) => {
 const isFollowUpOverdue = (followUpDate, followUpTime) => {
   if (!followUpDate) return false;
   try {
-    const now = new Date();
     const date = typeof followUpDate === 'string' ? parseISO(followUpDate) : new Date(followUpDate);
     if (!isValid(date)) return false;
-    
-    // If no time specified, just check if date is past
+
     if (!followUpTime) {
       return isPast(date) && !isToday(date);
     }
-    
-    // Parse time and create full datetime
+
     const [hours, minutes] = followUpTime.split(':');
     const followUpDateTime = new Date(date);
     followUpDateTime.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
-    
+
     return isPast(followUpDateTime);
   } catch (error) {
-    console.error('Date comparison error:', error);
     return false;
   }
 };
@@ -179,22 +187,34 @@ const isFollowUpOverdue = (followUpDate, followUpTime) => {
 const SmartGuidance = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { leads, calls, siteVisits, notes } = useCRMData();
+  const { leads, calls, siteVisits, bookings, employees, notes } = useCRMData();
   const [expandedScript, setExpandedScript] = useState(null);
+  const [expandedObjection, setExpandedObjection] = useState(null);
+  const [showAllLeads, setShowAllLeads] = useState(false);
+  const [activeTab, setActiveTab] = useState('priority'); // priority | momentum | cold
 
   const myLeads = useMemo(() => {
     if (!leads || !user) return [];
-    return leads.filter(lead => 
+    return leads.filter(lead =>
       (lead.assignedTo === user?.uid || lead.assigned_to === user?.uid) &&
       lead.status !== 'Booked' &&
       lead.status !== 'Lost'
     );
   }, [leads, user]);
 
+  // ── MY PERFORMANCE (linked from Employee Intelligence scoring) ──
+  const myPerformance = useMemo(() => {
+    if (!user?.uid) return null;
+    return calculateMyPerformance(user.uid, employees, leads, calls, siteVisits, bookings);
+  }, [user, employees, leads, calls, siteVisits, bookings]);
+
+  // ── PIPELINE HEALTH ──
+  const pipeline = useMemo(() => calculatePipelineHealth(myLeads), [myLeads]);
+
   // Check for today's follow-ups
   const todayFollowUps = useMemo(() => {
     if (!myLeads || myLeads.length === 0) return [];
-    
+
     return myLeads.filter(lead => {
       const followUpDate = lead.followUpDate || lead.follow_up_date;
       return isFollowUpToday(followUpDate);
@@ -205,15 +225,18 @@ const SmartGuidance = () => {
     });
   }, [myLeads]);
 
-  // Prioritize leads with AI
+  // Prioritize leads with AI + Momentum
   const prioritizedLeads = useMemo(() => {
-    if (!myLeads || myLeads.length === 0 || !calls || !notes) return [];
-    
+    if (!myLeads || myLeads.length === 0 || !calls) return [];
+    const safeNotes = Array.isArray(notes) ? notes : [];
+
     const leadsWithScores = myLeads.map(lead => {
-      const successProb = calculateSuccessProbability(lead, calls, notes);
+      const successProb = calculateSuccessProbability(lead, calls, safeNotes);
       const bestTime = predictBestTimeToCall(lead, calls);
       const stars = calculateLeadStars(lead, calls);
-      const script = generateCallScript(lead, calls, notes);
+      const script = generateCallScript(lead, calls, safeNotes);
+      const momentum = calculateLeadMomentum(lead, calls);
+      const objectionHandlers = generateObjectionHandlers(lead, calls);
 
       const daysSinceCreated = lead.createdAt ? differenceInDays(new Date(), new Date(lead.createdAt)) : 0;
       const leadCalls = calls.filter(c => c.leadId === lead.id);
@@ -227,6 +250,8 @@ const SmartGuidance = () => {
       if (daysSinceCreated <= 1) priorityScore += 20;
       if (lead.status === 'FollowUp' && hoursSinceLastCall >= 24) priorityScore += 15;
       if (leadCalls.length === 0) priorityScore += 10;
+      // Momentum urgency bonus - cold leads need attention
+      if (momentum.urgency >= 80) priorityScore += 15;
 
       let priorityReason = [];
       if (interest === 'Hot') priorityReason.push({ text: 'Hot Lead', icon: Flame, color: 'red' });
@@ -234,6 +259,9 @@ const SmartGuidance = () => {
       if (lead.status === 'FollowUp') priorityReason.push({ text: 'Follow-up Due', icon: Target, color: 'orange' });
       if (leadCalls.length === 0) priorityReason.push({ text: 'Not Contacted', icon: Phone, color: 'purple' });
       if (successProb >= 70) priorityReason.push({ text: 'High Success', icon: TrendingUp, color: 'green' });
+      if (momentum.status === 'cold' || momentum.status === 'going-cold') {
+        priorityReason.push({ text: momentum.label, icon: AlertCircle, color: 'red' });
+      }
 
       return {
         ...lead,
@@ -242,17 +270,39 @@ const SmartGuidance = () => {
         bestTime,
         stars,
         script,
-        priorityReason
+        priorityReason,
+        momentum,
+        objectionHandlers,
       };
     });
 
     return leadsWithScores.sort((a, b) => b.priorityScore - a.priorityScore);
   }, [myLeads, calls, notes]);
 
+  // Cold/Going-Cold leads that need urgent attention
+  const coldLeads = useMemo(() => {
+    return prioritizedLeads.filter(l => l.momentum.status === 'cold' || l.momentum.status === 'going-cold');
+  }, [prioritizedLeads]);
+
+  // Leads sorted by momentum urgency
+  const momentumLeads = useMemo(() => {
+    return [...prioritizedLeads].sort((a, b) => b.momentum.urgency - a.momentum.urgency);
+  }, [prioritizedLeads]);
+
+  const displayLeads = activeTab === 'momentum' ? momentumLeads :
+                        activeTab === 'cold' ? coldLeads : prioritizedLeads;
+
   const getSuccessColor = (prob) => {
     if (prob >= 70) return 'bg-green-100 text-green-800';
     if (prob >= 50) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
+  };
+
+  const getMomentumColor = (status) => {
+    if (status === 'hot' || status === 'warm') return 'bg-green-100 text-green-700 border-green-200';
+    if (status === 'cooling') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    if (status === 'going-cold') return 'bg-orange-100 text-orange-700 border-orange-200';
+    return 'bg-red-100 text-red-700 border-red-200';
   };
 
   const renderStars = (count) => {
@@ -272,26 +322,110 @@ const SmartGuidance = () => {
           <Brain className="h-8 w-8 text-purple-600" />
           <h1 className="text-3xl font-bold text-[#0F3A5F]">Smart Guidance AI</h1>
         </div>
-        <p className="text-gray-600">AI-powered lead prioritization with call scripts and success predictions</p>
+        <p className="text-gray-600">AI-powered lead prioritization with call scripts, momentum tracking & success predictions</p>
       </div>
 
-      {/* TODAY'S FOLLOW-UPS - PRIORITY SECTION */}
+      {/* ═══ MY PERFORMANCE CARD (linked from Employee Intelligence) ═══ */}
+      {myPerformance && (
+        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 shadow-md">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="h-5 w-5 text-blue-600" />
+              <h2 className="font-bold text-blue-900">My Performance</h2>
+              <Badge className="bg-blue-600 text-white text-xs ml-auto">
+                Rank #{myPerformance.rank} of {myPerformance.totalEmployees}
+              </Badge>
+            </div>
+
+            {/* Daily Progress Bar */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-gray-600">Today's Call Target</span>
+                <span className="text-xs font-bold text-blue-700">{myPerformance.todayCalls}/{myPerformance.dailyCallTarget} calls</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className={`h-3 rounded-full transition-all ${
+                    myPerformance.dailyCallProgress >= 100 ? 'bg-green-500' :
+                    myPerformance.dailyCallProgress >= 60 ? 'bg-blue-500' :
+                    myPerformance.dailyCallProgress >= 30 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${Math.min(100, myPerformance.dailyCallProgress)}%` }}
+                />
+              </div>
+              {myPerformance.dailyCallProgress >= 100 && (
+                <p className="text-xs text-green-600 font-semibold mt-1">Target achieved! Keep going!</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="bg-white rounded-lg p-2 border">
+                <p className="text-lg font-black text-blue-700">{myPerformance.todayCalls}</p>
+                <p className="text-[10px] text-gray-500">Today Calls</p>
+              </div>
+              <div className="bg-white rounded-lg p-2 border">
+                <p className="text-lg font-black text-green-700">{myPerformance.todayConnected}</p>
+                <p className="text-[10px] text-gray-500">Connected</p>
+              </div>
+              <div className="bg-white rounded-lg p-2 border">
+                <p className="text-lg font-black text-purple-700">{myPerformance.weeklyVisits}</p>
+                <p className="text-[10px] text-gray-500">Week Visits</p>
+              </div>
+              <div className="bg-white rounded-lg p-2 border">
+                <p className="text-lg font-black text-amber-700">{myPerformance.weeklyBookings}</p>
+                <p className="text-[10px] text-gray-500">Week Bookings</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══ PIPELINE HEALTH ═══ */}
+      {pipeline.total > 0 && (
+        <Card className="border border-gray-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 className="h-4 w-4 text-gray-600" />
+              <h3 className="font-bold text-sm text-gray-800">My Pipeline</h3>
+              <span className="text-xs text-gray-400 ml-auto">{pipeline.total} active leads</span>
+            </div>
+            <div className="flex gap-1 h-4 rounded-full overflow-hidden mb-2">
+              {pipeline.hotPercent > 0 && (
+                <div className="bg-red-500 transition-all" style={{ width: `${pipeline.hotPercent}%` }} />
+              )}
+              {pipeline.warmPercent > 0 && (
+                <div className="bg-yellow-500 transition-all" style={{ width: `${pipeline.warmPercent}%` }} />
+              )}
+              {pipeline.coldPercent > 0 && (
+                <div className="bg-blue-400 transition-all" style={{ width: `${pipeline.coldPercent}%` }} />
+              )}
+            </div>
+            <div className="flex gap-4 text-xs">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Hot: {pipeline.hot} ({pipeline.hotPercent}%)</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Warm: {pipeline.warm} ({pipeline.warmPercent}%)</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400" /> Cold: {pipeline.cold} ({pipeline.coldPercent}%)</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══ TODAY'S FOLLOW-UPS - PRIORITY SECTION ═══ */}
       {todayFollowUps.length > 0 && (
         <Card className="border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-red-50 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="h-6 w-6 text-orange-600 animate-bounce" />
-              <h2 className="text-xl font-bold text-orange-900">🔔 Today's Follow-ups ({todayFollowUps.length})</h2>
+              <h2 className="text-xl font-bold text-orange-900">Today's Follow-ups ({todayFollowUps.length})</h2>
             </div>
             <div className="space-y-3">
               {todayFollowUps.map((lead) => {
                 const followUpDate = lead.followUpDate || lead.follow_up_date;
                 const followUpTime = lead.followUpTime || lead.follow_up_time || 'Anytime';
                 const isOverdue = isFollowUpOverdue(followUpDate, followUpTime);
-                
+
                 return (
-                  <Card 
-                    key={lead.id} 
+                  <Card
+                    key={lead.id}
                     className={`cursor-pointer hover:shadow-md transition ${
                       isOverdue ? 'border-2 border-red-400 bg-red-50' : 'border border-orange-200 bg-white'
                     }`}
@@ -340,30 +474,85 @@ const SmartGuidance = () => {
         </Card>
       )}
 
-      {/* PRIORITY LEADS LIST */}
+      {/* ═══ COLD LEADS ALERT ═══ */}
+      {coldLeads.length > 0 && (
+        <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <h3 className="font-bold text-red-900">Leads Going Cold ({coldLeads.length})</h3>
+            </div>
+            <p className="text-xs text-red-700 mb-3">These leads haven't been contacted recently and may be lost if not acted on now.</p>
+            <div className="flex flex-wrap gap-2">
+              {coldLeads.slice(0, 5).map(lead => (
+                <Badge
+                  key={lead.id}
+                  className="bg-red-100 text-red-800 cursor-pointer hover:bg-red-200"
+                  onClick={() => navigate(`/crm/lead/${lead.id}`)}
+                >
+                  {lead.name} - {lead.momentum.label}
+                </Badge>
+              ))}
+              {coldLeads.length > 5 && (
+                <Badge className="bg-gray-100 text-gray-600">+{coldLeads.length - 5} more</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══ TAB FILTERS ═══ */}
+      <div className="flex gap-2">
+        {[
+          { key: 'priority', label: 'Priority', icon: Zap, count: prioritizedLeads.length },
+          { key: 'momentum', label: 'Momentum', icon: Activity, count: prioritizedLeads.length },
+          { key: 'cold', label: 'Needs Action', icon: AlertCircle, count: coldLeads.length },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              activeTab === tab.key
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <tab.icon size={16} />
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ LEADS LIST ═══ */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Zap className="h-5 w-5 text-purple-600" />
-          <h2 className="text-xl font-bold text-gray-900">Priority Leads ({prioritizedLeads.length})</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {activeTab === 'priority' ? 'Priority Leads' : activeTab === 'momentum' ? 'By Momentum' : 'Needs Immediate Action'}
+            {' '}({displayLeads.length})
+          </h2>
         </div>
 
-        {prioritizedLeads.length === 0 ? (
+        {displayLeads.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-gray-500">No leads assigned to you yet</p>
+              <p className="text-gray-500">
+                {activeTab === 'cold' ? 'Great! No leads are going cold right now.' : 'No leads assigned to you yet'}
+              </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {prioritizedLeads.map((lead, index) => (
-              <Card 
-                key={lead.id} 
+            {(showAllLeads ? displayLeads : displayLeads.slice(0, 10)).map((lead, index) => (
+              <Card
+                key={lead.id}
                 className={`cursor-pointer hover:shadow-lg transition ${
-                  index < 3 ? 'border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-white' : ''
-                }`}
+                  index < 3 && activeTab === 'priority' ? 'border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-white' : ''
+                } ${lead.momentum.urgency >= 80 ? 'border-l-4 border-l-red-400' : ''}`}
                 onClick={() => {
-                  if (expandedScript === lead.id) {
+                  if (expandedScript === lead.id || expandedObjection === lead.id) {
                     setExpandedScript(null);
+                    setExpandedObjection(null);
                   } else {
                     navigate(`/crm/lead/${lead.id}`);
                   }
@@ -373,12 +562,16 @@ const SmartGuidance = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        {index < 3 && (
+                        {index < 3 && activeTab === 'priority' && (
                           <Badge className="bg-purple-600 text-white font-bold">#{index + 1}</Badge>
                         )}
                         <h3 className="font-bold text-lg text-gray-900">{lead.name}</h3>
                         <Badge className={getSuccessColor(lead.successProb)}>
                           {lead.successProb}% Success
+                        </Badge>
+                        {/* Momentum Badge */}
+                        <Badge className={`text-[10px] ${getMomentumColor(lead.momentum.status)}`}>
+                          {lead.momentum.label}
                         </Badge>
                       </div>
 
@@ -406,18 +599,36 @@ const SmartGuidance = () => {
                         <span>{lead.bestTime.icon} {lead.bestTime.reason}</span>
                       </div>
 
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedScript(expandedScript === lead.id ? null : lead.id);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                      >
-                        <Sparkles size={14} className="mr-1" />
-                        {expandedScript === lead.id ? 'Hide' : 'View'} AI Script
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedScript(expandedScript === lead.id ? null : lead.id);
+                            setExpandedObjection(null);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          <Sparkles size={14} className="mr-1" />
+                          {expandedScript === lead.id ? 'Hide' : 'View'} AI Script
+                        </Button>
+                        {lead.objectionHandlers.length > 0 && (
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedObjection(expandedObjection === lead.id ? null : lead.id);
+                              setExpandedScript(null);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                          >
+                            <Shield size={14} className="mr-1" />
+                            {expandedObjection === lead.id ? 'Hide' : ''} Objection Tips
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -451,15 +662,15 @@ const SmartGuidance = () => {
                         <Brain className="h-5 w-5 text-blue-600" />
                         <h4 className="font-bold text-blue-900">AI Call Script</h4>
                       </div>
-                      
+
                       <div className="space-y-3">
                         <div>
-                          <p className="text-xs font-bold text-gray-700 mb-1">🎤 Opening Line:</p>
+                          <p className="text-xs font-bold text-gray-700 mb-1">Opening Line:</p>
                           <p className="text-sm text-gray-800 italic bg-white p-2 rounded">"{lead.script.opening}"</p>
                         </div>
-                        
+
                         <div>
-                          <p className="text-xs font-bold text-gray-700 mb-1">🔑 Key Talking Points:</p>
+                          <p className="text-xs font-bold text-gray-700 mb-1">Key Talking Points:</p>
                           <ul className="text-sm space-y-1 bg-white p-3 rounded">
                             {lead.script.keyPoints.map((point, i) => (
                               <li key={i} className="flex items-start gap-2">
@@ -469,23 +680,56 @@ const SmartGuidance = () => {
                             ))}
                           </ul>
                         </div>
-                        
+
                         <div>
-                          <p className="text-xs font-bold text-gray-700 mb-1">🎯 Closing Question:</p>
+                          <p className="text-xs font-bold text-gray-700 mb-1">Closing Question:</p>
                           <p className="text-sm text-gray-800 italic bg-white p-2 rounded">"{lead.script.closing}"</p>
                         </div>
 
                         <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
                           <p className="text-xs text-yellow-800">
-                            <strong>💡 Best Time:</strong> {lead.bestTime.icon} {lead.bestTime.reason}
+                            <strong>Best Time:</strong> {lead.bestTime.icon} {lead.bestTime.reason}
                           </p>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* EXPANDED OBJECTION HANDLERS */}
+                  {expandedObjection === lead.id && lead.objectionHandlers.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 bg-orange-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield className="h-5 w-5 text-orange-600" />
+                        <h4 className="font-bold text-orange-900">Objection Handling Guide</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {lead.objectionHandlers.map((handler, i) => (
+                          <div key={i} className="bg-white p-3 rounded-lg border border-orange-200">
+                            <p className="text-xs font-bold text-red-700 mb-1">If they say: {handler.objection}</p>
+                            <p className="text-sm text-gray-800">{handler.response}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
             ))}
+
+            {/* Show More / Less */}
+            {displayLeads.length > 10 && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowAllLeads(!showAllLeads)}
+              >
+                {showAllLeads ? (
+                  <><ChevronUp size={16} className="mr-2" /> Show Less</>
+                ) : (
+                  <><ChevronDown size={16} className="mr-2" /> Show All {displayLeads.length} Leads</>
+                )}
+              </Button>
+            )}
           </div>
         )}
       </div>

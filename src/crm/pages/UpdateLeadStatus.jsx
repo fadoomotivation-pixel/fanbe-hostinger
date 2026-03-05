@@ -33,7 +33,7 @@ import {
 const UpdateLeadStatus = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
-  const { leads, calls, notes, updateLead, addLeadNote } = useCRMData();
+  const { leads, calls, updateLead, addLeadNote } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,13 @@ const UpdateLeadStatus = () => {
 
   const lead = leads.find(l => l.id === leadId);
   const leadCalls = calls.filter(c => c.leadId === leadId || c.lead_id === leadId);
-  const leadNotes = notes.filter(n => n.leadId === leadId || n.lead_id === leadId);
+  // Parse notes from lead.notes string into array for scoring engine
+  const leadNotes = lead?.notes ? lead.notes.split('\n').filter(n => n.trim()).map((n, i) => ({
+    id: i,
+    leadId: lead.id,
+    content: n,
+    createdAt: new Date().toISOString() // Approximate
+  })) : [];
   
   const [formData, setFormData] = useState({
     status: LEAD_STATUS.OPEN,
@@ -73,7 +79,7 @@ const UpdateLeadStatus = () => {
         bookingAmount: lead.bookingAmount || lead.booking_amount || '',
       }));
     }
-  }, [lead, leadCalls.length, leadNotes.length, useAutoTemperature]);
+  }, [lead, leadCalls.length, useAutoTemperature]);
 
   // Update interest level when toggle changes
   useEffect(() => {

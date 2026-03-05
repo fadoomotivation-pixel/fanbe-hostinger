@@ -51,6 +51,7 @@ import EditLead from './crm/pages/EditLead';
 import EmployeeLeadList from './crm/pages/EmployeeLeadList';
 import EmployeeLeadDetails from './crm/pages/EmployeeLeadDetails';
 import CreateManualLead from './crm/pages/CreateManualLead';
+import UpdateLeadStatus from './crm/pages/UpdateLeadStatus';
 import EmployeeDashboard from './crm/pages/EmployeeDashboard';
 import DailyCalling from './crm/pages/DailyCalling';
 import LeadSearch from './crm/pages/LeadSearch';
@@ -123,6 +124,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                         <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
                         <Route path="my-leads" element={<MobileLeadList />} />
                         <Route path="lead/:leadId" element={<MobileLeadDetails />} />
+                        <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />
                       </>
                     )}
 
@@ -195,6 +197,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/edit-lead/:id" element={<EditLead />} />
                     {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
                     {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
+                    {!isMobile && <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />}
                     <Route path="lead/new" element={<CreateManualLead />} />
                     <Route path="sales/lead-search" element={<LeadSearch />} />
                     <Route path="sales/smart-guidance" element={<SmartGuidance />} />

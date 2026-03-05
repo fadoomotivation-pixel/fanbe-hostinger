@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  ArrowLeft, Phone, IndianRupee,
+  ArrowLeft, Phone, IndianRupee, Mail,
   Edit2, Check, X, Plus, Trash2, MessageSquare,
   Flame, Wind, Snowflake, MapPin, Clock, Calendar
 } from 'lucide-react';
 import FollowUpBadge from '@/crm/components/FollowUpBadge';
+import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import { normalizeLeadStatus, normalizeInterestLevel, getStatusColor } from '@/crm/utils/statusUtils';
 
 const TemperatureChip = ({ level }) => {
@@ -64,7 +65,6 @@ const MobileLeadDetails = () => {
       toast({ title: 'Error', description: 'Name cannot be empty', variant: 'destructive' });
       return;
     }
-
     try {
       await updateLead(lead.id, { name: editedName.trim() });
       await addLeadNote(lead.id, `Name updated from "${lead.name}" to "${editedName.trim()}"`, 'Employee');
@@ -81,16 +81,13 @@ const MobileLeadDetails = () => {
       toast({ title: 'Error', description: 'Please enter valid phone number', variant: 'destructive' });
       return;
     }
-
     try {
       const currentAlternate = lead.alternatePhone || lead.alternate_phone || [];
       const phones = Array.isArray(currentAlternate) ? currentAlternate : [currentAlternate].filter(Boolean);
-
       if (phones.includes(alternatePhone)) {
         toast({ title: 'Already exists', description: 'This number is already added', variant: 'destructive' });
         return;
       }
-
       phones.push(alternatePhone);
       await updateLead(lead.id, { alternatePhone: phones });
       await addLeadNote(lead.id, `Alternate phone added: ${alternatePhone}`, 'Employee');
@@ -108,7 +105,6 @@ const MobileLeadDetails = () => {
       const currentAlternate = lead.alternatePhone || lead.alternate_phone || [];
       const phones = Array.isArray(currentAlternate) ? currentAlternate : [currentAlternate].filter(Boolean);
       const updatedPhones = phones.filter(p => p !== phoneToRemove);
-
       await updateLead(lead.id, { alternatePhone: updatedPhones });
       await addLeadNote(lead.id, `Alternate phone removed: ${phoneToRemove}`, 'Employee');
       toast({ title: 'Success', description: 'Phone number removed' });
@@ -132,7 +128,7 @@ const MobileLeadDetails = () => {
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-w-5xl mx-auto">
           <button
             onClick={() => navigate('/crm/my-leads')}
             className="p-1.5 rounded-full hover:bg-gray-100"
@@ -140,163 +136,187 @@ const MobileLeadDetails = () => {
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-bold text-gray-900 truncate">Lead Details</h1>
+            <h1 className="text-base md:text-xl font-bold text-gray-900 truncate">Lead Details</h1>
           </div>
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-4 pt-4 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* Lead Summary Card */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          {/* Name Row */}
-          <div className="flex items-start justify-between mb-3">
-            {isEditingName ? (
-              <div className="flex gap-2 flex-1">
-                <Input
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="flex-1 h-9 text-sm"
-                  autoFocus
-                />
-                <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200">
-                  <Check size={16} />
-                </button>
-                <button onClick={() => { setEditedName(lead.name); setIsEditingName(false); }} className="p-1.5 rounded-lg bg-gray-50 text-gray-500 border border-gray-200">
-                  <X size={16} />
-                </button>
+          {/* Left Column - Main Info */}
+          <div className="lg:col-span-2 space-y-3">
+
+            {/* Lead Summary Card */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6">
+              <div className="flex items-start justify-between mb-3">
+                {isEditingName ? (
+                  <div className="flex gap-2 flex-1">
+                    <Input
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="flex-1 h-9 text-sm"
+                      autoFocus
+                    />
+                    <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200">
+                      <Check size={16} />
+                    </button>
+                    <button onClick={() => { setEditedName(lead.name); setIsEditingName(false); }} className="p-1.5 rounded-lg bg-gray-50 text-gray-500 border border-gray-200">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-lg md:text-2xl font-bold text-gray-900 truncate">{lead.name}</h2>
+                    </div>
+                    <button
+                      onClick={() => setIsEditingName(true)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  </>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold text-gray-900 truncate">{lead.name}</h2>
+
+              {/* Status + Interest Row */}
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${getStatusColor(lead.status)}`}>
+                  {status === 'FollowUp' ? 'Follow Up' : status}
+                </span>
+                <TemperatureChip level={interest} />
+                {followUpDate && (
+                  <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
+                )}
+              </div>
+
+              {/* Meta Info */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                {lead.project && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={12} className="text-gray-400" />
+                    {lead.project}
+                  </span>
+                )}
+                {lead.budget && (
+                  <span className="flex items-center gap-1">
+                    <IndianRupee size={12} className="text-gray-400" />
+                    ₹{Number(lead.budget).toLocaleString('en-IN')}
+                  </span>
+                )}
+                {lead.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail size={12} className="text-gray-400" />
+                    {lead.email}
+                  </span>
+                )}
+                {lastUpdated && (
+                  <span className="flex items-center gap-1">
+                    <Clock size={12} className="text-gray-400" />
+                    {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Primary Action - Update Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
+                className="h-12 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
+              >
+                Update Status
+              </Button>
+              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block">
+                <Button className="w-full h-12 bg-green-500 hover:bg-green-600 text-sm font-semibold rounded-xl">
+                  <MessageSquare size={16} className="mr-2" />
+                  WhatsApp
+                </Button>
+              </a>
+            </div>
+
+            {/* Additional Info */}
+            {(lead.source || lead.notes) && (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Details</h3>
+                {lead.source && (
+                  <div className="mb-2">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Source</p>
+                    <p className="text-sm text-gray-700">{lead.source}</p>
+                  </div>
+                )}
+                {lead.notes && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Last Notes</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-line line-clamp-6">{lead.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Contact */}
+          <div className="space-y-3">
+
+            {/* Phone Section */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Contact</h3>
+
+              {/* Primary Phone */}
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">Primary</p>
+                  <p className="font-semibold text-gray-900 text-sm">{lead.phone}</p>
                 </div>
-                <button
-                  onClick={() => setIsEditingName(true)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                >
-                  <Edit2 size={14} />
-                </button>
-              </>
-            )}
+                <div className="flex gap-1.5">
+                  <a href={`tel:${lead.phone}`}>
+                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                      <Phone size={16} className="text-green-600" />
+                    </button>
+                  </a>
+                  <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer">
+                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                      <MessageSquare size={16} className="text-green-600" />
+                    </button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Alternate Phones */}
+              {alternatePhones.length > 0 && alternatePhones.map((phone, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
+                  <div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Alternate</p>
+                    <p className="font-medium text-gray-900 text-sm">{phone}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <a href={`tel:${phone}`}>
+                      <button className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200">
+                        <Phone size={14} className="text-green-600" />
+                      </button>
+                    </a>
+                    <button
+                      onClick={() => handleRemoveAlternatePhone(phone)}
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-200"
+                    >
+                      <Trash2 size={14} className="text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={() => setIsAddingPhone(true)}
+                className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-1 px-1"
+              >
+                <Plus size={14} />
+                Add alternate number
+              </button>
+            </div>
           </div>
 
-          {/* Status + Interest Row */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${getStatusColor(lead.status)}`}>
-              {status === 'FollowUp' ? 'Follow Up' : status}
-            </span>
-            <TemperatureChip level={interest} />
-            {followUpDate && (
-              <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
-            )}
-          </div>
-
-          {/* Meta Info */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-            {lead.project && (
-              <span className="flex items-center gap-1">
-                <MapPin size={12} className="text-gray-400" />
-                {lead.project}
-              </span>
-            )}
-            {lead.budget && (
-              <span className="flex items-center gap-1">
-                <IndianRupee size={12} className="text-gray-400" />
-                ₹{Number(lead.budget).toLocaleString('en-IN')}
-              </span>
-            )}
-            {lastUpdated && (
-              <span className="flex items-center gap-1">
-                <Clock size={12} className="text-gray-400" />
-                {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-              </span>
-            )}
-          </div>
         </div>
-
-        {/* Primary Action - Update Status */}
-        <Button
-          onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
-        >
-          Update Status
-        </Button>
-
-        {/* Phone Section */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Contact</h3>
-
-          {/* Primary Phone */}
-          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Primary</p>
-              <p className="font-semibold text-gray-900 text-sm">{lead.phone}</p>
-            </div>
-            <div className="flex gap-1.5">
-              <a href={`tel:${lead.phone}`}>
-                <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
-                  <Phone size={16} className="text-green-600" />
-                </button>
-              </a>
-              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer">
-                <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
-                  <MessageSquare size={16} className="text-green-600" />
-                </button>
-              </a>
-            </div>
-          </div>
-
-          {/* Alternate Phones */}
-          {alternatePhones.length > 0 && alternatePhones.map((phone, idx) => (
-            <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
-              <div>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Alternate</p>
-                <p className="font-medium text-gray-900 text-sm">{phone}</p>
-              </div>
-              <div className="flex gap-1.5">
-                <a href={`tel:${phone}`}>
-                  <button className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200">
-                    <Phone size={14} className="text-green-600" />
-                  </button>
-                </a>
-                <button
-                  onClick={() => handleRemoveAlternatePhone(phone)}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-200"
-                >
-                  <Trash2 size={14} className="text-red-500" />
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <button
-            onClick={() => setIsAddingPhone(true)}
-            className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-1 px-1"
-          >
-            <Plus size={14} />
-            Add alternate number
-          </button>
-        </div>
-
-        {/* Additional Info */}
-        {(lead.source || lead.notes) && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Details</h3>
-            {lead.source && (
-              <div className="mb-2">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Source</p>
-                <p className="text-sm text-gray-700">{lead.source}</p>
-              </div>
-            )}
-            {lead.notes && (
-              <div>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Last Notes</p>
-                <p className="text-xs text-gray-600 whitespace-pre-line line-clamp-4">{lead.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Add Phone Dialog */}

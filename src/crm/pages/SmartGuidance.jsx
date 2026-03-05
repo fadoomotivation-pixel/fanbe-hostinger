@@ -193,40 +193,34 @@ const SmartGuidance = () => {
   const [showAllLeads, setShowAllLeads] = useState(false);
   const [activeTab, setActiveTab] = useState('priority'); // priority | momentum | cold
 
-  // Early return if user not loaded
-  if (!user || !user.uid) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-gray-500">Loading user data...</p>
-      </div>
-    );
-  }
+  // Get user ID (supports both uid and id patterns)
+  const userId = user?.uid || user?.id;
 
   const myLeads = useMemo(() => {
-    if (!leads || !user?.uid) return [];
+    if (!leads || !userId) return [];
     
     // Filter leads assigned to this employee only
     const filtered = leads.filter(lead => {
-      const isAssigned = lead.assignedTo === user.uid || lead.assigned_to === user.uid;
+      const isAssigned = lead.assignedTo === userId || lead.assigned_to === userId;
       const isActive = lead.status !== 'Booked' && lead.status !== 'Lost';
       return isAssigned && isActive;
     });
 
     console.log('🔍 Smart Guidance Filter:', {
-      userId: user.uid,
+      userId,
       totalLeads: leads.length,
       myLeads: filtered.length,
-      filtered: filtered.map(l => ({ id: l.id, name: l.name, assignedTo: l.assignedTo || l.assigned_to }))
+      sampleLead: filtered[0] ? { name: filtered[0].name, assignedTo: filtered[0].assignedTo || filtered[0].assigned_to } : null
     });
 
     return filtered;
-  }, [leads, user]);
+  }, [leads, userId]);
 
   // ── MY PERFORMANCE (linked from Employee Intelligence scoring) ──
   const myPerformance = useMemo(() => {
-    if (!user?.uid) return null;
-    return calculateMyPerformance(user.uid, employees, leads, calls, siteVisits, bookings);
-  }, [user, employees, leads, calls, siteVisits, bookings]);
+    if (!userId) return null;
+    return calculateMyPerformance(userId, employees, leads, calls, siteVisits, bookings);
+  }, [userId, employees, leads, calls, siteVisits, bookings]);
 
   // ── PIPELINE HEALTH ──
   const pipeline = useMemo(() => calculatePipelineHealth(myLeads), [myLeads]);

@@ -1,15 +1,15 @@
-
 import React, { useState, useMemo } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Search, Phone, ChevronRight, Flame, Wind, Snowflake,
-  AlertCircle, Filter, Users, Plus
+  AlertCircle, Filter, Users, Plus, PhoneCall
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import FollowUpBadge from '@/crm/components/FollowUpBadge';
+import LogCallModal from '@/crm/components/LogCallModal';
 import { calculatePriority } from '@/crm/hooks/useLeadPriority';
 import {
   normalizeLeadStatus, normalizeInterestLevel,
@@ -46,6 +46,7 @@ const MobileLeadList = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [selectedLeadForCallLog, setSelectedLeadForCallLog] = useState(null);
 
   const myLeads = useMemo(() => {
     let result = leads.filter(l => l.assignedTo === user.id || l.assigned_to === user.id);
@@ -138,6 +139,14 @@ const MobileLeadList = () => {
               <Filter size={18} />
             </button>
           </div>
+        </div>
+
+        {/* Smart Follow-up Info Banner */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg px-3 py-2 mb-3">
+          <p className="text-xs text-purple-900 font-medium flex items-center gap-1.5">
+            <PhoneCall size={12} className="text-purple-600" />
+            💡 Quick Tip: Use "Log" button after calls - system auto-creates follow-ups!
+          </p>
         </div>
 
         {/* Stats Row */}
@@ -317,12 +326,14 @@ const MobileLeadList = () => {
                       >
                         <Phone size={14} className="text-green-600" />
                       </a>
-                      <WhatsAppButton
-                        leadName={lead.name}
-                        phoneNumber={lead.phone}
-                        size="sm"
-                        className="h-8 px-2 rounded-full text-xs"
-                      />
+                      <button
+                        onClick={() => setSelectedLeadForCallLog(lead)}
+                        className="h-8 px-2.5 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-[11px] font-medium active:bg-purple-100 flex items-center gap-1"
+                        title="Log call outcome - auto-creates follow-up"
+                      >
+                        <PhoneCall size={12} />
+                        Log
+                      </button>
                       <button
                         onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
                         className="h-8 px-2.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-medium active:bg-blue-100"
@@ -339,6 +350,19 @@ const MobileLeadList = () => {
       </div>
 
       <div className="h-4" />
+
+      {/* Log Call Modal */}
+      {selectedLeadForCallLog && (
+        <LogCallModal
+          lead={selectedLeadForCallLog}
+          isOpen={true}
+          onClose={() => setSelectedLeadForCallLog(null)}
+          onSuccess={() => {
+            setSelectedLeadForCallLog(null);
+            // Lead list will auto-refresh via useCRMData
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -10,7 +10,7 @@ import {
   Sparkles, TrendingUp, Flame, Zap, Target, Calendar,
   Bell, AlertCircle
 } from 'lucide-react';
-import { format, differenceInDays, differenceInHours, isToday, isPast, parseISO, isSameDay } from 'date-fns';
+import { format, differenceInDays, differenceInHours, isToday, isPast, parseISO, isValid } from 'date-fns';
 
 // AI Success Probability Scorer
 const calculateSuccessProbability = (lead, calls, notes) => {
@@ -137,6 +137,44 @@ const calculateLeadStars = (lead, calls) => {
   return Math.min(5, stars);
 };
 
+// Safe date checker
+const isFollowUpToday = (followUpDate) => {
+  if (!followUpDate) return false;
+  try {
+    const date = typeof followUpDate === 'string' ? parseISO(followUpDate) : new Date(followUpDate);
+    if (!isValid(date)) return false;
+    return isToday(date) || isPast(date);
+  } catch (error) {
+    console.error('Date parse error:', error);
+    return false;
+  }
+};
+
+// Check if follow-up is overdue
+const isFollowUpOverdue = (followUpDate, followUpTime) => {
+  if (!followUpDate) return false;
+  try {
+    const now = new Date();
+    const date = typeof followUpDate === 'string' ? parseISO(followUpDate) : new Date(followUpDate);
+    if (!isValid(date)) return false;
+    
+    // If no time specified, just check if date is past
+    if (!followUpTime) {
+      return isPast(date) && !isToday(date);
+    }
+    
+    // Parse time and create full datetime
+    const [hours, minutes] = followUpTime.split(':');
+    const followUpDateTime = new Date(date);
+    followUpDateTime.setHours(parseInt(hours) || 0, parseInt(minutes) || 0, 0, 0);
+    
+    return isPast(followUpDateTime);
+  } catch (error) {
+    console.error('Date comparison error:', error);
+    return false;
+  }
+};
+
 // Main Component
 const SmartGuidance = () => {
   const navigate = useNavigate();
@@ -145,6 +183,7 @@ const SmartGuidance = () => {
   const [expandedScript, setExpandedScript] = useState(null);
 
   const myLeads = useMemo(() => {
+    if (!leads || !user) return [];
     return leads.filter(lead => 
       (lead.assignedTo === user?.uid || lead.assigned_to === user?.uid) &&
       lead.status !== 'Booked' &&
@@ -154,16 +193,11 @@ const SmartGuidance = () => {
 
   // Check for today's follow-ups
   const todayFollowUps = useMemo(() => {
+    if (!myLeads || myLeads.length === 0) return [];
+    
     return myLeads.filter(lead => {
       const followUpDate = lead.followUpDate || lead.follow_up_date;
-      if (!followUpDate) return false;
-      
-      try {
-        const followUp = parseISO(followUpDate);
-        return isToday(followUp) || isPast(followUp);
-      } catch {
-        return false;
-      }
+      return isFollowUpToday(followUpDate);
     }).sort((a, b) => {
       const timeA = a.followUpTime || a.follow_up_time || '00:00';
       const timeB = b.followUpTime || b.follow_up_time || '00:00';
@@ -173,6 +207,8 @@ const SmartGuidance = () => {
 
   // Prioritize leads with AI
   const prioritizedLeads = useMemo(() => {
+    if (!myLeads || myLeads.length === 0 || !calls || !notes) return [];
+    
     const leadsWithScores = myLeads.map(lead => {
       const successProb = calculateSuccessProbability(lead, calls, notes);
       const bestTime = predictBestTimeToCall(lead, calls);
@@ -249,8 +285,9 @@ const SmartGuidance = () => {
             </div>
             <div className="space-y-3">
               {todayFollowUps.map((lead) => {
+                const followUpDate = lead.followUpDate || lead.follow_up_date;
                 const followUpTime = lead.followUpTime || lead.follow_up_time || 'Anytime';
-                const isOverdue = isPast(parseISO(`${lead.followUpDate || lead.follow_up_date}T${followUpTime}`));
+                const isOverdue = isFollowUpOverdue(followUpDate, followUpTime);
                 
                 return (
                   <Card 

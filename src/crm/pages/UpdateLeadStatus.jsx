@@ -10,7 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, Save, Flame, Wind, Snowflake, CheckCircle2, Calendar, IndianRupee, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { 
+  ArrowLeft, Save, Flame, Wind, Snowflake, CheckCircle2, 
+  Calendar, IndianRupee, AlertTriangle, Zap, TrendingUp, Info 
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { 
   LEAD_STATUS, 
@@ -20,17 +24,27 @@ import {
   validateStatusTransition,
   createStatusChangeNote
 } from '@/crm/utils/statusUtils';
+import { 
+  calculateLeadTemperature, 
+  getTemperatureExplanation,
+  getFollowUpSuggestions
+} from '@/crm/utils/leadScoringEngine';
 
 const UpdateLeadStatus = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
-  const { leads, calls, updateLead, addLeadNote } = useCRMData();
+  const { leads, calls, notes, updateLead, addLeadNote } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [transitionWarning, setTransitionWarning] = useState(null);
+  const [useAutoTemperature, setUseAutoTemperature] = useState(true);
+  const [autoCalculation, setAutoCalculation] = useState(null);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
 
   const lead = leads.find(l => l.id === leadId);
+  const leadCalls = calls.filter(c => c.leadId === leadId || c.lead_id === leadId);
+  const leadNotes = notes.filter(n => n.leadId === leadId || n.lead_id === leadId);
   
   const [formData, setFormData] = useState({
     status: LEAD_STATUS.OPEN,
@@ -40,23 +54,48 @@ const UpdateLeadStatus = () => {
     followUpTime: '',
     tokenAmount: '',
     bookingAmount: '',
+    temperatureOverrideReason: ''
   });
 
+  // Calculate automatic temperature on load and when data changes
   useEffect(() => {
     if (lead) {
+      const calculation = calculateLeadTemperature(lead, leadCalls, leadNotes);
+      setAutoCalculation(calculation);
+      
       setFormData(prev => ({
         ...prev,
         status: normalizeLeadStatus(lead.status),
-        interestLevel: normalizeInterestLevel(lead.interestLevel || lead.interest_level),
+        interestLevel: useAutoTemperature ? calculation.temperature : normalizeInterestLevel(lead.interestLevel || lead.interest_level),
         followUpDate: lead.followUpDate || lead.follow_up_date || '',
         followUpTime: lead.followUpTime || lead.follow_up_time || '',
         tokenAmount: lead.tokenAmount || lead.token_amount || '',
         bookingAmount: lead.bookingAmount || lead.booking_amount || '',
       }));
     }
-  }, [lead]);
+  }, [lead, leadCalls.length, leadNotes.length, useAutoTemperature]);
 
-  // Check transition validity when status changes
+  // Update interest level when toggle changes
+  useEffect(() => {
+    if (autoCalculation) {
+      if (useAutoTemperature) {
+        setFormData(prev => ({
+          ...prev,
+          interestLevel: autoCalculation.temperature,
+          temperatureOverrideReason: ''
+        }));
+      } else {
+        // Restore saved manual override or keep current
+        const savedLevel = normalizeInterestLevel(lead?.interestLevel || lead?.interest_level);
+        setFormData(prev => ({
+          ...prev,
+          interestLevel: savedLevel
+        }));
+      }
+    }
+  }, [useAutoTemperature, autoCalculation]);
+
+  // Check transition validity
   useEffect(() => {
     if (!lead) return;
     
@@ -64,7 +103,7 @@ const UpdateLeadStatus = () => {
       lead.status, 
       formData.status, 
       lead, 
-      calls
+      leadCalls
     );
     
     if (!validation.allowed) {
@@ -74,7 +113,7 @@ const UpdateLeadStatus = () => {
     } else {
       setTransitionWarning(null);
     }
-  }, [formData.status, lead, calls]);
+  }, [formData.status, lead, leadCalls]);
 
   if (!lead) {
     return (
@@ -90,14 +129,7 @@ const UpdateLeadStatus = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check transition validity
-    const validation = validateStatusTransition(
-      lead.status, 
-      formData.status, 
-      lead, 
-      calls
-    );
-    
+    const validation = validateStatusTransition(lead.status, formData.status, lead, leadCalls);
     if (!validation.allowed) {
       toast({
         title: 'Invalid Status Change',
@@ -116,7 +148,16 @@ const UpdateLeadStatus = () => {
       return;
     }
 
-    // Validate follow-up date if status is FollowUp
+    // Validate override reason if manual temperature is used
+    if (!useAutoTemperature && !formData.temperatureOverrideReason.trim()) {
+      toast({
+        title: 'Override Reason Required',
+        description: 'Please explain why you are overriding the automatic temperature',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     if (formData.status === LEAD_STATUS.FOLLOW_UP && !formData.followUpDate) {
       toast({
         title: 'Missing Information',
@@ -126,7 +167,6 @@ const UpdateLeadStatus = () => {
       return;
     }
 
-    // Validate booking amount if status is Booked
     if (formData.status === LEAD_STATUS.BOOKED && (!formData.tokenAmount || !formData.bookingAmount)) {
       toast({
         title: 'Missing Information',
@@ -142,11 +182,14 @@ const UpdateLeadStatus = () => {
         status: formData.status,
         interestLevel: formData.interestLevel,
         interest_level: formData.interestLevel,
+        temperatureOverridden: !useAutoTemperature,
+        temperature_overridden: !useAutoTemperature,
+        temperatureAutoScore: autoCalculation?.score || 0,
+        temperature_auto_score: autoCalculation?.score || 0,
         updatedAt: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      // Add follow-up date/time if status is FollowUp
       if (formData.status === LEAD_STATUS.FOLLOW_UP) {
         updateData.followUpDate = formData.followUpDate;
         updateData.follow_up_date = formData.followUpDate;
@@ -154,7 +197,6 @@ const UpdateLeadStatus = () => {
         updateData.follow_up_time = formData.followUpTime;
       }
 
-      // Add booking amounts if status is Booked
       if (formData.status === LEAD_STATUS.BOOKED) {
         updateData.tokenAmount = parseFloat(formData.tokenAmount) || 0;
         updateData.token_amount = parseFloat(formData.tokenAmount) || 0;
@@ -164,8 +206,8 @@ const UpdateLeadStatus = () => {
 
       await updateLead(lead.id, updateData);
 
-      // Create comprehensive audit note
-      const noteText = createStatusChangeNote(
+      // Create comprehensive note including temperature info
+      let noteText = createStatusChangeNote(
         lead.status,
         formData.status,
         user?.name || 'Employee',
@@ -178,12 +220,19 @@ const UpdateLeadStatus = () => {
           reason: formData.notes
         }
       );
+
+      // Add temperature override info to note
+      if (!useAutoTemperature) {
+        noteText += `\n\n🎯 Temperature Override: ${formData.interestLevel} (Auto-calculated: ${autoCalculation?.temperature})\nReason: ${formData.temperatureOverrideReason}\nAuto Score: ${autoCalculation?.score}/100`;
+      } else {
+        noteText += `\n\n🤖 Auto Temperature: ${formData.interestLevel} (Score: ${autoCalculation?.score}/100)`;
+      }
       
       await addLeadNote(lead.id, noteText, user?.name || 'Employee');
 
       toast({
         title: 'Updated Successfully',
-        description: 'Lead status updated'
+        description: 'Lead status and temperature updated'
       });
 
       navigate(`/crm/lead/${lead.id}`);
@@ -205,9 +254,7 @@ const UpdateLeadStatus = () => {
     { value: INTEREST_LEVEL.COLD, label: 'Cold - Just Inquiring', icon: Snowflake, color: 'blue' },
   ];
 
-  const getTodayDate = () => {
-    return format(new Date(), 'yyyy-MM-dd');
-  };
+  const getTodayDate = () => format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-4 md:p-6 pb-24">
@@ -222,16 +269,9 @@ const UpdateLeadStatus = () => {
           </div>
         </div>
 
-        {/* Transition Warning */}
         {transitionWarning && (
-          <Alert className={`mb-4 ${
-            transitionWarning.type === 'error' 
-              ? 'bg-red-50 border-red-300' 
-              : 'bg-yellow-50 border-yellow-300'
-          }`}>
-            <AlertTriangle className={`h-4 w-4 ${
-              transitionWarning.type === 'error' ? 'text-red-600' : 'text-yellow-600'
-            }`} />
+          <Alert className={`mb-4 ${transitionWarning.type === 'error' ? 'bg-red-50 border-red-300' : 'bg-yellow-50 border-yellow-300'}`}>
+            <AlertTriangle className={`h-4 w-4 ${transitionWarning.type === 'error' ? 'text-red-600' : 'text-yellow-600'}`} />
             <AlertDescription className={transitionWarning.type === 'error' ? 'text-red-800' : 'text-yellow-800'}>
               {transitionWarning.message}
             </AlertDescription>
@@ -260,7 +300,6 @@ const UpdateLeadStatus = () => {
                 </Select>
               </div>
 
-              {/* Follow-up Date & Time - Show only when status is FollowUp */}
               {formData.status === LEAD_STATUS.FOLLOW_UP && (
                 <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-3">
@@ -295,7 +334,6 @@ const UpdateLeadStatus = () => {
                 </div>
               )}
 
-              {/* Booking Payment - Show only when status is Booked */}
               {formData.status === LEAD_STATUS.BOOKED && (
                 <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
                   <div className="flex items-center gap-2 mb-3">
@@ -336,17 +374,128 @@ const UpdateLeadStatus = () => {
                 </div>
               )}
 
-              <div>
-                <Label className="text-base font-semibold mb-3 block">Interest Level</Label>
+              {/* Temperature Calculation Section */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-lg border-2 border-purple-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-purple-600" />
+                    <Label className="text-base font-semibold">Interest Temperature</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-gray-600">
+                      {useAutoTemperature ? 'Auto' : 'Manual'}
+                    </Label>
+                    <Switch
+                      checked={useAutoTemperature}
+                      onCheckedChange={setUseAutoTemperature}
+                    />
+                  </div>
+                </div>
+
+                {/* Auto-calculated insights */}
+                {autoCalculation && (
+                  <div className="mb-4 p-3 bg-white rounded-lg border border-purple-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUp className="h-4 w-4 text-purple-600" />
+                          <span className="text-sm font-semibold text-gray-700">
+                            Auto Score: {autoCalculation.score}/100
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            autoCalculation.temperature === INTEREST_LEVEL.HOT
+                              ? 'bg-red-100 text-red-700'
+                              : autoCalculation.temperature === INTEREST_LEVEL.WARM
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            → {autoCalculation.temperature}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {getTemperatureExplanation(autoCalculation.factors, autoCalculation.score)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowScoreBreakdown(!showScoreBreakdown)}
+                          className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                        >
+                          <Info size={12} />
+                          {showScoreBreakdown ? 'Hide' : 'Show'} Score Breakdown
+                        </button>
+                      </div>
+                    </div>
+
+                    {showScoreBreakdown && (
+                      <div className="mt-3 pt-3 border-t border-purple-100 grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">📞 Calls:</span>
+                          <span className="font-semibold">{autoCalculation.breakdown.calls}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">💰 Budget:</span>
+                          <span className="font-semibold">{autoCalculation.breakdown.budget}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">⏰ Timeline:</span>
+                          <span className="font-semibold">{autoCalculation.breakdown.timeline}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">💬 Engagement:</span>
+                          <span className="font-semibold">{autoCalculation.breakdown.engagement}</span>
+                        </div>
+                        <div className="flex justify-between col-span-2">
+                          <span className="text-gray-600">🕐 Recency:</span>
+                          <span className="font-semibold">{autoCalculation.breakdown.recency}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Temperature Selection */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {interestOptions.map((option) => {
                     const Icon = option.icon;
                     const isSelected = formData.interestLevel === option.value;
+                    const isAutoRecommended = autoCalculation?.temperature === option.value;
+                    
                     return (
-                      <button key={option.value} type="button" onClick={() => setFormData({ ...formData, interestLevel: option.value })} className={`relative p-4 rounded-lg border-2 transition-all ${isSelected ? `bg-${option.color}-50 border-${option.color}-300 ring-2 ring-${option.color}-200` : 'bg-white border-gray-200 hover:border-gray-300'}`}>
-                        {isSelected && <div className="absolute top-2 right-2"><CheckCircle2 size={18} className="text-blue-600" /></div>}
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          if (!useAutoTemperature) {
+                            setFormData({ ...formData, interestLevel: option.value });
+                          }
+                        }}
+                        disabled={useAutoTemperature}
+                        className={`relative p-4 rounded-lg border-2 transition-all ${
+                          useAutoTemperature
+                            ? 'opacity-70 cursor-not-allowed'
+                            : 'cursor-pointer'
+                        } ${
+                          isSelected
+                            ? `bg-${option.color}-50 border-${option.color}-300 ring-2 ring-${option.color}-200`
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        {isAutoRecommended && (
+                          <div className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Zap size={10} />
+                            Auto
+                          </div>
+                        )}
+                        {isSelected && (
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle2 size={18} className="text-blue-600" />
+                          </div>
+                        )}
                         <div className="flex flex-col items-center gap-2">
-                          <Icon size={28} className={isSelected ? `text-${option.color}-600` : 'text-gray-400'} />
+                          <Icon
+                            size={28}
+                            className={isSelected ? `text-${option.color}-600` : 'text-gray-400'}
+                          />
                           <p className="font-bold text-sm">{option.value}</p>
                           <p className="text-xs text-gray-500">{option.label.split(' - ')[1]}</p>
                         </div>
@@ -354,23 +503,69 @@ const UpdateLeadStatus = () => {
                     );
                   })}
                 </div>
+
+                {/* Manual Override Reason */}
+                {!useAutoTemperature && (
+                  <div className="mt-4">
+                    <Label className="text-sm mb-2 block text-gray-700">
+                      Why override automatic calculation? *
+                    </Label>
+                    <Textarea
+                      placeholder="E.g., Client mentioned urgent requirement in call, Personal rapport suggests higher interest, etc."
+                      value={formData.temperatureOverrideReason}
+                      onChange={(e) => setFormData({ ...formData, temperatureOverrideReason: e.target.value })}
+                      rows={2}
+                      required={!useAutoTemperature}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+
+                {/* Follow-up Suggestions */}
+                {autoCalculation && (
+                  <div className="mt-3 p-3 bg-white rounded border border-purple-100">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">💡 Suggested Actions:</p>
+                    <ul className="text-xs text-gray-600 space-y-1">
+                      {getFollowUpSuggestions(formData.interestLevel, autoCalculation.factors).map((suggestion, idx) => (
+                        <li key={idx} className="flex items-start gap-1">
+                          <span className="text-purple-500 mt-0.5">•</span>
+                          <span>{suggestion}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div>
                 <Label className="text-base font-semibold mb-2 block">Update Notes *</Label>
-                <Textarea placeholder="What happened? Next steps?" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={4} required className="text-base" />
+                <Textarea
+                  placeholder="What happened? Next steps?"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  rows={4}
+                  required
+                  className="text-base"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button 
-                  type="submit" 
-                  disabled={loading || (transitionWarning && transitionWarning.type === 'error')} 
+                <Button
+                  type="submit"
+                  disabled={loading || (transitionWarning && transitionWarning.type === 'error')}
                   className="flex-1 h-12 bg-blue-600 hover:bg-blue-700"
                 >
                   <Save size={18} className="mr-2" />
                   {loading ? 'Updating...' : 'Update Lead'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate(`/crm/lead/${lead.id}`)} className="h-12 px-6">Cancel</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(`/crm/lead/${lead.id}`)}
+                  className="h-12 px-6"
+                >
+                  Cancel
+                </Button>
               </div>
             </form>
           </CardContent>

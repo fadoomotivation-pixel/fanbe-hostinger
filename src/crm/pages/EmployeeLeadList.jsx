@@ -1,169 +1,194 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
-import { Search, Phone, Eye, Edit2 } from 'lucide-react';
-import WhatsAppButton from '@/crm/components/WhatsAppButton';
-import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Search, Plus, Phone, Calendar, IndianRupee, TrendingUp } from 'lucide-react';
+
+const statusColors = {
+  Open: 'bg-blue-100 text-blue-700 border-blue-200',
+  FollowUp: 'bg-amber-100 text-amber-700 border-amber-200',
+  Booked: 'bg-green-100 text-green-700 border-green-200',
+  Lost: 'bg-red-100 text-red-700 border-red-200',
+};
 
 const EmployeeLeadList = () => {
+  const navigate = useNavigate();
   const { leads } = useCRMData();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
 
-  // Filter leads assigned to current user
-  const myLeads = leads.filter(l => l.assignedTo === user.id);
+  // Filter and sort leads - newest first by updatedAt or createdAt
+  const myLeads = useMemo(() => {
+    return leads
+      .filter(lead => lead.assignedTo === user?.id || lead.assigned_to === user?.id)
+      .sort((a, b) => {
+        const dateA = new Date(a.updatedAt || a.updated_at || a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.updatedAt || b.updated_at || b.createdAt || b.created_at || 0);
+        return dateB - dateA; // Newest first
+      });
+  }, [leads, user]);
 
-  // Apply filters
-  const filteredLeads = myLeads.filter(lead => {
-    const matchesSearch = 
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      lead.phone.includes(searchTerm);
-    const matchesStatus = filterStatus === 'all' || lead.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredLeads = useMemo(() => {
+    if (!searchTerm) return myLeads;
+    const term = searchTerm.toLowerCase();
+    return myLeads.filter(lead =>
+      lead.name?.toLowerCase().includes(term) ||
+      lead.phone?.includes(term) ||
+      lead.project?.toLowerCase().includes(term)
+    );
+  }, [myLeads, searchTerm]);
 
-  // Pagination (Simple for now)
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
-  const paginatedLeads = filteredLeads.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-
-  const stats = {
+  const stats = useMemo(() => ({
     total: myLeads.length,
     open: myLeads.filter(l => l.status === 'Open').length,
-    followUp: myLeads.filter(l => l.status === 'FollowUp').length,
+    followUp: myLeads.filter(l => l.status === 'FollowUp' || l.status === 'Follow Up').length,
     booked: myLeads.filter(l => l.status === 'Booked').length,
-    lost: myLeads.filter(l => l.status === 'Lost').length
-  };
+  }), [myLeads]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-           <h1 className="text-2xl font-bold text-[#0F3A5F]">My Leads</h1>
-           <p className="text-gray-500">Manage your assigned prospects</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Leads</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your assigned leads</p>
+          </div>
+          <Button
+            onClick={() => navigate('/crm/lead/new')}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+          >
+            <Plus size={18} className="mr-2" />
+            Add Manual Lead
+          </Button>
         </div>
-        <div className="flex gap-2">
-           <div className="bg-blue-50 px-3 py-1 rounded text-sm text-blue-700 border border-blue-200">
-             Total: <span className="font-bold">{stats.total}</span>
-           </div>
-           <div className="bg-yellow-50 px-3 py-1 rounded text-sm text-yellow-700 border border-yellow-200">
-             Follow-Up: <span className="font-bold">{stats.followUp}</span>
-           </div>
-        </div>
-      </div>
 
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-lg shadow-sm border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-          <Input 
-            placeholder="Search by name or phone..." 
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full md:w-[180px]">
-             <SelectValue placeholder="Filter Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="Open">Open</SelectItem>
-            <SelectItem value="FollowUp">Follow Up</SelectItem>
-            <SelectItem value="Booked">Booked</SelectItem>
-            <SelectItem value="Lost">Lost</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Total Leads</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <TrendingUp className="text-blue-600" size={24} />
+              </div>
+            </div>
+          </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden border">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lead Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Next Follow-up</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedLeads.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/crm/lead/${lead.id}`)}>
-                  <TableCell className="font-medium text-[#0F3A5F]">{lead.name}</TableCell>
-                  <TableCell>{lead.phone}</TableCell>
-                  <TableCell>{lead.source}</TableCell>
-                  <TableCell className="max-w-[150px] truncate" title={lead.project}>{lead.project}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold 
-                      ${lead.status === 'Booked' ? 'bg-green-100 text-green-700' : 
-                        lead.status === 'FollowUp' ? 'bg-yellow-100 text-yellow-700' :
-                        lead.status === 'Lost' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+          <div className="bg-white rounded-xl p-5 border border-blue-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Open</p>
+                <p className="text-3xl font-bold text-blue-700 mt-1">{stats.open}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 border border-amber-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-600 font-medium">Follow Up</p>
+                <p className="text-3xl font-bold text-amber-700 mt-1">{stats.followUp}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-5 border border-green-200 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-600 font-medium">Booked</p>
+                <p className="text-3xl font-bold text-green-700 mt-1">{stats.booked}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Input
+              placeholder="Search by name, phone, or project..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 border-gray-200"
+            />
+          </div>
+        </div>
+
+        {/* Leads List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredLeads.length > 0 ? (
+            filteredLeads.map((lead) => (
+              <div
+                key={lead.id}
+                onClick={() => navigate(`/crm/lead/${lead.id}`)}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+              >
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-gray-900 truncate">{lead.name}</h3>
+                      <p className="text-sm text-gray-500 truncate">{lead.project}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[lead.status] || statusColors.Open}`}>
                       {lead.status}
                     </span>
-                  </TableCell>
-                  <TableCell>{lead.followUpDate ? new Date(lead.followUpDate).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                       <Button size="sm" variant="outline" className="h-8 w-8 p-0" title="Call">
-                         <Phone size={14} />
-                       </Button>
-                       <WhatsAppButton 
-                         leadName={lead.name}
-                         projectName={lead.project}
-                         phoneNumber={lead.phone}
-                         size="sm"
-                         className="h-8 px-2"
-                       />
-                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => navigate(`/crm/lead/${lead.id}`)}>
-                         <Eye size={14} className="text-gray-500" />
-                       </Button>
-                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {paginatedLeads.length === 0 && (
-                <TableRow>
-                   <TableCell colSpan={7} className="text-center py-8 text-gray-500">No leads found.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone size={14} />
+                      <span>{lead.phone}</span>
+                    </div>
+
+                    {lead.budget && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <IndianRupee size={14} />
+                        <span>₹{lead.budget}</span>
+                      </div>
+                    )}
+
+                    {lead.followUpDate && (
+                      <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 rounded-lg px-2 py-1">
+                        <Calendar size={14} />
+                        <span className="text-xs font-medium">
+                          {new Date(lead.followUpDate).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(lead.updatedAt || lead.updated_at) && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-400">
+                        Updated: {new Date(lead.updatedAt || lead.updated_at).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                <Search size={32} className="text-gray-400" />
+              </div>
+              <p className="text-gray-500 font-medium">No leads found</p>
+              <p className="text-sm text-gray-400 mt-1">Try adjusting your search</p>
+            </div>
+          )}
         </div>
-        
-        {/* Pagination */}
-        {totalPages > 1 && (
-           <div className="p-4 border-t flex justify-center gap-2">
-             <Button 
-               variant="outline" 
-               disabled={page === 1}
-               onClick={() => setPage(p => p - 1)}
-             >Previous</Button>
-             <div className="flex items-center text-sm text-gray-500">
-               Page {page} of {totalPages}
-             </div>
-             <Button 
-               variant="outline" 
-               disabled={page === totalPages}
-               onClick={() => setPage(p => p + 1)}
-             >Next</Button>
-           </div>
-        )}
       </div>
     </div>
   );

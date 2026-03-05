@@ -50,6 +50,7 @@ import LeadDetail from './crm/pages/LeadDetail';
 import EditLead from './crm/pages/EditLead';
 import EmployeeLeadList from './crm/pages/EmployeeLeadList';
 import EmployeeLeadDetails from './crm/pages/EmployeeLeadDetails';
+import CreateManualLead from './crm/pages/CreateManualLead';
 import EmployeeDashboard from './crm/pages/EmployeeDashboard';
 import DailyCalling from './crm/pages/DailyCalling';
 import LeadSearch from './crm/pages/LeadSearch';
@@ -194,6 +195,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/edit-lead/:id" element={<EditLead />} />
                     {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
                     {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
+                    <Route path="lead/new" element={<CreateManualLead />} />
                     <Route path="sales/lead-search" element={<LeadSearch />} />
                     <Route path="sales/smart-guidance" element={<SmartGuidance />} />
                     <Route path="sales/daily-calling" element={<DailyCalling />} />

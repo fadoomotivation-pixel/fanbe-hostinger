@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx';
 import { supabaseAdmin } from '@/lib/supabase';
 import { Upload, Download, CheckCircle, AlertCircle, FileText, Loader2, Users } from 'lucide-react';
+import { normalizeLeadStatus, normalizeCallStatus, normalizeInterestLevel } from '@/crm/utils/statusUtils';
 
 const ImportLeads = () => {
   const { user } = useAuth();
@@ -197,24 +198,6 @@ const ImportLeads = () => {
       }
     }
     
-    // Optional but validated if present
-    if (row.interest_level && !['hot', 'warm', 'cold'].includes(row.interest_level.toLowerCase())) {
-      errors.push('Interest level must be hot, warm, or cold');
-    }
-    
-    // More flexible call status matching
-    if (row.call_status) {
-      const status = row.call_status.toLowerCase().replace(/[\s_-]+/g, ' ').trim();
-      const validStatuses = ['connected', 'not answered', 'call back requested', 'busy', 'switched off', 'switch off', 'invalid number', 'not reached', 'call back'];
-      if (!validStatuses.some(vs => status.includes(vs) || vs.includes(status))) {
-        errors.push(`Invalid call status: ${row.call_status}`);
-      }
-    }
-    
-    if (row.final_status && !['new', 'follow up', 'site visit', 'booked', 'lost', 'not interested'].includes(row.final_status.toLowerCase().replace(/[\s_-]+/g, ' '))) {
-      errors.push('Invalid final status');
-    }
-    
     return errors;
   };
 
@@ -270,7 +253,7 @@ const ImportLeads = () => {
               continue;
             }
             
-            // Check for duplicate phone number - FIX: Use array instead of .single()
+            // Check for duplicate phone number
             const { data: existingLeads, error: checkError } = await supabaseAdmin
               .from('leads')
               .select('id, full_name')
@@ -279,7 +262,6 @@ const ImportLeads = () => {
             
             if (checkError) {
               console.error('Duplicate check error:', checkError);
-              // Continue anyway, let unique constraint handle it
             }
             
             if (existingLeads && existingLeads.length > 0) {
@@ -308,34 +290,26 @@ const ImportLeads = () => {
               assignedToName = employee ? employee.name : null;
             }
 
-            // Normalize call status
-            let normalizedCallStatus = '';
-            if (row.call_status) {
-              const cs = row.call_status.toLowerCase().replace(/[\s_-]+/g, '_');
-              if (cs.includes('connect')) normalizedCallStatus = 'connected';
-              else if (cs.includes('not_answer') || cs.includes('no_answer')) normalizedCallStatus = 'not_answered';
-              else if (cs.includes('call_back')) normalizedCallStatus = 'call_back_requested';
-              else if (cs.includes('busy')) normalizedCallStatus = 'busy';
-              else if (cs.includes('switch')) normalizedCallStatus = 'switched_off';
-              else if (cs.includes('not_reach')) normalizedCallStatus = 'not_answered';
-              else normalizedCallStatus = cs;
-            }
+            // USE STATUS NORMALIZER
+            const normalizedStatus = normalizeLeadStatus(row.final_status || 'Open');
+            const normalizedInterest = normalizeInterestLevel(row.interest_level || 'Warm');
+            const normalizedCallStatus = normalizeCallStatus(row.call_status || '');
 
-            // Create lead object — DB has both `name` (NOT NULL) and `full_name` columns
+            // Create lead object
             const leadData = {
               name:               row.lead_name.trim(),
               full_name:          row.lead_name.trim(),
               phone:              phone,
               email:              row.email || '',
               source:             row.lead_source || 'Import',
-              status:             'Active',
+              status:             normalizedStatus,
               budget:             row.budget || '',
-              interest_level:     row.interest_level ? row.interest_level.toLowerCase() : 'warm',
+              interest_level:     normalizedInterest,
+              interestLevel:      normalizedInterest,
               notes:              row.notes || row.buyer_feedback || '',
               call_attempt:       row.call_attempt || '',
               call_status:        normalizedCallStatus,
               site_visit_status:  row.site_visit_status || 'not_planned',
-              final_status:       row.final_status ? row.final_status.toLowerCase().replace(/\s+/g, '_') : 'FollowUp',
               assigned_to:        employeeId,
               assigned_to_name:   assignedToName,
               created_by:         user?.id || null,
@@ -377,7 +351,7 @@ const ImportLeads = () => {
                 project_name: row.project_name || null,
                 call_type: 'outbound',
                 status: normalizedCallStatus,
-                duration: normalizedCallStatus === 'connected' ? 120 : 0,
+                duration: normalizedCallStatus === 'Connected' ? 120 : 0,
                 notes: row.buyer_feedback || 'Imported call',
                 feedback: row.buyer_feedback || '',
                 call_date: parsedDate,
@@ -400,7 +374,7 @@ const ImportLeads = () => {
                 duration: 60,
                 notes: row.buyer_feedback || 'Imported site visit',
                 feedback: row.buyer_feedback || '',
-                interest_level: row.interest_level ? row.interest_level.toLowerCase() : null,
+                interest_level: normalizedInterest,
                 created_at: new Date(parsedDate + 'T00:00:00Z').toISOString(),
               });
             }
@@ -414,7 +388,7 @@ const ImportLeads = () => {
                   title: `Follow up: ${row.lead_name}`,
                   description: row.buyer_feedback || 'Follow up call',
                   type: 'call',
-                  priority: row.interest_level === 'hot' ? 'high' : 'medium',
+                  priority: normalizedInterest === 'Hot' ? 'high' : 'medium',
                   status: 'pending',
                   due_date: followupDate,
                   related_lead_id: newLead.id,
@@ -523,7 +497,7 @@ const ImportLeads = () => {
                 <li><code>lead_source</code> - Website, Facebook, etc.</li>
                 <li><code>next_followup_date</code> - Any date format</li>
                 <li><code>site_visit_status</code> - visited, planned, not planned</li>
-                <li><code>final_status</code> - new, follow up, site visit, booked, lost</li>
+                <li><code>final_status</code> - Open, Follow Up, Booked, Lost</li>
                 <li><code>budget</code> - Price range</li>
                 <li><code>assigned_to_email</code> - Employee email</li>
                 <li><code>project_name</code> - Project name</li>
@@ -535,13 +509,13 @@ const ImportLeads = () => {
           <Alert className="bg-yellow-50 border-yellow-200">
             <AlertCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-xs text-yellow-800">
-              <strong>Flexible Formatting:</strong> Supports both CSV (comma) and TSV (tab) files. Date formats: DD/MM/YYYY, YYYY-MM-DD, MM/DD/YYYY (leave blank for today). Phone numbers will auto-add +91 prefix. Duplicate phones are skipped.
+              <strong>Auto-Normalization:</strong> Status values like "follow up", "site visit", "not interested" are automatically converted to Open/FollowUp/Booked/Lost. Same for interest levels (hot/warm/cold) and call statuses.
             </AlertDescription>
           </Alert>
         </CardContent>
       </Card>
 
-      {/* Upload Section */}
+      {/* Upload Section and rest stays the same ... */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Upload CSV File</CardTitle>
@@ -618,14 +592,14 @@ const ImportLeads = () => {
                       <td className="px-3 py-2">{row.lead_source || 'Import'}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={`px-2 py-0.5 rounded text-xs ${
-                          row.interest_level === 'hot' ? 'bg-red-100 text-red-700' :
-                          row.interest_level === 'warm' ? 'bg-orange-100 text-orange-700' :
+                          (row.interest_level || 'warm').toLowerCase() === 'hot' ? 'bg-red-100 text-red-700' :
+                          (row.interest_level || 'warm').toLowerCase() === 'warm' ? 'bg-orange-100 text-orange-700' :
                           'bg-blue-100 text-blue-700'
                         }`}>
-                          {row.interest_level || 'warm'}
+                          {normalizeInterestLevel(row.interest_level || 'warm')}
                         </span>
                       </td>
-                      <td className="px-3 py-2">{row.final_status || 'new'}</td>
+                      <td className="px-3 py-2">{normalizeLeadStatus(row.final_status || 'Open')}</td>
                       <td className="px-3 py-2">{row.budget || '-'}</td>
                       <td className="px-3 py-2 text-xs text-gray-500">{row.assigned_to_email || 'Unassigned'}</td>
                     </tr>

@@ -193,13 +193,33 @@ const SmartGuidance = () => {
   const [showAllLeads, setShowAllLeads] = useState(false);
   const [activeTab, setActiveTab] = useState('priority'); // priority | momentum | cold
 
-  const myLeads = useMemo(() => {
-    if (!leads || !user) return [];
-    return leads.filter(lead =>
-      (lead.assignedTo === user?.uid || lead.assigned_to === user?.uid) &&
-      lead.status !== 'Booked' &&
-      lead.status !== 'Lost'
+  // Early return if user not loaded
+  if (!user || !user.uid) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-gray-500">Loading user data...</p>
+      </div>
     );
+  }
+
+  const myLeads = useMemo(() => {
+    if (!leads || !user?.uid) return [];
+    
+    // Filter leads assigned to this employee only
+    const filtered = leads.filter(lead => {
+      const isAssigned = lead.assignedTo === user.uid || lead.assigned_to === user.uid;
+      const isActive = lead.status !== 'Booked' && lead.status !== 'Lost';
+      return isAssigned && isActive;
+    });
+
+    console.log('🔍 Smart Guidance Filter:', {
+      userId: user.uid,
+      totalLeads: leads.length,
+      myLeads: filtered.length,
+      filtered: filtered.map(l => ({ id: l.id, name: l.name, assignedTo: l.assignedTo || l.assigned_to }))
+    });
+
+    return filtered;
   }, [leads, user]);
 
   // ── MY PERFORMANCE (linked from Employee Intelligence scoring) ──

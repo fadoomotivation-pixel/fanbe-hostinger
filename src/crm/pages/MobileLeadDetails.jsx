@@ -4,13 +4,32 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ArrowLeft, Phone, IndianRupee,
-  User, Edit2, Check, X, Plus, Trash2, MessageSquare
+  Edit2, Check, X, Plus, Trash2, MessageSquare,
+  Flame, Wind, Snowflake, MapPin, Clock, Calendar
 } from 'lucide-react';
+import FollowUpBadge from '@/crm/components/FollowUpBadge';
+import { normalizeLeadStatus, normalizeInterestLevel, getStatusColor } from '@/crm/utils/statusUtils';
+
+const TemperatureChip = ({ level }) => {
+  const normalized = normalizeInterestLevel(level);
+  const config = {
+    Hot: { icon: Flame, bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+    Warm: { icon: Wind, bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    Cold: { icon: Snowflake, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
+  };
+  const c = config[normalized] || config.Warm;
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${c.bg} ${c.text} border ${c.border}`}>
+      <Icon size={12} />
+      {normalized}
+    </span>
+  );
+};
 
 const MobileLeadDetails = () => {
   const { leadId } = useParams();
@@ -18,7 +37,7 @@ const MobileLeadDetails = () => {
   const { leads, updateLead, addLeadNote } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const lead = leads.find(l => l.id === leadId);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(lead?.name || '');
@@ -28,7 +47,7 @@ const MobileLeadDetails = () => {
   useEffect(() => {
     if (lead) setEditedName(lead.name);
   }, [lead]);
-  
+
   if (!lead) {
     return (
       <div className="p-8 text-center">
@@ -45,7 +64,7 @@ const MobileLeadDetails = () => {
       toast({ title: 'Error', description: 'Name cannot be empty', variant: 'destructive' });
       return;
     }
-    
+
     try {
       await updateLead(lead.id, { name: editedName.trim() });
       await addLeadNote(lead.id, `Name updated from "${lead.name}" to "${editedName.trim()}"`, 'Employee');
@@ -66,7 +85,7 @@ const MobileLeadDetails = () => {
     try {
       const currentAlternate = lead.alternatePhone || lead.alternate_phone || [];
       const phones = Array.isArray(currentAlternate) ? currentAlternate : [currentAlternate].filter(Boolean);
-      
+
       if (phones.includes(alternatePhone)) {
         toast({ title: 'Already exists', description: 'This number is already added', variant: 'destructive' });
         return;
@@ -89,7 +108,7 @@ const MobileLeadDetails = () => {
       const currentAlternate = lead.alternatePhone || lead.alternate_phone || [];
       const phones = Array.isArray(currentAlternate) ? currentAlternate : [currentAlternate].filter(Boolean);
       const updatedPhones = phones.filter(p => p !== phoneToRemove);
-      
+
       await updateLead(lead.id, { alternatePhone: updatedPhones });
       await addLeadNote(lead.id, `Alternate phone removed: ${phoneToRemove}`, 'Employee');
       toast({ title: 'Success', description: 'Phone number removed' });
@@ -99,176 +118,184 @@ const MobileLeadDetails = () => {
     }
   };
 
-  const alternatePhones = Array.isArray(lead.alternatePhone || lead.alternate_phone) 
+  const alternatePhones = Array.isArray(lead.alternatePhone || lead.alternate_phone)
     ? (lead.alternatePhone || lead.alternate_phone)
     : [lead.alternatePhone || lead.alternate_phone].filter(Boolean);
 
+  const status = normalizeLeadStatus(lead.status);
+  const followUpDate = lead.followUpDate || lead.follow_up_date;
+  const followUpTime = lead.followUpTime || lead.follow_up_time;
+  const interest = lead.interestLevel || lead.interest_level;
+  const lastUpdated = lead.updatedAt || lead.updated_at;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pb-20">
-      {/* Mobile Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 sticky top-0 z-10 shadow-lg">
-        <div className="flex items-center gap-3 mb-3">
+    <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Header */}
+      <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/crm/my-leads')}
-            className="p-2 hover:bg-white/10 rounded-full transition"
+            className="p-1.5 rounded-full hover:bg-gray-100"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={20} className="text-gray-600" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold">Lead Details</h1>
-            <p className="text-xs text-blue-100">View and manage lead</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-gray-900 truncate">Lead Details</h1>
           </div>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        
-        {/* Name Card - Editable */}
-        <Card className="border-blue-200 shadow-md">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <User size={18} className="text-blue-600" />
-              <h3 className="font-semibold text-gray-700">Customer Name</h3>
-            </div>
-            
+      <div className="px-4 pt-4 space-y-3">
+
+        {/* Lead Summary Card */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          {/* Name Row */}
+          <div className="flex items-start justify-between mb-3">
             {isEditingName ? (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-1">
                 <Input
                   value={editedName}
                   onChange={(e) => setEditedName(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 h-9 text-sm"
                   autoFocus
                 />
-                <Button size="sm" onClick={handleSaveName} className="bg-green-600 hover:bg-green-700 px-3">
+                <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200">
                   <Check size={16} />
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => {
-                  setEditedName(lead.name);
-                  setIsEditingName(false);
-                }} className="px-3">
+                </button>
+                <button onClick={() => { setEditedName(lead.name); setIsEditingName(false); }} className="p-1.5 rounded-lg bg-gray-50 text-gray-500 border border-gray-200">
                   <X size={16} />
-                </Button>
+                </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border">
-                <span className="font-semibold text-gray-900">{lead.name}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
+              <>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-bold text-gray-900 truncate">{lead.name}</h2>
+                </div>
+                <button
                   onClick={() => setIsEditingName(true)}
-                  className="text-blue-600 hover:text-blue-700 h-8 px-2"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"
                 >
-                  <Edit2 size={14} className="mr-1" />
-                  Edit
-                </Button>
-              </div>
+                  <Edit2 size={14} />
+                </button>
+              </>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Primary Phone Card */}
-        <Card className="border-green-200 shadow-md">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Phone size={18} className="text-green-600" />
-              <h3 className="font-semibold text-gray-700">Primary Phone</h3>
-            </div>
-            <div className="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2.5 border border-green-200">
-              <span className="font-semibold text-gray-900">{lead.phone}</span>
-              <a href={`tel:${lead.phone}`}>
-                <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8">
-                  <Phone size={14} className="mr-1" />
-                  Call
-                </Button>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Alternate Phones Card */}
-        <Card className="border-blue-200 shadow-md">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Phone size={18} className="text-blue-600" />
-                <h3 className="font-semibold text-gray-700">Alternate Phones</h3>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsAddingPhone(true)}
-                className="text-blue-600 hover:text-blue-700 h-8"
-              >
-                <Plus size={14} className="mr-1" />
-                Add
-              </Button>
-            </div>
-            
-            {alternatePhones.length > 0 ? (
-              <div className="space-y-2">
-                {alternatePhones.map((phone, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-blue-50 rounded-lg px-3 py-2.5 border border-blue-200">
-                    <span className="font-medium text-gray-900">{phone}</span>
-                    <div className="flex gap-1">
-                      <a href={`tel:${phone}`}>
-                        <Button size="sm" variant="outline" className="text-green-600 hover:bg-green-50 h-8 px-2">
-                          <Phone size={14} />
-                        </Button>
-                      </a>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRemoveAlternatePhone(phone)}
-                        className="text-red-600 hover:bg-red-50 h-8 px-2"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 italic text-center py-2">No alternate numbers</p>
+          {/* Status + Interest Row */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${getStatusColor(lead.status)}`}>
+              {status === 'FollowUp' ? 'Follow Up' : status}
+            </span>
+            <TemperatureChip level={interest} />
+            {followUpDate && (
+              <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block">
-            <Button className="w-full bg-green-500 hover:bg-green-600 h-12">
-              <MessageSquare size={18} className="mr-2" />
-              WhatsApp
-            </Button>
-          </a>
-          <Button 
-            onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-            className="bg-blue-600 hover:bg-blue-700 h-12"
-          >
-            Update Status
-          </Button>
+          {/* Meta Info */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+            {lead.project && (
+              <span className="flex items-center gap-1">
+                <MapPin size={12} className="text-gray-400" />
+                {lead.project}
+              </span>
+            )}
+            {lead.budget && (
+              <span className="flex items-center gap-1">
+                <IndianRupee size={12} className="text-gray-400" />
+                ₹{Number(lead.budget).toLocaleString('en-IN')}
+              </span>
+            )}
+            {lastUpdated && (
+              <span className="flex items-center gap-1">
+                <Clock size={12} className="text-gray-400" />
+                {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Other Info */}
-        {lead.project && (
-          <Card className="border-gray-200">
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-500 mb-1">Project</p>
-              <p className="font-semibold text-gray-900">{lead.project}</p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Primary Action - Update Status */}
+        <Button
+          onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
+          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
+        >
+          Update Status
+        </Button>
 
-        {lead.budget && (
-          <Card className="border-gray-200">
-            <CardContent className="p-4">
-              <p className="text-sm text-gray-500 mb-1">Budget</p>
-              <div className="flex items-center gap-1">
-                <IndianRupee size={16} className="text-gray-700" />
-                <p className="font-semibold text-gray-900">₹{lead.budget}</p>
+        {/* Phone Section */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Contact</h3>
+
+          {/* Primary Phone */}
+          <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Primary</p>
+              <p className="font-semibold text-gray-900 text-sm">{lead.phone}</p>
+            </div>
+            <div className="flex gap-1.5">
+              <a href={`tel:${lead.phone}`}>
+                <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                  <Phone size={16} className="text-green-600" />
+                </button>
+              </a>
+              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer">
+                <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                  <MessageSquare size={16} className="text-green-600" />
+                </button>
+              </a>
+            </div>
+          </div>
+
+          {/* Alternate Phones */}
+          {alternatePhones.length > 0 && alternatePhones.map((phone, idx) => (
+            <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 mb-2">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Alternate</p>
+                <p className="font-medium text-gray-900 text-sm">{phone}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex gap-1.5">
+                <a href={`tel:${phone}`}>
+                  <button className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200">
+                    <Phone size={14} className="text-green-600" />
+                  </button>
+                </a>
+                <button
+                  onClick={() => handleRemoveAlternatePhone(phone)}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-200"
+                >
+                  <Trash2 size={14} className="text-red-500" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={() => setIsAddingPhone(true)}
+            className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-1 px-1"
+          >
+            <Plus size={14} />
+            Add alternate number
+          </button>
+        </div>
+
+        {/* Additional Info */}
+        {(lead.source || lead.notes) && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Details</h3>
+            {lead.source && (
+              <div className="mb-2">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Source</p>
+                <p className="text-sm text-gray-700">{lead.source}</p>
+              </div>
+            )}
+            {lead.notes && (
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Last Notes</p>
+                <p className="text-xs text-gray-600 whitespace-pre-line line-clamp-4">{lead.notes}</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

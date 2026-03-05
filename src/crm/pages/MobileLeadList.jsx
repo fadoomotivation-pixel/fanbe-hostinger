@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Search, Phone, ChevronRight, Flame, Wind, Snowflake,
-  AlertCircle, Filter, Users, Plus, PhoneCall
+  AlertCircle, Filter, Users, Plus, PhoneCall, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
@@ -45,6 +45,7 @@ const MobileLeadList = () => {
   const [term, setTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [selectedLeadForCallLog, setSelectedLeadForCallLog] = useState(null);
 
@@ -89,8 +90,12 @@ const MobileLeadList = () => {
       result = result.filter(l => l._status === statusFilter);
     }
 
+    if (temperatureFilter !== 'all') {
+      result = result.filter(l => l._interest === temperatureFilter);
+    }
+
     return result;
-  }, [myLeads, term, activeTab, statusFilter]);
+  }, [myLeads, term, activeTab, statusFilter, temperatureFilter]);
 
   const summary = useMemo(() => {
     const counts = { overdue: 0, today: 0, upcoming: 0 };
@@ -113,6 +118,23 @@ const MobileLeadList = () => {
     cold: myLeads.filter(l => l._interest === 'Cold').length,
   }), [myLeads]);
 
+  const handleStatusFilterClick = (status) => {
+    setStatusFilter(statusFilter === status ? 'all' : status);
+  };
+
+  const handleTemperatureFilterClick = (temp) => {
+    setTemperatureFilter(temperatureFilter === temp ? 'all' : temp);
+  };
+
+  const clearAllFilters = () => {
+    setStatusFilter('all');
+    setTemperatureFilter('all');
+    setActiveTab('all');
+    setTerm('');
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || temperatureFilter !== 'all' || activeTab !== 'all' || term !== '';
+
   return (
     <div className="pb-24 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -132,12 +154,15 @@ const MobileLeadList = () => {
               <span className="hidden sm:inline">Add Lead</span>
               <span className="sm:hidden">Add</span>
             </Button>
-            <button
-              onClick={() => setShowStatusFilter(!showStatusFilter)}
-              className={`p-2 rounded-lg border transition ${showStatusFilter ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 text-gray-500'}`}
-            >
-              <Filter size={18} />
-            </button>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition"
+                title="Clear all filters"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -149,40 +174,129 @@ const MobileLeadList = () => {
           </p>
         </div>
 
-        {/* Stats Row */}
+        {/* Clickable Stats Row */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3 -mx-1 px-1">
-          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <span className="text-[10px] text-blue-600 font-medium">Open</span>
-            <span className="text-sm font-bold text-blue-700">{stats.open}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <span className="text-[10px] text-orange-600 font-medium">Follow Up</span>
-            <span className="text-sm font-bold text-orange-700">{stats.followUp}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <span className="text-[10px] text-green-600 font-medium">Booked</span>
-            <span className="text-sm font-bold text-green-700">{stats.booked}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <span className="text-[10px] text-gray-500 font-medium">Lost</span>
-            <span className="text-sm font-bold text-gray-600">{stats.lost}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <Flame size={12} className="text-red-500" />
-            <span className="text-[10px] text-red-600 font-medium">Hot</span>
-            <span className="text-sm font-bold text-red-600">{stats.hot}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <Wind size={12} className="text-amber-500" />
-            <span className="text-[10px] text-amber-600 font-medium">Warm</span>
-            <span className="text-sm font-bold text-amber-600">{stats.warm}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-sky-50 border border-sky-200 rounded-lg px-2.5 py-1.5 shrink-0">
-            <Snowflake size={12} className="text-blue-400" />
-            <span className="text-[10px] text-blue-500 font-medium">Cold</span>
-            <span className="text-sm font-bold text-blue-500">{stats.cold}</span>
-          </div>
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.OPEN)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.OPEN
+                ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                : 'bg-blue-50 border-blue-200 text-blue-700 hover:border-blue-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Open</span>
+            <span className="text-sm font-bold">{stats.open}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.FOLLOW_UP)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.FOLLOW_UP
+                ? 'bg-orange-600 border-orange-600 text-white shadow-md scale-105'
+                : 'bg-orange-50 border-orange-200 text-orange-700 hover:border-orange-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Follow Up</span>
+            <span className="text-sm font-bold">{stats.followUp}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.BOOKED)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.BOOKED
+                ? 'bg-green-600 border-green-600 text-white shadow-md scale-105'
+                : 'bg-green-50 border-green-200 text-green-700 hover:border-green-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Booked</span>
+            <span className="text-sm font-bold">{stats.booked}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.LOST)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.LOST
+                ? 'bg-gray-700 border-gray-700 text-white shadow-md scale-105'
+                : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Lost</span>
+            <span className="text-sm font-bold">{stats.lost}</span>
+          </button>
+
+          {/* Temperature Filters */}
+          <div className="w-px h-8 bg-gray-200 mx-1" />
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Hot')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Hot'
+                ? 'bg-red-600 border-red-600 text-white shadow-md scale-105'
+                : 'bg-red-50 border-red-200 hover:border-red-300 active:scale-95'
+            }`}
+          >
+            <Flame size={12} className={temperatureFilter === 'Hot' ? 'text-white' : 'text-red-500'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>Hot</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>{stats.hot}</span>
+          </button>
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Warm')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Warm'
+                ? 'bg-amber-600 border-amber-600 text-white shadow-md scale-105'
+                : 'bg-amber-50 border-amber-200 hover:border-amber-300 active:scale-95'
+            }`}
+          >
+            <Wind size={12} className={temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-500'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>Warm</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>{stats.warm}</span>
+          </button>
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Cold')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Cold'
+                ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                : 'bg-sky-50 border-sky-200 hover:border-sky-300 active:scale-95'
+            }`}
+          >
+            <Snowflake size={12} className={temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-400'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>Cold</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>{stats.cold}</span>
+          </button>
         </div>
+
+        {/* Active Filter Badge */}
+        {hasActiveFilters && (
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500">Filtering:</span>
+            {statusFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Status: {statusFilter === 'FollowUp' ? 'Follow Up' : statusFilter}
+                <button onClick={() => setStatusFilter('all')} className="hover:bg-blue-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {temperatureFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Temperature: {temperatureFilter}
+                <button onClick={() => setTemperatureFilter('all')} className="hover:bg-purple-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {activeTab !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Priority: {activeTab}
+                <button onClick={() => setActiveTab('all')} className="hover:bg-gray-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Search */}
         <div className="bg-gray-100 rounded-lg flex items-center px-3 py-2 mb-3">
@@ -223,25 +337,6 @@ const MobileLeadList = () => {
             );
           })}
         </div>
-
-        {/* Status Filter Row */}
-        {showStatusFilter && (
-          <div className="flex gap-1 overflow-x-auto no-scrollbar mt-2 -mx-1 px-1 pb-1">
-            {STATUS_FILTERS.map(sf => (
-              <button
-                key={sf.key}
-                onClick={() => setStatusFilter(sf.key)}
-                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition ${
-                  statusFilter === sf.key
-                    ? 'bg-gray-800 text-white border-gray-800'
-                    : 'bg-white text-gray-600 border-gray-200'
-                }`}
-              >
-                {sf.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Urgent Alert */}
@@ -265,8 +360,13 @@ const MobileLeadList = () => {
             <Users size={40} className="mx-auto text-gray-300 mb-3" />
             <p className="text-gray-500 text-sm font-medium">No leads found</p>
             <p className="text-gray-400 text-xs mt-1">
-              {term ? 'Try a different search' : activeTab !== 'all' ? 'No leads in this category' : 'No leads assigned yet'}
+              {term ? 'Try a different search' : hasActiveFilters ? 'Try different filters' : 'No leads assigned yet'}
             </p>
+            {hasActiveFilters && (
+              <Button onClick={clearAllFilters} variant="outline" size="sm" className="mt-3">
+                Clear All Filters
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3">

@@ -13,7 +13,7 @@ import {
 import { format, differenceInDays, differenceInHours, isToday, isPast, parseISO, isValid } from 'date-fns';
 
 // AI Success Probability Scorer
-const calculateSuccessProbability = (lead, calls, notes) => {
+const calculateSuccessProbability = (lead, calls) => {
   let score = 50; // Base score
 
   const interest = lead.interestLevel || lead.interest_level || 'Warm';
@@ -23,23 +23,21 @@ const calculateSuccessProbability = (lead, calls, notes) => {
 
   if (lead.budget && parseInt(lead.budget) > 0) score += 20;
 
-  const leadCalls = calls.filter(c => c.leadId === lead.id);
-  const connectedCalls = leadCalls.filter(c => 
+  const leadCalls = (calls || []).filter(c => c.leadId === lead.id);
+  const connectedCalls = leadCalls.filter(c =>
     c.status === 'Connected' || c.status === 'connected' || c.status === 'interested'
   );
   if (connectedCalls.length > 0) score += 10;
   if (connectedCalls.length >= 2) score += 10;
 
-  const leadNotes = notes.filter(n => n.leadId === lead.id);
-  if (leadNotes.length > 2) score += 10;
+  // Analyze notes from lead's notes field
+  const notesText = (lead.notes || '').toLowerCase();
+  if (notesText.length > 50) score += 10; // Has meaningful notes
 
-  const positiveWords = ['interested', 'ready', 'yes', 'good', 'like', 'want', 'need'];
-  const negativeWords = ['no', 'not interested', 'busy', 'later', 'expensive'];
-  leadNotes.forEach(note => {
-    const text = note.text?.toLowerCase() || '';
-    if (positiveWords.some(w => text.includes(w))) score += 5;
-    if (negativeWords.some(w => text.includes(w))) score -= 10;
-  });
+  const positiveWords = ['interested', 'ready', 'yes', 'good', 'like', 'want', 'need', 'book', 'confirm'];
+  const negativeWords = ['no', 'not interested', 'busy', 'later', 'expensive', 'not answering'];
+  if (positiveWords.some(w => notesText.includes(w))) score += 10;
+  if (negativeWords.some(w => notesText.includes(w))) score -= 10;
 
   return Math.min(100, Math.max(0, score));
 };
@@ -64,7 +62,7 @@ const predictBestTimeToCall = (lead, calls) => {
 };
 
 // Generate AI Call Script
-const generateCallScript = (lead, calls, notes) => {
+const generateCallScript = (lead, calls) => {
   const leadCalls = calls.filter(c => c.leadId === lead.id);
   const lastCall = leadCalls[leadCalls.length - 1];
   const isFirstCall = leadCalls.length === 0;
@@ -179,7 +177,7 @@ const isFollowUpOverdue = (followUpDate, followUpTime) => {
 const SmartGuidance = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { leads, calls, siteVisits, notes } = useCRMData();
+  const { leads, calls, siteVisits } = useCRMData();
   const [expandedScript, setExpandedScript] = useState(null);
 
   const myLeads = useMemo(() => {
@@ -207,13 +205,13 @@ const SmartGuidance = () => {
 
   // Prioritize leads with AI
   const prioritizedLeads = useMemo(() => {
-    if (!myLeads || myLeads.length === 0 || !calls || !notes) return [];
-    
+    if (!myLeads || myLeads.length === 0 || !calls) return [];
+
     const leadsWithScores = myLeads.map(lead => {
-      const successProb = calculateSuccessProbability(lead, calls, notes);
+      const successProb = calculateSuccessProbability(lead, calls);
       const bestTime = predictBestTimeToCall(lead, calls);
       const stars = calculateLeadStars(lead, calls);
-      const script = generateCallScript(lead, calls, notes);
+      const script = generateCallScript(lead, calls);
 
       const daysSinceCreated = lead.createdAt ? differenceInDays(new Date(), new Date(lead.createdAt)) : 0;
       const leadCalls = calls.filter(c => c.leadId === lead.id);
@@ -247,7 +245,7 @@ const SmartGuidance = () => {
     });
 
     return leadsWithScores.sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [myLeads, calls, notes]);
+  }, [myLeads, calls]);
 
   const getSuccessColor = (prob) => {
     if (prob >= 70) return 'bg-green-100 text-green-800';

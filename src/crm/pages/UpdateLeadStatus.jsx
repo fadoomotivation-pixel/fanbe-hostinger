@@ -94,25 +94,18 @@ const UpdateLeadStatus = () => {
       const updateData = {
         status: formData.status,
         interestLevel: formData.interestLevel,
-        interest_level: formData.interestLevel,
-        updatedAt: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       };
 
       // Add follow-up date/time if status is FollowUp
       if (formData.status === 'FollowUp') {
         updateData.followUpDate = formData.followUpDate;
-        updateData.follow_up_date = formData.followUpDate;
-        updateData.followUpTime = formData.followUpTime;
-        updateData.follow_up_time = formData.followUpTime;
+        updateData.followUpTime = formData.followUpTime || '';
       }
 
       // Add booking amounts if status is Booked
       if (formData.status === 'Booked') {
         updateData.tokenAmount = parseFloat(formData.tokenAmount) || 0;
-        updateData.token_amount = parseFloat(formData.tokenAmount) || 0;
         updateData.bookingAmount = parseFloat(formData.bookingAmount) || 0;
-        updateData.booking_amount = parseFloat(formData.bookingAmount) || 0;
       }
 
       await updateLead(lead.id, updateData);

@@ -5,11 +5,10 @@ export const calculateScore = (lead) => {
   if (!lead) return 0;
 
   // Engagement Score
-  // Assuming activityLog structure: [{ action: 'Call', timestamp: ... }, ...]
-  const activities = lead.activityLog || [];
-  const calls = activities.filter(a => a.action === 'Call').length;
-  const messages = activities.filter(a => a.action === 'Message' || a.action === 'WhatsApp').length;
-  const visits = activities.filter(a => a.action.includes('Site Visit')).length;
+  const activities = Array.isArray(lead.activityLog) ? lead.activityLog : [];
+  const calls = activities.filter(a => a?.action === 'Call').length;
+  const messages = activities.filter(a => a?.action === 'Message' || a?.action === 'WhatsApp').length;
+  const visits = activities.filter(a => (a?.action || '').includes('Site Visit')).length;
 
   score += calls * 5;
   score += messages * 3;

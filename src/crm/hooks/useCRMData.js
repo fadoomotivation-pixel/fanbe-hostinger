@@ -208,6 +208,7 @@ export const useCRMData = () => {
         activityLog:      [],
         project:          row.project            || '',
         followUpDate:     row.next_followup_date || null,
+        followUpTime:     row.follow_up_time     || null,
         tokenAmount:      row.token_amount       || 0,
         bookingAmount:    row.booking_amount     || 0,
         partialPayment:   row.partial_payment    || 0,
@@ -297,6 +298,7 @@ export const useCRMData = () => {
       if (updates.assignedToName   !== undefined) mapped.assigned_to_name   = updates.assignedToName;
       if (updates.project          !== undefined) mapped.project            = updates.project;
       if (updates.followUpDate     !== undefined) mapped.next_followup_date = updates.followUpDate;
+      if (updates.followUpTime     !== undefined) mapped.follow_up_time    = updates.followUpTime || null;
       if (updates.tokenAmount      !== undefined) mapped.token_amount       = updates.tokenAmount || 0;
       if (updates.bookingAmount    !== undefined) mapped.booking_amount     = updates.bookingAmount || 0;
       if (updates.partialPayment   !== undefined) mapped.partial_payment    = updates.partialPayment || 0;

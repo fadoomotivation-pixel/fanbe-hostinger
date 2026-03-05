@@ -9,10 +9,11 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   ArrowLeft, Phone, IndianRupee, Mail,
   Edit2, Check, X, Plus, Trash2, MessageSquare,
-  Flame, Wind, Snowflake, MapPin, Clock, Calendar
+  Flame, Wind, Snowflake, MapPin, Clock, Calendar, PhoneCall
 } from 'lucide-react';
 import FollowUpBadge from '@/crm/components/FollowUpBadge';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
+import LogCallModal from '@/crm/components/LogCallModal';
 import { normalizeLeadStatus, normalizeInterestLevel, getStatusColor } from '@/crm/utils/statusUtils';
 
 const TemperatureChip = ({ level }) => {
@@ -44,6 +45,7 @@ const MobileLeadDetails = () => {
   const [editedName, setEditedName] = useState(lead?.name || '');
   const [isAddingPhone, setIsAddingPhone] = useState(false);
   const [alternatePhone, setAlternatePhone] = useState('');
+  const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
 
   useEffect(() => {
     if (lead) setEditedName(lead.name);
@@ -220,17 +222,24 @@ const MobileLeadDetails = () => {
               </div>
             </div>
 
-            {/* Primary Action - Update Status */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Primary Actions */}
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                onClick={() => setIsLogCallModalOpen(true)}
+                className="h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm font-semibold rounded-xl col-span-1"
+              >
+                <PhoneCall size={16} className="mr-1.5" />
+                Log Call
+              </Button>
               <Button
                 onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-                className="h-12 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
+                className="h-11 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl col-span-1"
               >
-                Update Status
+                Update
               </Button>
-              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block">
-                <Button className="w-full h-12 bg-green-500 hover:bg-green-600 text-sm font-semibold rounded-xl">
-                  <MessageSquare size={16} className="mr-2" />
+              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block col-span-1">
+                <Button className="w-full h-11 bg-green-500 hover:bg-green-600 text-sm font-semibold rounded-xl">
+                  <MessageSquare size={16} className="mr-1.5" />
                   WhatsApp
                 </Button>
               </a>
@@ -347,6 +356,20 @@ const MobileLeadDetails = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Log Call Modal */}
+      <LogCallModal
+        lead={lead}
+        isOpen={isLogCallModalOpen}
+        onClose={() => setIsLogCallModalOpen(false)}
+        onSuccess={() => {
+          // Refresh or show success message
+          toast({
+            title: '✅ Call Logged',
+            description: 'Call has been recorded successfully',
+          });
+        }}
+      />
     </div>
   );
 };

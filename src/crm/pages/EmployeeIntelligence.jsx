@@ -4,15 +4,22 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Award, Phone, PhoneCall, MapPin, IndianRupee, TrendingUp,
   Users, Target, Clock, Star, Crown, Medal, BarChart2,
   Brain, Sparkles, AlertTriangle, TrendingDown, Activity,
   ThumbsUp, ThumbsDown, Zap, Shield, CheckCircle, XCircle,
-  MessageSquare, Calendar, Lightbulb
+  MessageSquare, Calendar, Lightbulb, Flame, Eye,
+  ArrowUpRight, ArrowDownRight, LayoutGrid, AlertCircle
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, differenceInDays } from 'date-fns';
+import {
+  calculatePipelineHealth,
+  calculateEmployeePipelines,
+  analyzeWorkloadBalance,
+  generateRiskAlerts,
+  generateActivityFeed
+} from '@/crm/utils/performanceSyncEngine';
 
 // ════════════════════════════════════════════════════════════════════════════
 // ENHANCED SCORING ALGORITHM WITH AI PREDICTIONS
@@ -33,27 +40,14 @@ const calculateEfficiency = (metrics) => {
   const conversionEfficiency = metrics.conversionRate;
   const followUpEfficiency = metrics.followUpRate;
   const activityScore = Math.min(100, (metrics.totalCalls / 20) * 100); // 20 calls = 100%
-  
-  return Math.round((callEfficiency + conversionEfficiency + followUpEfficiency + activityScore) / 4);
-};
 
-// Predict performance trend
-const predictTrend = (currentMetrics, previousMetrics) => {
-  if (!previousMetrics) return 'stable';
-  
-  const scoreDiff = currentMetrics.score - previousMetrics.score;
-  const bookingDiff = currentMetrics.totalBookings - previousMetrics.totalBookings;
-  
-  if (scoreDiff > 10 || bookingDiff > 2) return 'rising';
-  if (scoreDiff < -10 || bookingDiff < -2) return 'falling';
-  return 'stable';
+  return Math.round((callEfficiency + conversionEfficiency + followUpEfficiency + activityScore) / 4);
 };
 
 // Generate coaching recommendations
 const generateCoachingTips = (metrics) => {
   const tips = [];
-  
-  // Low call volume
+
   if (metrics.totalCalls < 10) {
     tips.push({
       type: 'warning',
@@ -62,8 +56,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Increase daily call target to 15-20 calls for better lead coverage'
     });
   }
-  
-  // Low connection rate
+
   const connectionRate = metrics.totalCalls > 0 ? (metrics.connectedCalls / metrics.totalCalls) * 100 : 0;
   if (connectionRate < 40) {
     tips.push({
@@ -73,8 +66,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Try calling during 10 AM-12 PM and 4 PM-6 PM for better reach'
     });
   }
-  
-  // Low conversion
+
   if (metrics.conversionRate < 15 && metrics.connectedCalls > 5) {
     tips.push({
       type: 'critical',
@@ -83,8 +75,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Focus on quality over quantity. Review call scripts and objection handling'
     });
   }
-  
-  // Poor follow-up
+
   if (metrics.followUpRate < 60) {
     tips.push({
       type: 'warning',
@@ -93,8 +84,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Set daily reminders for scheduled follow-ups. Consistency drives conversions'
     });
   }
-  
-  // No site visits
+
   if (metrics.completedVisits === 0 && metrics.connectedCalls > 5) {
     tips.push({
       type: 'info',
@@ -103,8 +93,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Push for site visits with interested leads. Visits increase booking probability by 60%'
     });
   }
-  
-  // High performer recognition
+
   if (metrics.score >= 80) {
     tips.push({
       type: 'success',
@@ -113,7 +102,7 @@ const generateCoachingTips = (metrics) => {
       suggestion: 'Excellent work! Share your strategies with the team in next meeting'
     });
   }
-  
+
   return tips;
 };
 
@@ -121,12 +110,12 @@ const generateCoachingTips = (metrics) => {
 const calculateTeamHealth = (employees) => {
   const totalScore = employees.reduce((sum, e) => sum + e.score, 0);
   const avgScore = employees.length > 0 ? totalScore / employees.length : 0;
-  
+
   const highPerformers = employees.filter(e => e.score >= 70).length;
   const needsAttention = employees.filter(e => e.score < 40).length;
-  const avgConversion = employees.reduce((sum, e) => sum + e.conversionRate, 0) / employees.length;
-  const avgFollowUp = employees.reduce((sum, e) => sum + e.followUpRate, 0) / employees.length;
-  
+  const avgConversion = employees.length > 0 ? employees.reduce((sum, e) => sum + e.conversionRate, 0) / employees.length : 0;
+  const avgFollowUp = employees.length > 0 ? employees.reduce((sum, e) => sum + e.followUpRate, 0) / employees.length : 0;
+
   return {
     avgScore: Math.round(avgScore),
     highPerformers,
@@ -188,7 +177,6 @@ const computeEmployeeMetrics = (employee, leads, calls, siteVisits, bookings, da
     ? Math.round((followedUpLeads.length / leadsWithFollowUp.length) * 100)
     : 100;
 
-  // Average response time
   const avgResponseTime = empCalls.length > 0
     ? empCalls.reduce((sum, c) => {
         const lead = assignedLeads.find(l => l.id === c.leadId);
@@ -214,7 +202,7 @@ const computeEmployeeMetrics = (employee, leads, calls, siteVisits, bookings, da
     followUpRate,
     assignedLeadCount: assignedLeads.length,
     avgResponseTime: Math.round(avgResponseTime),
-    efficiency: 0 // calculated later
+    efficiency: 0
   };
 };
 
@@ -260,6 +248,7 @@ const EmployeeIntelligence = () => {
   const { employees, leads, calls, siteVisits, bookings } = useCRMData();
   const [period, setPeriod] = useState('week');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [showSection, setShowSection] = useState({ risks: true, activity: true, workload: true });
 
   const salesEmployees = employees.filter(e =>
     e.role === 'sales_executive' || e.role === 'telecaller' || e.role === 'manager'
@@ -289,6 +278,36 @@ const EmployeeIntelligence = () => {
   }, [salesEmployees, leads, calls, siteVisits, bookings, activeRange]);
 
   const teamHealth = useMemo(() => calculateTeamHealth(rankedEmployees), [rankedEmployees]);
+
+  // ═══ NEW: Risk Alerts (linked with Smart Guidance data) ═══
+  const riskAlerts = useMemo(() =>
+    generateRiskAlerts(employees, leads, calls, siteVisits),
+    [employees, leads, calls, siteVisits]
+  );
+
+  // ═══ NEW: Workload Balance ═══
+  const workloadBalance = useMemo(() =>
+    analyzeWorkloadBalance(employees, leads),
+    [employees, leads]
+  );
+
+  // ═══ NEW: Employee Pipeline Health ═══
+  const employeePipelines = useMemo(() =>
+    calculateEmployeePipelines(salesEmployees, leads),
+    [salesEmployees, leads]
+  );
+
+  // ═══ NEW: Activity Feed ═══
+  const activityFeed = useMemo(() =>
+    generateActivityFeed(employees, calls, siteVisits, bookings, 12),
+    [employees, calls, siteVisits, bookings]
+  );
+
+  // ═══ NEW: Overall Pipeline ═══
+  const overallPipeline = useMemo(() =>
+    calculatePipelineHealth(leads),
+    [leads]
+  );
 
   const topPerformer = rankedEmployees[0];
   const secondPlace = rankedEmployees[1];
@@ -330,6 +349,29 @@ const EmployeeIntelligence = () => {
     return val.toLocaleString('en-IN');
   };
 
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'call': return <Phone className="h-4 w-4" />;
+      case 'visit': return <MapPin className="h-4 w-4" />;
+      case 'booking': return <Target className="h-4 w-4" />;
+      default: return <Activity className="h-4 w-4" />;
+    }
+  };
+
+  const getActivityColor = (color) => {
+    switch (color) {
+      case 'green': return 'bg-green-100 text-green-700';
+      case 'purple': return 'bg-purple-100 text-purple-700';
+      case 'blue': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  // Find pipeline for a specific employee
+  const getEmployeePipeline = (empId) => {
+    return employeePipelines.find(p => p.employeeId === empId)?.pipeline || { hot: 0, warm: 0, cold: 0, total: 0 };
+  };
+
   return (
     <div className="space-y-6 pb-20">
       <div>
@@ -337,8 +379,51 @@ const EmployeeIntelligence = () => {
           <Brain className="h-7 w-7 text-purple-600" />
           Employee Intelligence AI
         </h1>
-        <p className="text-gray-500">Advanced analytics, performance predictions & coaching recommendations</p>
+        <p className="text-gray-500">Advanced analytics, performance predictions, risk alerts & pipeline insights</p>
       </div>
+
+      {/* ═══ RISK ALERTS BANNER (NEW) ═══ */}
+      {riskAlerts.length > 0 && (
+        <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-orange-50 shadow-md">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <h3 className="font-bold text-red-900">Risk Alerts ({riskAlerts.length})</h3>
+              </div>
+              <button
+                onClick={() => setShowSection(s => ({ ...s, risks: !s.risks }))}
+                className="text-xs text-red-600 hover:underline"
+              >
+                {showSection.risks ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showSection.risks && (
+              <div className="space-y-2">
+                {riskAlerts.map((alert, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-3 p-3 rounded-lg ${
+                      alert.type === 'critical' ? 'bg-red-100 border border-red-300' : 'bg-yellow-100 border border-yellow-300'
+                    }`}
+                  >
+                    {alert.type === 'critical' ?
+                      <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" /> :
+                      <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                    }
+                    <div>
+                      <p className={`text-xs font-bold ${alert.type === 'critical' ? 'text-red-800' : 'text-yellow-800'}`}>
+                        {alert.title}
+                      </p>
+                      <p className="text-[11px] text-gray-700">{alert.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Team Health Dashboard */}
       <Card className="border-purple-200 bg-gradient-to-br from-purple-50 via-white to-blue-50">
@@ -380,6 +465,91 @@ const EmployeeIntelligence = () => {
         </CardContent>
       </Card>
 
+      {/* ═══ OVERALL PIPELINE + WORKLOAD BALANCE (NEW) ═══ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Overall Pipeline */}
+        <Card className="border border-gray-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart2 className="h-4 w-4 text-gray-600" /> Lead Pipeline Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-1 h-5 rounded-full overflow-hidden mb-3">
+              {overallPipeline.hotPercent > 0 && (
+                <div className="bg-red-500 transition-all flex items-center justify-center text-white text-[9px] font-bold" style={{ width: `${overallPipeline.hotPercent}%` }}>
+                  {overallPipeline.hotPercent > 10 ? `${overallPipeline.hotPercent}%` : ''}
+                </div>
+              )}
+              {overallPipeline.warmPercent > 0 && (
+                <div className="bg-yellow-500 transition-all flex items-center justify-center text-white text-[9px] font-bold" style={{ width: `${overallPipeline.warmPercent}%` }}>
+                  {overallPipeline.warmPercent > 10 ? `${overallPipeline.warmPercent}%` : ''}
+                </div>
+              )}
+              {overallPipeline.coldPercent > 0 && (
+                <div className="bg-blue-400 transition-all flex items-center justify-center text-white text-[9px] font-bold" style={{ width: `${overallPipeline.coldPercent}%` }}>
+                  {overallPipeline.coldPercent > 10 ? `${overallPipeline.coldPercent}%` : ''}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-2xl font-black text-red-600">{overallPipeline.hot}</p>
+                <p className="text-[10px] text-gray-500">Hot Leads</p>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-yellow-600">{overallPipeline.warm}</p>
+                <p className="text-[10px] text-gray-500">Warm Leads</p>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-blue-500">{overallPipeline.cold}</p>
+                <p className="text-[10px] text-gray-500">Cold Leads</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Workload Balance */}
+        <Card className={`border ${workloadBalance.balanced ? 'border-green-200' : 'border-orange-200'}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Workload Balance
+              {workloadBalance.balanced ? (
+                <Badge className="bg-green-100 text-green-700 text-[10px] ml-auto">Balanced</Badge>
+              ) : (
+                <Badge className="bg-orange-100 text-orange-700 text-[10px] ml-auto">Imbalanced</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-gray-500 mb-3">Avg: {workloadBalance.avgLeads} leads/person</p>
+            <div className="space-y-2">
+              {workloadBalance.employees.map((emp, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-700 w-24 truncate">{emp.name}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-3 relative">
+                    <div
+                      className={`h-3 rounded-full transition-all ${
+                        emp.status === 'overloaded' ? 'bg-red-500' :
+                        emp.status === 'underloaded' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(100, workloadBalance.avgLeads > 0 ? (emp.leadCount / (workloadBalance.avgLeads * 2)) * 100 : 0)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-gray-600 w-8 text-right">{emp.leadCount}</span>
+                  {emp.status !== 'balanced' && (
+                    <span className={`text-[9px] ${emp.status === 'overloaded' ? 'text-red-600' : 'text-yellow-600'}`}>
+                      {emp.deviation > 0 ? '+' : ''}{emp.deviation}%
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Period Toggle */}
       <Tabs value={period} onValueChange={setPeriod}>
         <TabsList>
@@ -410,6 +580,20 @@ const EmployeeIntelligence = () => {
                     <Badge className="bg-green-100 text-green-700 text-[10px]">
                       {topPerformer.efficiency}% Efficiency
                     </Badge>
+                    {/* Pipeline mini-bar */}
+                    {(() => {
+                      const pp = getEmployeePipeline(topPerformer.employeeId);
+                      return pp.total > 0 && (
+                        <div className="mt-3 px-4">
+                          <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
+                            <div className="bg-red-400" style={{ width: `${(pp.hot / pp.total) * 100}%` }} />
+                            <div className="bg-yellow-400" style={{ width: `${(pp.warm / pp.total) * 100}%` }} />
+                            <div className="bg-blue-300" style={{ width: `${(pp.cold / pp.total) * 100}%` }} />
+                          </div>
+                          <p className="text-[9px] text-gray-400 mt-1">{pp.hot}H / {pp.warm}W / {pp.cold}C</p>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-3 gap-2 mt-4 text-center">
                       <div>
                         <p className="text-lg font-bold text-[#0F3A5F]">{topPerformer.totalCalls}</p>
@@ -525,7 +709,49 @@ const EmployeeIntelligence = () => {
             </Card>
           </div>
 
-          {/* Full Leaderboard with Coaching */}
+          {/* ═══ LIVE ACTIVITY FEED (NEW) ═══ */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                  Recent Team Activity
+                </CardTitle>
+                <button
+                  onClick={() => setShowSection(s => ({ ...s, activity: !s.activity }))}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  {showSection.activity ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </CardHeader>
+            {showSection.activity && (
+              <CardContent>
+                {activityFeed.length === 0 ? (
+                  <p className="text-center text-gray-400 text-sm py-4">No recent activity</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activityFeed.map((act, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${getActivityColor(act.color)}`}>
+                          {getActivityIcon(act.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-800 truncate">{act.employeeName}</p>
+                          <p className="text-[11px] text-gray-500 truncate">{act.detail}</p>
+                        </div>
+                        <span className="text-[10px] text-gray-400 shrink-0">
+                          {act.timestamp ? format(new Date(act.timestamp), 'dd MMM, h:mm a') : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Full Leaderboard with Coaching + Pipeline */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -538,91 +764,105 @@ const EmployeeIntelligence = () => {
                 <p className="text-center py-8 text-gray-400">No employee activity found for this period</p>
               ) : (
                 <div className="space-y-4">
-                  {rankedEmployees.map((emp, idx) => (
-                    <Card 
-                      key={emp.employeeId} 
-                      className={`cursor-pointer hover:shadow-lg transition ${
-                        idx < 3 ? 'border-l-4 border-l-purple-500' : ''
-                      }`}
-                      onClick={() => setSelectedEmployee(selectedEmployee?.employeeId === emp.employeeId ? null : emp)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="text-center">{getRankIcon(idx)}</div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-[#0F3A5F]">{emp.employeeName}</h3>
-                                <Badge className={`${getScoreColor(emp.score)} font-bold text-xs`}>{emp.score}</Badge>
-                              </div>
-                              <p className="text-xs text-gray-400 capitalize">{emp.role?.replace('_', ' ')} | {emp.assignedLeadCount} leads</p>
-                              <div className="flex items-center gap-3 mt-2 text-xs">
-                                <span>📞 {emp.totalCalls} calls</span>
-                                <span>✅ {emp.connectedCalls} connected</span>
-                                <span>🏗️ {emp.completedVisits} visits</span>
-                                <span>🎯 {emp.totalBookings} bookings</span>
-                                <span className="text-green-600 font-medium">{emp.conversionRate}% conv</span>
+                  {rankedEmployees.map((emp, idx) => {
+                    const empPipeline = getEmployeePipeline(emp.employeeId);
+                    return (
+                      <Card
+                        key={emp.employeeId}
+                        className={`cursor-pointer hover:shadow-lg transition ${
+                          idx < 3 ? 'border-l-4 border-l-purple-500' : ''
+                        }`}
+                        onClick={() => setSelectedEmployee(selectedEmployee?.employeeId === emp.employeeId ? null : emp)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="text-center">{getRankIcon(idx)}</div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-bold text-[#0F3A5F]">{emp.employeeName}</h3>
+                                  <Badge className={`${getScoreColor(emp.score)} font-bold text-xs`}>{emp.score}</Badge>
+                                </div>
+                                <p className="text-xs text-gray-400 capitalize">{emp.role?.replace('_', ' ')} | {emp.assignedLeadCount} leads</p>
+                                <div className="flex items-center gap-3 mt-2 text-xs">
+                                  <span>📞 {emp.totalCalls} calls</span>
+                                  <span>✅ {emp.connectedCalls} connected</span>
+                                  <span>🏗️ {emp.completedVisits} visits</span>
+                                  <span>🎯 {emp.totalBookings} bookings</span>
+                                  <span className="text-green-600 font-medium">{emp.conversionRate}% conv</span>
+                                </div>
+                                {/* Pipeline mini-bar for each employee */}
+                                {empPipeline.total > 0 && (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <div className="flex gap-0.5 h-2 rounded-full overflow-hidden w-32">
+                                      <div className="bg-red-400" style={{ width: `${(empPipeline.hot / empPipeline.total) * 100}%` }} />
+                                      <div className="bg-yellow-400" style={{ width: `${(empPipeline.warm / empPipeline.total) * 100}%` }} />
+                                      <div className="bg-blue-300" style={{ width: `${(empPipeline.cold / empPipeline.total) * 100}%` }} />
+                                    </div>
+                                    <span className="text-[9px] text-gray-400">{empPipeline.hot}H {empPipeline.warm}W {empPipeline.cold}C</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
+                            <div className="text-right">
+                              <Badge className="bg-purple-100 text-purple-700 text-xs mb-1">
+                                {emp.efficiency}% Efficiency
+                              </Badge>
+                              {emp.coachingTips.length > 0 && (
+                                <p className="text-[10px] text-purple-600 flex items-center gap-1 justify-end">
+                                  <Lightbulb className="h-3 w-3" />
+                                  {emp.coachingTips.length} insights
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <Badge className="bg-purple-100 text-purple-700 text-xs mb-1">
-                              {emp.efficiency}% Efficiency
-                            </Badge>
-                            {emp.coachingTips.length > 0 && (
-                              <p className="text-[10px] text-purple-600 flex items-center gap-1 justify-end">
-                                <Lightbulb className="h-3 w-3" />
-                                {emp.coachingTips.length} insights
-                              </p>
-                            )}
-                          </div>
-                        </div>
 
-                        {/* Expanded Coaching Section */}
-                        {selectedEmployee?.employeeId === emp.employeeId && emp.coachingTips.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Brain className="h-4 w-4 text-purple-600" />
-                              <h4 className="font-bold text-purple-900 text-sm">AI Coaching Recommendations</h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {emp.coachingTips.map((tip, i) => (
-                                <div 
-                                  key={i} 
-                                  className={`p-3 rounded-lg border ${
-                                    tip.type === 'critical' ? 'bg-red-50 border-red-200' :
-                                    tip.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                                    tip.type === 'success' ? 'bg-green-50 border-green-200' :
-                                    'bg-blue-50 border-blue-200'
-                                  }`}
-                                >
-                                  <div className="flex items-start gap-2">
-                                    {React.createElement(tip.icon, { 
-                                      className: `h-4 w-4 shrink-0 ${
-                                        tip.type === 'critical' ? 'text-red-600' :
-                                        tip.type === 'warning' ? 'text-yellow-600' :
-                                        tip.type === 'success' ? 'text-green-600' :
-                                        'text-blue-600'
-                                      }` 
-                                    })}
-                                    <div>
-                                      <p className={`text-xs font-bold ${
-                                        tip.type === 'critical' ? 'text-red-700' :
-                                        tip.type === 'warning' ? 'text-yellow-700' :
-                                        tip.type === 'success' ? 'text-green-700' :
-                                        'text-blue-700'
-                                      }`}>{tip.title}</p>
-                                      <p className="text-[11px] text-gray-600 mt-0.5">{tip.suggestion}</p>
+                          {/* Expanded Coaching Section */}
+                          {selectedEmployee?.employeeId === emp.employeeId && emp.coachingTips.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Brain className="h-4 w-4 text-purple-600" />
+                                <h4 className="font-bold text-purple-900 text-sm">AI Coaching Recommendations</h4>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {emp.coachingTips.map((tip, i) => (
+                                  <div
+                                    key={i}
+                                    className={`p-3 rounded-lg border ${
+                                      tip.type === 'critical' ? 'bg-red-50 border-red-200' :
+                                      tip.type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                                      tip.type === 'success' ? 'bg-green-50 border-green-200' :
+                                      'bg-blue-50 border-blue-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      {React.createElement(tip.icon, {
+                                        className: `h-4 w-4 shrink-0 ${
+                                          tip.type === 'critical' ? 'text-red-600' :
+                                          tip.type === 'warning' ? 'text-yellow-600' :
+                                          tip.type === 'success' ? 'text-green-600' :
+                                          'text-blue-600'
+                                        }`
+                                      })}
+                                      <div>
+                                        <p className={`text-xs font-bold ${
+                                          tip.type === 'critical' ? 'text-red-700' :
+                                          tip.type === 'warning' ? 'text-yellow-700' :
+                                          tip.type === 'success' ? 'text-green-700' :
+                                          'text-blue-700'
+                                        }`}>{tip.title}</p>
+                                        <p className="text-[11px] text-gray-600 mt-0.5">{tip.suggestion}</p>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

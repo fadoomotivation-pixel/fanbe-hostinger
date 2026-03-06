@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Filter, Phone, MessageCircle, Calendar, ChevronDown, ChevronUp, Clock, Bell } from 'lucide-react';
+import { Search, Plus, Filter, Phone, MessageCircle, Calendar, ChevronDown, ChevronUp, Clock, Bell, Loader2 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import projects from '@/data/projects';
 import { format, isToday, isYesterday, isThisWeek, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 const MyLeads = () => {
   const { user } = useAuth();
-  const { leads, addLead } = useCRMData();
+  const { leads, leadsLoading, addLead } = useCRMData();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -225,6 +225,19 @@ const MyLeads = () => {
   const groupedLeads = groupByDate ? groupLeadsByDate(filteredLeads) : null;
   const urgentCount = summary.overdue + summary.today;
 
+  // ✅ LOADING STATE - Show spinner while leads are loading
+  if (leadsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        <div className="text-center">
+          <p className="text-lg font-semibold text-gray-700">Loading Your Leads...</p>
+          <p className="text-sm text-gray-500">Fetching data from Supabase</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -403,7 +416,11 @@ const MyLeads = () => {
                      <TableBody>
                         {filteredLeads.map(renderLeadRow)}
                         {filteredLeads.length === 0 && (
-                           <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">No leads found matching your filters.</TableCell></TableRow>
+                           <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                             {myLeads.length === 0 
+                               ? 'No leads assigned to you yet. Contact your admin to get leads assigned.'
+                               : 'No leads found matching your filters. Try adjusting your search criteria.'}
+                           </TableCell></TableRow>
                         )}
                      </TableBody>
                   </Table>

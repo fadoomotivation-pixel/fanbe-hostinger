@@ -16,11 +16,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   // Check role-based access
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect logic if trying to access unauthorized area
+    // Redirect each role to their own home, never back to login
     if (user.role === 'super_admin') return <Navigate to="/crm/admin/dashboard" replace />;
-    if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
-    if (user.role === 'sales_executive') return <Navigate to="/crm/sales/dashboard" replace />;
-    
+    if (user.role === 'sub_admin') return <Navigate to="/crm/admin/dashboard" replace />;
+    if (user.role === 'manager') return <Navigate to="/crm/admin/dashboard" replace />;
+    if (user.role === 'hr_manager') return <Navigate to="/crm/hr/dashboard" replace />;
+    if (user.role === 'sales_executive') return <Navigate to="/crm/sales/crm" replace />;
+    if (user.role === 'telecaller') return <Navigate to="/crm/sales/crm" replace />;
+
     return <Navigate to="/crm/login" replace />;
   }
 
@@ -28,8 +31,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!canAccessPage(user.role, location.pathname)) {
      // Fallback redirects — send each role to their own home, never back to login
      if (user.role === 'super_admin') return <Navigate to="/crm/admin/dashboard" replace />;
-     if (user.role === 'sub_admin') return <Navigate to="/crm/admin/performance" replace />;
-     if (user.role === 'sales_executive') return <Navigate to="/crm/sales/dashboard" replace />;
+     if (user.role === 'sub_admin') return <Navigate to="/crm/admin/dashboard" replace />;
+     if (user.role === 'manager') return <Navigate to="/crm/admin/dashboard" replace />;
+     if (user.role === 'hr_manager') return <Navigate to="/crm/hr/dashboard" replace />;
+     if (user.role === 'sales_executive') return <Navigate to="/crm/sales/crm" replace />;
+     if (user.role === 'telecaller') return <Navigate to="/crm/sales/crm" replace />;
      return <Navigate to="/crm/login" replace />;
   }
 

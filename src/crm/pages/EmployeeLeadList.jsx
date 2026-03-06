@@ -19,16 +19,18 @@ const EmployeeLeadList = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
+  const userId = user?.uid || user?.id;
+
   // Filter and sort leads - newest first by updatedAt or createdAt
   const myLeads = useMemo(() => {
     return leads
-      .filter(lead => lead.assignedTo === user?.id || lead.assigned_to === user?.id)
+      .filter(lead => lead.assignedTo === userId)
       .sort((a, b) => {
         const dateA = new Date(a.updatedAt || a.updated_at || a.createdAt || a.created_at || 0);
         const dateB = new Date(b.updatedAt || b.updated_at || b.createdAt || b.created_at || 0);
         return dateB - dateA; // Newest first
       });
-  }, [leads, user]);
+  }, [leads, userId]);
 
   const filteredLeads = useMemo(() => {
     if (!searchTerm) return myLeads;

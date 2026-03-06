@@ -15,7 +15,7 @@ import {
 const EmployeeLeadDetails = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
-  const { leads, updateLead, addLeadNote } = useCRMData();
+  const { leads, leadsLoading, updateLead, addLeadNote } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -36,6 +36,17 @@ const EmployeeLeadDetails = () => {
     if (lead) setEditedName(lead.name);
   }, [lead]);
   
+  if (leadsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0F3A5F] mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading lead details...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!lead) {
     return (
       <div className="p-8 text-center">

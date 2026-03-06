@@ -116,6 +116,10 @@ const SalesExecutiveDashboard = () => {
             <Card>
                <CardHeader className="pb-3"><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <Button className="h-auto py-3 flex flex-col gap-1 col-span-2 sm:col-span-3 bg-green-600 hover:bg-green-700 text-white" onClick={() => navigate('/crm/sales/crm')}>
+                     <Phone className="h-5 w-5" />
+                     <span className="text-xs font-bold">Start Calling (CRM)</span>
+                  </Button>
                   <Button variant="outline" className="h-auto py-3 flex flex-col gap-1" onClick={() => navigate('/crm/sales/daily-calling')}>
                      <Phone className="h-5 w-5 text-blue-600" />
                      <span className="text-xs">Log Call</span>

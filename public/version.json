@@ -1,6 +1,6 @@
 {
-  "version": "2.2.0",
-  "buildTime": "2026-03-05T16:00:00+05:30",
-  "cacheBreaker": "unified-mobile-desktop-ui-march-5-2026",
-  "changes": "Unified mobile and desktop lead details UI"
+  "buildId": "1772785117526-vc4z3z",
+  "buildTimestamp": "2026-03-06T08:18:37.525Z",
+  "gitCommit": "b741e66",
+  "gitBranch": "work"
 }

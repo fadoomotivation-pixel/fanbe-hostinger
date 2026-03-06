@@ -72,7 +72,6 @@ This project is configured for deployment on Hostinger.
 ## License
 
 Private - All rights reserved
-# Trigger rebuild Tue Feb 17 11:42:27 IST 2026
 
 ## Quick Deploy
 
@@ -85,3 +84,5 @@ git push origin main
 ```
 
 See docs/DEPLOY_FROM_GITBASH.md for details.
+
+<!-- Deployment trigger: Fri Mar 6 09:19 IST 2026 -->

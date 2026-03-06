@@ -563,7 +563,7 @@ const LeadManagement = () => {
 
       <ImportLeadsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} employees={salesEmployees} />
       <AssignmentModal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
-        leads={leadsToAssign} employees={salesEmployees} onAssign={handleAssignment} />
+        leads={leadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleAssignment} />
       <BulkDeleteModal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)}
         leads={leadsToDelete} onDelete={handleBulkDelete} />
     </div>

@@ -5,7 +5,6 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
 import { format, parseISO, isToday, isPast, differenceInDays } from 'date-fns';
 import {
   Search, Phone, MessageCircle, ChevronRight,
@@ -55,7 +54,7 @@ const TABS = [
 
 const MyLeads = () => {
   const { user }  = useAuth();
-  const { leads, leadsLoading, updateLead } = useCRMData();
+  const { leads, leadsLoading, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const { toast } = useToast();
 
@@ -112,24 +111,27 @@ const MyLeads = () => {
     }).length, [myLeads]
   );
 
-  // Quick log save
+  // Quick log save — uses addCallLog (goes through crmSupabase.addCall with admin client)
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
     try {
-      await supabase.from('calls').insert({
-        lead_id: quickLead.id,
-        employee_id: user?.id || user?.uid,
-        employee_name: user?.name,
+      await addCallLog({
+        leadId: quickLead.id,
+        leadName: quickLead.name,
+        projectName: quickLead.project || '',
+        employeeId: userId,
+        employeeName: user?.name || '',
+        type: 'Outgoing',
         status: outcome,
         duration: 0,
-        created_at: new Date().toISOString(),
+        notes: `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
       if (newStatus)   patch.status = newStatus;
       if (followDate)  patch.follow_up_date = followDate;
       await updateLead(quickLead.id, patch);
-      toast({ title: '✅ Logged!', description: newStatus ? `Status → ${newStatus}` : 'Call saved' });
+      toast({ title: 'Logged!', description: newStatus ? `Status → ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate('');
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });

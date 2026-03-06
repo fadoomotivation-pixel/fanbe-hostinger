@@ -234,6 +234,7 @@ const EmployeeCRMHome = () => {
         leadName: actionLead.name,
         projectName: actionLead.project || '',
         employeeId: userId,
+        employeeName: user?.name || '',
         type: 'Outgoing',
         status: statusObj.dbValue,
         duration: 0,

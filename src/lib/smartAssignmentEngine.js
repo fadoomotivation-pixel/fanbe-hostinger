@@ -1,15 +1,26 @@
 
-// Mock data for employee stats - in real app would come from DB
-export const getEmployeeStats = (employees) => {
-    return employees.map(emp => ({
-        id: emp.id,
-        name: emp.name,
-        role: emp.role,
-        currentLoad: Math.floor(Math.random() * 20), // Mock active leads
-        performanceScore: (Math.random() * 5).toFixed(1), // Mock rating out of 5
-        expertise: ['Residential', 'Luxury'].slice(0, Math.floor(Math.random() * 2) + 1),
-        isAvailable: Math.random() > 0.2 // 80% available
-    }));
+// Compute real employee stats from leads data
+// `allLeads` is optional — when provided, currentLoad is the actual assigned count
+export const getEmployeeStats = (employees, allLeads = []) => {
+    return employees.map(emp => {
+        const assignedLeads = allLeads.filter(l =>
+            l.assignedTo === emp.id || l.assigned_to === emp.id
+        );
+        const activeLeads = assignedLeads.filter(l =>
+            l.status !== 'Lost' && l.status !== 'Booked'
+        );
+        return {
+            id: emp.id,
+            name: emp.name,
+            role: emp.role,
+            currentLoad: activeLeads.length,
+            performanceScore: assignedLeads.length > 0
+                ? Math.min(5, (assignedLeads.filter(l => l.status === 'Booked').length / assignedLeads.length * 5) || 1).toFixed(1)
+                : '2.5',
+            expertise: ['Residential'],
+            isAvailable: emp.status !== 'Suspended',
+        };
+    });
 };
 
 export const suggestEmployee = (lead, employeeStats) => {

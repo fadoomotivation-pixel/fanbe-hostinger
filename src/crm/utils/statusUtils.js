@@ -90,11 +90,12 @@ export const normalizeCallStatus = (status) => {
     .trim()
     .replace(/[\s_-]+/g, '');
   
-  if (cleaned.includes('connect') || cleaned.includes('answer') && !cleaned.includes('not')) {
-    return CALL_STATUS.CONNECTED;
-  }
-  if (cleaned.includes('notanswer') || cleaned.includes('noanswer') || cleaned.includes('notreach')) {
+  // Check "not" variations first so they don't accidentally match CONNECTED
+  if (cleaned.includes('notanswer') || cleaned.includes('noanswer') || cleaned.includes('notreach') || cleaned.includes('notconnect')) {
     return CALL_STATUS.NOT_ANSWERED;
+  }
+  if (cleaned.includes('connect') || (cleaned.includes('answer') && !cleaned.includes('not'))) {
+    return CALL_STATUS.CONNECTED;
   }
   if (cleaned.includes('busy')) {
     return CALL_STATUS.BUSY;

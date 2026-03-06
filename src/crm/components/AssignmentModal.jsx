@@ -6,19 +6,22 @@ import { Badge } from '@/components/ui/badge';
 import { getEmployeeStats, suggestEmployee } from '@/lib/smartAssignmentEngine';
 import { Star, Briefcase, BarChart, Users } from 'lucide-react';
 
-const AssignmentModal = ({ isOpen, onClose, leads = [], onAssign, employees = [] }) => {
+const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign, employees = [] }) => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [employeeStats, setEmployeeStats] = useState([]);
   const [suggestion, setSuggestion] = useState(null);
 
   useEffect(() => {
     if (isOpen && employees.length > 0) {
-      const stats = getEmployeeStats(employees);
+      // Reset selection each time modal opens so stale picks don't carry over
+      setSelectedEmployeeId('');
+      setSuggestion(null);
+      const stats = getEmployeeStats(employees, allLeads);
       setEmployeeStats(stats);
       if (leads.length > 0) {
         const bestFit = suggestEmployee(leads[0], stats);
         setSuggestion(bestFit);
-        if (bestFit && !selectedEmployeeId) setSelectedEmployeeId(bestFit.id);
+        if (bestFit) setSelectedEmployeeId(bestFit.id);
       }
     }
   }, [isOpen, employees, leads]);

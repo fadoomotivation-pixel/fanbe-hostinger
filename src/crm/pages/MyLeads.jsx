@@ -48,10 +48,9 @@ const MyLeads = () => {
     } : null
   });
 
-  // Use the priority hook to sort leads intelligently
+  // ✅ FIXED: Removed includeCompleted: false which was filtering out all leads
   const { leads: prioritySortedLeads, summary } = useLeadPriority(myLeads, {
-    filterByAssignee: userId,
-    includeCompleted: false
+    filterByAssignee: userId
   });
 
   const getFilteredLeadsByDate = (leadsArray) => {

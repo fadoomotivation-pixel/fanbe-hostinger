@@ -48,9 +48,10 @@ import BookingAnalytics from './crm/pages/BookingAnalytics';
 import MyLeads from './crm/pages/MyLeads';
 import LeadDetail from './crm/pages/LeadDetail';
 import EditLead from './crm/pages/EditLead';
-import EmployeeLeadList from './crm/pages/EmployeeLeadList';
-import EmployeeLeadDetails from './crm/pages/EmployeeLeadDetails';
-import EmployeeDashboard from './crm/pages/EmployeeDashboard';
+// EmployeeLeadList and EmployeeLeadDetails replaced by unified MobileLeadList/MobileLeadDetails
+import CreateManualLead from './crm/pages/CreateManualLead';
+import UpdateLeadStatus from './crm/pages/UpdateLeadStatus';
+// EmployeeDashboard replaced by unified MobileEmployeeDashboard
 import DailyCalling from './crm/pages/DailyCalling';
 import LeadSearch from './crm/pages/LeadSearch';
 import SmartGuidance from './crm/pages/SmartGuidance';
@@ -89,8 +90,8 @@ import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
-// ✅ Mobile employee roles
-const MOBILE_EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
+// ✅ Employee roles that get the employee UI (unified for mobile + desktop)
+const EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
 
 // ── Smart Dashboard: role-based redirect ────────────────────────────────
 const SmartDashboard = () => {
@@ -104,7 +105,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   const isMobile = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
-  const hasMobileEmployeeRoutes = isMobile && MOBILE_EMPLOYEE_ROLES.includes(user?.role);
+  const isEmployeeRole = EMPLOYEE_ROLES.includes(user?.role);
 
   if (isCRM) {
     return (
@@ -117,11 +118,13 @@ const AppRoutes = ({ onBookSiteVisit }) => {
               {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
                 <CRMLayout>
                   <Routes>
-                    {hasMobileEmployeeRoutes && (
+                    {/* ── Unified employee routes (same component for mobile + desktop) ── */}
+                    {isEmployeeRole && (
                       <>
                         <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
                         <Route path="my-leads" element={<MobileLeadList />} />
                         <Route path="lead/:leadId" element={<MobileLeadDetails />} />
+                        <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />
                       </>
                     )}
 
@@ -188,12 +191,14 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                     {/* ── Sales Executive / Employee routes ── */}
                     <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
-                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
+                    {!isEmployeeRole && <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />}
                     <Route path="sales/my-leads" element={<MyLeads />} />
                     <Route path="sales/lead/:id" element={<LeadDetail />} />
                     <Route path="sales/edit-lead/:id" element={<EditLead />} />
-                    {!isMobile && <Route path="my-leads" element={<EmployeeLeadList />} />}
-                    {!isMobile && <Route path="lead/:leadId" element={<EmployeeLeadDetails />} />}
+                    {!isEmployeeRole && <Route path="my-leads" element={<MobileLeadList />} />}
+                    {!isEmployeeRole && <Route path="lead/:leadId" element={<MobileLeadDetails />} />}
+                    {!isEmployeeRole && <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />}
+                    <Route path="lead/new" element={<CreateManualLead />} />
                     <Route path="sales/lead-search" element={<LeadSearch />} />
                     <Route path="sales/smart-guidance" element={<SmartGuidance />} />
                     <Route path="sales/daily-calling" element={<DailyCalling />} />

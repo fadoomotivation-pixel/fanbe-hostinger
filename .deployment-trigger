@@ -1,0 +1,8 @@
+# Deployment Trigger
+Last deployment: 2026-03-05 17:00 IST
+
+Latest changes:
+- Lead temperature auto-calculation with manual override
+- Fixed notes dependency in UpdateLeadStatus
+- Added database migration for temperature tracking
+- Lead scoring engine with 5 factors (calls, budget, timeline, engagement, recency)

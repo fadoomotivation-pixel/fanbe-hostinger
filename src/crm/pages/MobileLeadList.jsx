@@ -1,73 +1,478 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight } from 'lucide-react';
+import {
+  Search, Phone, ChevronRight, Flame, Wind, Snowflake,
+  AlertCircle, Filter, Users, Plus, PhoneCall, X
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
+import FollowUpBadge from '@/crm/components/FollowUpBadge';
+import LogCallModal from '@/crm/components/LogCallModal';
+import CallQuickLog from '@/crm/components/CallQuickLog';
+import { useCallQuickLog } from '@/crm/hooks/useCallQuickLog';
+import { calculatePriority } from '@/crm/hooks/useLeadPriority';
+import {
+  normalizeLeadStatus, normalizeInterestLevel,
+  getStatusColor, LEAD_STATUS
+} from '@/crm/utils/statusUtils';
+
+const FILTER_TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'today', label: 'Today' },
+  { key: 'upcoming', label: 'Upcoming' },
+];
+
+const STATUS_FILTERS = [
+  { key: 'all', label: 'All Status' },
+  { key: LEAD_STATUS.OPEN, label: 'Open' },
+  { key: LEAD_STATUS.FOLLOW_UP, label: 'Follow Up' },
+  { key: LEAD_STATUS.BOOKED, label: 'Booked' },
+  { key: LEAD_STATUS.LOST, label: 'Lost' },
+];
+
+const TemperatureDot = ({ level }) => {
+  const normalized = normalizeInterestLevel(level);
+  if (normalized === 'Hot') return <Flame size={14} className="text-red-500" />;
+  if (normalized === 'Warm') return <Wind size={14} className="text-amber-500" />;
+  return <Snowflake size={14} className="text-blue-400" />;
+};
 
 const MobileLeadList = () => {
   const { leads } = useCRMData();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [temperatureFilter, setTemperatureFilter] = useState('all');
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [selectedLeadForCallLog, setSelectedLeadForCallLog] = useState(null);
+  const { quickLogState, initiateCallWithQuickLog, closeQuickLog } = useCallQuickLog();
 
-  const myLeads = leads.filter(l => l.assignedTo === user.id);
-  const filtered = myLeads.filter(l => l.name.toLowerCase().includes(term.toLowerCase()) || l.phone.includes(term));
+  const myLeads = useMemo(() => {
+    let result = leads.filter(l => l.assignedTo === user.id || l.assigned_to === user.id);
+
+    result = result.map(l => ({
+      ...l,
+      _priority: calculatePriority(l.followUpDate || l.follow_up_date),
+      _status: normalizeLeadStatus(l.status),
+      _interest: normalizeInterestLevel(l.interestLevel || l.interest_level),
+    }));
+
+    result.sort((a, b) => {
+      if (a._priority !== b._priority) return a._priority - b._priority;
+      const da = new Date(a.followUpDate || a.follow_up_date || 0);
+      const db = new Date(b.followUpDate || b.follow_up_date || 0);
+      if (da.getTime() !== db.getTime()) return da - db;
+      return new Date(b.updatedAt || b.updated_at || 0) - new Date(a.updatedAt || a.updated_at || 0);
+    });
+
+    return result;
+  }, [leads, user]);
+
+  const filtered = useMemo(() => {
+    let result = myLeads;
+
+    if (term) {
+      const t = term.toLowerCase();
+      result = result.filter(l =>
+        l.name?.toLowerCase().includes(t) ||
+        l.phone?.includes(t) ||
+        l.project?.toLowerCase().includes(t)
+      );
+    }
+
+    if (activeTab === 'overdue') result = result.filter(l => l._priority === 1);
+    else if (activeTab === 'today') result = result.filter(l => l._priority === 2);
+    else if (activeTab === 'upcoming') result = result.filter(l => l._priority >= 3 && l._priority <= 5);
+
+    if (statusFilter !== 'all') {
+      result = result.filter(l => l._status === statusFilter);
+    }
+
+    if (temperatureFilter !== 'all') {
+      result = result.filter(l => l._interest === temperatureFilter);
+    }
+
+    return result;
+  }, [myLeads, term, activeTab, statusFilter, temperatureFilter]);
+
+  const summary = useMemo(() => {
+    const counts = { overdue: 0, today: 0, upcoming: 0 };
+    myLeads.forEach(l => {
+      if (l._priority === 1) counts.overdue++;
+      else if (l._priority === 2) counts.today++;
+      else if (l._priority >= 3 && l._priority <= 5) counts.upcoming++;
+    });
+    return counts;
+  }, [myLeads]);
+
+  const stats = useMemo(() => ({
+    total: myLeads.length,
+    open: myLeads.filter(l => l._status === LEAD_STATUS.OPEN).length,
+    followUp: myLeads.filter(l => l._status === LEAD_STATUS.FOLLOW_UP).length,
+    booked: myLeads.filter(l => l._status === LEAD_STATUS.BOOKED).length,
+    lost: myLeads.filter(l => l._status === LEAD_STATUS.LOST).length,
+    hot: myLeads.filter(l => l._interest === 'Hot').length,
+    warm: myLeads.filter(l => l._interest === 'Warm').length,
+    cold: myLeads.filter(l => l._interest === 'Cold').length,
+  }), [myLeads]);
+
+  const handleStatusFilterClick = (status) => {
+    setStatusFilter(statusFilter === status ? 'all' : status);
+  };
+
+  const handleTemperatureFilterClick = (temp) => {
+    setTemperatureFilter(temperatureFilter === temp ? 'all' : temp);
+  };
+
+  const clearAllFilters = () => {
+    setStatusFilter('all');
+    setTemperatureFilter('all');
+    setActiveTab('all');
+    setTerm('');
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || temperatureFilter !== 'all' || activeTab !== 'all' || term !== '';
 
   return (
-    <div className="pb-24 pt-4 px-4 bg-gray-50 min-h-screen">
-       <h1 className="text-xl font-bold mb-4">My Leads</h1>
-       
-       <div className="bg-white p-2 rounded-lg shadow-sm border mb-4 sticky top-2 z-10 flex items-center">
-           <Search size={18} className="text-gray-400 mr-2" />
-           <input 
-              placeholder="Search leads..." 
-              className="flex-1 outline-none text-sm"
-              value={term}
-              onChange={e => setTerm(e.target.value)}
-           />
-       </div>
+    <div className="pb-24 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="bg-white border-b px-4 pt-4 pb-2 sticky top-0 z-20">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900">My Leads</h1>
+            <p className="text-xs text-gray-500">{myLeads.length} leads assigned</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => navigate('/crm/lead/new')}
+              className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs"
+            >
+              <Plus size={14} className="mr-1" />
+              <span className="hidden sm:inline">Add Lead</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition"
+                title="Clear all filters"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+        </div>
 
-       <div className="space-y-3">
-           {filtered.map(lead => (
-               <div 
-                  key={lead.id} 
-                  className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 active:bg-gray-50"
+        {/* Smart Follow-up Info Banner */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg px-3 py-2 mb-3">
+          <p className="text-xs text-purple-900 font-medium flex items-center gap-1.5">
+            <PhoneCall size={12} className="text-purple-600" />
+            💡 Quick Tip: Use "Log" button after calls - system auto-creates follow-ups!
+          </p>
+        </div>
+
+        {/* Clickable Stats Row */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3 -mx-1 px-1">
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.OPEN)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.OPEN
+                ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                : 'bg-blue-50 border-blue-200 text-blue-700 hover:border-blue-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Open</span>
+            <span className="text-sm font-bold">{stats.open}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.FOLLOW_UP)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.FOLLOW_UP
+                ? 'bg-orange-600 border-orange-600 text-white shadow-md scale-105'
+                : 'bg-orange-50 border-orange-200 text-orange-700 hover:border-orange-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Follow Up</span>
+            <span className="text-sm font-bold">{stats.followUp}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.BOOKED)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.BOOKED
+                ? 'bg-green-600 border-green-600 text-white shadow-md scale-105'
+                : 'bg-green-50 border-green-200 text-green-700 hover:border-green-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Booked</span>
+            <span className="text-sm font-bold">{stats.booked}</span>
+          </button>
+          
+          <button
+            onClick={() => handleStatusFilterClick(LEAD_STATUS.LOST)}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              statusFilter === LEAD_STATUS.LOST
+                ? 'bg-gray-700 border-gray-700 text-white shadow-md scale-105'
+                : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300 active:scale-95'
+            }`}
+          >
+            <span className="text-[10px] font-medium">Lost</span>
+            <span className="text-sm font-bold">{stats.lost}</span>
+          </button>
+
+          {/* Temperature Filters */}
+          <div className="w-px h-8 bg-gray-200 mx-1" />
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Hot')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Hot'
+                ? 'bg-red-600 border-red-600 text-white shadow-md scale-105'
+                : 'bg-red-50 border-red-200 hover:border-red-300 active:scale-95'
+            }`}
+          >
+            <Flame size={12} className={temperatureFilter === 'Hot' ? 'text-white' : 'text-red-500'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>Hot</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>{stats.hot}</span>
+          </button>
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Warm')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Warm'
+                ? 'bg-amber-600 border-amber-600 text-white shadow-md scale-105'
+                : 'bg-amber-50 border-amber-200 hover:border-amber-300 active:scale-95'
+            }`}
+          >
+            <Wind size={12} className={temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-500'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>Warm</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>{stats.warm}</span>
+          </button>
+          
+          <button
+            onClick={() => handleTemperatureFilterClick('Cold')}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 shrink-0 transition border-2 ${
+              temperatureFilter === 'Cold'
+                ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105'
+                : 'bg-sky-50 border-sky-200 hover:border-sky-300 active:scale-95'
+            }`}
+          >
+            <Snowflake size={12} className={temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-400'} />
+            <span className={`text-[10px] font-medium ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>Cold</span>
+            <span className={`text-sm font-bold ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>{stats.cold}</span>
+          </button>
+        </div>
+
+        {/* Active Filter Badge */}
+        {hasActiveFilters && (
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500">Filtering:</span>
+            {statusFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Status: {statusFilter === 'FollowUp' ? 'Follow Up' : statusFilter}
+                <button onClick={() => setStatusFilter('all')} className="hover:bg-blue-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {temperatureFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Temperature: {temperatureFilter}
+                <button onClick={() => setTemperatureFilter('all')} className="hover:bg-purple-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {activeTab !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                Priority: {activeTab}
+                <button onClick={() => setActiveTab('all')} className="hover:bg-gray-200 rounded-full p-0.5">
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Search */}
+        <div className="bg-gray-100 rounded-lg flex items-center px-3 py-2 mb-3">
+          <Search size={16} className="text-gray-400 mr-2 shrink-0" />
+          <input
+            placeholder="Search name, phone, project..."
+            className="flex-1 outline-none text-sm bg-transparent"
+            value={term}
+            onChange={e => setTerm(e.target.value)}
+          />
+          {term && (
+            <button onClick={() => setTerm('')} className="text-gray-400 text-xs ml-1">Clear</button>
+          )}
+        </div>
+
+        {/* Priority Tabs */}
+        <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
+          {FILTER_TABS.map(tab => {
+            const count = tab.key === 'all' ? myLeads.length : summary[tab.key] || 0;
+            const isActive = activeTab === tab.key;
+            const isUrgent = tab.key === 'overdue' && count > 0;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+                  isActive
+                    ? isUrgent ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                    : isUrgent ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {tab.key === 'overdue' && <AlertCircle size={12} />}
+                {tab.label}
+                <span className={`text-[10px] ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Urgent Alert */}
+      {summary.overdue > 0 && activeTab === 'all' && (
+        <div
+          className="mx-4 mt-3 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2 cursor-pointer active:bg-red-100"
+          onClick={() => setActiveTab('overdue')}
+        >
+          <AlertCircle size={16} className="text-red-600 shrink-0" />
+          <p className="text-xs text-red-700 font-medium">
+            {summary.overdue} overdue follow-up{summary.overdue > 1 ? 's' : ''} need attention
+          </p>
+          <ChevronRight size={14} className="text-red-400 ml-auto shrink-0" />
+        </div>
+      )}
+
+      {/* Lead Cards */}
+      <div className="px-4 pt-3">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12">
+            <Users size={40} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500 text-sm font-medium">No leads found</p>
+            <p className="text-gray-400 text-xs mt-1">
+              {term ? 'Try a different search' : hasActiveFilters ? 'Try different filters' : 'No leads assigned yet'}
+            </p>
+            {hasActiveFilters && (
+              <Button onClick={clearAllFilters} variant="outline" size="sm" className="mt-3">
+                Clear All Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3">
+            {filtered.map(lead => {
+              const followUpDate = lead.followUpDate || lead.follow_up_date;
+              const followUpTime = lead.followUpTime || lead.follow_up_time;
+              const isOverdue = lead._priority === 1;
+              const isToday = lead._priority === 2;
+              const lastUpdated = lead.updatedAt || lead.updated_at;
+
+              return (
+                <div
+                  key={lead.id}
+                  className={`bg-white rounded-xl shadow-sm border active:scale-[0.99] transition-transform cursor-pointer ${
+                    isOverdue ? 'border-red-200 border-l-4 border-l-red-500' :
+                    isToday ? 'border-yellow-200 border-l-4 border-l-yellow-500' :
+                    'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                  }`}
                   onClick={() => navigate(`/crm/lead/${lead.id}`)}
-               >
-                   <div className="flex justify-between items-start mb-2">
-                       <div>
-                           <h3 className="font-bold text-gray-900">{lead.name}</h3>
-                           <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mt-1
-                               ${lead.status === 'Open' ? 'bg-blue-100 text-blue-700' : 
-                                 lead.status === 'Booked' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`
-                           }>
-                               {lead.status}
-                           </span>
-                       </div>
-                       <ChevronRight size={18} className="text-gray-300" />
-                   </div>
-                   
-                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50">
-                       <p className="text-xs text-gray-500">{lead.project}</p>
-                       <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                           <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-full" onClick={() => window.location.href=`tel:${lead.phone}`}>
-                               <Phone size={14} />
-                           </Button>
-                           <WhatsAppButton 
-                               leadName={lead.name}
-                               phoneNumber={lead.phone}
-                               size="sm"
-                               className="h-8 px-2 rounded-full"
-                           />
-                       </div>
-                   </div>
-               </div>
-           ))}
-       </div>
+                >
+                  <div className="px-3 pt-3 pb-1 flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <TemperatureDot level={lead.interestLevel || lead.interest_level} />
+                        <h3 className="font-semibold text-gray-900 text-sm truncate">{lead.name}</h3>
+                      </div>
+                      {lead.project && (
+                        <p className="text-[11px] text-gray-400 mt-0.5 ml-5 truncate">{lead.project}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusColor(lead.status)}`}>
+                        {lead._status === 'FollowUp' ? 'Follow Up' : lead._status}
+                      </span>
+                      <ChevronRight size={14} className="text-gray-300" />
+                    </div>
+                  </div>
+
+                  {followUpDate && (
+                    <div className="px-3 pb-1">
+                      <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
+                    </div>
+                  )}
+
+                  <div className="px-3 pb-2.5 pt-1.5 flex justify-between items-center border-t border-gray-50 mt-1">
+                    <div className="text-[11px] text-gray-400 truncate">
+                      <span>{lead.phone}</span>
+                      {lead.budget ? <span> · ₹{Number(lead.budget).toLocaleString('en-IN')}</span> : null}
+                      {lastUpdated && (
+                        <span className="hidden sm:inline"> · {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => initiateCallWithQuickLog(lead)}
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200 active:bg-green-100"
+                      >
+                        <Phone size={14} className="text-green-600" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedLeadForCallLog(lead)}
+                        className="h-8 px-2.5 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-[11px] font-medium active:bg-purple-100 flex items-center gap-1"
+                        title="Log call outcome - auto-creates follow-up"
+                      >
+                        <PhoneCall size={12} />
+                        Log
+                      </button>
+                      <button
+                        onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
+                        className="h-8 px-2.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-medium active:bg-blue-100"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="h-4" />
+
+      {/* Log Call Modal (full form) */}
+      {selectedLeadForCallLog && (
+        <LogCallModal
+          lead={selectedLeadForCallLog}
+          isOpen={true}
+          onClose={() => setSelectedLeadForCallLog(null)}
+          onSuccess={() => {
+            setSelectedLeadForCallLog(null);
+          }}
+        />
+      )}
+
+      {/* Call Quick Log (one-tap after calling) */}
+      <CallQuickLog
+        lead={quickLogState.lead}
+        isOpen={quickLogState.isOpen}
+        onClose={closeQuickLog}
+        onSuccess={closeQuickLog}
+      />
     </div>
   );
 };

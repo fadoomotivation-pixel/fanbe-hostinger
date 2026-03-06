@@ -419,7 +419,7 @@ const MobileEmployeeDashboard = () => {
                   className={`bg-white rounded-xl shadow-sm border p-3 flex items-center justify-between cursor-pointer active:bg-gray-50 ${
                     isOverdue ? 'border-l-4 border-l-red-500 border-red-200' : 'border-l-4 border-l-yellow-500 border-yellow-200'
                   }`}
-                  onClick={() => navigate(`/crm/lead/${lead.id}/mobile`)}
+                  onClick={() => navigate(`/crm/lead/${lead.id}`)}
                 >
                   <div className="flex-1 min-w-0 mr-3">
                     <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>

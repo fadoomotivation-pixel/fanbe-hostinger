@@ -13,14 +13,14 @@ const MobileBottomNav = () => {
       id: 'home',
       label: 'Home',
       icon: LayoutDashboard,
-      path: '/crm/employee-dashboard',
+      path: '/crm/sales/dashboard',
       color: 'text-blue-600'
     },
     {
       id: 'leads',
       label: 'Leads',
       icon: Users,
-      path: '/crm/my-leads',
+      path: '/crm/sales/my-leads',
       color: 'text-blue-600'
     },
     {

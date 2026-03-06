@@ -18,7 +18,7 @@ import { addUser, getAllUsers, toggleUserStatus, deleteUser, generateRandomPassw
 
 const ROLES = [
   { value: 'sales_executive', label: 'Sales Executive' },
-  { value: 'team_lead',       label: 'Team Lead'       },
+  { value: 'telecaller',      label: 'Telecaller'      },
   { value: 'manager',         label: 'Manager'         },
 ];
 

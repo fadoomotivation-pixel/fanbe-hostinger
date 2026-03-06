@@ -143,19 +143,19 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/invoices"            element={<InvoiceManagement />} />
                     <Route path="admin/settings"            element={<ProtectedRoute allowedRoles={['super_admin']}><MasterSettings /></ProtectedRoute>} />
                     <Route path="admin/crm-settings"        element={<ProtectedRoute allowedRoles={['super_admin']}><CRMSettings /></ProtectedRoute>} />
-                    <Route path="admin/settings/account"    element={<SuperAdminSettings />} />
-                    <Route path="admin/settings/staff"      element={<EmployeeManagement />} />
-                    <Route path="admin/settings/employee"   element={<EmployeeManagement />} />
-                    <Route path="admin/settings/security"   element={<SecuritySettings />} />
-                    <Route path="admin/notifications"       element={<NotificationSettings />} />
+                    <Route path="admin/settings/account"    element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminSettings /></ProtectedRoute>} />
+                    <Route path="admin/settings/staff"      element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
+                    <Route path="admin/settings/employee"   element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
+                    <Route path="admin/settings/security"   element={<ProtectedRoute allowedRoles={['super_admin']}><SecuritySettings /></ProtectedRoute>} />
+                    <Route path="admin/notifications"       element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><NotificationSettings /></ProtectedRoute>} />
                     <Route path="admin/wa-templates"        element={<WhatsAppTemplates />} />
                     <Route path="admin/work-history"        element={<EmployeeWorkHistory />} />
-                    <Route path="admin/daily-reports"       element={<AdminDailyReports />} />
-                    <Route path="admin/performance"         element={<AdminPerformanceDashboard />} />
+                    <Route path="admin/daily-reports"       element={<ProtectedRoute allowedRoles={['super_admin','sub_admin','manager']}><AdminDailyReports /></ProtectedRoute>} />
+                    <Route path="admin/performance"         element={<ProtectedRoute allowedRoles={['super_admin','sub_admin','manager']}><AdminPerformanceDashboard /></ProtectedRoute>} />
                     <Route path="admin/projects"            element={<ProjectManagement />} />
                     <Route path="admin/import-work-logs"    element={<ProtectedRoute allowedRoles={['super_admin']}><ImportWorkLogs /></ProtectedRoute>} />
                     <Route path="admin/import-leads"        element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><ImportLeads /></ProtectedRoute>} />
-                    <Route path="clear-cache"               element={<ClearCacheUtility />} />
+                    <Route path="clear-cache"               element={<ProtectedRoute allowedRoles={['super_admin']}><ClearCacheUtility /></ProtectedRoute>} />
                     <Route path="admin/cms"                 element={<ContentManagementDashboard />} />
                     <Route path="admin/cms/homepage"        element={<HomepageSettings />} />
                     <Route path="admin/cms/projects"        element={<ProjectPagesEditor />} />

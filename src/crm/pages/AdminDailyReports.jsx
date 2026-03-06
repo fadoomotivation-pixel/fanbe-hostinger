@@ -9,7 +9,7 @@ import { Download, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const AdminDailyReports = () => {
-  const { workLogs, employees } = useCRMData();
+  const { workLogs, employees, leads } = useCRMData();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -21,10 +21,15 @@ const AdminDailyReports = () => {
     .filter(e => e.role !== 'super_admin' && e.status === 'Active')
     .map(emp => {
       const log = logsForDate.find(l => l.employeeId === emp.id);
+      // Compute token amount from leads assigned to this employee
+      const empLeads = leads.filter(l => (l.assignedTo === emp.id || l.assigned_to === emp.id));
+      const tokenAmount = empLeads.reduce((sum, l) => sum + Number(l.tokenAmount || l.token_amount || 0), 0);
+      const enrichedLog = log ? { ...log, token: tokenAmount } : null;
       return {
         empId: emp.id,
         name: emp.name,
-        log: log || null,
+        role: emp.role,
+        log: enrichedLog,
         status: log ? 'Submitted' : 'Pending'
       };
     })
@@ -52,7 +57,7 @@ const AdminDailyReports = () => {
       'Site Visits': item.log?.siteVisits || 0,
       'Conversion %': item.log?.conversionRate || 0,
       'Token': item.log?.token || 0,
-      'Objection': item.log?.majorObjection || '-'
+      'Objection': '-'
     }));
     
     const ws = XLSX.utils.json_to_sheet(data);
@@ -140,7 +145,7 @@ const AdminDailyReports = () => {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-[#0F3A5F]">{item.name}</h3>
-                  <p className="text-xs text-gray-500">Sales Executive</p>
+                  <p className="text-xs text-gray-500 capitalize">{(item.role || 'employee').replace(/_/g, ' ')}</p>
                 </div>
                 {item.status === 'Submitted' ? (
                   <span className="flex items-center bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">
@@ -171,8 +176,9 @@ const AdminDailyReports = () => {
                   </div>
                   
                   <div className="flex justify-between text-xs pt-2 border-t">
-                     <span className="text-gray-500">Objection: <span className="text-gray-800 font-medium">{item.log.majorObjection}</span></span>
-                     <span className="text-gray-500">Token: <span className="text-green-600 font-bold">₹{item.log.token}</span></span>
+                     {/* TODO: majorObjection — requires EOD report form (not yet built) */}
+                     <span className="text-gray-500">Objection: <span className="text-gray-800 font-medium">-</span></span>
+                     <span className="text-gray-500">Token: <span className="text-green-600 font-bold">₹{(item.log.token || 0).toLocaleString('en-IN')}</span></span>
                   </div>
                 </div>
               ) : (

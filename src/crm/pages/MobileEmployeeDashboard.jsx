@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -9,23 +8,30 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, Phone, MapPin, CheckCircle, ClipboardList, FileText,
   ArrowRight, Flame, Wind, Snowflake, AlertCircle, Clock,
-  Calendar, TrendingUp, IndianRupee, Download, Target
+  Calendar, TrendingUp, IndianRupee, Download, Target, PhoneOff, PhoneMissed, PhoneIncoming
 } from 'lucide-react';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import FollowUpBadge from '@/crm/components/FollowUpBadge';
 import { useToast } from '@/components/ui/use-toast';
 import { calculatePriority } from '@/crm/hooks/useLeadPriority';
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
+import { differenceInHours, parseISO } from 'date-fns';
 
 const MobileEmployeeDashboard = () => {
   const { user } = useAuth();
-  const { leads, workLogs } = useCRMData();
+  const { leads, workLogs, calls } = useCRMData();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const myLeads = useMemo(() =>
     leads.filter(l => l.assignedTo === user.id || l.assigned_to === user.id),
     [leads, user]
+  );
+
+  // Get call history for tracking unanswered calls
+  const myCalls = useMemo(() => 
+    calls?.filter(c => c.employeeId === user.id || c.employee_id === user.id) || [],
+    [calls, user]
   );
 
   // Today's work logs
@@ -39,7 +45,7 @@ const MobileEmployeeDashboard = () => {
   // Targets
   const targets = { calls: 50, visits: 2, bookings: 1 };
 
-  // Lead breakdown
+  // Enhanced lead analysis with call tracking
   const leadStats = useMemo(() => {
     const stats = {
       total: myLeads.length,
@@ -49,6 +55,10 @@ const MobileEmployeeDashboard = () => {
       totalTokens: 0, tokenCount: 0,
       totalBookings: 0, bookingCount: 0,
       thisMonthTokens: 0, thisMonthBookings: 0,
+      // Call tracking stats
+      neverCalled: 0,
+      unanswered: 0,
+      needsRetry: 0,
     };
 
     const now = new Date();
@@ -75,6 +85,25 @@ const MobileEmployeeDashboard = () => {
       else if (p === 3) stats.tomorrow++;
       else if (p === 4) stats.thisWeek++;
 
+      // Call tracking analysis
+      const leadCalls = myCalls.filter(c => c.leadId === l.id || c.lead_id === l.id);
+      const lastCall = leadCalls.sort((a, b) => new Date(b.callTime || b.call_time) - new Date(a.callTime || a.call_time))[0];
+      
+      if (leadCalls.length === 0) {
+        stats.neverCalled++;
+      } else if (lastCall) {
+        const isConnected = lastCall.status === 'connected' || lastCall.status === 'answered';
+        const hoursSinceCall = differenceInHours(now, parseISO(lastCall.callTime || lastCall.call_time));
+        
+        if (!isConnected) {
+          stats.unanswered++;
+          // If last call was unanswered and more than 2 hours ago, needs retry
+          if (hoursSinceCall >= 2) {
+            stats.needsRetry++;
+          }
+        }
+      }
+
       // Revenue
       if (l.token_amount && l.token_amount > 0) {
         stats.totalTokens += parseFloat(l.token_amount);
@@ -94,19 +123,61 @@ const MobileEmployeeDashboard = () => {
 
     stats.totalRevenue = stats.totalTokens + stats.totalBookings;
     return stats;
-  }, [myLeads]);
+  }, [myLeads, myCalls]);
 
-  // Overdue + today leads for quick action
-  const urgentLeads = useMemo(() => {
+  // Smart priority leads with call tracking
+  const priorityLeads = useMemo(() => {
+    const now = new Date();
+    
     return myLeads
-      .map(l => ({
-        ...l,
-        _priority: calculatePriority(l.followUpDate || l.follow_up_date)
-      }))
-      .filter(l => l._priority <= 2) // overdue + today
-      .sort((a, b) => a._priority - b._priority)
-      .slice(0, 5);
-  }, [myLeads]);
+      .map(l => {
+        const leadCalls = myCalls.filter(c => c.leadId === l.id || c.lead_id === l.id);
+        const lastCall = leadCalls.sort((a, b) => 
+          new Date(b.callTime || b.call_time) - new Date(a.callTime || a.call_time)
+        )[0];
+        
+        let callStatus = 'never_called';
+        let callPriority = 0;
+        let hoursSinceCall = 0;
+        
+        if (leadCalls.length === 0) {
+          callStatus = 'never_called';
+          callPriority = 100; // Highest priority
+        } else if (lastCall) {
+          hoursSinceCall = differenceInHours(now, parseISO(lastCall.callTime || lastCall.call_time));
+          const isConnected = lastCall.status === 'connected' || lastCall.status === 'answered';
+          
+          if (!isConnected) {
+            if (hoursSinceCall >= 2) {
+              callStatus = 'needs_retry';
+              callPriority = 80; // High priority
+            } else {
+              callStatus = 'recently_unanswered';
+              callPriority = 40; // Medium priority
+            }
+          } else {
+            callStatus = 'connected';
+            callPriority = 20; // Low priority
+          }
+        }
+        
+        const followUpPriority = calculatePriority(l.followUpDate || l.follow_up_date);
+        const temperature = normalizeInterestLevel(l.interestLevel || l.interest_level);
+        const tempScore = temperature === 'Hot' ? 30 : temperature === 'Warm' ? 20 : 10;
+        
+        return {
+          ...l,
+          _callStatus: callStatus,
+          _callPriority: callPriority,
+          _followUpPriority: followUpPriority,
+          _hoursSinceCall: hoursSinceCall,
+          _totalScore: callPriority + (followUpPriority <= 2 ? 50 : 0) + tempScore,
+          _lastCall: lastCall,
+        };
+      })
+      .sort((a, b) => b._totalScore - a._totalScore)
+      .slice(0, 10); // Top 10 priority leads
+  }, [myLeads, myCalls]);
 
   const formatShort = (amount) => {
     if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
@@ -115,7 +186,6 @@ const MobileEmployeeDashboard = () => {
     return `₹${amount}`;
   };
 
-  // Export
   const handleExportData = () => {
     try {
       const keys = [
@@ -163,6 +233,28 @@ const MobileEmployeeDashboard = () => {
     }
   };
 
+  const getCallStatusIcon = (status) => {
+    switch(status) {
+      case 'never_called': return <PhoneMissed size={14} className="text-red-500" />;
+      case 'needs_retry': return <PhoneOff size={14} className="text-orange-500" />;
+      case 'recently_unanswered': return <PhoneMissed size={14} className="text-yellow-500" />;
+      default: return <PhoneIncoming size={14} className="text-green-500" />;
+    }
+  };
+
+  const getCallStatusBadge = (status, hoursSince) => {
+    switch(status) {
+      case 'never_called': 
+        return <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Never Called 📵</span>;
+      case 'needs_retry': 
+        return <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">Retry Now ⏰ ({Math.floor(hoursSince)}h ago)</span>;
+      case 'recently_unanswered': 
+        return <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold">Not Answered 📞</span>;
+      default: 
+        return <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Connected ✓</span>;
+    }
+  };
+
   const quickActions = [
     { label: "My Leads", icon: Users, path: "/crm/my-leads", color: "bg-blue-100 text-blue-600" },
     { label: "Log Call", icon: Phone, path: "/crm/sales/daily-calling", color: "bg-green-100 text-green-600" },
@@ -179,7 +271,7 @@ const MobileEmployeeDashboard = () => {
       <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">
-            Hi, {user.name.split(' ')[0]}!
+            Hi, {user.name.split(' ')[0]}! 👋
           </h1>
           <p className="text-xs text-gray-500">
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
@@ -198,8 +290,38 @@ const MobileEmployeeDashboard = () => {
         </div>
       </div>
 
-      {/* ═══ MY TRACKER ═══ */}
-      {/* Lead Status Breakdown */}
+      {/* 📞 CALL PRIORITY ALERT */}
+      {(leadStats.neverCalled > 0 || leadStats.needsRetry > 0) && (
+        <div className="bg-gradient-to-r from-red-50 via-orange-50 to-yellow-50 rounded-xl border-2 border-red-200 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-100 rounded-full">
+              <Phone className="h-5 w-5 text-red-600 animate-pulse" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-red-900 text-sm mb-1">⚠️ Priority Calls Pending!</h3>
+              <div className="space-y-1">
+                {leadStats.neverCalled > 0 && (
+                  <p className="text-xs text-red-700">
+                    🔴 <strong>{leadStats.neverCalled} leads never called</strong> - Start calling them first!
+                  </p>
+                )}
+                {leadStats.needsRetry > 0 && (
+                  <p className="text-xs text-orange-700">
+                    🟠 <strong>{leadStats.needsRetry} unanswered calls</strong> - They need retry (2+ hours ago)
+                  </p>
+                )}
+                {leadStats.unanswered > 0 && (
+                  <p className="text-xs text-gray-600">
+                    📞 Total {leadStats.unanswered} unanswered calls in your leads
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MY TRACKER */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-gray-700">My Lead Tracker</h2>
@@ -399,45 +521,61 @@ const MobileEmployeeDashboard = () => {
         </div>
       </div>
 
-      {/* Urgent Follow-ups */}
-      {urgentLeads.length > 0 && (
+      {/* 🔥 TOP PRIORITY LEADS - Smart sorted by call + follow-up */}
+      {priorityLeads.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-sm font-bold text-gray-700">Urgent Follow-ups</h2>
+            <h2 className="text-sm font-bold text-gray-700">🎯 Top Priority Leads</h2>
             <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 text-xs" onClick={() => navigate('/crm/my-leads')}>
               View All <ArrowRight size={12} className="ml-1" />
             </Button>
           </div>
           <div className="space-y-2">
-            {urgentLeads.map(lead => {
+            {priorityLeads.map((lead, idx) => {
               const followUpDate = lead.followUpDate || lead.follow_up_date;
               const followUpTime = lead.followUpTime || lead.follow_up_time;
-              const isOverdue = lead._priority === 1;
+              const isUrgent = lead._followUpPriority <= 2;
+              
               return (
                 <div
                   key={lead.id}
-                  className={`bg-white rounded-xl shadow-sm border p-3 flex items-center justify-between cursor-pointer active:bg-gray-50 ${
-                    isOverdue ? 'border-l-4 border-l-red-500 border-red-200' : 'border-l-4 border-l-yellow-500 border-yellow-200'
+                  className={`bg-white rounded-xl shadow-sm border p-3 cursor-pointer active:bg-gray-50 transition ${
+                    lead._callStatus === 'never_called' 
+                      ? 'border-l-4 border-l-red-500 border-red-200'
+                      : lead._callStatus === 'needs_retry'
+                      ? 'border-l-4 border-l-orange-500 border-orange-200'
+                      : isUrgent
+                      ? 'border-l-4 border-l-yellow-500 border-yellow-200'
+                      : 'border-gray-200'
                   }`}
                   onClick={() => navigate(`/crm/lead/${lead.id}`)}
                 >
-                  <div className="flex-1 min-w-0 mr-3">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {lead.project && <p className="text-[10px] text-gray-400 truncate">{lead.project}</p>}
-                      {followUpDate && <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />}
+                  <div className="flex items-start gap-3">
+                    {/* Priority Number */}
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-white">{idx + 1}</span>
                     </div>
-                  </div>
-                  <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
-                    <a href={`tel:${lead.phone}`} className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200">
-                      <Phone size={14} className="text-green-600" />
-                    </a>
-                    <WhatsAppButton
-                      leadName={lead.name}
-                      phoneNumber={lead.phone}
-                      size="sm"
-                      className="h-8 px-2 rounded-full"
-                    />
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {lead.project && <p className="text-[10px] text-gray-400 truncate">{lead.project}</p>}
+                        {getCallStatusBadge(lead._callStatus, lead._hoursSinceCall)}
+                        {followUpDate && <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                      <a href={`tel:${lead.phone}`} className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200 hover:bg-green-100 active:scale-95 transition">
+                        <Phone size={14} className="text-green-600" />
+                      </a>
+                      <WhatsAppButton
+                        leadName={lead.name}
+                        phoneNumber={lead.phone}
+                        size="sm"
+                        className="h-8 px-2 rounded-full"
+                      />
+                    </div>
                   </div>
                 </div>
               );

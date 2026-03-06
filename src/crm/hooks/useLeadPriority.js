@@ -39,7 +39,7 @@ export const useLeadPriority = (leads, options = {}) => {
   const {
     filterByStatus = null,      // Filter by lead status
     filterByAssignee = null,    // Filter by assigned_to
-    includeCompleted = false    // Include completed follow-ups
+    includeCompleted = true     // ✅ CHANGED DEFAULT: Include all leads by default
   } = options;
 
   const sortedLeads = useMemo(() => {
@@ -53,19 +53,24 @@ export const useLeadPriority = (leads, options = {}) => {
     }
 
     if (filterByAssignee) {
-      filteredLeads = filteredLeads.filter(lead => lead.assigned_to === filterByAssignee);
+      filteredLeads = filteredLeads.filter(lead => 
+        lead.assigned_to === filterByAssignee || lead.assignedTo === filterByAssignee
+      );
     }
 
+    // ✅ FIXED: Only filter out explicitly completed follow-ups
     if (!includeCompleted) {
-      filteredLeads = filteredLeads.filter(lead => 
-        !lead.follow_up_status || lead.follow_up_status !== 'completed'
-      );
+      filteredLeads = filteredLeads.filter(lead => {
+        // Keep lead if follow_up_status is not explicitly 'completed'
+        const followUpStatus = lead.follow_up_status || lead.followUpStatus;
+        return followUpStatus !== 'completed';
+      });
     }
 
     // Calculate priority for each lead
     const leadsWithPriority = filteredLeads.map(lead => ({
       ...lead,
-      calculatedPriority: calculatePriority(lead.follow_up_date)
+      calculatedPriority: calculatePriority(lead.follow_up_date || lead.followUpDate)
     }));
 
     // Sort by priority, then by follow-up date, then by created date
@@ -76,15 +81,18 @@ export const useLeadPriority = (leads, options = {}) => {
       }
 
       // Secondary sort: Follow-up date (earlier dates first)
-      if (a.follow_up_date && b.follow_up_date) {
-        return new Date(a.follow_up_date) - new Date(b.follow_up_date);
+      const aFollowUp = a.follow_up_date || a.followUpDate;
+      const bFollowUp = b.follow_up_date || b.followUpDate;
+      
+      if (aFollowUp && bFollowUp) {
+        return new Date(aFollowUp) - new Date(bFollowUp);
       }
-      if (a.follow_up_date) return -1;
-      if (b.follow_up_date) return 1;
+      if (aFollowUp) return -1;
+      if (bFollowUp) return 1;
 
       // Tertiary sort: Created/Updated date (newest first)
-      const dateA = new Date(a.updated_at || a.created_at || 0);
-      const dateB = new Date(b.updated_at || b.created_at || 0);
+      const dateA = new Date(a.updated_at || a.updatedAt || a.created_at || a.createdAt || 0);
+      const dateB = new Date(b.updated_at || b.updatedAt || b.created_at || b.createdAt || 0);
       return dateB - dateA;
     });
 

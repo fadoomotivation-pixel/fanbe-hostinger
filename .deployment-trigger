@@ -1,8 +1,15 @@
-# Deployment Trigger
-Last deployment: 2026-03-05 17:00 IST
+# Deployment Trigger File
+# This file forces Hostinger to rebuild and redeploy
+# Last updated: 2026-03-06 13:40 IST
 
-Latest changes:
-- Lead temperature auto-calculation with manual override
-- Fixed notes dependency in UpdateLeadStatus
-- Added database migration for temperature tracking
-- Lead scoring engine with 5 factors (calls, budget, timeline, engagement, recency)
+DEPLOYMENT_VERSION=2026.03.06.1340
+FEATURES=call-priority-tracking,comprehensive-status-update,pre-selected-site-visits
+COMMIT_HASH=c77f40a99d3187cf07f9b6f7aee8dd1845f4870a
+
+# Changes in this deployment:
+# - Smart call priority system with never called/unanswered tracking
+# - Comprehensive update status with call outcomes (connected, not answered, wrong number, switched off, busy)
+# - Pre-selected site visit logging from lead detail page
+# - Enhanced mobile dashboard with priority alerts
+# - All status filters working (Open, FollowUp, Booked, Lost)
+# - Interest level tracking (Hot, Warm, Cold)

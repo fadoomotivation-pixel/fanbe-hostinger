@@ -15,11 +15,52 @@
   RewriteRule ^ index.html [L]
 </IfModule>
 
+# CRITICAL: Allow access to JavaScript and CSS files
+# Prevents 403 Forbidden errors from ModSecurity or server restrictions
+<FilesMatch "\.(js|css|map)$">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+  </IfModule>
+</FilesMatch>
+
+# Allow access to font files
+<FilesMatch "\.(woff|woff2|ttf|eot|otf)$">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+  </IfModule>
+</FilesMatch>
+
+# Allow access to image files
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+  <IfModule mod_authz_core.c>
+    Require all granted
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+  </IfModule>
+</FilesMatch>
+
 <IfModule mod_headers.c>
   # Security Headers
   Header set X-Content-Type-Options "nosniff"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-XSS-Protection "1; mode=block"
+
+  # CORS for assets - allow cross-origin requests
+  <FilesMatch "\.(js|css|woff|woff2|ttf|eot|otf)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type"
+  </FilesMatch>
 
   # CRITICAL: Never cache index.html
   # Every new Vite build generates new hashed filenames (index-XXXX.js / index-XXXX.css)
@@ -31,16 +72,11 @@
     Header set Expires "0"
   </FilesMatch>
 
-
   # Version metadata + API responses should never be cached
-  <FilesMatch "^(index\.html|version\.json)$">
+  <FilesMatch "^(version\.json|version\.php)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0"
     Header set Pragma "no-cache"
     Header set Expires "0"
-  </FilesMatch>
-
-  <FilesMatch "^version\.php$">
-    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0"
   </FilesMatch>
 
   # Cache hashed JS/CSS assets aggressively — safe because Vite changes filename on every build
@@ -57,4 +93,15 @@
 # Enable GZIP compression
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Set proper MIME types
+<IfModule mod_mime.c>
+  AddType application/javascript .js
+  AddType text/css .css
+  AddType application/json .json
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+  AddType font/ttf .ttf
+  AddType font/eot .eot
 </IfModule>

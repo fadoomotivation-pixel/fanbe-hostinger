@@ -48,10 +48,8 @@ import BookingAnalytics from './crm/pages/BookingAnalytics';
 import MyLeads from './crm/pages/MyLeads';
 import LeadDetail from './crm/pages/LeadDetail';
 import EditLead from './crm/pages/EditLead';
-// EmployeeLeadList and EmployeeLeadDetails replaced by unified MobileLeadList/MobileLeadDetails
 import CreateManualLead from './crm/pages/CreateManualLead';
 import UpdateLeadStatus from './crm/pages/UpdateLeadStatus';
-// EmployeeDashboard replaced by unified MobileEmployeeDashboard
 import DailyCalling from './crm/pages/DailyCalling';
 import LeadSearch from './crm/pages/LeadSearch';
 import SmartGuidance from './crm/pages/SmartGuidance';
@@ -118,21 +116,15 @@ const AppRoutes = ({ onBookSiteVisit }) => {
               {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
                 <CRMLayout>
                   <Routes>
-                    {/* ── Unified employee routes (same component for mobile + desktop) ── */}
-                    {isEmployeeRole && (
-                      <>
-                        <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />
-                        <Route path="my-leads" element={<MobileLeadList />} />
-                        <Route path="lead/:leadId" element={<MobileLeadDetails />} />
-                        <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />
-                      </>
-                    )}
-
-                    {/* ── Legacy redirects ── */}
+                    {/* ── Legacy redirects (for backward compatibility) ── */}
                     <Route path="dashboard" element={<Navigate to="/crm/admin/dashboard" replace />} />
                     <Route path="leads" element={<Navigate to="/crm/admin/leads" replace />} />
                     <Route path="staff" element={<Navigate to="/crm/admin/staff-management" replace />} />
                     <Route path="reports" element={<Navigate to="/crm/admin/staff-performance" replace />} />
+                    
+                    {/* ✅ FIXED: Legacy employee path redirects */}
+                    <Route path="employee-dashboard" element={<Navigate to="/crm/sales/dashboard" replace />} />
+                    <Route path="my-leads" element={<Navigate to="/crm/sales/my-leads" replace />} />
 
                     {/* ── Super Admin + Sub Admin ── */}
                     <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />
@@ -189,16 +181,12 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="hr/payroll"    element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRPayroll /></ProtectedRoute>} />
                     <Route path="hr/documents"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRDocuments /></ProtectedRoute>} />
 
-                    {/* ── Sales Executive / Employee routes ── */}
+                    {/* ✅ FIXED: Unified Employee Routes - Single Source of Truth */}
+                    {/* All employee routes now under /crm/sales/* namespace */}
                     <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
-                    {!isEmployeeRole && <Route path="employee-dashboard" element={<MobileEmployeeDashboard />} />}
                     <Route path="sales/my-leads" element={<MyLeads />} />
                     <Route path="sales/lead/:id" element={<LeadDetail />} />
                     <Route path="sales/edit-lead/:id" element={<EditLead />} />
-                    {!isEmployeeRole && <Route path="my-leads" element={<MobileLeadList />} />}
-                    {!isEmployeeRole && <Route path="lead/:leadId" element={<MobileLeadDetails />} />}
-                    {!isEmployeeRole && <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />}
-                    <Route path="lead/new" element={<CreateManualLead />} />
                     <Route path="sales/lead-search" element={<LeadSearch />} />
                     <Route path="sales/smart-guidance" element={<SmartGuidance />} />
                     <Route path="sales/daily-calling" element={<DailyCalling />} />
@@ -209,6 +197,13 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/tools" element={user?.role === 'super_admin' ? <PromotionMaterialsManager /> : <PromotionMaterialsViewer />} />
                     <Route path="sales/performance" element={<SalesExecutivePerformance />} />
                     <Route path="sales/daily-log" element={<DailyWorkLog />} />
+                    
+                    {/* Mobile-specific employee routes (reuse desktop components) */}
+                    <Route path="lead/:leadId" element={<MobileLeadDetails />} />
+                    <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />
+                    <Route path="lead/new" element={<CreateManualLead />} />
+                    
+                    {/* Profile (shared by all roles) */}
                     <Route path="profile" element={<CRMProfile />} />
                   </Routes>
                 </CRMLayout>

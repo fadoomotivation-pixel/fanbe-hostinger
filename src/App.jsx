@@ -60,6 +60,7 @@ import Tasks from './crm/pages/Tasks';
 import EODReports from './crm/pages/EODReports';
 import SalesTools from './crm/pages/SalesTools';
 import MobileEmployeeDashboard from './crm/pages/MobileEmployeeDashboard';
+import EmployeeCRMHome from './crm/pages/EmployeeCRMHome';
 import MobileLeadList from './crm/pages/MobileLeadList';
 import MobileLeadDetails from './crm/pages/MobileLeadDetails';
 import MobileBottomNav from './crm/components/MobileBottomNav';
@@ -187,6 +188,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                     {/* ✅ FIXED: Unified Employee Routes - Single Source of Truth */}
                     {/* All employee routes now under /crm/sales/* namespace */}
+                    <Route path="sales/crm" element={<EmployeeCRMHome />} />
                     <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
                     <Route path="sales/my-leads" element={<MyLeads />} />
                     <Route path="sales/lead/:id" element={<LeadDetail />} />

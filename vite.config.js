@@ -2,22 +2,26 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-const timestamp = Date.now();
+const buildId = process.env.BUILD_ID || `${Date.now()}`;
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __BUILD_ID__: JSON.stringify(buildId),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
   build: {
+    manifest: true,
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
-        entryFileNames: `assets/[name]-[hash]-${timestamp}.js`,
-        chunkFileNames: `assets/[name]-[hash]-${timestamp}.js`,
-        assetFileNames: `assets/[name]-[hash]-${timestamp}.[ext]`,
+        entryFileNames: `assets/[name]-[hash]-${buildId}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${buildId}.js`,
+        assetFileNames: `assets/[name]-[hash]-${buildId}.[ext]`,
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],

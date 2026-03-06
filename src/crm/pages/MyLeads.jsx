@@ -32,11 +32,25 @@ const MyLeads = () => {
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
 
-  const myLeads = leads.filter(l => l.assignedTo === user?.id || l.assigned_to === user?.id);
+  // ✅ FIXED: Support both user.uid and user.id patterns
+  const userId = user?.uid || user?.id;
+  const myLeads = leads.filter(l => 
+    (l.assignedTo === userId || l.assigned_to === userId)
+  );
+
+  console.log('🔍 MyLeads Filter:', {
+    userId,
+    totalLeads: leads.length,
+    myLeads: myLeads.length,
+    sampleLead: myLeads[0] ? { 
+      name: myLeads[0].name, 
+      assignedTo: myLeads[0].assignedTo || myLeads[0].assigned_to 
+    } : null
+  });
 
   // Use the priority hook to sort leads intelligently
   const { leads: prioritySortedLeads, summary } = useLeadPriority(myLeads, {
-    filterByAssignee: user?.id,
+    filterByAssignee: userId,
     includeCompleted: false
   });
 

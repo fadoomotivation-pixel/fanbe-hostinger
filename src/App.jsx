@@ -80,6 +80,7 @@ import SecuritySettings from './crm/pages/SecuritySettings';
 import ImportWorkLogs from './crm/pages/ImportWorkLogs';
 import ImportLeads from './crm/pages/ImportLeads';
 import ClearCacheUtility from './crm/pages/ClearCacheUtility';
+import LeadsAssignmentDebug from './crm/pages/LeadsAssignmentDebug';
 
 // ✅ HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
@@ -125,6 +126,9 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     {/* ✅ FIXED: Legacy employee path redirects */}
                     <Route path="employee-dashboard" element={<Navigate to="/crm/sales/dashboard" replace />} />
                     <Route path="my-leads" element={<Navigate to="/crm/sales/my-leads" replace />} />
+
+                    {/* 🐛 DEBUG UTILITIES */}
+                    <Route path="debug/lead-assignments" element={<LeadsAssignmentDebug />} />
 
                     {/* ── Super Admin + Sub Admin ── */}
                     <Route path="admin/dashboard" element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />

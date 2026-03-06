@@ -1,8 +1,7 @@
 // src/crm/hooks/useCRMData.js
 // ✅ All data fetched from Supabase
 // ✅ Added: Supabase Realtime subscriptions for leads, calls, site_visits, bookings
-//   → Any insert/update/delete in Supabase triggers auto-refresh on ALL connected clients
-//   → Admin, subadmin, and employees all see changes live without manual refresh
+// ✅ Added: assigned_at, prev_assigned_to, prev_assigned_to_name, prev_assigned_at fields
 import { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -71,42 +70,32 @@ export const useCRMData = () => {
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ✅ SUPABASE REALTIME SUBSCRIPTIONS
-  // Whenever any row is inserted/updated/deleted in Supabase, ALL connected
-  // browsers (admin dashboard, employee mobile) auto-refresh that data.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   useEffect(() => {
-    // leads table
     const leadsChannel = supabaseAdmin
       .channel('realtime:leads')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        console.log('[Realtime] leads changed → refetching');
         fetchLeads();
       })
       .subscribe();
 
-    // site_visits table
     const visitsChannel = supabaseAdmin
       .channel('realtime:site_visits')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => {
-        console.log('[Realtime] site_visits changed → refetching');
         fetchSiteVisits();
       })
       .subscribe();
 
-    // calls table
     const callsChannel = supabaseAdmin
       .channel('realtime:calls')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => {
-        console.log('[Realtime] calls changed → refetching');
         fetchCalls();
       })
       .subscribe();
 
-    // bookings table
     const bookingsChannel = supabaseAdmin
       .channel('realtime:bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        console.log('[Realtime] bookings changed → refetching');
         fetchBookings();
       })
       .subscribe();
@@ -169,34 +158,39 @@ export const useCRMData = () => {
         else from += PAGE_SIZE;
       }
       const normalized = allData.map(row => ({
-        id:              row.id,
-        name:            row.full_name          || '',
-        phone:           row.phone              || '',
-        email:           row.email              || '',
-        source:          row.source             || 'Manual Import',
-        status:          row.final_status       || row.status || 'FollowUp',
-        budget:          row.budget             || '',
-        interestLevel:   row.interest_level     || 'Cold',
-        notes:           row.notes              || '',
-        callAttempt:     row.call_attempt       || '',
-        callStatus:      row.call_status        || '',
-        siteVisitStatus: row.site_visit_status  || '',
-        finalStatus:     row.final_status       || 'FollowUp',
-        assignedTo:      row.assigned_to        || null,
-        assignedToName:  row.assigned_to_name   || null,
-        createdBy:       row.created_by         || null,
-        createdAt:       row.created_at,
-        lastActivity:    row.updated_at,
-        activityLog:     [],
-        project:         row.project            || '',
-        followUpDate:    row.next_followup_date || null,
-        follow_up_date:  row.next_followup_date || null,
-        tokenAmount:     row.token_amount       || 0,
-        bookingAmount:   row.booking_amount     || 0,
-        partialPayment:  row.partial_payment    || 0,
-        paymentMode:     row.payment_mode       || 'Cash',
-        unitNumber:      row.unit_number        || '',
-        isVIP:           row.is_vip             || false,
+        id:                  row.id,
+        name:                row.full_name          || '',
+        phone:               row.phone              || '',
+        email:               row.email              || '',
+        source:              row.source             || 'Manual Import',
+        status:              row.final_status       || row.status || 'FollowUp',
+        budget:              row.budget             || '',
+        interestLevel:       row.interest_level     || 'Cold',
+        notes:               row.notes              || '',
+        callAttempt:         row.call_attempt       || '',
+        callStatus:          row.call_status        || '',
+        siteVisitStatus:     row.site_visit_status  || '',
+        finalStatus:         row.final_status       || 'FollowUp',
+        assignedTo:          row.assigned_to        || null,
+        assignedToName:      row.assigned_to_name   || null,
+        createdBy:           row.created_by         || null,
+        createdAt:           row.created_at,
+        lastActivity:        row.updated_at,
+        activityLog:         [],
+        project:             row.project            || '',
+        followUpDate:        row.next_followup_date || null,
+        follow_up_date:      row.next_followup_date || null,
+        tokenAmount:         row.token_amount       || 0,
+        bookingAmount:       row.booking_amount     || 0,
+        partialPayment:      row.partial_payment    || 0,
+        paymentMode:         row.payment_mode       || 'Cash',
+        unitNumber:          row.unit_number        || '',
+        isVIP:               row.is_vip             || false,
+        // ✅ Assignment tracking fields
+        assignedAt:          row.assigned_at            || null,
+        prevAssignedTo:      row.prev_assigned_to       || null,
+        prevAssignedToName:  row.prev_assigned_to_name  || null,
+        prevAssignedAt:      row.prev_assigned_at       || null,
       }));
       setLeads(normalized);
       console.log(`[Leads] Loaded ${normalized.length} leads`);
@@ -223,6 +217,7 @@ export const useCRMData = () => {
         assigned_to: lead.assignedTo || null, assigned_to_name: lead.assignedToName || null,
         created_by: lead.createdBy || null, project: lead.project || null,
         next_followup_date: lead.followUpDate || null,
+        assigned_at: lead.assignedTo ? new Date().toISOString() : null,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       };
       const { data, error } = await supabaseAdmin.from('leads').insert(doc).select().single();
@@ -249,7 +244,6 @@ export const useCRMData = () => {
       if (updates.assignedTo       !== undefined) mapped.assigned_to        = updates.assignedTo;
       if (updates.assignedToName   !== undefined) mapped.assigned_to_name   = updates.assignedToName;
       if (updates.project          !== undefined) mapped.project            = updates.project;
-      // ✅ Support both followUpDate and follow_up_date
       if (updates.followUpDate     !== undefined) mapped.next_followup_date = updates.followUpDate;
       if (updates.follow_up_date   !== undefined) mapped.next_followup_date = updates.follow_up_date;
       if (updates.last_activity    !== undefined) mapped.updated_at         = updates.last_activity;
@@ -259,11 +253,15 @@ export const useCRMData = () => {
       if (updates.paymentMode      !== undefined) mapped.payment_mode       = updates.paymentMode   || 'Cash';
       if (updates.unitNumber       !== undefined) mapped.unit_number        = updates.unitNumber    || '';
       if (updates.isVIP            !== undefined) mapped.is_vip             = updates.isVIP;
+      // ✅ Assignment tracking
+      if (updates.assignedAt         !== undefined) mapped.assigned_at           = updates.assignedAt;
+      if (updates.prevAssignedTo     !== undefined) mapped.prev_assigned_to      = updates.prevAssignedTo;
+      if (updates.prevAssignedToName !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
+      if (updates.prevAssignedAt     !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
       mapped.updated_at = new Date().toISOString();
 
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
-      // Optimistic local update
       setLeads(prev => prev.map(l =>
         l.id === id ? { ...l, ...updates, lastActivity: new Date().toISOString(), follow_up_date: updates.follow_up_date || updates.followUpDate || l.follow_up_date } : l
       ));

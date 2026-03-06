@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,6 +103,7 @@ const SiteVisits = () => {
   const { user } = useAuth();
   const { leads, addSiteVisitLog, siteVisits } = useCRMData();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   const [formData, setFormData] = useState({
     leadId:   '',
@@ -110,24 +112,50 @@ const SiteVisits = () => {
     feedback: '',
   });
 
-  const myLeads  = leads.filter(l => l.assignedTo === user?.id);
+  // ✅ PRE-SELECT LEAD FROM URL PARAMS
+  useEffect(() => {
+    const leadIdFromUrl = searchParams.get('leadId');
+    if (leadIdFromUrl && leads.length > 0) {
+      const lead = leads.find(l => l.id === leadIdFromUrl);
+      if (lead && (lead.assignedTo === user?.id || lead.assigned_to === user?.id)) {
+        setFormData(prev => ({ ...prev, leadId: leadIdFromUrl }));
+        toast({ 
+          title: '✅ Lead Pre-selected', 
+          description: `${lead.name} is ready for site visit logging`,
+          duration: 3000 
+        });
+      }
+    }
+  }, [searchParams, leads, user]);
+
+  const myLeads  = leads.filter(l => l.assignedTo === user?.id || l.assigned_to === user?.id);
   const myVisits = siteVisits
-    .filter(v => v.employeeId === user?.id)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    .filter(v => v.employeeId === user?.id || v.employee_id === user?.id)
+    .sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.leadId) return toast({ title: 'Error', description: 'Select a lead first', variant: 'destructive' });
+    if (!formData.leadId) {
+      toast({ title: 'Error', description: 'Select a lead first', variant: 'destructive' });
+      return;
+    }
+
+    if (!formData.date) {
+      toast({ title: 'Error', description: 'Select visit date & time', variant: 'destructive' });
+      return;
+    }
 
     const lead = myLeads.find(l => l.id === formData.leadId);
     addSiteVisitLog({
       ...formData,
       employeeId:  user.id,
+      employee_id: user.id,
       leadName:    lead?.name    || 'Unknown',
       projectName: lead?.project || 'General',
+      timestamp: new Date(formData.date).toISOString(),
     });
 
-    toast({ title: 'Success', description: 'Site visit logged' });
+    toast({ title: '✅ Success', description: 'Site visit logged successfully' });
     setFormData({ leadId: '', date: '', interest: 'Medium', feedback: '' });
   };
 
@@ -144,7 +172,7 @@ const SiteVisits = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select Lead</label>
+                <label className="text-sm font-medium">Select Lead *</label>
                 <LeadSearchPicker
                   leads={myLeads}
                   value={formData.leadId}
@@ -154,11 +182,12 @@ const SiteVisits = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Visit Date & Time</label>
+                <label className="text-sm font-medium">Visit Date & Time *</label>
                 <Input
                   type="datetime-local"
                   value={formData.date}
                   onChange={e => setFormData({ ...formData, date: e.target.value })}
+                  required
                 />
               </div>
 
@@ -170,19 +199,21 @@ const SiteVisits = () => {
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="High">High - Very Interested</SelectItem>
+                    <SelectItem value="Medium">Medium - Considering</SelectItem>
+                    <SelectItem value="Low">Low - Just Looking</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Feedback</label>
+                <label className="text-sm font-medium">Feedback *</label>
                 <Textarea
                   value={formData.feedback}
                   onChange={e => setFormData({ ...formData, feedback: e.target.value })}
                   placeholder="Client feedback after the visit…"
+                  required
+                  rows={4}
                 />
               </div>
 
@@ -193,22 +224,29 @@ const SiteVisits = () => {
 
         {/* History table */}
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Visit History</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Visit History ({myVisits.length})</CardTitle>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Lead</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Date & Time</TableHead>
                   <TableHead>Interest</TableHead>
                   <TableHead>Feedback</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {myVisits.map(visit => (
-                  <TableRow key={visit.id}>
+                {myVisits.map((visit, idx) => (
+                  <TableRow key={visit.id || idx}>
                     <TableCell className="font-medium">{visit.leadName}</TableCell>
-                    <TableCell>{new Date(visit.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</TableCell>
+                    <TableCell className="text-sm">
+                      {new Date(visit.date || visit.timestamp).toLocaleString('en-IN', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                      })}
+                    </TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         visit.interest === 'High'   ? 'bg-green-100 text-green-800' :
@@ -218,12 +256,14 @@ const SiteVisits = () => {
                         {visit.interest}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-gray-600">{visit.feedback}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-gray-600 text-sm">{visit.feedback}</TableCell>
                   </TableRow>
                 ))}
                 {myVisits.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-gray-400 py-8">No visits logged yet.</TableCell>
+                    <TableCell colSpan={4} className="text-center text-gray-400 py-8">
+                      No visits logged yet. Schedule your first visit!
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>

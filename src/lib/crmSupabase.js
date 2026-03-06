@@ -1,4 +1,5 @@
 // src/lib/crmSupabase.js
+// ✅ Fixed: addCall now saves employee_name column
 // ✅ Fixed: getSiteVisits orders by created_at (fallback for NULL visit_date rows)
 // ✅ Fixed: addSiteVisit now saves interest_level as its own column
 import { supabase } from './supabase';
@@ -12,14 +13,15 @@ export const addCall = async (callData) => {
     const { data, error } = await supabase
       .from('calls')
       .insert([{
-        employee_id:  callData.employeeId  || callData.employee_id,
-        lead_id:      callData.leadId      || callData.lead_id      || null,
-        lead_name:    callData.leadName    || callData.lead_name    || null,
-        project_name: callData.projectName || callData.project_name || '',
-        call_type:    callData.type        || callData.call_type    || 'outbound',
-        status:       callData.status,
-        duration:     parseInt(callData.duration) || 0,
-        notes:        callData.notes       || ''
+        employee_id:   callData.employeeId    || callData.employee_id,
+        employee_name: callData.employeeName  || callData.employee_name  || null,
+        lead_id:       callData.leadId        || callData.lead_id        || null,
+        lead_name:     callData.leadName      || callData.lead_name      || null,
+        project_name:  callData.projectName   || callData.project_name   || '',
+        call_type:     callData.type          || callData.call_type      || 'outbound',
+        status:        callData.status,
+        duration:      parseInt(callData.duration) || 0,
+        notes:         callData.notes         || ''
       }])
       .select()
       .single();
@@ -78,7 +80,6 @@ export const addSiteVisit = async (visitData) => {
         lead_id:       visitData.leadId       || visitData.lead_id       || null,
         lead_name:     visitData.leadName     || visitData.lead_name     || null,
         project_name:  visitData.projectName  || visitData.project_name  || '',
-        // ✅ Accept both camelCase (visitDate) and snake_case (visit_date)
         visit_date:    visitData.visitDate    || visitData.visit_date    || visitData.date || null,
         visit_time:    visitData.visitTime    || visitData.visit_time    || null,
         status:        visitData.status       || 'Completed',
@@ -86,7 +87,7 @@ export const addSiteVisit = async (visitData) => {
         duration:      parseInt(visitData.duration) || null,
         notes:         visitData.notes        || '',
         feedback:      visitData.feedback     || '',
-        // ✅ NEW: save interest level as its own column
+        // ✅ Save interest level as its own column
         interest_level: visitData.interestLevel || visitData.interest_level || null,
       }])
       .select()

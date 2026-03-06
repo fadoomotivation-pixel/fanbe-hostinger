@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,12 @@ import {
   ArrowLeft, Save, Flame, Wind, Snowflake, Phone, PhoneOff, PhoneMissed,
   Calendar, IndianRupee, MapPin, CheckCircle2, XCircle
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 const UpdateLeadStatus = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { leads, leadsLoading, updateLead, addLeadNote, logCall } = useCRMData();
+  const { leads, leadsLoading, updateLead, addLeadNote, addCallLog } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -50,6 +49,9 @@ const UpdateLeadStatus = () => {
     
     // Notes
     notes: '',
+
+    // Employee work pipeline (cloud synced via lead fields)
+    workStage: 'to_do',
   });
 
   useEffect(() => {
@@ -60,6 +62,7 @@ const UpdateLeadStatus = () => {
         interestLevel: lead.interestLevel || lead.interest_level || 'Warm',
         followUpDate: lead.followUpDate || lead.follow_up_date || '',
         followUpTime: lead.followUpTime || lead.follow_up_time || '',
+        workStage: lead.callAttempt || lead.call_attempt || 'to_do',
       }));
     }
   }, [lead]);
@@ -109,6 +112,8 @@ const UpdateLeadStatus = () => {
         status: formData.status,
         interestLevel: formData.interestLevel,
         interest_level: formData.interestLevel,
+        callAttempt: formData.workStage,
+        callStatus: formData.callOutcome || 'pending_action',
         updatedAt: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -140,22 +145,21 @@ const UpdateLeadStatus = () => {
       await updateLead(lead.id, updateData);
 
       // Log call if outcome provided
-      if (formData.callOutcome && logCall) {
-        await logCall({
+      if (formData.callOutcome) {
+        await addCallLog({
           leadId: lead.id,
-          lead_id: lead.id,
           employeeId: user.id,
-          employee_id: user.id,
-          callTime: new Date().toISOString(),
-          call_time: new Date().toISOString(),
+          leadName: lead.name,
+          projectName: lead.project || 'General',
+          type: 'Outgoing',
           status: formData.callOutcome,
-          duration: formData.callDuration || 0,
+          duration: Number(formData.callDuration) || 0,
           notes: formData.notes,
         });
       }
 
       // Create note
-      let noteText = `Status: ${formData.status}\nInterest: ${formData.interestLevel}`;
+      let noteText = `Status: ${formData.status}\nInterest: ${formData.interestLevel}\nWork Stage: ${formData.workStage}`;
       
       if (formData.callOutcome) {
         const outcomeLabels = {
@@ -196,17 +200,17 @@ const UpdateLeadStatus = () => {
   };
 
   const interestOptions = [
-    { value: 'Hot', label: 'Hot', sublabel: 'Ready to Buy', icon: Flame, color: 'red' },
-    { value: 'Warm', label: 'Warm', sublabel: 'Interested', icon: Wind, color: 'amber' },
-    { value: 'Cold', label: 'Cold', sublabel: 'Just Inquiring', icon: Snowflake, color: 'blue' },
+    { value: 'Hot', label: 'Hot', sublabel: 'Ready to Buy', icon: Flame, selectedClass: 'bg-red-50 border-red-300', iconClass: 'text-red-600' },
+    { value: 'Warm', label: 'Warm', sublabel: 'Interested', icon: Wind, selectedClass: 'bg-amber-50 border-amber-300', iconClass: 'text-amber-600' },
+    { value: 'Cold', label: 'Cold', sublabel: 'Just Inquiring', icon: Snowflake, selectedClass: 'bg-blue-50 border-blue-300', iconClass: 'text-blue-600' },
   ];
 
   const callOutcomes = [
-    { value: 'connected', label: 'Connected', icon: Phone, color: 'green' },
-    { value: 'not_answered', label: 'Not Answered', icon: PhoneMissed, color: 'yellow' },
-    { value: 'wrong_number', label: 'Wrong Number', icon: XCircle, color: 'red' },
-    { value: 'switched_off', label: 'Switched Off', icon: PhoneOff, color: 'gray' },
-    { value: 'busy', label: 'Busy', icon: Phone, color: 'orange' },
+    { value: 'connected', label: 'Connected', icon: Phone, selectedClass: 'bg-green-50 border-green-300 ring-1 ring-green-200', iconClass: 'text-green-600' },
+    { value: 'not_answered', label: 'Not Answered', icon: PhoneMissed, selectedClass: 'bg-yellow-50 border-yellow-300 ring-1 ring-yellow-200', iconClass: 'text-yellow-600' },
+    { value: 'wrong_number', label: 'Wrong Number', icon: XCircle, selectedClass: 'bg-red-50 border-red-300 ring-1 ring-red-200', iconClass: 'text-red-600' },
+    { value: 'switched_off', label: 'Switched Off', icon: PhoneOff, selectedClass: 'bg-gray-100 border-gray-300 ring-1 ring-gray-200', iconClass: 'text-gray-600' },
+    { value: 'busy', label: 'Busy', icon: Phone, selectedClass: 'bg-orange-50 border-orange-300 ring-1 ring-orange-200', iconClass: 'text-orange-600' },
   ];
 
   return (
@@ -229,7 +233,7 @@ const UpdateLeadStatus = () => {
         {/* QUICK ACTION TABS */}
         <div className="bg-white rounded-xl p-3 border shadow-sm">
           <Label className="text-xs font-semibold mb-2 block text-gray-600">QUICK ACTION</Label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
@@ -265,6 +269,24 @@ const UpdateLeadStatus = () => {
             >
               Schedule Visit
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const tomorrow = addDays(new Date(), 1);
+                setFormData(prev => ({
+                  ...prev,
+                  status: 'FollowUp',
+                  actionType: 'call_log',
+                  callOutcome: 'not_answered',
+                  followUpDate: format(tomorrow, 'yyyy-MM-dd'),
+                  followUpTime: prev.followUpTime || '10:00',
+                  workStage: 'to_do',
+                }));
+              }}
+              className="p-2 rounded-lg text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200"
+            >
+              Call Tomorrow
+            </button>
           </div>
         </div>
 
@@ -283,11 +305,11 @@ const UpdateLeadStatus = () => {
                     onClick={() => setFormData({ ...formData, callOutcome: outcome.value })}
                     className={`p-3 rounded-lg border-2 transition flex items-center gap-2 ${
                       isSelected
-                        ? `bg-${outcome.color}-50 border-${outcome.color}-300 ring-1 ring-${outcome.color}-200`
+                        ? outcome.selectedClass
                         : 'bg-white border-gray-200'
                     }`}
                   >
-                    <Icon size={18} className={isSelected ? `text-${outcome.color}-600` : 'text-gray-400'} />
+                    <Icon size={18} className={isSelected ? outcome.iconClass : 'text-gray-400'} />
                     <span className={`text-xs font-medium ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
                       {outcome.label}
                     </span>
@@ -350,12 +372,12 @@ const UpdateLeadStatus = () => {
                   onClick={() => setFormData({ ...formData, interestLevel: option.value })}
                   className={`p-3 rounded-lg border-2 transition ${
                     isSelected
-                      ? `bg-${option.color}-50 border-${option.color}-300`
+                      ? option.selectedClass
                       : 'bg-white border-gray-200'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-1">
-                    <Icon size={20} className={isSelected ? `text-${option.color}-600` : 'text-gray-300'} />
+                    <Icon size={20} className={isSelected ? option.iconClass : 'text-gray-300'} />
                     <p className={`font-bold text-xs ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{option.label}</p>
                     <p className="text-[10px] text-gray-400">{option.sublabel}</p>
                   </div>
@@ -363,6 +385,30 @@ const UpdateLeadStatus = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* EMPLOYEE WORK TRACKER */}
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <Label className="text-sm font-semibold mb-3 block text-gray-700">My Work Progress (Cloud Sync)</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: 'to_do', label: 'To Do', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+              { value: 'doing', label: 'Doing', className: 'bg-blue-100 text-blue-700 border-blue-300' },
+              { value: 'did', label: 'Done', className: 'bg-green-100 text-green-700 border-green-300' },
+            ].map(stage => (
+              <button
+                key={stage.value}
+                type="button"
+                onClick={() => setFormData({ ...formData, workStage: stage.value })}
+                className={`p-2.5 rounded-lg text-xs font-semibold border-2 transition ${
+                  formData.workStage === stage.value ? stage.className : 'bg-white border-gray-200 text-gray-500'
+                }`}
+              >
+                {stage.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-500 mt-2">This updates call progress fields in cloud so manager can track what to do, doing, and done.</p>
         </div>
 
         {/* FOLLOW-UP */}

@@ -6,6 +6,9 @@
   RewriteCond %{HTTPS} off
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # API endpoint for build/version diagnostics
+  RewriteRule ^api/version/?$ api/version.php [L,QSA]
+
   # Handle SPA routing — send all non-file/dir requests to index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -26,6 +29,18 @@
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "0"
+  </FilesMatch>
+
+
+  # Version metadata + API responses should never be cached
+  <FilesMatch "^(index\.html|version\.json)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  <FilesMatch "^version\.php$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0"
   </FilesMatch>
 
   # Cache hashed JS/CSS assets aggressively — safe because Vite changes filename on every build

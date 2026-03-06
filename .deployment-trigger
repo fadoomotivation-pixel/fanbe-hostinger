@@ -1,15 +1,23 @@
 # Deployment Trigger File
 # This file forces Hostinger to rebuild and redeploy
-# Last updated: 2026-03-06 13:40 IST
+# Last updated: 2026-03-06 14:54 IST
 
-DEPLOYMENT_VERSION=2026.03.06.1340
-FEATURES=call-priority-tracking,comprehensive-status-update,pre-selected-site-visits
-COMMIT_HASH=c77f40a99d3187cf07f9b6f7aee8dd1845f4870a
+DEPLOYMENT_VERSION=2026.03.06.1454
+FEATURES=employee-crm-home,call-logging-workflow,htaccess-403-fix,work-stage-tracking
+COMMIT_HASH=0c77913
 
 # Changes in this deployment:
-# - Smart call priority system with never called/unanswered tracking
-# - Comprehensive update status with call outcomes (connected, not answered, wrong number, switched off, busy)
-# - Pre-selected site visit logging from lead detail page
-# - Enhanced mobile dashboard with priority alerts
-# - All status filters working (Open, FollowUp, Booked, Lost)
-# - Interest level tracking (Hot, Warm, Cold)
+# ✅ NEW: Mobile-first Employee CRM Home page (/crm/sales/crm)
+#   - 3 tabs: Call Now (prioritized) | Follow Up (grouped by urgency) | All Leads
+#   - 1-tap call logging: No Answer, Busy, Connected, Switched Off
+#   - Quick actions: Follow Up, Site Visit, Booked, Not Interested
+#   - Smart lead prioritization (never called, needs retry, overdue follow-ups)
+#   - Today's stats: Calls made, Connected, Site visits, Bookings
+#   - Bottom sheet action modal for fast mobile workflow
+# ✅ Fixed .htaccess permissions to prevent 403 Forbidden errors on JS/CSS files
+# ✅ Added CORS headers and explicit file permissions
+# ✅ Fixed call logging - now saves to Supabase (was using non-existent logCall)
+# ✅ Added workStage tracking (To Do / Doing / Done) synced to cloud
+# ✅ Call Tomorrow quick action (sets follow-up date, marks not answered)
+# ✅ Fixed Tailwind dynamic classes for production builds
+# ✅ Updated mobile bottom nav: Added "Call CRM" tab, removed "Tasks" tab

@@ -249,21 +249,28 @@ const MobileLeadDetails = () => {
             </div>
 
             {/* Primary Actions */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Button
                 onClick={() => setIsLogCallModalOpen(true)}
-                className="h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm font-semibold rounded-xl col-span-1"
+                className="h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm font-semibold rounded-xl"
               >
                 <PhoneCall size={16} className="mr-1.5" />
                 Log Call
               </Button>
               <Button
                 onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-                className="h-11 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl col-span-1"
+                className="h-11 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
               >
                 Update
               </Button>
-              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block col-span-1">
+              <Button
+                onClick={() => navigate(`/crm/sales/site-visits?leadId=${lead.id}`)}
+                className="h-11 bg-purple-600 hover:bg-purple-700 text-sm font-semibold rounded-xl"
+              >
+                <MapPin size={16} className="mr-1.5" />
+                Visit
+              </Button>
+              <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block">
                 <Button className="w-full h-11 bg-green-500 hover:bg-green-600 text-sm font-semibold rounded-xl">
                   <MessageSquare size={16} className="mr-1.5" />
                   WhatsApp

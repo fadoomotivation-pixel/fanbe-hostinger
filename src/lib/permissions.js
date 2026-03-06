@@ -314,6 +314,7 @@ const MENU_STRUCTURE = {
   ],
 
   [ROLES.SALES_EXECUTIVE]: [
+    { label: 'Call CRM',          path: '/crm/sales/crm',               icon: 'PhoneCall' },
     { label: 'Dashboard',         path: '/crm/employee-dashboard',      icon: 'LayoutDashboard' },
     { label: 'My Leads',          path: '/crm/my-leads',                icon: 'Users' },
     { label: 'Search Leads',      path: '/crm/sales/lead-search',       icon: 'Search' },
@@ -326,6 +327,7 @@ const MENU_STRUCTURE = {
   ],
 
   [ROLES.TELECALLER]: [
+    { label: 'Call CRM',          path: '/crm/sales/crm',               icon: 'PhoneCall' },
     { label: 'Dashboard',         path: '/crm/employee-dashboard',      icon: 'LayoutDashboard' },
     { label: 'My Leads',          path: '/crm/my-leads',                icon: 'Users' },
     { label: 'Search Leads',      path: '/crm/sales/lead-search',       icon: 'Search' },

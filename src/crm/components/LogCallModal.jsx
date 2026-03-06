@@ -115,16 +115,17 @@ const LogCallModal = ({ lead, isOpen, onClose, onSuccess }) => {
 
     setLoading(true);
     try {
-      // Log the call
+      // Log the call — employeeName is required to save to calls.employee_name column
       const callLog = {
-        employeeId: user?.uid || user?.id,
-        leadId: lead.id,
-        leadName: lead.name,
-        projectName: lead.project || 'Not specified',
-        type: 'outbound',
-        status: formData.outcome,
-        duration: parseInt(formData.duration) || 0,
-        notes: formData.notes || `Call ${formData.outcome.replace('_', ' ')}`,
+        employeeId:   user?.uid || user?.id,
+        employeeName: user?.name || user?.username || '',
+        leadId:       lead.id,
+        leadName:     lead.name,
+        projectName:  lead.project || 'Not specified',
+        type:         'outbound',
+        status:       formData.outcome,
+        duration:     parseInt(formData.duration) || 0,
+        notes:        formData.notes || `Call ${formData.outcome.replace('_', ' ')}`,
       };
 
       await addCallLog(callLog);
@@ -141,7 +142,6 @@ const LogCallModal = ({ lead, isOpen, onClose, onSuccess }) => {
           lastActivity: new Date().toISOString(),
         });
       } else {
-        // Just update last activity
         await updateLead(lead.id, {
           lastActivity: new Date().toISOString(),
         });

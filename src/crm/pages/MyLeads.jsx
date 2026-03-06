@@ -1,440 +1,313 @@
-import React, { useState } from 'react';
+// src/crm/pages/MyLeads.jsx
+// ✅ Mobile-first card list: status filter tabs, urgency sort, inline quick-log
+import React, { useState, useMemo } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Filter, Phone, MessageCircle, Calendar, ChevronDown, ChevronUp, Clock, Bell, Loader2 } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import projects from '@/data/projects';
-import { format, isToday, isYesterday, isThisWeek, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { useLeadPriority } from '@/crm/hooks/useLeadPriority';
-import FollowUpBadge from '@/crm/components/FollowUpBadge';
-import FollowUpScheduler from '@/crm/components/FollowUpScheduler';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
+import { format, parseISO, isToday, isPast, differenceInDays } from 'date-fns';
+import {
+  Search, Phone, MessageCircle, ChevronRight,
+  AlertCircle, Clock, Calendar, Loader2, PhoneCall, CheckCircle, X
+} from 'lucide-react';
+
+// ── Quick outcome sheet (mini version) ────────────────────────────────────────
+const QUICK_OUTCOMES = [
+  { id: 'no_answer',    label: 'No Answer', emoji: '📵' },
+  { id: 'connected',   label: 'Connected',  emoji: '✅' },
+  { id: 'busy',        label: 'Busy',       emoji: '🔴' },
+  { id: 'switched_off',label: 'S/Off',      emoji: '📴' },
+];
+const QUICK_STATUSES = [
+  { id: 'FollowUp',      emoji: '📅', label: 'Follow Up' },
+  { id: 'SiteVisit',     emoji: '📍', label: 'Site Visit' },
+  { id: 'Booked',        emoji: '💰', label: 'Booked' },
+  { id: 'NotInterested', emoji: '❌', label: 'Not Int.' },
+];
+
+const statusColors = {
+  New:           'bg-blue-100 text-blue-800',
+  FollowUp:      'bg-yellow-100 text-yellow-800',
+  SiteVisit:     'bg-purple-100 text-purple-800',
+  Booked:        'bg-green-100 text-green-800',
+  NotInterested: 'bg-gray-100 text-gray-600',
+  Lost:          'bg-red-100 text-red-700',
+  CallBackLater: 'bg-indigo-100 text-indigo-800',
+  Open:          'bg-sky-100 text-sky-800',
+};
+
+const urgencyScore = (lead) => {
+  const fu = lead.follow_up_date || lead.followUpDate;
+  if (!fu) return lead.status === 'New' ? 2 : 1;
+  if (isPast(parseISO(fu)) && !isToday(parseISO(fu))) return 100;
+  if (isToday(parseISO(fu))) return 90;
+  return Math.max(0, 10 - differenceInDays(parseISO(fu), new Date()));
+};
+
+const TABS = [
+  { id: 'all',      label: 'All' },
+  { id: 'urgent',   label: '🔴 Urgent' },
+  { id: 'followup', label: '📅 Follow Up' },
+  { id: 'new',      label: '🆕 New' },
+  { id: 'booked',   label: '💰 Booked' },
+];
 
 const MyLeads = () => {
-  const { user } = useAuth();
-  const { leads, leadsLoading, addLead } = useCRMData();
-  const navigate = useNavigate();
+  const { user }  = useAuth();
+  const { leads, leadsLoading, updateLead } = useCRMData();
+  const navigate  = useNavigate();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [customDate, setCustomDate] = useState('');
-  const [groupByDate, setGroupByDate] = useState(false);
-  const [openGroups, setOpenGroups] = useState({});
-  const [schedulerOpen, setSchedulerOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
 
-  // ✅ FIXED: Support both user.uid and user.id patterns
+  const [tab, setTab]         = useState('all');
+  const [search, setSearch]   = useState('');
+  const [quickLead, setQuickLead] = useState(null); // lead for quick-log sheet
+  const [outcome, setOutcome]     = useState('');
+  const [newStatus, setNewStatus] = useState('');
+  const [followDate, setFollowDate] = useState('');
+  const [saving, setSaving]   = useState(false);
+
   const userId = user?.uid || user?.id;
-  const myLeads = leads.filter(l => 
-    (l.assignedTo === userId || l.assigned_to === userId)
+  const today  = new Date().toISOString().split('T')[0];
+
+  // My leads sorted by urgency
+  const myLeads = useMemo(() => {
+    return leads
+      .filter(l => l.assignedTo === userId || l.assigned_to === userId)
+      .sort((a, b) => urgencyScore(b) - urgencyScore(a));
+  }, [leads, userId]);
+
+  const filtered = useMemo(() => {
+    let arr = myLeads;
+
+    // Tab filter
+    if (tab === 'urgent') {
+      arr = arr.filter(l => {
+        const fu = l.follow_up_date || l.followUpDate;
+        return fu && (isPast(parseISO(fu)) || isToday(parseISO(fu)));
+      });
+    } else if (tab === 'followup') {
+      arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
+    } else if (tab === 'new') {
+      arr = arr.filter(l => l.status === 'New' || l.status === 'Open' || !l.status);
+    } else if (tab === 'booked') {
+      arr = arr.filter(l => l.status === 'Booked');
+    }
+
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      arr = arr.filter(l =>
+        l.name?.toLowerCase().includes(q) ||
+        l.phone?.includes(q)
+      );
+    }
+    return arr;
+  }, [myLeads, tab, search]);
+
+  const urgentCount = useMemo(() =>
+    myLeads.filter(l => {
+      const fu = l.follow_up_date || l.followUpDate;
+      return fu && (isPast(parseISO(fu)) || isToday(parseISO(fu)));
+    }).length, [myLeads]
   );
 
-  console.log('🔍 MyLeads Filter:', {
-    userId,
-    totalLeads: leads.length,
-    myLeads: myLeads.length,
-    sampleLead: myLeads[0] ? { 
-      name: myLeads[0].name, 
-      assignedTo: myLeads[0].assignedTo || myLeads[0].assigned_to 
-    } : null
-  });
-
-  // ✅ FIXED: Removed includeCompleted: false which was filtering out all leads
-  const { leads: prioritySortedLeads, summary } = useLeadPriority(myLeads, {
-    filterByAssignee: userId
-  });
-
-  const getFilteredLeadsByDate = (leadsArray) => {
-    if (dateFilter === 'all') return leadsArray;
-
-    return leadsArray.filter(lead => {
-      if (!lead.createdAt && !lead.created_at) return false;
-      const leadDate = parseISO(lead.createdAt || lead.created_at);
-
-      switch(dateFilter) {
-        case 'today':
-          return isToday(leadDate);
-        case 'yesterday':
-          return isYesterday(leadDate);
-        case 'this_week':
-          return isThisWeek(leadDate);
-        case 'custom':
-          if (!customDate) return true;
-          const selectedDate = parseISO(customDate);
-          return leadDate >= startOfDay(selectedDate) && leadDate <= endOfDay(selectedDate);
-        default:
-          return true;
-      }
-    });
-  };
-
-  // Use priority-sorted leads instead of raw leads
-  const filteredLeads = getFilteredLeadsByDate(prioritySortedLeads).filter(l => {
-    const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (l.phone && l.phone.includes(searchTerm));
-    const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
-    const matchesProject = projectFilter === 'all' || l.project === projectFilter;
-    return matchesSearch && matchesStatus && matchesProject;
-  });
-
-  const groupLeadsByDate = (leadsArray) => {
-    const grouped = {};
-    
-    leadsArray.forEach(lead => {
-      if (!lead.createdAt && !lead.created_at) {
-        if (!grouped['No Date']) grouped['No Date'] = [];
-        grouped['No Date'].push(lead);
-        return;
-      }
-
-      const leadDate = parseISO(lead.createdAt || lead.created_at);
-      let dateKey;
-
-      if (isToday(leadDate)) {
-        dateKey = 'Today';
-      } else if (isYesterday(leadDate)) {
-        dateKey = 'Yesterday';
-      } else if (isThisWeek(leadDate)) {
-        dateKey = 'This Week';
-      } else {
-        dateKey = format(leadDate, 'MMM dd, yyyy');
-      }
-
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(lead);
-    });
-
-    const sortedGroups = Object.entries(grouped).sort((a, b) => {
-      const order = ['Today', 'Yesterday', 'This Week'];
-      const aIndex = order.indexOf(a[0]);
-      const bIndex = order.indexOf(b[0]);
-      
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      
-      return b[0].localeCompare(a[0]);
-    });
-
-    return Object.fromEntries(sortedGroups);
-  };
-
-  const toggleGroup = (groupName) => {
-    setOpenGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'Booked': return 'bg-green-100 text-green-800';
-      case 'FollowUp': return 'bg-yellow-100 text-yellow-800';
-      case 'Lost': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-red-100 text-red-800';
-    }
-  };
-
-  // Handle schedule follow-up
-  const handleScheduleFollowUp = async (followUpData) => {
+  // Quick log save
+  const handleQuickSave = async () => {
+    if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
+    setSaving(true);
     try {
-      const { error } = await supabase
-        .from('leads')
-        .update(followUpData)
-        .eq('id', selectedLead.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: '✅ Follow-up Scheduled!',
-        description: `Reminder set for ${format(parseISO(followUpData.follow_up_date), 'MMM dd, yyyy')}`,
+      await supabase.from('calls').insert({
+        lead_id: quickLead.id,
+        employee_id: user?.id || user?.uid,
+        employee_name: user?.name,
+        status: outcome,
+        duration: 0,
+        created_at: new Date().toISOString(),
       });
-      
-      // Refresh data
-      window.location.reload();
-    } catch (error) {
-      console.error('Error:', error);
-      toast({
-        title: '❌ Failed to schedule',
-        description: error.message,
-        variant: 'destructive'
-      });
+      const patch = { last_activity: new Date().toISOString() };
+      if (newStatus)   patch.status = newStatus;
+      if (followDate)  patch.follow_up_date = followDate;
+      await updateLead(quickLead.id, patch);
+      toast({ title: '✅ Logged!', description: newStatus ? `Status → ${newStatus}` : 'Call saved' });
+      setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate('');
+    } catch (e) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
+    setSaving(false);
   };
 
-  const renderLeadRow = (lead) => (
-    <TableRow 
-      key={lead.id} 
-      className="cursor-pointer hover:bg-gray-50"
-      onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
-    >
-      <TableCell>
-        <div className="font-medium text-blue-600">{lead.name}</div>
-        <div className="text-xs text-gray-500">{lead.phone}</div>
-        {/* Show follow-up badge */}
-        <div className="mt-1">
-          <FollowUpBadge 
-            followUpDate={lead.follow_up_date}
-            followUpTime={lead.follow_up_time}
-            size="small"
-          />
-        </div>
-      </TableCell>
-      <TableCell>{lead.project}</TableCell>
-      <TableCell>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
-          {lead.status}
-        </span>
-      </TableCell>
-      <TableCell className="text-xs text-gray-500">
-        {(lead.createdAt || lead.created_at) ? format(parseISO(lead.createdAt || lead.created_at), 'MMM dd, hh:mm a') : 'N/A'}
-      </TableCell>
-      <TableCell>
-        {(lead.lastActivity || lead.last_activity) ? format(parseISO(lead.lastActivity || lead.last_activity), 'MMM dd') : 'Never'}
-      </TableCell>
-      <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          title="Schedule Follow-up"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedLead(lead);
-            setSchedulerOpen(true);
-          }}
-        >
-          <Calendar className="h-4 w-4 text-purple-600" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => window.location.href=`tel:${lead.phone}`}>
-          <Phone className="h-4 w-4 text-blue-600" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => window.open(`https://wa.me/91${lead.phone.slice(-10)}`, '_blank')}>
-          <MessageCircle className="h-4 w-4 text-green-600" />
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-
-  const groupedLeads = groupByDate ? groupLeadsByDate(filteredLeads) : null;
-  const urgentCount = summary.overdue + summary.today;
-
-  // ✅ LOADING STATE - Show spinner while leads are loading
   if (leadsLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-700">Loading Your Leads...</p>
-          <p className="text-sm text-gray-500">Fetching data from Supabase</p>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+        <Loader2 className="h-10 w-10 animate-spin text-[#0F3A5F]" />
+        <p className="text-sm text-gray-500">Loading your leads...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-         <div>
-            <h1 className="text-2xl font-bold text-[#0F3A5F]">My Leads</h1>
-            <p className="text-gray-500">Manage and track your potential clients (auto-sorted by priority)</p>
-         </div>
-         <Button><Plus className="mr-2 h-4 w-4" /> Add New Lead</Button>
+    <div className="min-h-screen bg-gray-50 pb-28">
+
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10 px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h1 className="text-lg font-black text-[#0F3A5F]">My Leads</h1>
+            <p className="text-[11px] text-gray-400">{myLeads.length} leads assigned to you</p>
+          </div>
+          {urgentCount > 0 && (
+            <span className="flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1.5 rounded-full">
+              <AlertCircle size={12} /> {urgentCount} urgent
+            </span>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-2">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search name or phone..."
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-gray-100 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20"
+          />
+        </div>
+
+        {/* Tab filters */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation
+                ${ tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600' }`}>
+              {t.label}
+              {t.id === 'urgent' && urgentCount > 0 ? ` (${urgentCount})` : ''}
+              {t.id === 'all' ? ` (${myLeads.length})` : ''}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Urgent Follow-ups Alert */}
-      {urgentCount > 0 && (
-        <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Bell className="h-6 w-6 text-red-600 animate-pulse" />
-              <div className="flex-1">
-                <p className="font-semibold text-red-800">
-                  ⚠️ {urgentCount} {urgentCount === 1 ? 'lead needs' : 'leads need'} immediate follow-up!
-                </p>
-                <p className="text-sm text-red-600 mt-0.5">
-                  {summary.overdue > 0 && `${summary.overdue} overdue`}
-                  {summary.overdue > 0 && summary.today > 0 && ' • '}
-                  {summary.today > 0 && `${summary.today} scheduled today`}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-red-500">Top Priority</p>
-                <Clock className="h-4 w-4 text-red-600 mx-auto" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* ── Lead Cards ── */}
+      <div className="px-3 pt-3 space-y-2">
+        {filtered.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-gray-400 text-sm">No leads found</p>
+          </div>
+        )}
 
-      <Card>
-         <CardContent className="p-4 space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-               <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <Input 
-                    placeholder="Search by name or phone..." 
-                    className="pl-10"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-               </div>
-               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All Status</SelectItem>
-                     <SelectItem value="Open">Open</SelectItem>
-                     <SelectItem value="FollowUp">Follow Up</SelectItem>
-                     <SelectItem value="Booked">Booked</SelectItem>
-                     <SelectItem value="Lost">Lost</SelectItem>
-                  </SelectContent>
-               </Select>
-               <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Project" /></SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All Projects</SelectItem>
-                     {projects.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                  </SelectContent>
-               </Select>
-            </div>
+        {filtered.map(lead => {
+          const fu = lead.follow_up_date || lead.followUpDate;
+          const overdueFlag = fu && isPast(parseISO(fu)) && !isToday(parseISO(fu));
+          const todayFlag   = fu && isToday(parseISO(fu));
+          const sc = statusColors[lead.status] || statusColors.New;
 
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-               <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">Assigned Date:</span>
-               </div>
-               <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-[180px]">
-                     <SelectValue placeholder="Select Date" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All Dates</SelectItem>
-                     <SelectItem value="today">Today</SelectItem>
-                     <SelectItem value="yesterday">Yesterday</SelectItem>
-                     <SelectItem value="this_week">This Week</SelectItem>
-                     <SelectItem value="custom">Custom Date</SelectItem>
-                  </SelectContent>
-               </Select>
+          return (
+            <div key={lead.id}
+              className={`bg-white rounded-2xl shadow-sm border transition-all
+                ${ overdueFlag ? 'border-red-200' : todayFlag ? 'border-green-200' : 'border-gray-100' }`}>
 
-               {dateFilter === 'custom' && (
-                  <Input 
-                     type="date" 
-                     className="w-[180px]"
-                     value={customDate}
-                     onChange={(e) => setCustomDate(e.target.value)}
-                  />
-               )}
-
-               <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setGroupByDate(!groupByDate)}
-                  className="ml-auto"
-               >
-                  <Filter className="h-4 w-4 mr-2" />
-                  {groupByDate ? 'Ungroup' : 'Group by Date'}
-               </Button>
-            </div>
-
-            <div className="flex items-center justify-between text-sm border-t pt-3">
-               <div>
-                 <span className="text-gray-700 font-medium">Showing {filteredLeads.length} of {myLeads.length} leads</span>
-                 {urgentCount > 0 && (
-                   <span className="ml-3 text-red-600 font-semibold">
-                     • {urgentCount} urgent follow-ups at top
-                   </span>
-                 )}
-               </div>
-               {dateFilter !== 'all' && (
-                  <Button 
-                     variant="ghost" 
-                     size="sm" 
-                     onClick={() => { setDateFilter('all'); setCustomDate(''); }}
-                  >
-                     Clear Date Filter
-                  </Button>
-               )}
-            </div>
-
-            <div className="rounded-md border">
-               {groupByDate ? (
-                  <div className="divide-y">
-                     {Object.entries(groupedLeads).map(([dateGroup, groupLeads]) => (
-                        <Collapsible key={dateGroup} open={openGroups[dateGroup]} onOpenChange={() => toggleGroup(dateGroup)}>
-                           <CollapsibleTrigger className="w-full">
-                              <div className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer">
-                                 <div className="flex items-center gap-3">
-                                    {openGroups[dateGroup] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                    <span className="font-semibold text-gray-900">{dateGroup}</span>
-                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                                       {groupLeads.length} leads
-                                    </span>
-                                 </div>
-                              </div>
-                           </CollapsibleTrigger>
-                           <CollapsibleContent>
-                              <Table>
-                                 <TableHeader>
-                                    <TableRow>
-                                       <TableHead>Lead Name</TableHead>
-                                       <TableHead>Project</TableHead>
-                                       <TableHead>Status</TableHead>
-                                       <TableHead>Assigned At</TableHead>
-                                       <TableHead>Last Contact</TableHead>
-                                       <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                 </TableHeader>
-                                 <TableBody>
-                                    {groupLeads.map(renderLeadRow)}
-                                 </TableBody>
-                              </Table>
-                           </CollapsibleContent>
-                        </Collapsible>
-                     ))}
-                     {Object.keys(groupedLeads).length === 0 && (
-                        <div className="text-center py-8 text-gray-500">No leads found matching your filters.</div>
-                     )}
+              {/* Card top — tap to open detail */}
+              <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
+                className="w-full text-left px-4 pt-3.5 pb-2 touch-manipulation">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 text-base truncate">{lead.name}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{lead.phone}</p>
                   </div>
-               ) : (
-                  <Table>
-                     <TableHeader>
-                        <TableRow>
-                           <TableHead>Lead Name</TableHead>
-                           <TableHead>Project</TableHead>
-                           <TableHead>Status</TableHead>
-                           <TableHead>Assigned At</TableHead>
-                           <TableHead>Last Contact</TableHead>
-                           <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                        {filteredLeads.map(renderLeadRow)}
-                        {filteredLeads.length === 0 && (
-                           <TableRow><TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                             {myLeads.length === 0 
-                               ? 'No leads assigned to you yet. Contact your admin to get leads assigned.'
-                               : 'No leads found matching your filters. Try adjusting your search criteria.'}
-                           </TableCell></TableRow>
-                        )}
-                     </TableBody>
-                  </Table>
-               )}
-            </div>
-         </CardContent>
-      </Card>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${sc}`}>{lead.status || 'New'}</span>
+                    {overdueFlag && <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold"><AlertCircle size={9} /> Overdue</span>}
+                    {todayFlag   && <span className="flex items-center gap-0.5 text-[10px] text-green-600 font-bold"><Clock size={9} /> Today</span>}
+                  </div>
+                </div>
 
-      {/* Follow-up Scheduler Modal */}
-      <FollowUpScheduler
-        isOpen={schedulerOpen}
-        onClose={() => setSchedulerOpen(false)}
-        onSave={handleScheduleFollowUp}
-        lead={selectedLead}
-      />
+                {/* Follow-up / project row */}
+                <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                  {lead.project && <span>🏗️ {lead.project}</span>}
+                  {lead.budget  && <span>💰 {lead.budget}</span>}
+                  {fu && <span className={`flex items-center gap-1 ${overdueFlag ? 'text-red-500' : todayFlag ? 'text-green-600' : 'text-yellow-600'}`}>
+                    <Calendar size={11} /> {format(parseISO(fu), 'dd MMM')}
+                  </span>}
+                </div>
+              </button>
+
+              {/* Card actions */}
+              <div className="flex border-t border-gray-50">
+                <a href={`tel:${lead.phone}`}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-blue-600 active:bg-blue-50 touch-manipulation">
+                  <Phone size={14} /> Call
+                </a>
+                <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
+                  target="_blank" rel="noreferrer"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-green-600 border-x border-gray-50 active:bg-green-50 touch-manipulation">
+                  <MessageCircle size={14} /> WhatsApp
+                </a>
+                <button onClick={() => { setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-[#D4AF37] active:bg-yellow-50 touch-manipulation">
+                  <PhoneCall size={14} /> Log
+                </button>
+                <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
+                  className="px-4 flex items-center justify-center text-gray-400 active:bg-gray-50 touch-manipulation">
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── QUICK LOG SHEET (from lead card "Log" button) ── */}
+      {quickLead && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setQuickLead(null)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+               style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="flex justify-center pt-3"><div className="w-10 h-1 bg-gray-200 rounded-full" /></div>
+            <div className="px-4 pb-8">
+              <div className="flex items-center justify-between my-4">
+                <div>
+                  <p className="font-black text-[#0F3A5F] text-lg">{quickLead.name}</p>
+                  <p className="text-xs text-gray-400">{quickLead.phone}</p>
+                </div>
+                <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
+                  <X size={18} className="text-gray-600" />
+                </button>
+              </div>
+
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Call Outcome</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {QUICK_OUTCOMES.map(o => (
+                  <button key={o.id} onClick={() => setOutcome(o.id)}
+                    className={`flex items-center gap-2 px-3 py-3 rounded-2xl border-2 text-sm font-semibold touch-manipulation
+                      ${ outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white' : 'border-gray-100 bg-gray-50 text-gray-700' }`}>
+                    {o.emoji} {o.label}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Update Status</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {QUICK_STATUSES.map(s => (
+                  <button key={s.id} onClick={() => setNewStatus(newStatus === s.id ? '' : s.id)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 text-sm font-semibold touch-manipulation
+                      ${ newStatus === s.id ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F]' : 'border-gray-100 bg-gray-50 text-gray-700' }`}>
+                    {s.emoji} {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Follow-up / Visit Date</p>
+              <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
+                className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
+
+              <button onClick={handleQuickSave} disabled={!outcome || saving}
+                className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl text-base font-black disabled:opacity-40 touch-manipulation">
+                {saving ? '⏳ Saving...' : '✅ Save & Update'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

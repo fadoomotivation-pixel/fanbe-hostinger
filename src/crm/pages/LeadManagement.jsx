@@ -24,6 +24,13 @@ const fmtDate = (d, fmt = 'dd MMM yyyy') => {
   try { return format(parseISO(d), fmt); } catch { return d; }
 };
 
+// ── Roles that should NEVER appear in the assignment dropdown ────────
+const ADMIN_ROLES = [
+  'super_admin', 'superadmin', 'admin',
+  'sub_admin',   'subadmin',
+  'hr_manager',  'hr',
+];
+
 const LeadManagement = () => {
   const { leads, addLead, updateLead, deleteLead, employees, getUniqueSources } = useCRMData();
   const { user } = useAuth();
@@ -47,8 +54,11 @@ const LeadManagement = () => {
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
+  // ✅ FIX: Exclude admin roles instead of whitelisting sales roles.
+  // This prevents "empty dropdown" when employee roles are stored with
+  // different casing or spacing (e.g. "Sales Executive" vs "sales_executive").
   const salesEmployees = employees.filter(emp =>
-    ['employee', 'sales_executive', 'telecaller'].includes(emp.role?.toLowerCase())
+    !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
   );
 
   const myLeads = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);

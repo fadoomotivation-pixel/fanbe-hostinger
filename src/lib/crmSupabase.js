@@ -1,5 +1,6 @@
 // src/lib/crmSupabase.js
 // ✅ Fixed: getSiteVisits orders by created_at (fallback for NULL visit_date rows)
+// ✅ Fixed: addSiteVisit now saves interest_level as its own column
 import { supabase } from './supabase';
 
 // ==========================================
@@ -73,18 +74,20 @@ export const addSiteVisit = async (visitData) => {
     const { data, error } = await supabase
       .from('site_visits')
       .insert([{
-        employee_id:  visitData.employeeId  || visitData.employee_id,
-        lead_id:      visitData.leadId      || visitData.lead_id      || null,
-        lead_name:    visitData.leadName    || visitData.lead_name    || null,
-        project_name: visitData.projectName || visitData.project_name || '',
-        // ✅ FIXED: Accept both camelCase (visitDate) and snake_case (visit_date)
-        visit_date:   visitData.visitDate   || visitData.visit_date   || visitData.date || null,
-        visit_time:   visitData.visitTime   || visitData.visit_time   || null,
-        status:       visitData.status      || 'Completed',
-        location:     visitData.location    || '',
-        duration:     parseInt(visitData.duration) || null,
-        notes:        visitData.notes       || '',
-        feedback:     visitData.feedback    || ''
+        employee_id:   visitData.employeeId   || visitData.employee_id,
+        lead_id:       visitData.leadId       || visitData.lead_id       || null,
+        lead_name:     visitData.leadName     || visitData.lead_name     || null,
+        project_name:  visitData.projectName  || visitData.project_name  || '',
+        // ✅ Accept both camelCase (visitDate) and snake_case (visit_date)
+        visit_date:    visitData.visitDate    || visitData.visit_date    || visitData.date || null,
+        visit_time:    visitData.visitTime    || visitData.visit_time    || null,
+        status:        visitData.status       || 'Completed',
+        location:      visitData.location     || '',
+        duration:      parseInt(visitData.duration) || null,
+        notes:         visitData.notes        || '',
+        feedback:      visitData.feedback     || '',
+        // ✅ NEW: save interest level as its own column
+        interest_level: visitData.interestLevel || visitData.interest_level || null,
       }])
       .select()
       .single();
@@ -100,13 +103,13 @@ export const addSiteVisit = async (visitData) => {
   }
 };
 
-// ✅ FIXED: order by created_at DESC so NULL visit_date rows still appear at top
+// ✅ Order by created_at DESC so NULL visit_date rows still appear
 export const getSiteVisits = async (employeeId = null) => {
   try {
     let query = supabase
       .from('site_visits')
       .select('*')
-      .order('created_at', { ascending: false });  // was: visit_date (NULL = invisible)
+      .order('created_at', { ascending: false });
     if (employeeId) query = query.eq('employee_id', employeeId);
     const { data, error } = await query;
     if (error) throw error;

@@ -1,7 +1,7 @@
 // src/crm/pages/SiteVisits.jsx
 // ✅ Fixed: async handleSubmit (awaits addSiteVisitLog)
 // ✅ Fixed: correct field names (visitDate not date)
-// ✅ Fixed: interest level saved inside notes column
+// ✅ Fixed: interest level saved to interest_level column AND inside notes prefix
 // ✅ Fixed: history reads from correct normalized fields
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -121,12 +121,12 @@ const SiteVisits = () => {
   const userId  = user?.uid || user?.id;
   const myLeads = leads.filter(l => l.assignedTo === userId || l.assigned_to === userId);
 
-  // ✅ FIXED: filter by normalized employeeId field (from useCRMData normalization)
+  // Filter by normalized employeeId field
   const myVisits = siteVisits
     .filter(v => v.employeeId === userId)
     .sort((a, b) => new Date(b.timestamp || b.visitDate) - new Date(a.timestamp || a.visitDate));
 
-  // ✅ FIXED: handleSubmit is now async and awaits addSiteVisitLog
+  // handleSubmit is async and awaits addSiteVisitLog
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.leadId) {
@@ -144,24 +144,23 @@ const SiteVisits = () => {
       const lead = myLeads.find(l => l.id === formData.leadId);
       const visitDateObj = new Date(formData.date);
 
-      // ✅ FIXED: correct field names that addSiteVisit() reads
       const result = await addSiteVisitLog({
-        leadId:      formData.leadId,
-        employeeId:  userId,
-        leadName:    lead?.name    || 'Unknown',
-        projectName: lead?.project || 'General',
-        visitDate:   visitDateObj.toISOString().split('T')[0],      // ✅ was: date (wrong)
-        visitTime:   visitDateObj.toTimeString().slice(0, 5),        // ✅ was: missing
-        status:      'Completed',
-        // ✅ Store interest level inside notes as prefix so it can be parsed back
-        notes:       `[Interest: ${formData.interest}] ${formData.feedback.trim()}`,
-        feedback:    formData.feedback.trim(),
-        location:    lead?.project || '',
-        duration:    null,
+        leadId:        formData.leadId,
+        employeeId:    userId,
+        leadName:      lead?.name    || 'Unknown',
+        projectName:   lead?.project || 'General',
+        visitDate:     visitDateObj.toISOString().split('T')[0],
+        visitTime:     visitDateObj.toTimeString().slice(0, 5),
+        status:        'Completed',
+        // ✅ Save interest as dedicated column AND keep notes prefix for backwards compat
+        interestLevel: formData.interest,
+        notes:         `[Interest: ${formData.interest}] ${formData.feedback.trim()}`,
+        feedback:      formData.feedback.trim(),
+        location:      lead?.project || '',
+        duration:      null,
       });
 
       if (result) {
-        // Also update lead status to SiteVisit
         toast({
           title: '✅ Site Visit Logged!',
           description: `${lead?.name} — ${formData.interest} interest • synced to cloud`,
@@ -277,8 +276,8 @@ const SiteVisits = () => {
                 </TableHeader>
                 <TableBody>
                   {myVisits.map((visit, idx) => {
-                    // ✅ FIXED: parse interest from notes prefix
-                    const interest  = extractInterest(visit.notes) || visit.interest || '—';
+                    // Read from dedicated column first, fall back to notes prefix
+                    const interest  = visit.interest || extractInterest(visit.notes) || '—';
                     const feedback  = extractFeedback(visit.notes) || visit.feedback || '—';
                     const visitDate = visit.visitDate || visit.timestamp;
 

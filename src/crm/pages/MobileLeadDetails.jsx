@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ const TemperatureChip = ({ level }) => {
 const MobileLeadDetails = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { leads, updateLead, addLeadNote } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,6 +51,20 @@ const MobileLeadDetails = () => {
   useEffect(() => {
     if (lead) setEditedName(lead.name);
   }, [lead]);
+
+  // Smart back navigation
+  const handleBack = () => {
+    // Check if there's a referrer state from the previous page
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else if (window.history.length > 2) {
+      // Try to go back if there's history
+      navigate(-1);
+    } else {
+      // Default fallback to my-leads
+      navigate('/crm/my-leads');
+    }
+  };
 
   if (!lead) {
     return (
@@ -132,8 +147,8 @@ const MobileLeadDetails = () => {
       <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center gap-3 max-w-5xl mx-auto">
           <button
-            onClick={() => navigate('/crm/my-leads')}
-            className="p-1.5 rounded-full hover:bg-gray-100"
+            onClick={handleBack}
+            className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
@@ -160,10 +175,10 @@ const MobileLeadDetails = () => {
                       className="flex-1 h-9 text-sm"
                       autoFocus
                     />
-                    <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200">
+                    <button onClick={handleSaveName} className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 hover:bg-green-100 active:scale-95 transition">
                       <Check size={16} />
                     </button>
-                    <button onClick={() => { setEditedName(lead.name); setIsEditingName(false); }} className="p-1.5 rounded-lg bg-gray-50 text-gray-500 border border-gray-200">
+                    <button onClick={() => { setEditedName(lead.name); setIsEditingName(false); }} className="p-1.5 rounded-lg bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 active:scale-95 transition">
                       <X size={16} />
                     </button>
                   </div>
@@ -174,7 +189,7 @@ const MobileLeadDetails = () => {
                     </div>
                     <button
                       onClick={() => setIsEditingName(true)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 active:scale-95 transition"
                     >
                       <Edit2 size={14} />
                     </button>
@@ -280,12 +295,12 @@ const MobileLeadDetails = () => {
                 </div>
                 <div className="flex gap-1.5">
                   <a href={`tel:${lead.phone}`}>
-                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100 transition">
                       <Phone size={16} className="text-green-600" />
                     </button>
                   </a>
                   <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer">
-                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100">
+                    <button className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100 transition">
                       <MessageSquare size={16} className="text-green-600" />
                     </button>
                   </a>
@@ -301,13 +316,13 @@ const MobileLeadDetails = () => {
                   </div>
                   <div className="flex gap-1.5">
                     <a href={`tel:${phone}`}>
-                      <button className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200">
+                      <button className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200 active:bg-green-100 transition">
                         <Phone size={14} className="text-green-600" />
                       </button>
                     </a>
                     <button
                       onClick={() => handleRemoveAlternatePhone(phone)}
-                      className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-200"
+                      className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-200 active:bg-red-100 transition"
                     >
                       <Trash2 size={14} className="text-red-500" />
                     </button>
@@ -317,7 +332,7 @@ const MobileLeadDetails = () => {
 
               <button
                 onClick={() => setIsAddingPhone(true)}
-                className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-1 px-1"
+                className="flex items-center gap-1.5 text-xs text-blue-600 font-medium mt-1 px-1 hover:text-blue-700 active:scale-95 transition"
               >
                 <Plus size={14} />
                 Add alternate number
@@ -363,7 +378,6 @@ const MobileLeadDetails = () => {
         isOpen={isLogCallModalOpen}
         onClose={() => setIsLogCallModalOpen(false)}
         onSuccess={() => {
-          // Refresh or show success message
           toast({
             title: '✅ Call Logged',
             description: 'Call has been recorded successfully',

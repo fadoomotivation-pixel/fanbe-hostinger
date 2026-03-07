@@ -10,21 +10,21 @@ import { format, parseISO, isToday, isPast, differenceInDays, formatDistanceToNo
 import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
-  Copy, CheckCircle, Filter, ArrowUpDown, Flame
+  Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote
 } from 'lucide-react';
 
-// ── Quick outcome sheet ────────────────────────────────
+// ── Quick outcome sheet ──────────────────────────────────
 const QUICK_OUTCOMES = [
-  { id: 'Not Answered', label: 'No Answer', emoji: '📵' },
-  { id: 'Connected',    label: 'Connected', emoji: '✅' },
-  { id: 'Busy',         label: 'Busy',      emoji: '🔴' },
-  { id: 'Switched Off', label: 'S/Off',     emoji: '📴' },
+  { id: 'Not Answered', label: 'No Answer', emoji: '\uD83D\uDCF5' },
+  { id: 'Connected',    label: 'Connected', emoji: '\u2705' },
+  { id: 'Busy',         label: 'Busy',      emoji: '\uD83D\uDD34' },
+  { id: 'Switched Off', label: 'S/Off',     emoji: '\uD83D\uDCF4' },
 ];
 const QUICK_STATUSES = [
-  { id: 'FollowUp',      emoji: '📅', label: 'Follow Up' },
-  { id: 'SiteVisit',     emoji: '📍', label: 'Site Visit' },
-  { id: 'Booked',        emoji: '💰', label: 'Booked' },
-  { id: 'NotInterested', emoji: '❌', label: 'Not Int.' },
+  { id: 'FollowUp',      emoji: '\uD83D\uDCC5', label: 'Follow Up' },
+  { id: 'SiteVisit',     emoji: '\uD83D\uDCCD', label: 'Site Visit' },
+  { id: 'Booked',        emoji: '\uD83D\uDCB0', label: 'Booked' },
+  { id: 'NotInterested', emoji: '\u274C',        label: 'Not Int.' },
 ];
 
 const statusColors = {
@@ -69,21 +69,33 @@ const formatPhone = (p) => {
   return p;
 };
 
+// Extract the latest/last line of notes (notes are appended with newlines)
+const getLatestNote = (notes) => {
+  if (!notes || typeof notes !== 'string') return null;
+  const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+  // Last line is always the most recent (notes are appended)
+  const last = lines[lines.length - 1];
+  // Strip timestamp prefix like "[DD MMM, H:mm AM - Name]:" if present
+  const clean = last.replace(/^\[.*?\]:\s*/, '').trim();
+  return clean.length > 0 ? clean : null;
+};
+
 const MyLeads = () => {
   const { user }  = useAuth();
   const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const { toast } = useToast();
 
-  const [tab, setTab]         = useState('all');
-  const [search, setSearch]   = useState('');
-  const [sortBy, setSortBy]   = useState('urgency'); // urgency | name | recent
-  const [quickLead, setQuickLead] = useState(null);
-  const [outcome, setOutcome]     = useState('');
-  const [newStatus, setNewStatus] = useState('');
+  const [tab, setTab]           = useState('all');
+  const [search, setSearch]     = useState('');
+  const [sortBy, setSortBy]     = useState('urgency');
+  const [quickLead, setQuickLead]   = useState(null);
+  const [outcome, setOutcome]       = useState('');
+  const [newStatus, setNewStatus]   = useState('');
   const [followDate, setFollowDate] = useState('');
   const [quickNote, setQuickNote]   = useState('');
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving]     = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
   const userId = user?.uid || user?.id;
@@ -133,7 +145,11 @@ const MyLeads = () => {
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      arr = arr.filter(l => l.name?.toLowerCase().includes(q) || l.phone?.includes(q) || l.project?.toLowerCase().includes(q));
+      arr = arr.filter(l =>
+        l.name?.toLowerCase().includes(q) ||
+        l.phone?.includes(q) ||
+        l.project?.toLowerCase().includes(q)
+      );
     }
     return arr;
   }, [myLeads, tab, search]);
@@ -163,10 +179,10 @@ const MyLeads = () => {
         notes: quickNote || `Quick log: ${outcomeLabel}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)   patch.status = newStatus;
-      if (followDate)  patch.follow_up_date = followDate;
+      if (newStatus)  patch.status = newStatus;
+      if (followDate) patch.follow_up_date = followDate;
       await updateLead(quickLead.id, patch);
-      toast({ title: 'Logged!', description: newStatus ? `Status → ${newStatus}` : 'Call saved' });
+      toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -200,8 +216,8 @@ const MyLeads = () => {
                   <AlertCircle size={12} /> {urgentCount}
                 </span>
               )}
-              {/* Sort toggle */}
-              <button onClick={() => setSortBy(s => s === 'urgency' ? 'name' : s === 'name' ? 'recent' : 'urgency')}
+              <button
+                onClick={() => setSortBy(s => s === 'urgency' ? 'name' : s === 'name' ? 'recent' : 'urgency')}
                 className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-full text-[10px] font-semibold text-gray-600 active:bg-gray-200">
                 <ArrowUpDown size={11} />
                 {sortBy === 'urgency' ? 'Priority' : sortBy === 'name' ? 'A-Z' : 'Recent'}
@@ -229,7 +245,7 @@ const MyLeads = () => {
                 className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation ${
                   tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
                 }`}>
-                {t.id === 'urgent' && '🔴 '}{t.label}
+                {t.id === 'urgent' && '\uD83D\uDD34 '}{t.label}
                 {t.id === 'urgent' && urgentCount > 0 ? ` (${urgentCount})` : ''}
                 {t.id === 'all' ? ` (${myLeads.length})` : ''}
               </button>
@@ -255,16 +271,17 @@ const MyLeads = () => {
           let overdueFlag = false, todayFlag = false;
           try {
             overdueFlag = fu && isPast(parseISO(fu)) && !isToday(parseISO(fu));
-            todayFlag = fu && isToday(parseISO(fu));
-          } catch { /* ignore invalid dates */ }
+            todayFlag   = fu && isToday(parseISO(fu));
+          } catch { /* ignore */ }
           const sc = statusColors[lead.status] || statusColors.New;
-          const interest = lead.interestLevel || lead.interest_level;
+          const interest   = lead.interestLevel || lead.interest_level;
+          const latestNote = getLatestNote(lead.notes);
 
           return (
             <div key={lead.id}
               className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
                 overdueFlag ? 'border-red-200 border-l-4 border-l-red-400' :
-                todayFlag ? 'border-amber-200 border-l-4 border-l-amber-400' : 'border-gray-100'
+                todayFlag   ? 'border-amber-200 border-l-4 border-l-amber-400' : 'border-gray-100'
               }`}>
 
               {/* Card body — tap to open detail */}
@@ -280,16 +297,26 @@ const MyLeads = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${sc}`}>{lead.status || 'New'}</span>
-                    {overdueFlag && <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold"><AlertCircle size={9} /> Overdue</span>}
-                    {todayFlag && <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold"><Clock size={9} /> Today</span>}
+                    {overdueFlag && (
+                      <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold">
+                        <AlertCircle size={9} /> Overdue
+                      </span>
+                    )}
+                    {todayFlag && (
+                      <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold">
+                        <Clock size={9} /> Today
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                  {lead.project && <span className="truncate max-w-[120px]">🏗️ {lead.project}</span>}
-                  {lead.budget && <span>💰 {lead.budget}</span>}
+                  {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
+                  {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
                   {fu && (
-                    <span className={`flex items-center gap-1 ${overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : 'text-blue-600'}`}>
+                    <span className={`flex items-center gap-1 ${
+                      overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : 'text-blue-600'
+                    }`}>
                       <Calendar size={11} /> {format(parseISO(fu), 'dd MMM')}
                     </span>
                   )}
@@ -298,9 +325,17 @@ const MyLeads = () => {
                 {/* Last activity */}
                 <p className="text-[10px] text-gray-300 mt-1.5">
                   {lead._callCount > 0
-                    ? `${lead._callCount} calls · Last: ${timeAgo(lead._lastCall?.timestamp)}`
+                    ? `${lead._callCount} calls \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
                     : 'Never contacted'}
                 </p>
+
+                {/* Latest note snippet */}
+                {latestNote && (
+                  <div className="flex items-start gap-1.5 mt-2 bg-amber-50 rounded-xl px-2.5 py-1.5">
+                    <StickyNote size={11} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
+                  </div>
+                )}
               </button>
 
               {/* Card action row */}
@@ -311,14 +346,19 @@ const MyLeads = () => {
                 </a>
                 <button onClick={() => copyPhone(lead.phone, lead.id)}
                   className="flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-semibold text-gray-400 border-x border-gray-50 active:bg-gray-50 touch-manipulation">
-                  {copiedId === lead.id ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                  {copiedId === lead.id
+                    ? <CheckCircle size={14} className="text-emerald-500" />
+                    : <Copy size={14} />}
                 </button>
                 <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
                   target="_blank" rel="noreferrer"
                   className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
                   <MessageCircle size={14} /> WhatsApp
                 </a>
-                <button onClick={() => { setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote(''); }}
+                <button onClick={() => {
+                  setQuickLead(lead);
+                  setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
+                }}
                   className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
                   <PhoneCall size={14} /> Log
                 </button>
@@ -353,33 +393,37 @@ const MyLeads = () => {
                 </div>
               </div>
 
-              {/* Step 1: Call Outcome */}
+              {/* Step 1 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">How did the call go?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_OUTCOMES.map(o => (
                   <button key={o.id} onClick={() => setOutcome(o.id)}
                     className={`flex items-center gap-2 px-3 py-3 rounded-2xl border-2 text-sm font-semibold touch-manipulation transition-all ${
-                      outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white shadow-lg scale-[1.02]' : 'border-gray-100 bg-gray-50 text-gray-700'
+                      outcome === o.id
+                        ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white shadow-lg scale-[1.02]'
+                        : 'border-gray-100 bg-gray-50 text-gray-700'
                     }`}>
                     {o.emoji} {o.label}
                   </button>
                 ))}
               </div>
 
-              {/* Step 2: Lead Status */}
+              {/* Step 2 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Update Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_STATUSES.map(s => (
                   <button key={s.id} onClick={() => setNewStatus(newStatus === s.id ? '' : s.id)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 text-sm font-semibold touch-manipulation transition-all ${
-                      newStatus === s.id ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F] shadow-sm scale-[1.02]' : 'border-gray-100 bg-gray-50 text-gray-700'
+                      newStatus === s.id
+                        ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F] shadow-sm scale-[1.02]'
+                        : 'border-gray-100 bg-gray-50 text-gray-700'
                     }`}>
                     {s.emoji} {s.label}
                   </button>
                 ))}
               </div>
 
-              {/* Step 3: Follow-up Date */}
+              {/* Step 3 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                 {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Follow-up Date (optional)'}
               </p>
@@ -391,7 +435,8 @@ const MyLeads = () => {
                   }}
                     className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       followDate === (() => { const d = new Date(); d.setDate(d.getDate() + opt.days); return d.toISOString().split('T')[0]; })()
-                        ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-600'
+                        ? 'border-blue-400 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600'
                     }`}>
                     {opt.label}
                   </button>
@@ -400,7 +445,7 @@ const MyLeads = () => {
               <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
 
-              {/* Step 4: Quick Note */}
+              {/* Step 4 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quick Note (optional)</p>
               <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
                 placeholder="What did the lead say?" rows={2}
@@ -409,9 +454,10 @@ const MyLeads = () => {
               {/* Save */}
               <button onClick={handleQuickSave} disabled={!outcome || saving}
                 className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#0a2d4f] shadow-xl touch-manipulation transition-all">
-                {saving ? (
-                  <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
-                ) : 'Save & Update'}
+                {saving
+                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
+                  : 'Save & Update'
+                }
               </button>
             </div>
           </div>

@@ -24,9 +24,9 @@ const CALL_OUTCOMES = [
 ];
 
 const LEAD_STATUSES = [
-  { id: 'FollowUp',      label: 'Follow Up',      emoji: '\uD83D\uDCC5' },
-  { id: 'SiteVisit',     label: 'Site Visit',     emoji: '\uD83D\uDCCD' },
-  { id: 'NotInterested', label: 'Not Interested', emoji: '\u274C' },
+  { id: 'FollowUp',      label: 'Follow Up',       emoji: '\uD83D\uDCC5' },
+  { id: 'SiteVisit',     label: 'Site Visit',      emoji: '\uD83D\uDCCD' },
+  { id: 'NotInterested', label: 'Not Interested',  emoji: '\u274C' },
   { id: 'CallBackLater', label: 'Call Back Later', emoji: '\uD83D\uDD04' },
 ];
 
@@ -90,19 +90,19 @@ const LeadDetail = () => {
   } = useCRMData();
   const { toast }  = useToast();
 
-  const [showSheet, setShowSheet]             = useState(false);
+  const [showSheet, setShowSheet]               = useState(false);
   const [showBookingSheet, setShowBookingSheet] = useState(false);
-  const [outcome, setOutcome]                 = useState('');
-  const [leadStatus, setLeadStatus]           = useState('');
-  const [followDate, setFollowDate]           = useState('');
-  const [quickNote, setQuickNote]             = useState('');
-  const [saving, setSaving]                   = useState(false);
-  const [showNotes, setShowNotes]             = useState(false);
-  const [showHistory, setShowHistory]         = useState(true);
-  const [newNote, setNewNote]                 = useState('');
-  const [addingNote, setAddingNote]           = useState(false);
-  const [copiedPhone, setCopiedPhone]         = useState(false);
-  const [bookingSaving, setBookingSaving]     = useState(false);
+  const [outcome, setOutcome]                   = useState('');
+  const [leadStatus, setLeadStatus]             = useState('');
+  const [followDate, setFollowDate]             = useState('');
+  const [quickNote, setQuickNote]               = useState('');
+  const [saving, setSaving]                     = useState(false);
+  const [showNotes, setShowNotes]               = useState(false);
+  const [showHistory, setShowHistory]           = useState(true);
+  const [newNote, setNewNote]                   = useState('');
+  const [addingNote, setAddingNote]             = useState(false);
+  const [copiedPhone, setCopiedPhone]           = useState(false);
+  const [bookingSaving, setBookingSaving]       = useState(false);
 
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
@@ -177,7 +177,7 @@ const LeadDetail = () => {
   const isBooked = lead.status === 'Booked';
   let isOverdue = false, isFollowToday = false;
   try {
-    isOverdue = followUpRaw && isPast(parseISO(followUpRaw)) && !isToday(parseISO(followUpRaw));
+    isOverdue     = followUpRaw && isPast(parseISO(followUpRaw)) && !isToday(parseISO(followUpRaw));
     isFollowToday = followUpRaw && isToday(parseISO(followUpRaw));
   } catch { /* ignore */ }
   const today = new Date().toISOString().split('T')[0];
@@ -188,23 +188,16 @@ const LeadDetail = () => {
     setSaving(true);
     try {
       await addCallLog({
-        leadId: id,
-        leadName: lead.name,
-        projectName: lead.project || '',
-        employeeId: userId,
-        employeeName: user?.name || '',
-        type: 'Outgoing',
-        status: outcome,
-        duration: 0,
+        leadId: id, leadName: lead.name, projectName: lead.project || '',
+        employeeId: userId, employeeName: user?.name || '',
+        type: 'Outgoing', status: outcome, duration: 0,
         notes: quickNote || null,
       });
       const patch = { last_activity: new Date().toISOString() };
       if (leadStatus) patch.status = leadStatus;
       if (followDate) patch.follow_up_date = followDate;
       await updateLead(id, patch);
-      if (quickNote) {
-        await addLeadNote(id, quickNote, user?.name || 'User');
-      }
+      if (quickNote) await addLeadNote(id, quickNote, user?.name || 'User');
       if (leadStatus === 'SiteVisit' && followDate) {
         await addSiteVisitLog({
           leadId: id, leadName: lead.name, projectName: lead.project || '',
@@ -221,7 +214,7 @@ const LeadDetail = () => {
     setSaving(false);
   };
 
-  // ── Save Booking ───────────────────────────────────────────────────────
+  // ── Save Booking ─────────────────────────────────────────────────────
   const handleBooking = async () => {
     const { bookingAmount, tokenAmount, unitNumber } = bookingForm;
     if (!bookingAmount || Number(bookingAmount) <= 0) {
@@ -238,14 +231,14 @@ const LeadDetail = () => {
       await addBookingLog({
         leadId: id, leadName: lead.name, projectName: lead.project || '',
         employeeId: userId, employeeName: user?.name || '',
-        bookingAmount: parseFloat(bookingForm.bookingAmount),
-        tokenAmount: parseFloat(bookingForm.tokenAmount),
+        bookingAmount:  parseFloat(bookingForm.bookingAmount),
+        tokenAmount:    parseFloat(bookingForm.tokenAmount),
         partialPayment: parseFloat(bookingForm.partialPayment || 0),
-        unitNumber: bookingForm.unitNumber,
-        paymentMode: bookingForm.paymentMode,
+        unitNumber:    bookingForm.unitNumber,
+        paymentMode:   bookingForm.paymentMode,
         paymentStatus: bookingForm.partialPayment ? 'Partial' : 'Pending',
-        bookingDate: new Date().toISOString().split('T')[0],
-        notes: bookingForm.notes || '',
+        bookingDate:   new Date().toISOString().split('T')[0],
+        notes:         bookingForm.notes || '',
       });
       toast({ title: '\uD83C\uDFC6 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
       setShowBookingSheet(false);
@@ -272,21 +265,19 @@ const LeadDetail = () => {
     });
   };
 
-  const updateBookingField = (field, value) => {
-    setBookingForm(prev => ({ ...prev, [field]: value }));
-  };
+  const updateBookingField = (field, value) => setBookingForm(prev => ({ ...prev, [field]: value }));
 
-  // Append quick tag to note
   const appendTag = (tagValue) => {
     setQuickNote(prev => {
       const sep = prev && !prev.endsWith(' ') ? ' ' : '';
-      const next = (prev + sep + tagValue).slice(0, 500);
-      return next;
+      return (prev + sep + tagValue).slice(0, 500);
     });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    // ✅ pb-40 on mobile to clear both: action bar (56px) + MobileBottomNav (64px) + gap
+    // ✅ pb-24 on desktop since there is no bottom nav
+    <div className="min-h-screen bg-gray-50 pb-40 md:pb-24">
 
       {/* ── Sticky Header ── */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-20 px-4 py-3 flex items-center gap-3">
@@ -321,22 +312,13 @@ const LeadDetail = () => {
           </div>
           <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-white/20">
             {lead.unitNumber && (
-              <div>
-                <p className="text-[10px] text-emerald-200 uppercase">Unit</p>
-                <p className="text-sm font-bold">{lead.unitNumber}</p>
-              </div>
+              <div><p className="text-[10px] text-emerald-200 uppercase">Unit</p><p className="text-sm font-bold">{lead.unitNumber}</p></div>
             )}
             {(lead.tokenAmount > 0) && (
-              <div>
-                <p className="text-[10px] text-emerald-200 uppercase">Token</p>
-                <p className="text-sm font-bold">{formatINR(lead.tokenAmount)}</p>
-              </div>
+              <div><p className="text-[10px] text-emerald-200 uppercase">Token</p><p className="text-sm font-bold">{formatINR(lead.tokenAmount)}</p></div>
             )}
             {(lead.bookingAmount > 0) && (
-              <div>
-                <p className="text-[10px] text-emerald-200 uppercase">Booking</p>
-                <p className="text-sm font-bold">{formatINR(lead.bookingAmount)}</p>
-              </div>
+              <div><p className="text-[10px] text-emerald-200 uppercase">Booking</p><p className="text-sm font-bold">{formatINR(lead.bookingAmount)}</p></div>
             )}
           </div>
         </div>
@@ -380,7 +362,7 @@ const LeadDetail = () => {
           </div>
         )}
 
-        {/* Desktop action row — Log Call button ONLY on md+ screens */}
+        {/* Action row — WhatsApp + Email + Log Call (desktop inline only) */}
         <div className="grid grid-cols-3 gap-2">
           <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
             target="_blank" rel="noreferrer"
@@ -392,10 +374,8 @@ const LeadDetail = () => {
               className="flex flex-col items-center gap-1 py-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 text-xs font-semibold active:bg-blue-100 touch-manipulation">
               <Mail size={18} /> Email
             </a>
-          ) : (
-            <div />
-          )}
-          {/* Log Call — desktop inline version (hidden on mobile, shown on desktop) */}
+          ) : <div />}
+          {/* Log Call inline — desktop only */}
           <button
             onClick={() => setShowSheet(true)}
             className="hidden md:flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] shadow-sm touch-manipulation transition-all">
@@ -409,10 +389,10 @@ const LeadDetail = () => {
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Details</p>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { label: 'Budget',  value: lead.budget || '\u2014',          icon: '\uD83D\uDCB0' },
-            { label: 'Project', value: lead.project || 'Not set',         icon: '\uD83C\uDFD7\uFE0F' },
-            { label: 'Source',  value: lead.source || '\u2014',          icon: '\uD83D\uDCCC' },
-            { label: 'Email',   value: lead.email || 'Not given',         icon: '\u2709\uFE0F' },
+            { label: 'Budget',  value: lead.budget || '\u2014',   icon: '\uD83D\uDCB0' },
+            { label: 'Project', value: lead.project || 'Not set',  icon: '\uD83C\uDFD7\uFE0F' },
+            { label: 'Source',  value: lead.source || '\u2014',   icon: '\uD83D\uDCCC' },
+            { label: 'Email',   value: lead.email || 'Not given',  icon: '\u2709\uFE0F' },
           ].map(item => (
             <div key={item.label} className="bg-gray-50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
@@ -486,10 +466,9 @@ const LeadDetail = () => {
                       <div className="absolute left-[15px] top-8 bottom-0 w-0.5 bg-gray-100" />
                     )}
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 ${
-                      item.type === 'call' ? (
-                        ['Connected','connected','interested'].includes(item.status)
-                          ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'
-                      ) : item.type === 'visit' ? 'bg-purple-100 text-purple-600'
+                      item.type === 'call'
+                        ? (['Connected','connected','interested'].includes(item.status) ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500')
+                        : item.type === 'visit' ? 'bg-purple-100 text-purple-600'
                         : 'bg-amber-100 text-amber-600'
                     }`}>
                       {item.type === 'call' ? <Phone size={13} />
@@ -498,7 +477,7 @@ const LeadDetail = () => {
                     </div>
                     <div className="flex-1 min-w-0 pb-4">
                       <p className="text-xs font-semibold text-gray-800 capitalize">
-                        {item.type === 'call' ? (item.status?.replace(/_/g, ' ') || 'Call')
+                        {item.type === 'call'    ? (item.status?.replace(/_/g, ' ') || 'Call')
                           : item.type === 'visit' ? `Visit - ${item.status || 'Scheduled'}`
                           : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
                       </p>
@@ -541,24 +520,36 @@ const LeadDetail = () => {
         )}
       </div>
 
-      {/* ── Fixed Bottom Action Bar (mobile + desktop) ── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 py-3 flex gap-2">
+      {/* ════════════════════════════════════════════════ */}
+      {/*                  FIXED BOTTOM ACTION BAR                        */}
+      {/* ════════════════════════════════════════════════ */}
+      {/*                                                                  */}
+      {/* ✅ Mobile: bottom-16 → sits above MobileBottomNav (h-16 = 64px)  */}
+      {/* ✅ Desktop: bottom-0 → no nav bar, anchors to viewport bottom      */}
+      {/*                                                                  */}
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 px-4 py-3 flex gap-2">
+
+        {/* Call */}
         <a href={`tel:${lead.phone}`}
           className="flex items-center justify-center gap-1.5 px-3 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold active:bg-emerald-100 touch-manipulation">
           <Phone size={15} /> Call
         </a>
+
+        {/* WhatsApp icon-only */}
         <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
           target="_blank" rel="noreferrer"
           className="flex items-center justify-center gap-1.5 px-3 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-xs font-bold active:bg-[#25D366]/20 touch-manipulation">
           <MessageCircle size={15} />
         </a>
-        {/* Log Call — mobile only (md+ uses inline button in card above) */}
+
+        {/* Log Call — mobile only; desktop uses inline card button above */}
         <button
           onClick={() => setShowSheet(true)}
           className="flex-1 md:hidden flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
           <PhoneCall size={16} /> Log Call
         </button>
-        {/* Book button — always visible when not booked */}
+
+        {/* Book — always visible when not already booked */}
         {!isBooked && (
           <button
             onClick={() => setShowBookingSheet(true)}
@@ -568,9 +559,9 @@ const LeadDetail = () => {
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── LOG CALL BOTTOM SHEET ─────────────────────── */}
-      {/* ══════════════════════════════════════════════════ */}
+      {/* ════════════════════════════════════════════════ */}
+      {/* LOG CALL BOTTOM SHEET                                           */}
+      {/* ════════════════════════════════════════════════ */}
       {showSheet && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowSheet(false)} />
@@ -638,50 +629,44 @@ const LeadDetail = () => {
               <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
 
-              {/* Step 4: Smart Quick Note */}
+              {/* Step 4 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 \u00B7 Quick Note (optional)</p>
               <div className="relative mb-2">
                 <textarea
                   value={quickNote}
                   onChange={e => setQuickNote(e.target.value.slice(0, 500))}
                   placeholder="What did the lead say? Any remarks..."
-                  rows={3}
-                  maxLength={500}
+                  rows={3} maxLength={500}
                   className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] pr-16"
                 />
                 <span className="absolute bottom-3 right-3 text-[10px] text-gray-400 pointer-events-none">
                   {quickNote.length}/500
                 </span>
               </div>
-              {/* Quick Tags */}
               <div className="flex flex-wrap gap-1.5 mb-5">
                 {QUICK_TAGS.map(tag => (
-                  <button
-                    key={tag.value}
-                    type="button"
-                    onClick={() => appendTag(tag.value)}
-                    className="px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium hover:bg-[#0F3A5F]/10 hover:border-[#0F3A5F]/30 hover:text-[#0F3A5F] active:scale-95 transition-all touch-manipulation"
-                  >
+                  <button key={tag.value} type="button" onClick={() => appendTag(tag.value)}
+                    className="px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium hover:bg-[#0F3A5F]/10 hover:border-[#0F3A5F]/30 hover:text-[#0F3A5F] active:scale-95 transition-all touch-manipulation">
                     {tag.label}
                   </button>
                 ))}
               </div>
 
-              {/* Save */}
               <button onClick={handleSave} disabled={!outcome || saving}
                 className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#0a2d4f] shadow-xl touch-manipulation transition-all">
-                {saving ? (
-                  <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
-                ) : 'Save & Update Lead'}
+                {saving
+                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
+                  : 'Save & Update Lead'
+                }
               </button>
             </div>
           </div>
         </>
       )}
 
-      {/* ══════════════════════════════════════════════════ */}
-      {/* ── BOOKING BOTTOM SHEET ─────────────────────── */}
-      {/* ══════════════════════════════════════════════════ */}
+      {/* ════════════════════════════════════════════════ */}
+      {/* BOOKING BOTTOM SHEET                                            */}
+      {/* ════════════════════════════════════════════════ */}
       {showBookingSheet && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowBookingSheet(false)} />
@@ -790,18 +775,16 @@ const LeadDetail = () => {
                   <StickyNote size={12} /> Notes (optional)
                 </p>
                 <textarea value={bookingForm.notes} onChange={e => updateBookingField('notes', e.target.value)}
-                  placeholder="Any remarks about this booking..."
-                  rows={2}
+                  placeholder="Any remarks about this booking..." rows={2}
                   className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#D4AF37]" />
               </div>
 
               <button onClick={handleBooking} disabled={bookingSaving}
                 className="w-full py-4 bg-[#D4AF37] text-[#0F3A5F] rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#c4a030] shadow-xl touch-manipulation transition-all">
-                {bookingSaving ? (
-                  <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2"><Trophy size={18} /> Confirm Booking</span>
-                )}
+                {bookingSaving
+                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
+                  : <span className="flex items-center justify-center gap-2"><Trophy size={18} /> Confirm Booking</span>
+                }
               </button>
             </div>
           </div>

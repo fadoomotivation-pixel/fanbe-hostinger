@@ -1,19 +1,22 @@
 // src/crm/pages/MyLeads.jsx
 // Mobile-first lead list: priority segments, urgency sort, inline quick-log
+// ✅ Schedule Banner: Overdue / Today / Tomorrow tappable summary cards
+// ✅ Tomorrow tab added so employees plan ahead
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
 import React, { useState, useMemo, useCallback } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import { format, parseISO, isToday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
-  Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote
+  Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote,
+  CalendarDays, Sunrise, AlarmClock
 } from 'lucide-react';
 
-// ── Quick outcome sheet ──────────────────────────────────
+// ── Quick outcome sheet ─────────────────────────────────────────────────
 const QUICK_OUTCOMES = [
   { id: 'Not Answered', label: 'No Answer', emoji: '\uD83D\uDCF5' },
   { id: 'Connected',    label: 'Connected', emoji: '\u2705' },
@@ -50,7 +53,9 @@ const urgencyScore = (lead) => {
 
 const TABS = [
   { id: 'all',      label: 'All' },
-  { id: 'urgent',   label: 'Urgent' },
+  { id: 'overdue',  label: '\uD83D\uDEA8 Overdue' },
+  { id: 'today',    label: '\uD83D\uDCC5 Today' },
+  { id: 'tomorrow', label: '\uD83C\uDF05 Tomorrow' },
   { id: 'followup', label: 'Follow Up' },
   { id: 'new',      label: 'New' },
   { id: 'booked',   label: 'Booked' },
@@ -69,15 +74,12 @@ const formatPhone = (p) => {
   return p;
 };
 
-// Extract the latest/last line of notes (notes are appended with newlines)
+// Extract latest line of notes
 const getLatestNote = (notes) => {
   if (!notes || typeof notes !== 'string') return null;
   const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return null;
-  // Last line is always the most recent (notes are appended)
-  const last = lines[lines.length - 1];
-  // Strip timestamp prefix like "[DD MMM, H:mm AM - Name]:" if present
-  const clean = last.replace(/^\[.*?\]:\s*/, '').trim();
+  const clean = lines[lines.length - 1].replace(/^\[.*?\]:\s*/, '').trim();
   return clean.length > 0 ? clean : null;
 };
 
@@ -87,16 +89,16 @@ const MyLeads = () => {
   const navigate  = useNavigate();
   const { toast } = useToast();
 
-  const [tab, setTab]           = useState('all');
-  const [search, setSearch]     = useState('');
-  const [sortBy, setSortBy]     = useState('urgency');
+  const [tab, setTab]               = useState('all');
+  const [search, setSearch]         = useState('');
+  const [sortBy, setSortBy]         = useState('urgency');
   const [quickLead, setQuickLead]   = useState(null);
   const [outcome, setOutcome]       = useState('');
   const [newStatus, setNewStatus]   = useState('');
   const [followDate, setFollowDate] = useState('');
   const [quickNote, setQuickNote]   = useState('');
-  const [saving, setSaving]     = useState(false);
-  const [copiedId, setCopiedId] = useState(null);
+  const [saving, setSaving]         = useState(false);
+  const [copiedId, setCopiedId]     = useState(null);
 
   const userId = user?.uid || user?.id;
   const today  = new Date().toISOString().split('T')[0];
@@ -115,11 +117,11 @@ const MyLeads = () => {
       .filter(l => l.assignedTo === userId || l.assigned_to === userId)
       .map(lead => {
         const leadCalls = myCalls.filter(c => c.leadId === lead.id);
-        const lastCall = leadCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        const lastCall  = leadCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
         return { ...lead, _callCount: leadCalls.length, _lastCall: lastCall };
       })
       .sort((a, b) => {
-        if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+        if (sortBy === 'name')   return (a.name || '').localeCompare(b.name || '');
         if (sortBy === 'recent') {
           const da = new Date(a.updatedAt || a.updated_at || a.createdAt || 0);
           const db = new Date(b.updatedAt || b.updated_at || b.createdAt || 0);
@@ -129,12 +131,38 @@ const MyLeads = () => {
       });
   }, [leads, calls, userId, sortBy]);
 
+  // ✅ Schedule counts — always computed live from latest leads state
+  const scheduleCounts = useMemo(() => {
+    let overdue = 0, todayCount = 0, tomorrowCount = 0;
+    myLeads.forEach(l => {
+      const fu = l.follow_up_date || l.followUpDate;
+      if (!fu) return;
+      try {
+        const d = parseISO(fu);
+        if (isPast(d) && !isToday(d))  overdue++;
+        else if (isToday(d))            todayCount++;
+        else if (isTomorrow(d))         tomorrowCount++;
+      } catch { /* skip */ }
+    });
+    return { overdue, today: todayCount, tomorrow: tomorrowCount };
+  }, [myLeads]);
+
   const filtered = useMemo(() => {
     let arr = myLeads;
-    if (tab === 'urgent') {
+    if (tab === 'overdue') {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
-        return fu && (isPast(parseISO(fu)) || isToday(parseISO(fu)));
+        try { return fu && isPast(parseISO(fu)) && !isToday(parseISO(fu)); } catch { return false; }
+      });
+    } else if (tab === 'today') {
+      arr = arr.filter(l => {
+        const fu = l.follow_up_date || l.followUpDate;
+        try { return fu && isToday(parseISO(fu)); } catch { return false; }
+      });
+    } else if (tab === 'tomorrow') {
+      arr = arr.filter(l => {
+        const fu = l.follow_up_date || l.followUpDate;
+        try { return fu && isTomorrow(parseISO(fu)); } catch { return false; }
       });
     } else if (tab === 'followup') {
       arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
@@ -154,33 +182,27 @@ const MyLeads = () => {
     return arr;
   }, [myLeads, tab, search]);
 
-  const urgentCount = useMemo(() =>
-    myLeads.filter(l => {
-      const fu = l.follow_up_date || l.followUpDate;
-      try { return fu && (isPast(parseISO(fu)) || isToday(parseISO(fu))); } catch { return false; }
-    }).length, [myLeads]
-  );
+  const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
-  // Quick log save — uses addCallLog hook
+  // Quick log save
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
     try {
-      const outcomeLabel = QUICK_OUTCOMES.find(o => o.id === outcome)?.label || outcome;
       await addCallLog({
-        leadId: quickLead.id,
-        leadName: quickLead.name,
-        projectName: quickLead.project || '',
-        employeeId: userId,
+        leadId:       quickLead.id,
+        leadName:     quickLead.name,
+        projectName:  quickLead.project || '',
+        employeeId:   userId,
         employeeName: user?.name || '',
-        type: 'Outgoing',
-        status: outcome,
+        type:     'Outgoing',
+        status:   outcome,
         duration: 0,
-        notes: quickNote || `Quick log: ${outcomeLabel}`,
+        notes:    quickNote || `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)  patch.status = newStatus;
-      if (followDate) patch.follow_up_date = followDate;
+      if (newStatus)  patch.status         = newStatus;
+      if (followDate) { patch.follow_up_date = followDate; patch.followUpDate = followDate; }
       await updateLead(quickLead.id, patch);
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
@@ -240,51 +262,174 @@ const MyLeads = () => {
 
           {/* Tab filters */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation ${
-                  tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
-                }`}>
-                {t.id === 'urgent' && '\uD83D\uDD34 '}{t.label}
-                {t.id === 'urgent' && urgentCount > 0 ? ` (${urgentCount})` : ''}
-                {t.id === 'all' ? ` (${myLeads.length})` : ''}
-              </button>
-            ))}
+            {TABS.map(t => {
+              let badge = '';
+              if (t.id === 'overdue'  && scheduleCounts.overdue   > 0) badge = ` (${scheduleCounts.overdue})`;
+              if (t.id === 'today'    && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
+              if (t.id === 'tomorrow' && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
+              if (t.id === 'all') badge = ` (${myLeads.length})`;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation ${
+                    tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                  {t.label}{badge}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
+      {/* ══════════════════════════════════════════════ */}
+      {/* ✅ MY SCHEDULE BANNER — always visible, tappable to filter */}
+      {/* ══════════════════════════════════════════════ */}
+      {(scheduleCounts.overdue > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && (
+        <div className="px-3 pt-3">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 pt-3 pb-2">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                <CalendarDays size={12} /> My Schedule
+              </p>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+
+              {/* Overdue */}
+              <button
+                onClick={() => { setTab('overdue'); setSearch(''); }}
+                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                  tab === 'overdue' ? 'bg-red-50' : 'hover:bg-red-50/50'
+                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                  scheduleCounts.overdue > 0 ? 'bg-red-100' : 'bg-gray-100'
+                }`}>
+                  <AlarmClock size={16} className={scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-400'} />
+                </div>
+                <p className={`text-xl font-black leading-none ${
+                  scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-300'
+                }`}>{scheduleCounts.overdue}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
+              </button>
+
+              {/* Today */}
+              <button
+                onClick={() => { setTab('today'); setSearch(''); }}
+                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                  tab === 'today' ? 'bg-amber-50' : 'hover:bg-amber-50/50'
+                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                  scheduleCounts.today > 0 ? 'bg-amber-100' : 'bg-gray-100'
+                }`}>
+                  <Clock size={16} className={scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-400'} />
+                </div>
+                <p className={`text-xl font-black leading-none ${
+                  scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-300'
+                }`}>{scheduleCounts.today}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
+              </button>
+
+              {/* Tomorrow */}
+              <button
+                onClick={() => { setTab('tomorrow'); setSearch(''); }}
+                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                  tab === 'tomorrow' ? 'bg-blue-50' : 'hover:bg-blue-50/50'
+                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                  scheduleCounts.tomorrow > 0 ? 'bg-blue-100' : 'bg-gray-100'
+                }`}>
+                  <Sunrise size={16} className={scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-400'} />
+                </div>
+                <p className={`text-xl font-black leading-none ${
+                  scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-300'
+                }`}>{scheduleCounts.tomorrow}</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
+              </button>
+
+            </div>
+
+            {/* Context line under banner */}
+            {tab === 'overdue' && scheduleCounts.overdue > 0 && (
+              <div className="px-4 py-2 bg-red-50 border-t border-red-100">
+                <p className="text-xs text-red-700 font-semibold flex items-center gap-1.5">
+                  <AlertCircle size={12} /> {scheduleCounts.overdue} lead{scheduleCounts.overdue > 1 ? 's' : ''} missed — follow up now!
+                </p>
+              </div>
+            )}
+            {tab === 'today' && scheduleCounts.today > 0 && (
+              <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
+                <p className="text-xs text-amber-700 font-semibold flex items-center gap-1.5">
+                  <Clock size={12} /> {scheduleCounts.today} follow-up{scheduleCounts.today > 1 ? 's' : ''} due today — get calling!
+                </p>
+              </div>
+            )}
+            {tab === 'tomorrow' && scheduleCounts.tomorrow > 0 && (
+              <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
+                <p className="text-xs text-blue-700 font-semibold flex items-center gap-1.5">
+                  <Sunrise size={12} /> {scheduleCounts.tomorrow} lead{scheduleCounts.tomorrow > 1 ? 's' : ''} scheduled for tomorrow — be prepared!
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Section Label when viewing a schedule segment ── */}
+      {['overdue', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
+        <div className="px-4 pt-4 pb-1">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            {tab === 'overdue'  ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
+            : tab === 'today'   ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
+            : `\uD83C\uDF05 ${filtered.length} Scheduled for tomorrow`}
+          </p>
+        </div>
+      )}
+
       {/* ── Lead Cards ── */}
-      <div className="px-3 pt-3 space-y-2">
+      <div className="px-3 pt-2 space-y-2">
         {filtered.length === 0 && (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Search size={24} className="text-gray-400" />
+              {tab === 'tomorrow'
+                ? <Sunrise size={24} className="text-blue-400" />
+                : tab === 'overdue'
+                ? <AlarmClock size={24} className="text-red-400" />
+                : <Search size={24} className="text-gray-400" />}
             </div>
-            <p className="text-sm text-gray-500 font-medium">No leads found</p>
-            <p className="text-xs text-gray-400 mt-1">Try adjusting your filters</p>
+            <p className="text-sm text-gray-500 font-medium">
+              {tab === 'tomorrow' ? 'No follow-ups tomorrow \uD83C\uDF89' :
+               tab === 'overdue'  ? 'No overdue leads \u2705' :
+               tab === 'today'    ? 'Nothing due today \uD83C\uDF89' :
+               'No leads found'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {tab === 'tomorrow' ? 'Log calls and schedule follow-ups to plan ahead'
+               : tab === 'overdue' ? 'Great job staying on top of your leads!'
+               : 'Try adjusting your filters'}
+            </p>
           </div>
         )}
 
         {filtered.map(lead => {
           const fu = lead.follow_up_date || lead.followUpDate;
-          let overdueFlag = false, todayFlag = false;
+          let overdueFlag = false, todayFlag = false, tomorrowFlag = false;
           try {
-            overdueFlag = fu && isPast(parseISO(fu)) && !isToday(parseISO(fu));
-            todayFlag   = fu && isToday(parseISO(fu));
+            overdueFlag  = fu && isPast(parseISO(fu))  && !isToday(parseISO(fu));
+            todayFlag    = fu && isToday(parseISO(fu));
+            tomorrowFlag = fu && isTomorrow(parseISO(fu));
           } catch { /* ignore */ }
-          const sc = statusColors[lead.status] || statusColors.New;
+          const sc         = statusColors[lead.status] || statusColors.New;
           const interest   = lead.interestLevel || lead.interest_level;
           const latestNote = getLatestNote(lead.notes);
 
           return (
             <div key={lead.id}
               className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
-                overdueFlag ? 'border-red-200 border-l-4 border-l-red-400' :
-                todayFlag   ? 'border-amber-200 border-l-4 border-l-amber-400' : 'border-gray-100'
+                overdueFlag  ? 'border-red-200 border-l-4 border-l-red-400' :
+                todayFlag    ? 'border-amber-200 border-l-4 border-l-amber-400' :
+                tomorrowFlag ? 'border-blue-200 border-l-4 border-l-blue-400' : 'border-gray-100'
               }`}>
 
-              {/* Card body — tap to open detail */}
+              {/* Card body */}
               <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
                 className="w-full text-left px-4 pt-3.5 pb-2 touch-manipulation">
                 <div className="flex items-start justify-between gap-2">
@@ -297,16 +442,9 @@ const MyLeads = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${sc}`}>{lead.status || 'New'}</span>
-                    {overdueFlag && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold">
-                        <AlertCircle size={9} /> Overdue
-                      </span>
-                    )}
-                    {todayFlag && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold">
-                        <Clock size={9} /> Today
-                      </span>
-                    )}
+                    {overdueFlag  && <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold"><AlertCircle size={9} /> Overdue</span>}
+                    {todayFlag    && <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold"><Clock size={9} /> Today</span>}
+                    {tomorrowFlag && <span className="flex items-center gap-0.5 text-[10px] text-blue-600 font-bold"><Sunrise size={9} /> Tomorrow</span>}
                   </div>
                 </div>
 
@@ -315,21 +453,19 @@ const MyLeads = () => {
                   {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
                   {fu && (
                     <span className={`flex items-center gap-1 ${
-                      overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : 'text-blue-600'
+                      overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
                     }`}>
                       <Calendar size={11} /> {format(parseISO(fu), 'dd MMM')}
                     </span>
                   )}
                 </div>
 
-                {/* Last activity */}
                 <p className="text-[10px] text-gray-300 mt-1.5">
                   {lead._callCount > 0
-                    ? `${lead._callCount} calls \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
+                    ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
                     : 'Never contacted'}
                 </p>
 
-                {/* Latest note snippet */}
                 {latestNote && (
                   <div className="flex items-start gap-1.5 mt-2 bg-amber-50 rounded-xl px-2.5 py-1.5">
                     <StickyNote size={11} className="text-amber-500 shrink-0 mt-0.5" />
@@ -425,22 +561,28 @@ const MyLeads = () => {
 
               {/* Step 3 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Follow-up Date (optional)'}
+                {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
               </p>
+              {/* Quick date chips */}
               <div className="flex gap-2 mb-2">
-                {[{ label: 'Tomorrow', days: 1 }, { label: '3 Days', days: 3 }, { label: 'Next Week', days: 7 }].map(opt => (
-                  <button key={opt.label} onClick={() => {
-                    const d = new Date(); d.setDate(d.getDate() + opt.days);
-                    setFollowDate(d.toISOString().split('T')[0]);
-                  }}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                      followDate === (() => { const d = new Date(); d.setDate(d.getDate() + opt.days); return d.toISOString().split('T')[0]; })()
-                        ? 'border-blue-400 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}>
-                    {opt.label}
-                  </button>
-                ))}
+                {[
+                  { label: '\uD83C\uDF05 Tomorrow', days: 1 },
+                  { label: '3 Days',  days: 3 },
+                  { label: 'Next Week', days: 7 },
+                ].map(opt => {
+                  const d = new Date(); d.setDate(d.getDate() + opt.days);
+                  const ds = d.toISOString().split('T')[0];
+                  return (
+                    <button key={opt.label} onClick={() => setFollowDate(ds)}
+                      className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                        followDate === ds
+                          ? 'border-blue-400 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 bg-white text-gray-600'
+                      }`}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
               <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />

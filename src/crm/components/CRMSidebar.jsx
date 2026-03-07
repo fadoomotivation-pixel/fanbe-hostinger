@@ -8,7 +8,7 @@ import {
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award,
+  Search, Zap, Award, Trophy,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -21,9 +21,8 @@ const IconMap = {
   ImageIcon, Globe, Monitor, MenuIcon, Layers, Shield,
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
   CalendarCheck, IndianRupee, FolderOpen,
-  // ✅ New icons added for HR & new menu items
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award,
+  Search, Zap, Award, Trophy,
 };
 
 // Group header visual config
@@ -33,6 +32,9 @@ const GROUP_CONFIG = {
   Reports:     { label: '— Reports —',          color: 'text-blue-300'  },
   System:      { label: '— System —',           color: 'text-gray-400'  },
 };
+
+// Roles considered "employee" (sales/telecaller)
+const EMPLOYEE_ROLES = [ROLES.SALES_EXECUTIVE, ROLES.TELECALLER];
 
 const CRMSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -68,7 +70,6 @@ const CRMSidebar = ({ isOpen, onClose }) => {
     [ROLES.TELECALLER]:  'Telecaller',
   }[role] || 'User');
 
-  // Role accent colors for sidebar header
   const getRoleAccent = role => ({
     [ROLES.SUPER_ADMIN]: 'bg-[#D4AF37]',
     [ROLES.SUB_ADMIN]:   'bg-purple-500',
@@ -167,6 +168,27 @@ const CRMSidebar = ({ isOpen, onClose }) => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 overscroll-contain">
           {renderMenu()}
+
+          {/* Bookings link for employee roles */}
+          {user && EMPLOYEE_ROLES.includes(user.role) && (
+            <Link
+              to="/crm/sales/my-bookings"
+              onClick={() => { if (window.innerWidth < 1024) onClose(); }}
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
+                ${ isActive('/crm/sales/my-bookings')
+                    ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
+                }`}
+            >
+              <Trophy
+                size={19}
+                className={`shrink-0 ${
+                  isActive('/crm/sales/my-bookings') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
+                }`}
+              />
+              <span className="text-sm font-medium">Bookings</span>
+            </Link>
+          )}
 
           {/* Promo Materials for super admin */}
           {user?.role === ROLES.SUPER_ADMIN && (

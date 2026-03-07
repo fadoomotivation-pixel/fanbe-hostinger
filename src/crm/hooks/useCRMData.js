@@ -2,9 +2,12 @@
 // ✅ All data fetched from Supabase
 // ✅ Supabase Realtime subscriptions for leads, calls, site_visits, bookings
 // ✅ updateSiteVisit function
-// ✅ FIX: Removed updateLead from addCallLog to prevent realtime race condition
-// ✅ FIX: updateLead optimistic update now syncs both follow_up_date + followUpDate
-import { useState, useEffect } from 'react';
+// ✅ FIX: Removed updateLead from addCallLog (race condition fix)
+// ✅ FIX: updateLead optimistic update syncs both follow_up_date + followUpDate
+// ✅ FIX: fetchLeads request-ID guard — only the LATEST in-flight fetch applies setLeads.
+//        If Realtime fires two fetchLeads() concurrently, the older one that arrives late
+//        is silently discarded, so stale data can never overwrite fresh data.
+import { useState, useEffect, useRef } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
 import {
@@ -46,6 +49,12 @@ export const useCRMData = () => {
   const [tasks, setTasks]                   = useState([]);
   const [eodReports, setEodReports]         = useState([]);
   const [auditLogs, setAuditLogs]           = useState([]);
+
+  // ✅ Request-ID counter: incremented on every fetchLeads() call.
+  // Each call captures its own ID. Only the call whose ID matches the
+  // current counter at finish-time is allowed to call setLeads().
+  // This kills the "last-write-wins" race condition between concurrent fetches.
+  const leadsReqId = useRef(0);
 
   // Load localStorage once
   useEffect(() => {
@@ -94,11 +103,21 @@ export const useCRMData = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
       .subscribe();
 
+    // ✅ Refetch leads whenever the browser tab regains focus.
+    // This fixes the stale-state case where the employee saved from LeadDetail
+    // while MyLeads was mounted in the background, and the race condition left
+    // MyLeads with an old date.  A simple focus/visibility refresh is enough.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchLeads();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       supabaseAdmin.removeChannel(leadsChannel);
       supabaseAdmin.removeChannel(visitsChannel);
       supabaseAdmin.removeChannel(callsChannel);
       supabaseAdmin.removeChannel(bookingsChannel);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 
@@ -138,6 +157,10 @@ export const useCRMData = () => {
 
   // ── LEADS ───────────────────────────────────────────────────────────────────
   const fetchLeads = async () => {
+    // ✅ Capture this request's ID. If a newer fetchLeads() starts before this
+    // one finishes, thisReq will be < leadsReqId.current, so we bail out
+    // instead of overwriting the newer (correct) data.
+    const thisReq = ++leadsReqId.current;
     try {
       setLeadsLoading(true);
       const PAGE_SIZE = 1000;
@@ -146,11 +169,19 @@ export const useCRMData = () => {
         const { data, error } = await supabaseAdmin
           .from('leads').select('*').order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
-        if (error) { console.error('[Leads] Fetch error:', error.message); setLeads([]); return; }
+        if (error) {
+          console.error('[Leads] Fetch error:', error.message);
+          if (thisReq === leadsReqId.current) setLeads([]);
+          return;
+        }
+        // Bail out early if a newer request has already started
+        if (thisReq !== leadsReqId.current) return;
         allData = allData.concat(data || []);
         if (!data || data.length < PAGE_SIZE) keepGoing = false;
         else from += PAGE_SIZE;
       }
+      // Final guard before applying results
+      if (thisReq !== leadsReqId.current) return;
       const normalized = allData.map(row => ({
         id:                  row.id,
         name:                row.full_name          || '',
@@ -186,12 +217,12 @@ export const useCRMData = () => {
         prevAssignedAt:      row.prev_assigned_at       || null,
       }));
       setLeads(normalized);
-      console.log(`[Leads] Loaded ${normalized.length} leads`);
+      console.log(`[Leads] req#${thisReq} applied — ${normalized.length} leads`);
     } catch (err) {
       console.error('[Leads] Unexpected error:', err);
-      setLeads([]);
+      if (thisReq === leadsReqId.current) setLeads([]);
     } finally {
-      setLeadsLoading(false);
+      if (thisReq === leadsReqId.current) setLeadsLoading(false);
     }
   };
 
@@ -255,8 +286,7 @@ export const useCRMData = () => {
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
 
-      // ✅ Optimistic local update — sync BOTH follow_up_date AND followUpDate so UI is always consistent
-      // regardless of which key LeadDetail reads first.
+      // ✅ Optimistic local update — sync BOTH follow_up_date AND followUpDate
       const newFollowUp = updates.follow_up_date ?? updates.followUpDate ?? null;
       setLeads(prev => prev.map(l => {
         if (l.id !== id) return l;
@@ -264,10 +294,8 @@ export const useCRMData = () => {
           ...l,
           ...updates,
           lastActivity:   new Date().toISOString(),
-          // Status: explicit override so it reflects immediately in badge + MyLeads list
           status:         updates.status        !== undefined ? updates.status        : l.status,
           interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
-          // Follow-up date: keep whichever key was set, fall back to existing value
           follow_up_date: newFollowUp !== null ? newFollowUp : l.follow_up_date,
           followUpDate:   newFollowUp !== null ? newFollowUp : l.followUpDate,
         };
@@ -291,7 +319,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ─────────────────────────────────────────────────────────────
+  // ── EMPLOYEES ────────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -325,15 +353,11 @@ export const useCRMData = () => {
     finally { setCallsLoading(false); }
   };
 
-  // ✅ FIX: No longer calls updateLead internally.
-  // The caller (LeadDetail handleSave) always calls updateLead right after addCallLog,
-  // so doing it here too caused a realtime race condition that overwrote the new
-  // follow_up_date / status with stale DB values before the second updateLead could commit.
+  // ✅ No updateLead inside addCallLog — prevents the Realtime race condition.
   const addCallLog = async (log) => {
     try {
       const result = await addCall(log);
       if (result.success) {
-        // Only refresh calls — lead update is handled by the caller
         await fetchCalls();
         return result.data;
       }
@@ -379,7 +403,6 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] addSiteVisitLog error:', err); return null; }
   };
 
-  // ✅ Update an existing site visit row
   const updateSiteVisit = async (id, updates) => {
     try {
       const mapped = {};
@@ -409,7 +432,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
   };
 
-  // ── BOOKINGS ─────────────────────────────────────────────────────────────
+  // ── BOOKINGS ────────────────────────────────────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);

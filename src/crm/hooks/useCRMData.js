@@ -1,8 +1,9 @@
 // src/crm/hooks/useCRMData.js
 // ✅ All data fetched from Supabase
-// ✅ Added: Supabase Realtime subscriptions for leads, calls, site_visits, bookings
-// ✅ Added: assigned_at, prev_assigned_to, prev_assigned_to_name, prev_assigned_at fields
-// ✅ Added: updateSiteVisit function
+// ✅ Supabase Realtime subscriptions for leads, calls, site_visits, bookings
+// ✅ updateSiteVisit function
+// ✅ FIX: Removed updateLead from addCallLog to prevent realtime race condition
+// ✅ FIX: updateLead optimistic update now syncs both follow_up_date + followUpDate
 import { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -135,7 +136,7 @@ export const useCRMData = () => {
     setWorkLogs(Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date)));
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
-  // ── LEADS ─────────────────────────────────────────────────────────────────
+  // ── LEADS ───────────────────────────────────────────────────────────────────
   const fetchLeads = async () => {
     try {
       setLeadsLoading(true);
@@ -253,11 +254,24 @@ export const useCRMData = () => {
 
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
-      setLeads(prev => prev.map(l =>
-        l.id === id
-          ? { ...l, ...updates, lastActivity: new Date().toISOString(), follow_up_date: updates.follow_up_date || updates.followUpDate || l.follow_up_date }
-          : l
-      ));
+
+      // ✅ Optimistic local update — sync BOTH follow_up_date AND followUpDate so UI is always consistent
+      // regardless of which key LeadDetail reads first.
+      const newFollowUp = updates.follow_up_date ?? updates.followUpDate ?? null;
+      setLeads(prev => prev.map(l => {
+        if (l.id !== id) return l;
+        return {
+          ...l,
+          ...updates,
+          lastActivity:   new Date().toISOString(),
+          // Status: explicit override so it reflects immediately in badge + MyLeads list
+          status:         updates.status        !== undefined ? updates.status        : l.status,
+          interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
+          // Follow-up date: keep whichever key was set, fall back to existing value
+          follow_up_date: newFollowUp !== null ? newFollowUp : l.follow_up_date,
+          followUpDate:   newFollowUp !== null ? newFollowUp : l.followUpDate,
+        };
+      }));
     } catch (err) { console.error('[Leads] updateLead unexpected error:', err); }
   };
 
@@ -277,7 +291,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ───────────────────────────────────────────────────────────
+  // ── EMPLOYEES ─────────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -294,7 +308,7 @@ export const useCRMData = () => {
     finally { setEmployeesLoading(false); }
   };
 
-  // ── CALLS ────────────────────────────────────────────────────────────
+  // ── CALLS ───────────────────────────────────────────────────────────────────
   const fetchCalls = async () => {
     try {
       setCallsLoading(true);
@@ -311,19 +325,23 @@ export const useCRMData = () => {
     finally { setCallsLoading(false); }
   };
 
+  // ✅ FIX: No longer calls updateLead internally.
+  // The caller (LeadDetail handleSave) always calls updateLead right after addCallLog,
+  // so doing it here too caused a realtime race condition that overwrote the new
+  // follow_up_date / status with stale DB values before the second updateLead could commit.
   const addCallLog = async (log) => {
     try {
       const result = await addCall(log);
       if (result.success) {
+        // Only refresh calls — lead update is handled by the caller
         await fetchCalls();
-        if (log.leadId) await updateLead(log.leadId, { lastActivity: new Date().toISOString() });
         return result.data;
       }
       return null;
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
-  // ── SITE VISITS ────────────────────────────────────────────────────────
+  // ── SITE VISITS ────────────────────────────────────────────────────────────
   const fetchSiteVisits = async () => {
     try {
       setSiteVisitsLoading(true);
@@ -361,7 +379,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] addSiteVisitLog error:', err); return null; }
   };
 
-  // ✅ NEW: update an existing site visit row
+  // ✅ Update an existing site visit row
   const updateSiteVisit = async (id, updates) => {
     try {
       const mapped = {};
@@ -376,7 +394,6 @@ export const useCRMData = () => {
       const { error } = await supabaseAdmin.from('site_visits').update(mapped).eq('id', id);
       if (error) { console.error('[SiteVisits] updateSiteVisit error:', error.message); throw new Error(error.message); }
 
-      // Optimistic local update so UI reflects change immediately
       setSiteVisits(prev => prev.map(v =>
         v.id === id
           ? {
@@ -392,7 +409,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
   };
 
-  // ── BOOKINGS ──────────────────────────────────────────────────────────
+  // ── BOOKINGS ─────────────────────────────────────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
@@ -429,7 +446,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Bookings] addBookingLog error:', err); return null; }
   };
 
-  // ── localStorage helpers ──────────────────────────────────────────────────────
+  // ── localStorage helpers ────────────────────────────────────────────────────────
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
     switch (key) {
@@ -440,10 +457,10 @@ export const useCRMData = () => {
     }
   };
 
-  const addPromoMaterial  = (m)    => saveData(STORAGE_KEYS.PROMO_MATERIALS, [{ ...m, id: `MAT${Date.now()}`, uploadDate: new Date().toISOString() }, ...promoMaterials]);
-  const deletePromoMaterial = (id) => saveData(STORAGE_KEYS.PROMO_MATERIALS, promoMaterials.filter(m => m.id !== id));
+  const addPromoMaterial    = (m)    => saveData(STORAGE_KEYS.PROMO_MATERIALS, [{ ...m, id: `MAT${Date.now()}`, uploadDate: new Date().toISOString() }, ...promoMaterials]);
+  const deletePromoMaterial = (id)   => saveData(STORAGE_KEYS.PROMO_MATERIALS, promoMaterials.filter(m => m.id !== id));
   const addTask     = (task) => { const n = { ...task, id: `TASK${Date.now()}`, status: 'Pending', timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.TASKS, [n, ...tasks]); return n; };
-  const updateTask  = (id, u) => saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
+  const updateTask  = (id, u)=> saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
   const addEodReport = (r)   => { const n = { ...r, id: `EOD${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.EOD_REPORTS, [n, ...eodReports]); return n; };
   const addAuditLog  = (l)   => { const n = { ...l, id: `AUDIT${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.AUDIT_LOGS, [n, ...auditLogs]); };
   const clearDummyData = async () => {

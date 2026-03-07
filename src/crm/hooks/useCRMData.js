@@ -312,6 +312,7 @@ export const useCRMData = () => {
         status: row.status, duration: row.duration, notes: row.notes,
         employee_name: row.employee_name, created_at: row.created_at,
         timestamp: row.created_at,
+        majorObjection: row.major_objection || null,
       })));
     } catch (err) { console.error('[Calls] Fetch error:', err); setCalls([]); }
     finally { setCallsLoading(false); }
@@ -389,7 +390,15 @@ export const useCRMData = () => {
       const result = await addBooking(log);
       if (result.success) {
         await fetchBookings();
-        if (log.leadId) await updateLead(log.leadId, { status: 'Booked' });
+        if (log.leadId) {
+          const leadUpdate = { status: 'Booked' };
+          if (log.tokenAmount !== undefined) leadUpdate.tokenAmount = log.tokenAmount;
+          if (log.bookingAmount !== undefined) leadUpdate.bookingAmount = log.bookingAmount;
+          if (log.partialPayment !== undefined) leadUpdate.partialPayment = log.partialPayment;
+          if (log.unitNumber !== undefined) leadUpdate.unitNumber = log.unitNumber;
+          if (log.paymentMode !== undefined) leadUpdate.paymentMode = log.paymentMode;
+          await updateLead(log.leadId, leadUpdate);
+        }
         return result.data;
       }
       return null;

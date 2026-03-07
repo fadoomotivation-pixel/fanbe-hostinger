@@ -1,6 +1,6 @@
 // src/crm/pages/LeadDetail.jsx
 // Lead detail page — mobile-first, all actions via bottom sheet
-// BUG FIXES: Uses addCallLog() hook instead of raw supabase, uses addLeadNote for append
+// BOOKING FLOW: Full booking form bottom sheet with token, partial payment, unit number
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -12,7 +12,8 @@ import {
   ArrowLeft, Phone, MessageCircle, Edit, ChevronRight,
   Clock, CheckCircle, X, Calendar, AlertCircle,
   FileText, ChevronDown, ChevronUp, PhoneCall, Copy,
-  MapPin, Target, Loader2, Mail
+  MapPin, Target, Loader2, Mail, Trophy, Building2,
+  IndianRupee, CreditCard, Hash, StickyNote
 } from 'lucide-react';
 
 const CALL_OUTCOMES = [
@@ -25,10 +26,11 @@ const CALL_OUTCOMES = [
 const LEAD_STATUSES = [
   { id: 'FollowUp',      label: 'Follow Up',      emoji: '📅' },
   { id: 'SiteVisit',     label: 'Site Visit',     emoji: '📍' },
-  { id: 'Booked',        label: 'Booked',         emoji: '💰' },
   { id: 'NotInterested', label: 'Not Interested', emoji: '❌' },
   { id: 'CallBackLater', label: 'Call Back Later', emoji: '🔄' },
 ];
+
+const PAYMENT_MODES = ['Cash', 'Cheque', 'NEFT', 'UPI'];
 
 const statusCfg = {
   New:           { bg: 'bg-blue-100',    text: 'text-blue-800' },
@@ -59,17 +61,26 @@ const formatPhone = (p) => {
   return p;
 };
 
+const formatINR = (val) => {
+  const n = Number(val) || 0;
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
+  if (n >= 1000) return `₹${n.toLocaleString('en-IN')}`;
+  return `₹${n}`;
+};
+
 const LeadDetail = () => {
   const { id }     = useParams();
   const navigate   = useNavigate();
   const { user }   = useAuth();
   const {
     leads, leadsLoading, calls, siteVisits, bookings,
-    addLeadNote, updateLead, addCallLog, addSiteVisitLog
+    addLeadNote, updateLead, addCallLog, addSiteVisitLog, addBookingLog
   } = useCRMData();
   const { toast }  = useToast();
 
   const [showSheet, setShowSheet]       = useState(false);
+  const [showBookingSheet, setShowBookingSheet] = useState(false);
   const [outcome, setOutcome]           = useState('');
   const [leadStatus, setLeadStatus]     = useState('');
   const [followDate, setFollowDate]     = useState('');
@@ -80,6 +91,17 @@ const LeadDetail = () => {
   const [newNote, setNewNote]           = useState('');
   const [addingNote, setAddingNote]     = useState(false);
   const [copiedPhone, setCopiedPhone]   = useState(false);
+  const [bookingSaving, setBookingSaving] = useState(false);
+
+  // Booking form state
+  const [bookingForm, setBookingForm] = useState({
+    bookingAmount: '',
+    tokenAmount: '',
+    partialPayment: '',
+    unitNumber: '',
+    paymentMode: 'Cash',
+    notes: '',
+  });
 
   const lead       = leads.find(l => l.id === id);
   const leadCalls  = useMemo(() =>
@@ -123,11 +145,11 @@ const LeadDetail = () => {
     }
   }, [lead, leadsLoading, navigate, toast]);
 
-  // Lock body scroll when sheet open
+  // Lock body scroll when any sheet open
   useEffect(() => {
-    document.body.style.overflow = showSheet ? 'hidden' : '';
+    document.body.style.overflow = (showSheet || showBookingSheet) ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [showSheet]);
+  }, [showSheet, showBookingSheet]);
 
   if (leadsLoading || !lead) {
     return (
@@ -141,6 +163,7 @@ const LeadDetail = () => {
   const sc = statusCfg[lead.status] || statusCfg.New;
   const ic = interestCfg[lead.interestLevel || lead.interest_level] || interestCfg.Cold;
   const followUpRaw = lead.follow_up_date || lead.followUpDate;
+  const isBooked = lead.status === 'Booked';
   let isOverdue = false, isFollowToday = false;
   try {
     isOverdue = followUpRaw && isPast(parseISO(followUpRaw)) && !isToday(parseISO(followUpRaw));
@@ -200,6 +223,47 @@ const LeadDetail = () => {
     setSaving(false);
   };
 
+  // ── Save Booking — creates booking record + updates lead ─────────────
+  const handleBooking = async () => {
+    const { bookingAmount, tokenAmount, unitNumber } = bookingForm;
+    if (!bookingAmount || Number(bookingAmount) <= 0) {
+      toast({ title: 'Enter booking amount', variant: 'destructive' }); return;
+    }
+    if (!tokenAmount || Number(tokenAmount) <= 0) {
+      toast({ title: 'Enter token amount collected', variant: 'destructive' }); return;
+    }
+    if (!unitNumber.trim()) {
+      toast({ title: 'Enter unit number', variant: 'destructive' }); return;
+    }
+
+    setBookingSaving(true);
+    try {
+      // 1. addBookingLog → bookings table + updates lead with financial data
+      await addBookingLog({
+        leadId: id,
+        leadName: lead.name,
+        projectName: lead.project || '',
+        employeeId: userId,
+        employeeName: user?.name || '',
+        bookingAmount: parseFloat(bookingForm.bookingAmount),
+        tokenAmount: parseFloat(bookingForm.tokenAmount),
+        partialPayment: parseFloat(bookingForm.partialPayment || 0),
+        unitNumber: bookingForm.unitNumber,
+        paymentMode: bookingForm.paymentMode,
+        paymentStatus: bookingForm.partialPayment ? 'Partial' : 'Pending',
+        bookingDate: new Date().toISOString().split('T')[0],
+        notes: bookingForm.notes || '',
+      });
+
+      toast({ title: '🏆 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
+      setShowBookingSheet(false);
+      setBookingForm({ bookingAmount: '', tokenAmount: '', partialPayment: '', unitNumber: '', paymentMode: 'Cash', notes: '' });
+    } catch (e) {
+      toast({ title: 'Booking failed', description: e.message, variant: 'destructive' });
+    }
+    setBookingSaving(false);
+  };
+
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     setAddingNote(true);
@@ -214,6 +278,10 @@ const LeadDetail = () => {
       setCopiedPhone(true);
       setTimeout(() => setCopiedPhone(false), 1500);
     });
+  };
+
+  const updateBookingField = (field, value) => {
+    setBookingForm(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -237,6 +305,41 @@ const LeadDetail = () => {
           <Edit size={13} /> Edit
         </button>
       </div>
+
+      {/* ── BOOKED Banner ── */}
+      {isBooked && (
+        <div className="mx-3 mt-3 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 rounded-full p-2.5">
+              <Trophy size={24} className="text-yellow-300" />
+            </div>
+            <div className="flex-1">
+              <p className="text-lg font-black tracking-wide">BOOKED</p>
+              <p className="text-emerald-100 text-xs">Congratulations! This lead has been converted.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-white/20">
+            {lead.unitNumber && (
+              <div>
+                <p className="text-[10px] text-emerald-200 uppercase">Unit</p>
+                <p className="text-sm font-bold">{lead.unitNumber}</p>
+              </div>
+            )}
+            {(lead.tokenAmount > 0) && (
+              <div>
+                <p className="text-[10px] text-emerald-200 uppercase">Token</p>
+                <p className="text-sm font-bold">{formatINR(lead.tokenAmount)}</p>
+              </div>
+            )}
+            {(lead.bookingAmount > 0) && (
+              <div>
+                <p className="text-[10px] text-emerald-200 uppercase">Booking</p>
+                <p className="text-sm font-bold">{formatINR(lead.bookingAmount)}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Contact Card ── */}
       <div className="bg-white mx-3 mt-3 rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -292,7 +395,7 @@ const LeadDetail = () => {
             </a>
           )}
           <button onClick={() => setShowSheet(true)}
-            className={`${lead.email && lead.email !== 'Not given' ? '' : 'col-span-2'} flex items-center justify-center gap-2 py-3 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black active:bg-[#c4a030] shadow-sm touch-manipulation transition-all`}>
+            className={`${lead.email && lead.email !== 'Not given' ? '' : 'col-span-2'} flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] shadow-sm touch-manipulation transition-all`}>
             <PhoneCall size={18} /> Log Call
           </button>
         </div>
@@ -314,6 +417,25 @@ const LeadDetail = () => {
             </div>
           ))}
         </div>
+        {/* Booking financial details if booked */}
+        {isBooked && (lead.tokenAmount > 0 || lead.partialPayment > 0) && (
+          <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+            {lead.partialPayment > 0 && (
+              <div className="bg-amber-50 rounded-xl p-3">
+                <p className="text-[10px] text-amber-600 uppercase tracking-wide">Partial Payment</p>
+                <p className="text-sm font-semibold text-amber-800 mt-0.5">{formatINR(lead.partialPayment)}</p>
+              </div>
+            )}
+            {(lead.bookingAmount - lead.tokenAmount - (lead.partialPayment || 0)) > 0 && (
+              <div className="bg-red-50 rounded-xl p-3">
+                <p className="text-[10px] text-red-600 uppercase tracking-wide">Pending</p>
+                <p className="text-sm font-semibold text-red-800 mt-0.5">
+                  {formatINR(lead.bookingAmount - lead.tokenAmount - (lead.partialPayment || 0))}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         {(lead.assignedToName || lead.assigned_to_name) && (
           <p className="text-[10px] text-gray-300 mt-3">
             Assigned by {lead.assignedToName || lead.assigned_to_name}
@@ -380,7 +502,7 @@ const LeadDetail = () => {
                         <p className="text-xs font-semibold text-gray-800 capitalize">
                           {item.type === 'call' ? (item.status?.replace(/_/g, ' ') || 'Call')
                             : item.type === 'visit' ? `Visit - ${item.status || 'Scheduled'}`
-                            : `Booking${item.amount ? ` - ₹${item.amount.toLocaleString('en-IN')}` : ''}`}
+                            : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
                         </p>
                       </div>
                       <p className="text-[10px] text-gray-400 mt-0.5">
@@ -425,18 +547,24 @@ const LeadDetail = () => {
       {/* ── Fixed Bottom Action Bar ── */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 py-3 flex gap-2">
         <a href={`tel:${lead.phone}`}
-          className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold active:bg-emerald-100 touch-manipulation">
+          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold active:bg-emerald-100 touch-manipulation">
           <Phone size={15} /> Call
         </a>
         <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
           target="_blank" rel="noreferrer"
-          className="flex items-center justify-center gap-1.5 px-4 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-xs font-bold active:bg-[#25D366]/20 touch-manipulation">
+          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-xs font-bold active:bg-[#25D366]/20 touch-manipulation">
           <MessageCircle size={15} />
         </a>
         <button onClick={() => setShowSheet(true)}
-          className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black shadow-md active:bg-[#c4a030] touch-manipulation transition-all">
-          <PhoneCall size={16} /> Log Call / Update
+          className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
+          <PhoneCall size={16} /> Log Call
         </button>
+        {!isBooked && (
+          <button onClick={() => setShowBookingSheet(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black shadow-md active:bg-[#c4a030] touch-manipulation transition-all">
+            <Trophy size={16} /> Book
+          </button>
+        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════ */}
@@ -523,6 +651,138 @@ const LeadDetail = () => {
                 {saving ? (
                   <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
                 ) : 'Save & Update Lead'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ── BOOKING BOTTOM SHEET ──────────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {showBookingSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowBookingSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+               style={{ maxHeight: '94vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="px-4 pb-8">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="font-black text-[#0F3A5F] text-lg leading-tight flex items-center gap-2">
+                    <Trophy size={20} className="text-[#D4AF37]" /> Book This Lead
+                  </p>
+                  <p className="text-xs text-gray-400">{lead.name} · {lead.project || 'No project'}</p>
+                </div>
+                <button onClick={() => setShowBookingSheet(false)}
+                  className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
+                  <X size={18} className="text-gray-600" />
+                </button>
+              </div>
+
+              {/* Section 1: Amounts */}
+              <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 rounded-2xl p-4 mb-4">
+                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <IndianRupee size={12} /> Payment Details
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Booking Amount *</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <input type="number" placeholder="e.g. 5000000"
+                        value={bookingForm.bookingAmount}
+                        onChange={e => updateBookingField('bookingAmount', e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-3 text-sm font-medium focus:outline-none focus:border-[#D4AF37] transition" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Token Amount * (collected today)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <input type="number" placeholder="e.g. 100000"
+                        value={bookingForm.tokenAmount}
+                        onChange={e => updateBookingField('tokenAmount', e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-3 text-sm font-medium focus:outline-none focus:border-[#D4AF37] transition" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Partial Payment (optional)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <input type="number" placeholder="0"
+                        value={bookingForm.partialPayment}
+                        onChange={e => updateBookingField('partialPayment', e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-xl pl-8 pr-4 py-3 text-sm font-medium focus:outline-none focus:border-[#D4AF37] transition" />
+                    </div>
+                  </div>
+                </div>
+                {/* Live pending calculation */}
+                {bookingForm.bookingAmount && bookingForm.tokenAmount && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                    <span className="text-xs text-gray-500">Pending Amount</span>
+                    <span className="text-sm font-bold text-red-600">
+                      {formatINR(Math.max(0, Number(bookingForm.bookingAmount) - Number(bookingForm.tokenAmount) - Number(bookingForm.partialPayment || 0)))}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Unit */}
+              <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Building2 size={12} /> Unit Details
+                </p>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Unit Number *</label>
+                  <input type="text" placeholder="e.g. A-401, B-202"
+                    value={bookingForm.unitNumber}
+                    onChange={e => updateBookingField('unitNumber', e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#D4AF37] transition" />
+                </div>
+              </div>
+
+              {/* Section 3: Payment Mode */}
+              <div className="mb-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <CreditCard size={12} /> Payment Mode
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {PAYMENT_MODES.map(mode => (
+                    <button key={mode} onClick={() => updateBookingField('paymentMode', mode)}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border-2 transition-all touch-manipulation ${
+                        bookingForm.paymentMode === mode
+                          ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F]'
+                          : 'border-gray-100 bg-gray-50 text-gray-600'
+                      }`}>
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 4: Notes */}
+              <div className="mb-5">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <StickyNote size={12} /> Notes (optional)
+                </p>
+                <textarea value={bookingForm.notes} onChange={e => updateBookingField('notes', e.target.value)}
+                  placeholder="Any remarks about this booking..."
+                  rows={2}
+                  className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#D4AF37]" />
+              </div>
+
+              {/* Confirm Booking */}
+              <button onClick={handleBooking} disabled={bookingSaving}
+                className="w-full py-4 bg-[#D4AF37] text-[#0F3A5F] rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#c4a030] shadow-xl touch-manipulation transition-all">
+                {bookingSaving ? (
+                  <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2"><Trophy size={18} /> Confirm Booking</span>
+                )}
               </button>
             </div>
           </div>

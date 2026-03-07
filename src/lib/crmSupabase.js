@@ -150,6 +150,8 @@ export const addBooking = async (bookingData) => {
         unit_type:             bookingData.unitType             || '',
         unit_number:           bookingData.unitNumber           || '',
         booking_amount:        parseFloat(bookingData.amount   || bookingData.bookingAmount || 0),
+        token_amount:          parseFloat(bookingData.tokenAmount || 0),
+        partial_payment:       parseFloat(bookingData.partialPayment || 0),
         payment_mode:          bookingData.paymentMode         || 'Bank Transfer',
         payment_status:        bookingData.paymentStatus       || 'Pending',
         booking_date:          bookingData.bookingDate         || new Date().toISOString().split('T')[0],

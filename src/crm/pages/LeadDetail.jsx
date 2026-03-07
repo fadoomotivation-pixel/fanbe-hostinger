@@ -17,17 +17,28 @@ import {
 } from 'lucide-react';
 
 const CALL_OUTCOMES = [
-  { id: 'Not Answered',  label: 'No Answer',    emoji: '📵', cls: 'bg-gray-100 text-gray-700 border-gray-200' },
-  { id: 'Busy',          label: 'Busy',         emoji: '🔴', cls: 'bg-red-50 text-red-700 border-red-200' },
-  { id: 'Connected',     label: 'Connected',    emoji: '✅', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { id: 'Switched Off',  label: 'Switched Off', emoji: '📴', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { id: 'Not Answered',  label: 'No Answer',    emoji: '\uD83D\uDCF5', cls: 'bg-gray-100 text-gray-700 border-gray-200' },
+  { id: 'Busy',          label: 'Busy',         emoji: '\uD83D\uDD34', cls: 'bg-red-50 text-red-700 border-red-200' },
+  { id: 'Connected',     label: 'Connected',    emoji: '\u2705', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { id: 'Switched Off',  label: 'Switched Off', emoji: '\uD83D\uDCF4', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
 ];
 
 const LEAD_STATUSES = [
-  { id: 'FollowUp',      label: 'Follow Up',      emoji: '📅' },
-  { id: 'SiteVisit',     label: 'Site Visit',     emoji: '📍' },
-  { id: 'NotInterested', label: 'Not Interested', emoji: '❌' },
-  { id: 'CallBackLater', label: 'Call Back Later', emoji: '🔄' },
+  { id: 'FollowUp',      label: 'Follow Up',      emoji: '\uD83D\uDCC5' },
+  { id: 'SiteVisit',     label: 'Site Visit',     emoji: '\uD83D\uDCCD' },
+  { id: 'NotInterested', label: 'Not Interested', emoji: '\u274C' },
+  { id: 'CallBackLater', label: 'Call Back Later', emoji: '\uD83D\uDD04' },
+];
+
+const QUICK_TAGS = [
+  { label: '\uD83D\uDCB0 Price Issue',      value: '#PriceIssue' },
+  { label: '\uD83D\uDCC5 Callback',         value: '#Callback' },
+  { label: '\uD83C\uDFE0 Site Visit?',      value: '#SiteVisit' },
+  { label: '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67 Family Decision', value: '#FamilyDecision' },
+  { label: '\uD83C\uDFE6 Loan Needed',      value: '#LoanNeeded' },
+  { label: '\u2705 Very Interested',        value: '#VeryInterested' },
+  { label: '\u23F0 Not Available',          value: '#NotAvailable' },
+  { label: '\uD83D\uDD04 Follow Up',        value: '#FollowUp' },
 ];
 
 const PAYMENT_MODES = ['Cash', 'Cheque', 'NEFT', 'UPI'];
@@ -63,10 +74,10 @@ const formatPhone = (p) => {
 
 const formatINR = (val) => {
   const n = Number(val) || 0;
-  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
-  if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
-  if (n >= 1000) return `₹${n.toLocaleString('en-IN')}`;
-  return `₹${n}`;
+  if (n >= 10000000) return `\u20B9${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000)   return `\u20B9${(n / 100000).toFixed(2)} L`;
+  if (n >= 1000)     return `\u20B9${n.toLocaleString('en-IN')}`;
+  return `\u20B9${n}`;
 };
 
 const LeadDetail = () => {
@@ -79,19 +90,19 @@ const LeadDetail = () => {
   } = useCRMData();
   const { toast }  = useToast();
 
-  const [showSheet, setShowSheet]       = useState(false);
+  const [showSheet, setShowSheet]             = useState(false);
   const [showBookingSheet, setShowBookingSheet] = useState(false);
-  const [outcome, setOutcome]           = useState('');
-  const [leadStatus, setLeadStatus]     = useState('');
-  const [followDate, setFollowDate]     = useState('');
-  const [quickNote, setQuickNote]       = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [showNotes, setShowNotes]       = useState(false);
-  const [showHistory, setShowHistory]   = useState(true);
-  const [newNote, setNewNote]           = useState('');
-  const [addingNote, setAddingNote]     = useState(false);
-  const [copiedPhone, setCopiedPhone]   = useState(false);
-  const [bookingSaving, setBookingSaving] = useState(false);
+  const [outcome, setOutcome]                 = useState('');
+  const [leadStatus, setLeadStatus]           = useState('');
+  const [followDate, setFollowDate]           = useState('');
+  const [quickNote, setQuickNote]             = useState('');
+  const [saving, setSaving]                   = useState(false);
+  const [showNotes, setShowNotes]             = useState(false);
+  const [showHistory, setShowHistory]         = useState(true);
+  const [newNote, setNewNote]                 = useState('');
+  const [addingNote, setAddingNote]           = useState(false);
+  const [copiedPhone, setCopiedPhone]         = useState(false);
+  const [bookingSaving, setBookingSaving]     = useState(false);
 
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
@@ -171,12 +182,11 @@ const LeadDetail = () => {
   } catch { /* ignore */ }
   const today = new Date().toISOString().split('T')[0];
 
-  // ── Save Log Call — uses addCallLog hook (not raw supabase) ──────────
+  // ── Save Log Call ──────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!outcome) { toast({ title: 'Select call outcome first', variant: 'destructive' }); return; }
     setSaving(true);
     try {
-      // 1. Insert call via hook (goes through crmSupabase.addCall with admin client)
       await addCallLog({
         leadId: id,
         leadName: lead.name,
@@ -188,33 +198,21 @@ const LeadDetail = () => {
         duration: 0,
         notes: quickNote || null,
       });
-
-      // 2. Update lead fields
       const patch = { last_activity: new Date().toISOString() };
       if (leadStatus) patch.status = leadStatus;
       if (followDate) patch.follow_up_date = followDate;
       await updateLead(id, patch);
-
-      // 3. Append note via addLeadNote (preserves existing notes)
       if (quickNote) {
         await addLeadNote(id, quickNote, user?.name || 'User');
       }
-
-      // 4. Auto-insert site_visit when SiteVisit status selected
       if (leadStatus === 'SiteVisit' && followDate) {
         await addSiteVisitLog({
-          leadId: id,
-          leadName: lead.name,
-          projectName: lead.project || '',
-          employeeId: userId,
-          employeeName: user?.name || '',
-          visitDate: followDate,
-          status: 'Scheduled',
-          notes: quickNote || null,
+          leadId: id, leadName: lead.name, projectName: lead.project || '',
+          employeeId: userId, employeeName: user?.name || '',
+          visitDate: followDate, status: 'Scheduled', notes: quickNote || null,
         });
       }
-
-      toast({ title: 'Logged!', description: leadStatus ? `Status → ${leadStatus}` : 'Call saved' });
+      toast({ title: 'Logged!', description: leadStatus ? `Status \u2192 ${leadStatus}` : 'Call saved' });
       setShowSheet(false);
       setOutcome(''); setLeadStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
@@ -223,7 +221,7 @@ const LeadDetail = () => {
     setSaving(false);
   };
 
-  // ── Save Booking — creates booking record + updates lead ─────────────
+  // ── Save Booking ───────────────────────────────────────────────────────
   const handleBooking = async () => {
     const { bookingAmount, tokenAmount, unitNumber } = bookingForm;
     if (!bookingAmount || Number(bookingAmount) <= 0) {
@@ -235,16 +233,11 @@ const LeadDetail = () => {
     if (!unitNumber.trim()) {
       toast({ title: 'Enter unit number', variant: 'destructive' }); return;
     }
-
     setBookingSaving(true);
     try {
-      // 1. addBookingLog → bookings table + updates lead with financial data
       await addBookingLog({
-        leadId: id,
-        leadName: lead.name,
-        projectName: lead.project || '',
-        employeeId: userId,
-        employeeName: user?.name || '',
+        leadId: id, leadName: lead.name, projectName: lead.project || '',
+        employeeId: userId, employeeName: user?.name || '',
         bookingAmount: parseFloat(bookingForm.bookingAmount),
         tokenAmount: parseFloat(bookingForm.tokenAmount),
         partialPayment: parseFloat(bookingForm.partialPayment || 0),
@@ -254,8 +247,7 @@ const LeadDetail = () => {
         bookingDate: new Date().toISOString().split('T')[0],
         notes: bookingForm.notes || '',
       });
-
-      toast({ title: '🏆 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
+      toast({ title: '\uD83C\uDFC6 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
       setShowBookingSheet(false);
       setBookingForm({ bookingAmount: '', tokenAmount: '', partialPayment: '', unitNumber: '', paymentMode: 'Cash', notes: '' });
     } catch (e) {
@@ -282,6 +274,15 @@ const LeadDetail = () => {
 
   const updateBookingField = (field, value) => {
     setBookingForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Append quick tag to note
+  const appendTag = (tagValue) => {
+    setQuickNote(prev => {
+      const sep = prev && !prev.endsWith(' ') ? ' ' : '';
+      const next = (prev + sep + tagValue).slice(0, 500);
+      return next;
+    });
   };
 
   return (
@@ -343,7 +344,6 @@ const LeadDetail = () => {
 
       {/* ── Contact Card ── */}
       <div className="bg-white mx-3 mt-3 rounded-2xl shadow-sm border border-gray-100 p-4">
-        {/* Status alerts */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {isOverdue && (
             <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
@@ -357,7 +357,7 @@ const LeadDetail = () => {
           )}
         </div>
 
-        {/* Big tap-to-call */}
+        {/* Tap to call */}
         <a href={`tel:${lead.phone}`}
           className="flex items-center gap-3 bg-[#0F3A5F] text-white rounded-2xl px-4 py-3.5 mb-3 active:bg-[#0a2d4f] touch-manipulation transition-all">
           <div className="bg-white/20 rounded-full p-2"><Phone size={18} /></div>
@@ -371,7 +371,6 @@ const LeadDetail = () => {
           </button>
         </a>
 
-        {/* Follow-up date display */}
         {followUpRaw && (
           <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm mb-3 font-medium ${
             isOverdue ? 'bg-red-50 text-red-700' : isFollowToday ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
@@ -381,21 +380,25 @@ const LeadDetail = () => {
           </div>
         )}
 
-        {/* Action row */}
+        {/* Desktop action row — Log Call button ONLY on md+ screens */}
         <div className="grid grid-cols-3 gap-2">
           <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
             target="_blank" rel="noreferrer"
             className="flex flex-col items-center gap-1 py-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-700 text-xs font-semibold active:bg-emerald-100 touch-manipulation">
             <MessageCircle size={18} /> WhatsApp
           </a>
-          {lead.email && lead.email !== 'Not given' && (
+          {lead.email && lead.email !== 'Not given' ? (
             <a href={`mailto:${lead.email}`}
               className="flex flex-col items-center gap-1 py-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 text-xs font-semibold active:bg-blue-100 touch-manipulation">
               <Mail size={18} /> Email
             </a>
+          ) : (
+            <div />
           )}
-          <button onClick={() => setShowSheet(true)}
-            className={`${lead.email && lead.email !== 'Not given' ? '' : 'col-span-2'} flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] shadow-sm touch-manipulation transition-all`}>
+          {/* Log Call — desktop inline version (hidden on mobile, shown on desktop) */}
+          <button
+            onClick={() => setShowSheet(true)}
+            className="hidden md:flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] shadow-sm touch-manipulation transition-all">
             <PhoneCall size={18} /> Log Call
           </button>
         </div>
@@ -406,10 +409,10 @@ const LeadDetail = () => {
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Details</p>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { label: 'Budget',  value: lead.budget || '—',          icon: '💰' },
-            { label: 'Project', value: lead.project || 'Not set',   icon: '🏗️' },
-            { label: 'Source',  value: lead.source || '—',          icon: '📌' },
-            { label: 'Email',   value: lead.email || 'Not given',   icon: '✉️' },
+            { label: 'Budget',  value: lead.budget || '\u2014',          icon: '\uD83D\uDCB0' },
+            { label: 'Project', value: lead.project || 'Not set',         icon: '\uD83C\uDFD7\uFE0F' },
+            { label: 'Source',  value: lead.source || '\u2014',          icon: '\uD83D\uDCCC' },
+            { label: 'Email',   value: lead.email || 'Not given',         icon: '\u2709\uFE0F' },
           ].map(item => (
             <div key={item.label} className="bg-gray-50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
@@ -417,7 +420,6 @@ const LeadDetail = () => {
             </div>
           ))}
         </div>
-        {/* Booking financial details if booked */}
         {isBooked && (lead.tokenAmount > 0 || lead.partialPayment > 0) && (
           <div className="grid grid-cols-2 gap-2.5 mt-2.5">
             {lead.partialPayment > 0 && (
@@ -439,7 +441,7 @@ const LeadDetail = () => {
         {(lead.assignedToName || lead.assigned_to_name) && (
           <p className="text-[10px] text-gray-300 mt-3">
             Assigned by {lead.assignedToName || lead.assigned_to_name}
-            {(lead.assignedAt || lead.assigned_at) && ` · ${timeAgo(lead.assignedAt || lead.assigned_at)}`}
+            {(lead.assignedAt || lead.assigned_at) && ` \u00B7 ${timeAgo(lead.assignedAt || lead.assigned_at)}`}
           </p>
         )}
       </div>
@@ -480,15 +482,13 @@ const LeadDetail = () => {
               <div className="space-y-0 mt-3">
                 {timeline.slice(0, 10).map((item, i) => (
                   <div key={i} className="flex gap-3 relative">
-                    {/* Timeline line */}
                     {i < timeline.length - 1 && i < 9 && (
                       <div className="absolute left-[15px] top-8 bottom-0 w-0.5 bg-gray-100" />
                     )}
-                    {/* Icon */}
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 ${
                       item.type === 'call' ? (
-                        ['Connected','connected','interested'].includes(item.status) ? 'bg-emerald-100 text-emerald-600'
-                        : 'bg-gray-100 text-gray-500'
+                        ['Connected','connected','interested'].includes(item.status)
+                          ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'
                       ) : item.type === 'visit' ? 'bg-purple-100 text-purple-600'
                         : 'bg-amber-100 text-amber-600'
                     }`}>
@@ -496,18 +496,15 @@ const LeadDetail = () => {
                         : item.type === 'visit' ? <MapPin size={13} />
                         : <Target size={13} />}
                     </div>
-                    {/* Content */}
                     <div className="flex-1 min-w-0 pb-4">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-semibold text-gray-800 capitalize">
-                          {item.type === 'call' ? (item.status?.replace(/_/g, ' ') || 'Call')
-                            : item.type === 'visit' ? `Visit - ${item.status || 'Scheduled'}`
-                            : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
-                        </p>
-                      </div>
+                      <p className="text-xs font-semibold text-gray-800 capitalize">
+                        {item.type === 'call' ? (item.status?.replace(/_/g, ' ') || 'Call')
+                          : item.type === 'visit' ? `Visit - ${item.status || 'Scheduled'}`
+                          : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
+                      </p>
                       <p className="text-[10px] text-gray-400 mt-0.5">
-                        {item.time ? format(new Date(item.time), 'dd MMM yyyy, h:mm a') : '—'}
-                        {item.employee ? ` · ${item.employee}` : ''}
+                        {item.time ? format(new Date(item.time), 'dd MMM yyyy, h:mm a') : '\u2014'}
+                        {item.employee ? ` \u00B7 ${item.employee}` : ''}
                       </p>
                       {item.notes && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.notes}</p>}
                     </div>
@@ -544,7 +541,7 @@ const LeadDetail = () => {
         )}
       </div>
 
-      {/* ── Fixed Bottom Action Bar ── */}
+      {/* ── Fixed Bottom Action Bar (mobile + desktop) ── */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 px-4 py-3 flex gap-2">
         <a href={`tel:${lead.phone}`}
           className="flex items-center justify-center gap-1.5 px-3 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold active:bg-emerald-100 touch-manipulation">
@@ -555,21 +552,25 @@ const LeadDetail = () => {
           className="flex items-center justify-center gap-1.5 px-3 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-xs font-bold active:bg-[#25D366]/20 touch-manipulation">
           <MessageCircle size={15} />
         </a>
-        <button onClick={() => setShowSheet(true)}
-          className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
+        {/* Log Call — mobile only (md+ uses inline button in card above) */}
+        <button
+          onClick={() => setShowSheet(true)}
+          className="flex-1 md:hidden flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
           <PhoneCall size={16} /> Log Call
         </button>
+        {/* Book button — always visible when not booked */}
         {!isBooked && (
-          <button onClick={() => setShowBookingSheet(true)}
+          <button
+            onClick={() => setShowBookingSheet(true)}
             className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black shadow-md active:bg-[#c4a030] touch-manipulation transition-all">
             <Trophy size={16} /> Book
           </button>
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* ── LOG CALL BOTTOM SHEET ───────────────────────────── */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── LOG CALL BOTTOM SHEET ─────────────────────── */}
+      {/* ══════════════════════════════════════════════════ */}
       {showSheet && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowSheet(false)} />
@@ -579,11 +580,10 @@ const LeadDetail = () => {
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
             <div className="px-4 pb-8">
-              {/* Lead reminder */}
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight">{lead.name}</p>
-                  <p className="text-xs text-gray-400">{formatPhone(lead.phone)} · Log call outcome</p>
+                  <p className="text-xs text-gray-400">{formatPhone(lead.phone)} \u00B7 Log call outcome</p>
                 </div>
                 <button onClick={() => setShowSheet(false)}
                   className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
@@ -591,8 +591,8 @@ const LeadDetail = () => {
                 </button>
               </div>
 
-              {/* Step 1: What happened? */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">1 · What happened on the call?</p>
+              {/* Step 1 */}
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">1 \u00B7 What happened on the call?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {CALL_OUTCOMES.map(o => (
                   <button key={o.id} onClick={() => setOutcome(o.id)}
@@ -604,8 +604,8 @@ const LeadDetail = () => {
                 ))}
               </div>
 
-              {/* Step 2: Update Status */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">2 · Update Lead Status</p>
+              {/* Step 2 */}
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">2 \u00B7 Update Lead Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {LEAD_STATUSES.map(s => (
                   <button key={s.id} onClick={() => setLeadStatus(leadStatus === s.id ? '' : s.id)}
@@ -617,9 +617,9 @@ const LeadDetail = () => {
                 ))}
               </div>
 
-              {/* Step 3: Date */}
+              {/* Step 3 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                {leadStatus === 'SiteVisit' ? '3 · Schedule Visit Date' : '3 · Follow-up Date (optional)'}
+                {leadStatus === 'SiteVisit' ? '3 \u00B7 Schedule Visit Date' : '3 \u00B7 Follow-up Date (optional)'}
               </p>
               <div className="flex gap-2 mb-2">
                 {[{ label: 'Tomorrow', days: 1 }, { label: '3 Days', days: 3 }, { label: 'Next Week', days: 7 }].map(opt => {
@@ -638,12 +638,34 @@ const LeadDetail = () => {
               <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
 
-              {/* Step 4: Quick Note */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 · Quick Note (optional)</p>
-              <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                placeholder="What did the lead say? Any remarks..."
-                rows={2}
-                className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] mb-5" />
+              {/* Step 4: Smart Quick Note */}
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 \u00B7 Quick Note (optional)</p>
+              <div className="relative mb-2">
+                <textarea
+                  value={quickNote}
+                  onChange={e => setQuickNote(e.target.value.slice(0, 500))}
+                  placeholder="What did the lead say? Any remarks..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] pr-16"
+                />
+                <span className="absolute bottom-3 right-3 text-[10px] text-gray-400 pointer-events-none">
+                  {quickNote.length}/500
+                </span>
+              </div>
+              {/* Quick Tags */}
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {QUICK_TAGS.map(tag => (
+                  <button
+                    key={tag.value}
+                    type="button"
+                    onClick={() => appendTag(tag.value)}
+                    className="px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium hover:bg-[#0F3A5F]/10 hover:border-[#0F3A5F]/30 hover:text-[#0F3A5F] active:scale-95 transition-all touch-manipulation"
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
 
               {/* Save */}
               <button onClick={handleSave} disabled={!outcome || saving}
@@ -657,9 +679,9 @@ const LeadDetail = () => {
         </>
       )}
 
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* ── BOOKING BOTTOM SHEET ──────────────────────────── */}
-      {/* ═══════════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════ */}
+      {/* ── BOOKING BOTTOM SHEET ─────────────────────── */}
+      {/* ══════════════════════════════════════════════════ */}
       {showBookingSheet && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowBookingSheet(false)} />
@@ -669,13 +691,12 @@ const LeadDetail = () => {
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
             <div className="px-4 pb-8">
-              {/* Header */}
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight flex items-center gap-2">
                     <Trophy size={20} className="text-[#D4AF37]" /> Book This Lead
                   </p>
-                  <p className="text-xs text-gray-400">{lead.name} · {lead.project || 'No project'}</p>
+                  <p className="text-xs text-gray-400">{lead.name} \u00B7 {lead.project || 'No project'}</p>
                 </div>
                 <button onClick={() => setShowBookingSheet(false)}
                   className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
@@ -683,7 +704,7 @@ const LeadDetail = () => {
                 </button>
               </div>
 
-              {/* Section 1: Amounts */}
+              {/* Payment Details */}
               <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 rounded-2xl p-4 mb-4">
                 <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <IndianRupee size={12} /> Payment Details
@@ -692,7 +713,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Booking Amount *</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
                       <input type="number" placeholder="e.g. 5000000"
                         value={bookingForm.bookingAmount}
                         onChange={e => updateBookingField('bookingAmount', e.target.value)}
@@ -702,7 +723,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Token Amount * (collected today)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
                       <input type="number" placeholder="e.g. 100000"
                         value={bookingForm.tokenAmount}
                         onChange={e => updateBookingField('tokenAmount', e.target.value)}
@@ -712,7 +733,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Partial Payment (optional)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
                       <input type="number" placeholder="0"
                         value={bookingForm.partialPayment}
                         onChange={e => updateBookingField('partialPayment', e.target.value)}
@@ -720,7 +741,6 @@ const LeadDetail = () => {
                     </div>
                   </div>
                 </div>
-                {/* Live pending calculation */}
                 {bookingForm.bookingAmount && bookingForm.tokenAmount && (
                   <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
                     <span className="text-xs text-gray-500">Pending Amount</span>
@@ -731,7 +751,7 @@ const LeadDetail = () => {
                 )}
               </div>
 
-              {/* Section 2: Unit */}
+              {/* Unit */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-4">
                 <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <Building2 size={12} /> Unit Details
@@ -745,7 +765,7 @@ const LeadDetail = () => {
                 </div>
               </div>
 
-              {/* Section 3: Payment Mode */}
+              {/* Payment Mode */}
               <div className="mb-4">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <CreditCard size={12} /> Payment Mode
@@ -764,7 +784,7 @@ const LeadDetail = () => {
                 </div>
               </div>
 
-              {/* Section 4: Notes */}
+              {/* Notes */}
               <div className="mb-5">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <StickyNote size={12} /> Notes (optional)
@@ -775,7 +795,6 @@ const LeadDetail = () => {
                   className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#D4AF37]" />
               </div>
 
-              {/* Confirm Booking */}
               <button onClick={handleBooking} disabled={bookingSaving}
                 className="w-full py-4 bg-[#D4AF37] text-[#0F3A5F] rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#c4a030] shadow-xl touch-manipulation transition-all">
                 {bookingSaving ? (

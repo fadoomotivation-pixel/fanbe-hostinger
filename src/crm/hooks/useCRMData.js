@@ -2,6 +2,7 @@
 // ✅ All data fetched from Supabase
 // ✅ Added: Supabase Realtime subscriptions for leads, calls, site_visits, bookings
 // ✅ Added: assigned_at, prev_assigned_to, prev_assigned_to_name, prev_assigned_at fields
+// ✅ Added: updateSiteVisit function
 import { useState, useEffect } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -23,27 +24,27 @@ const STORAGE_KEYS = {
 };
 
 export const useCRMData = () => {
-  const [leads, setLeads]                       = useState([]);
-  const [leadsLoading, setLeadsLoading]         = useState(true);
-  const [employees, setEmployees]               = useState([]);
-  const [employeesLoading, setEmployeesLoading] = useState(true);
-  const [calls, setCalls]                       = useState([]);
-  const [callsLoading, setCallsLoading]         = useState(true);
-  const [siteVisits, setSiteVisits]             = useState([]);
+  const [leads, setLeads]                         = useState([]);
+  const [leadsLoading, setLeadsLoading]           = useState(true);
+  const [employees, setEmployees]                 = useState([]);
+  const [employeesLoading, setEmployeesLoading]   = useState(true);
+  const [calls, setCalls]                         = useState([]);
+  const [callsLoading, setCallsLoading]           = useState(true);
+  const [siteVisits, setSiteVisits]               = useState([]);
   const [siteVisitsLoading, setSiteVisitsLoading] = useState(true);
-  const [bookings, setBookings]                 = useState([]);
-  const [bookingsLoading, setBookingsLoading]   = useState(true);
-  const [workLogs, setWorkLogs]                 = useState([]);
+  const [bookings, setBookings]                   = useState([]);
+  const [bookingsLoading, setBookingsLoading]     = useState(true);
+  const [workLogs, setWorkLogs]                   = useState([]);
 
-  const [customers, setCustomers]               = useState([]);
-  const [invoices, setInvoices]                 = useState([]);
-  const [payments, setPayments]                 = useState([]);
-  const [settings, setSettings]                 = useState(sampleSettings);
-  const [waTemplates, setWaTemplates]           = useState([]);
-  const [promoMaterials, setPromoMaterials]     = useState([]);
-  const [tasks, setTasks]                       = useState([]);
-  const [eodReports, setEodReports]             = useState([]);
-  const [auditLogs, setAuditLogs]               = useState([]);
+  const [customers, setCustomers]           = useState([]);
+  const [invoices, setInvoices]             = useState([]);
+  const [payments, setPayments]             = useState([]);
+  const [settings, setSettings]             = useState(sampleSettings);
+  const [waTemplates, setWaTemplates]       = useState([]);
+  const [promoMaterials, setPromoMaterials] = useState([]);
+  const [tasks, setTasks]                   = useState([]);
+  const [eodReports, setEodReports]         = useState([]);
+  const [auditLogs, setAuditLogs]           = useState([]);
 
   // Load localStorage once
   useEffect(() => {
@@ -68,36 +69,28 @@ export const useCRMData = () => {
     fetchBookings();
   }, []);
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ✅ SUPABASE REALTIME SUBSCRIPTIONS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   useEffect(() => {
     const leadsChannel = supabaseAdmin
       .channel('realtime:leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        fetchLeads();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads())
       .subscribe();
 
     const visitsChannel = supabaseAdmin
       .channel('realtime:site_visits')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => {
-        fetchSiteVisits();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => fetchSiteVisits())
       .subscribe();
 
     const callsChannel = supabaseAdmin
       .channel('realtime:calls')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => {
-        fetchCalls();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => fetchCalls())
       .subscribe();
 
     const bookingsChannel = supabaseAdmin
       .channel('realtime:bookings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
       .subscribe();
 
     return () => {
@@ -118,7 +111,7 @@ export const useCRMData = () => {
       const key  = `${c.employeeId}_${date}`;
       if (!logsMap[key]) logsMap[key] = { id: key, employeeId: c.employeeId, date, totalCalls: 0, connectedCalls: 0, siteVisits: 0, bookings: 0, conversionRate: 0 };
       logsMap[key].totalCalls += 1;
-      if (['connected','interested'].includes(c.status)) logsMap[key].connectedCalls += 1;
+      if (['connected', 'interested'].includes(c.status)) logsMap[key].connectedCalls += 1;
     });
 
     siteVisits.forEach(sv => {
@@ -142,7 +135,7 @@ export const useCRMData = () => {
     setWorkLogs(Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date)));
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
-  // ── LEADS ────────────────────────────────────────────────────────────
+  // ── LEADS ─────────────────────────────────────────────────────────────────
   const fetchLeads = async () => {
     try {
       setLeadsLoading(true);
@@ -186,7 +179,6 @@ export const useCRMData = () => {
         paymentMode:         row.payment_mode       || 'Cash',
         unitNumber:          row.unit_number        || '',
         isVIP:               row.is_vip             || false,
-        // ✅ Assignment tracking fields
         assignedAt:          row.assigned_at            || null,
         prevAssignedTo:      row.prev_assigned_to       || null,
         prevAssignedToName:  row.prev_assigned_to_name  || null,
@@ -253,17 +245,18 @@ export const useCRMData = () => {
       if (updates.paymentMode      !== undefined) mapped.payment_mode       = updates.paymentMode   || 'Cash';
       if (updates.unitNumber       !== undefined) mapped.unit_number        = updates.unitNumber    || '';
       if (updates.isVIP            !== undefined) mapped.is_vip             = updates.isVIP;
-      // ✅ Assignment tracking
-      if (updates.assignedAt         !== undefined) mapped.assigned_at           = updates.assignedAt;
-      if (updates.prevAssignedTo     !== undefined) mapped.prev_assigned_to      = updates.prevAssignedTo;
-      if (updates.prevAssignedToName !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
-      if (updates.prevAssignedAt     !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
+      if (updates.assignedAt           !== undefined) mapped.assigned_at           = updates.assignedAt;
+      if (updates.prevAssignedTo       !== undefined) mapped.prev_assigned_to      = updates.prevAssignedTo;
+      if (updates.prevAssignedToName   !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
+      if (updates.prevAssignedAt       !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
       mapped.updated_at = new Date().toISOString();
 
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
       setLeads(prev => prev.map(l =>
-        l.id === id ? { ...l, ...updates, lastActivity: new Date().toISOString(), follow_up_date: updates.follow_up_date || updates.followUpDate || l.follow_up_date } : l
+        l.id === id
+          ? { ...l, ...updates, lastActivity: new Date().toISOString(), follow_up_date: updates.follow_up_date || updates.followUpDate || l.follow_up_date }
+          : l
       ));
     } catch (err) { console.error('[Leads] updateLead unexpected error:', err); }
   };
@@ -284,7 +277,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ────────────────────────────────────────────────────
+  // ── EMPLOYEES ───────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -301,7 +294,7 @@ export const useCRMData = () => {
     finally { setEmployeesLoading(false); }
   };
 
-  // ── CALLS ──────────────────────────────────────────────────────────
+  // ── CALLS ────────────────────────────────────────────────────────────
   const fetchCalls = async () => {
     try {
       setCallsLoading(true);
@@ -330,7 +323,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
-  // ── SITE VISITS ───────────────────────────────────────────────────
+  // ── SITE VISITS ────────────────────────────────────────────────────────
   const fetchSiteVisits = async () => {
     try {
       setSiteVisitsLoading(true);
@@ -368,7 +361,38 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] addSiteVisitLog error:', err); return null; }
   };
 
-  // ── BOOKINGS ───────────────────────────────────────────────────────
+  // ✅ NEW: update an existing site visit row
+  const updateSiteVisit = async (id, updates) => {
+    try {
+      const mapped = {};
+      if (updates.interest      !== undefined) mapped.interest_level = updates.interest;
+      if (updates.interestLevel !== undefined) mapped.interest_level = updates.interestLevel;
+      if (updates.notes         !== undefined) mapped.notes          = updates.notes;
+      if (updates.feedback      !== undefined) mapped.feedback       = updates.feedback;
+      if (updates.status        !== undefined) mapped.status         = updates.status;
+      if (updates.visitDate     !== undefined) mapped.visit_date     = updates.visitDate;
+      if (updates.visitTime     !== undefined) mapped.visit_time     = updates.visitTime;
+
+      const { error } = await supabaseAdmin.from('site_visits').update(mapped).eq('id', id);
+      if (error) { console.error('[SiteVisits] updateSiteVisit error:', error.message); throw new Error(error.message); }
+
+      // Optimistic local update so UI reflects change immediately
+      setSiteVisits(prev => prev.map(v =>
+        v.id === id
+          ? {
+              ...v,
+              interest:  updates.interest      || updates.interestLevel || v.interest,
+              notes:     updates.notes     !== undefined ? updates.notes     : v.notes,
+              feedback:  updates.feedback  !== undefined ? updates.feedback  : v.feedback,
+              status:    updates.status    !== undefined ? updates.status    : v.status,
+              visitDate: updates.visitDate !== undefined ? updates.visitDate : v.visitDate,
+            }
+          : v
+      ));
+    } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
+  };
+
+  // ── BOOKINGS ──────────────────────────────────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
@@ -392,11 +416,11 @@ export const useCRMData = () => {
         await fetchBookings();
         if (log.leadId) {
           const leadUpdate = { status: 'Booked' };
-          if (log.tokenAmount !== undefined) leadUpdate.tokenAmount = log.tokenAmount;
-          if (log.bookingAmount !== undefined) leadUpdate.bookingAmount = log.bookingAmount;
+          if (log.tokenAmount    !== undefined) leadUpdate.tokenAmount    = log.tokenAmount;
+          if (log.bookingAmount  !== undefined) leadUpdate.bookingAmount  = log.bookingAmount;
           if (log.partialPayment !== undefined) leadUpdate.partialPayment = log.partialPayment;
-          if (log.unitNumber !== undefined) leadUpdate.unitNumber = log.unitNumber;
-          if (log.paymentMode !== undefined) leadUpdate.paymentMode = log.paymentMode;
+          if (log.unitNumber     !== undefined) leadUpdate.unitNumber     = log.unitNumber;
+          if (log.paymentMode    !== undefined) leadUpdate.paymentMode    = log.paymentMode;
           await updateLead(log.leadId, leadUpdate);
         }
         return result.data;
@@ -405,7 +429,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Bookings] addBookingLog error:', err); return null; }
   };
 
-  // ── localStorage helpers ──────────────────────────────────────────────
+  // ── localStorage helpers ──────────────────────────────────────────────────────
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
     switch (key) {
@@ -416,20 +440,25 @@ export const useCRMData = () => {
     }
   };
 
-  const addPromoMaterial = (material) => saveData(STORAGE_KEYS.PROMO_MATERIALS, [{ ...material, id: `MAT${Date.now()}`, uploadDate: new Date().toISOString() }, ...promoMaterials]);
-  const deletePromoMaterial = (id)     => saveData(STORAGE_KEYS.PROMO_MATERIALS, promoMaterials.filter(m => m.id !== id));
-  const addTask     = (task)   => { const n = { ...task, id: `TASK${Date.now()}`, status: 'Pending', timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.TASKS, [n, ...tasks]); return n; };
-  const updateTask  = (id, u)  => saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
-  const addEodReport = (r)     => { const n = { ...r, id: `EOD${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.EOD_REPORTS, [n, ...eodReports]); return n; };
-  const addAuditLog  = (l)     => { const n = { ...l, id: `AUDIT${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.AUDIT_LOGS, [n, ...auditLogs]); };
-  const clearDummyData = async () => { localStorage.removeItem('crm_work_logs'); saveData(STORAGE_KEYS.TASKS, []); saveData(STORAGE_KEYS.EOD_REPORTS, []); await fetchCalls(); await fetchSiteVisits(); await fetchBookings(); };
+  const addPromoMaterial  = (m)    => saveData(STORAGE_KEYS.PROMO_MATERIALS, [{ ...m, id: `MAT${Date.now()}`, uploadDate: new Date().toISOString() }, ...promoMaterials]);
+  const deletePromoMaterial = (id) => saveData(STORAGE_KEYS.PROMO_MATERIALS, promoMaterials.filter(m => m.id !== id));
+  const addTask     = (task) => { const n = { ...task, id: `TASK${Date.now()}`, status: 'Pending', timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.TASKS, [n, ...tasks]); return n; };
+  const updateTask  = (id, u) => saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
+  const addEodReport = (r)   => { const n = { ...r, id: `EOD${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.EOD_REPORTS, [n, ...eodReports]); return n; };
+  const addAuditLog  = (l)   => { const n = { ...l, id: `AUDIT${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.AUDIT_LOGS, [n, ...auditLogs]); };
+  const clearDummyData = async () => {
+    localStorage.removeItem('crm_work_logs');
+    saveData(STORAGE_KEYS.TASKS, []);
+    saveData(STORAGE_KEYS.EOD_REPORTS, []);
+    await fetchCalls(); await fetchSiteVisits(); await fetchBookings();
+  };
   const getUniqueSources = () => Array.from(new Set(leads.map(l => l.source || 'Manual Import')));
 
   return {
     leads, leadsLoading, fetchLeads, addLead, updateLead, deleteLead, addLeadNote,
     employees, employeesLoading, fetchEmployees,
     calls, callsLoading, fetchCalls, addCallLog,
-    siteVisits, siteVisitsLoading, fetchSiteVisits, addSiteVisitLog,
+    siteVisits, siteVisitsLoading, fetchSiteVisits, addSiteVisitLog, updateSiteVisit,
     bookings, bookingsLoading, fetchBookings, addBookingLog,
     workLogs,
     customers, invoices, payments, settings, waTemplates, promoMaterials,

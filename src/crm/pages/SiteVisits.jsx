@@ -3,6 +3,7 @@
 // ✅ Fixed: correct field names (visitDate not date)
 // ✅ Fixed: interest level saved to interest_level column AND inside notes prefix
 // ✅ Fixed: history reads from correct normalized fields
+// ✅ Added: edit button on each visit row with inline edit modal
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, X, Loader2, MapPin, Calendar, TrendingUp } from 'lucide-react';
+import { Search, X, Loader2, MapPin, Calendar, TrendingUp, Edit2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // ── Searchable lead picker ───────────────────────────────────────────
@@ -36,7 +37,7 @@ const LeadSearchPicker = ({ leads, value, onChange }) => {
       <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
         <div>
           <p className="font-semibold text-blue-900 text-sm">{selectedLead.name}</p>
-          <p className="text-xs text-blue-600">{selectedLead.project} · {selectedLead.phone}</p>
+          <p className="text-xs text-blue-600">{selectedLead.project} \u00B7 {selectedLead.phone}</p>
         </div>
         <button type="button" onClick={() => onChange('')} className="text-blue-400 hover:text-blue-700 ml-2">
           <X size={15} />
@@ -49,7 +50,7 @@ const LeadSearchPicker = ({ leads, value, onChange }) => {
     <div className="relative">
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <Input className="pl-8 text-sm" placeholder="Type name, phone, or project…"
+        <Input className="pl-8 text-sm" placeholder="Type name, phone, or project\u2026"
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -64,7 +65,7 @@ const LeadSearchPicker = ({ leads, value, onChange }) => {
               onMouseDown={() => { onChange(lead.id); setQuery(''); setOpen(false); }}>
               <div>
                 <p className="text-sm font-medium text-gray-900">{lead.name}</p>
-                <p className="text-xs text-gray-500">{lead.project} · {lead.phone}</p>
+                <p className="text-xs text-gray-500">{lead.project} \u00B7 {lead.phone}</p>
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ml-2 ${
                 lead.status === 'Booked'   ? 'bg-green-100 text-green-700' :
@@ -80,7 +81,7 @@ const LeadSearchPicker = ({ leads, value, onChange }) => {
   );
 };
 
-// ── Interest badge ───────────────────────────────────────────────
+// ── Interest badge helpers ──────────────────────────────────────────
 const extractInterest = (notes) => {
   if (!notes) return null;
   const m = notes.match(/^\[Interest: (\w+)\]/);
@@ -93,17 +94,23 @@ const extractFeedback = (notes) => {
 
 const SiteVisits = () => {
   const { user } = useAuth();
-  const { leads, addSiteVisitLog, siteVisits, siteVisitsLoading } = useCRMData();
+  const { leads, addSiteVisitLog, updateSiteVisit, siteVisits, siteVisitsLoading } = useCRMData();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
 
+  // Log form
   const [formData, setFormData] = useState({
     leadId:   '',
-    date:     '',       // datetime-local input value
+    date:     '',
     interest: 'Medium',
     feedback: '',
   });
+
+  // Edit modal state
+  const [editingVisit, setEditingVisit] = useState(null);
+  const [editForm, setEditForm]         = useState({ interest: 'Medium', feedback: '' });
+  const [editSaving, setEditSaving]     = useState(false);
 
   // Pre-select lead from URL params
   useEffect(() => {
@@ -113,7 +120,7 @@ const SiteVisits = () => {
       if (lead && (lead.assignedTo === user?.id || lead.assigned_to === user?.id ||
                    lead.assignedTo === user?.uid || lead.assigned_to === user?.uid)) {
         setFormData(prev => ({ ...prev, leadId: leadIdFromUrl }));
-        toast({ title: '✅ Lead Pre-selected', description: `${lead.name} is ready`, duration: 3000 });
+        toast({ title: '\u2705 Lead Pre-selected', description: `${lead.name} is ready`, duration: 3000 });
       }
     }
   }, [searchParams, leads, user]);
@@ -121,12 +128,11 @@ const SiteVisits = () => {
   const userId  = user?.uid || user?.id;
   const myLeads = leads.filter(l => l.assignedTo === userId || l.assigned_to === userId);
 
-  // Filter by normalized employeeId field
   const myVisits = siteVisits
     .filter(v => v.employeeId === userId)
     .sort((a, b) => new Date(b.timestamp || b.visitDate) - new Date(a.timestamp || a.visitDate));
 
-  // handleSubmit is async and awaits addSiteVisitLog
+  // ── Submit new visit ──
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.leadId) {
@@ -152,7 +158,6 @@ const SiteVisits = () => {
         visitDate:     visitDateObj.toISOString().split('T')[0],
         visitTime:     visitDateObj.toTimeString().slice(0, 5),
         status:        'Completed',
-        // ✅ Save interest as dedicated column AND keep notes prefix for backwards compat
         interestLevel: formData.interest,
         notes:         `[Interest: ${formData.interest}] ${formData.feedback.trim()}`,
         feedback:      formData.feedback.trim(),
@@ -162,12 +167,12 @@ const SiteVisits = () => {
 
       if (result) {
         toast({
-          title: '✅ Site Visit Logged!',
-          description: `${lead?.name} — ${formData.interest} interest • synced to cloud`,
+          title: '\u2705 Site Visit Logged!',
+          description: `${lead?.name} \u2014 ${formData.interest} interest \u2022 synced to cloud`,
         });
         setFormData({ leadId: '', date: '', interest: 'Medium', feedback: '' });
       } else {
-        toast({ title: '❌ Save failed', description: 'Check Supabase logs. Data may not have saved.', variant: 'destructive' });
+        toast({ title: '\u274C Save failed', description: 'Check Supabase logs. Data may not have saved.', variant: 'destructive' });
       }
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -175,12 +180,44 @@ const SiteVisits = () => {
     setSubmitting(false);
   };
 
+  // ── Open edit modal ──
+  const openEdit = (visit) => {
+    const interest = visit.interest || extractInterest(visit.notes) || 'Medium';
+    const feedback = extractFeedback(visit.notes) || visit.feedback || '';
+    setEditingVisit(visit);
+    setEditForm({ interest, feedback });
+  };
+
+  // ── Save edit ──
+  const handleEditSave = async () => {
+    if (!editForm.feedback.trim()) {
+      toast({ title: 'Feedback cannot be empty', variant: 'destructive' }); return;
+    }
+    if (!updateSiteVisit) {
+      toast({ title: 'updateSiteVisit not available in hook', variant: 'destructive' }); return;
+    }
+    setEditSaving(true);
+    try {
+      await updateSiteVisit(editingVisit.id, {
+        interest:      editForm.interest,
+        interestLevel: editForm.interest,
+        notes:         `[Interest: ${editForm.interest}] ${editForm.feedback.trim()}`,
+        feedback:      editForm.feedback.trim(),
+      });
+      toast({ title: 'Visit updated!' });
+      setEditingVisit(null);
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+    setEditSaving(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0F3A5F]">Site Visit Tracker</h1>
-          <p className="text-sm text-gray-500 mt-0.5">All visits sync to cloud • visible to admin & subadmin in real-time</p>
+          <p className="text-sm text-gray-500 mt-0.5">All visits sync to cloud \u2022 visible to admin & subadmin in real-time</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -199,7 +236,6 @@ const SiteVisits = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Lead *</label>
                 <LeadSearchPicker leads={myLeads} value={formData.leadId}
@@ -226,9 +262,9 @@ const SiteVisits = () => {
                   onValueChange={val => setFormData({ ...formData, interest: val })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="High">🔥 High — Very Interested</SelectItem>
-                    <SelectItem value="Medium">👍 Medium — Considering</SelectItem>
-                    <SelectItem value="Low">🥶 Low — Just Looking</SelectItem>
+                    <SelectItem value="High">\uD83D\uDD25 High \u2014 Very Interested</SelectItem>
+                    <SelectItem value="Medium">\uD83D\uDC4D Medium \u2014 Considering</SelectItem>
+                    <SelectItem value="Low">\uD83E\uDD76 Low \u2014 Just Looking</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -243,7 +279,10 @@ const SiteVisits = () => {
               </div>
 
               <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? <><Loader2 size={16} className="animate-spin mr-2" /> Saving to Cloud...</> : 'Save Visit Log'}
+                {submitting
+                  ? <><Loader2 size={16} className="animate-spin mr-2" /> Saving to Cloud...</>
+                  : 'Save Visit Log'
+                }
               </Button>
             </form>
           </CardContent>
@@ -272,19 +311,19 @@ const SiteVisits = () => {
                     <TableHead>Visit Date</TableHead>
                     <TableHead>Interest</TableHead>
                     <TableHead>Feedback</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {myVisits.map((visit, idx) => {
-                    // Read from dedicated column first, fall back to notes prefix
-                    const interest  = visit.interest || extractInterest(visit.notes) || '—';
-                    const feedback  = extractFeedback(visit.notes) || visit.feedback || '—';
+                    const interest  = visit.interest || extractInterest(visit.notes) || '\u2014';
+                    const feedback  = extractFeedback(visit.notes) || visit.feedback || '\u2014';
                     const visitDate = visit.visitDate || visit.timestamp;
 
                     return (
                       <TableRow key={visit.id || idx}>
                         <TableCell className="font-medium">
-                          {visit.leadName || '—'}
+                          {visit.leadName || '\u2014'}
                           {visit.projectName && (
                             <p className="text-xs text-gray-400 mt-0.5">{visit.projectName}</p>
                           )}
@@ -292,19 +331,29 @@ const SiteVisits = () => {
                         <TableCell className="text-sm">
                           {visitDate
                             ? (() => { try { return format(parseISO(visitDate), 'dd MMM yyyy, hh:mm a'); } catch { return visitDate; } })()
-                            : '—'
+                            : '\u2014'
                           }
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            interest === 'High'   ? 'bg-green-100 text-green-800' :
-                            interest === 'Low'    ? 'bg-red-100 text-red-700'    :
-                            interest === '—'     ? 'bg-gray-100 text-gray-500'   :
+                            interest === 'High'   ? 'bg-green-100 text-green-800'  :
+                            interest === 'Low'    ? 'bg-red-100 text-red-700'      :
+                            interest === '\u2014' ? 'bg-gray-100 text-gray-500'    :
                                                     'bg-yellow-100 text-yellow-700'
                           }`}>{interest}</span>
                         </TableCell>
                         <TableCell className="max-w-[200px] text-gray-600 text-sm">
                           <p className="line-clamp-2">{feedback}</p>
+                        </TableCell>
+                        {/* Edit button */}
+                        <TableCell>
+                          <button
+                            onClick={() => openEdit(visit)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-400 hover:text-[#0F3A5F] transition-colors"
+                            title="Edit visit"
+                          >
+                            <Edit2 size={14} />
+                          </button>
                         </TableCell>
                       </TableRow>
                     );
@@ -315,6 +364,85 @@ const SiteVisits = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Edit Visit Modal ── */}
+      {editingVisit && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setEditingVisit(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="font-black text-[#0F3A5F] text-lg">Edit Visit</h3>
+                  <p className="text-xs text-gray-400">{editingVisit.leadName} \u00B7 {editingVisit.projectName}</p>
+                </div>
+                <button
+                  onClick={() => setEditingVisit(null)}
+                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                >
+                  <X size={16} className="text-gray-600" />
+                </button>
+              </div>
+
+              {/* Interest */}
+              <div className="space-y-2 mb-4">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <TrendingUp size={13} /> Interest Level
+                </label>
+                <Select
+                  value={editForm.interest}
+                  onValueChange={val => setEditForm(prev => ({ ...prev, interest: val }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High">\uD83D\uDD25 High \u2014 Very Interested</SelectItem>
+                    <SelectItem value="Medium">\uD83D\uDC4D Medium \u2014 Considering</SelectItem>
+                    <SelectItem value="Low">\uD83E\uDD76 Low \u2014 Just Looking</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Feedback */}
+              <div className="space-y-2 mb-6">
+                <label className="text-sm font-semibold text-gray-700">Client Feedback</label>
+                <Textarea
+                  value={editForm.feedback}
+                  onChange={e => setEditForm(prev => ({ ...prev, feedback: e.target.value }))}
+                  rows={4}
+                  placeholder="Update client feedback..."
+                  className="resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEditingVisit(null)}
+                  disabled={editSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-[#0F3A5F] hover:bg-[#0a2d4f]"
+                  onClick={handleEditSave}
+                  disabled={editSaving}
+                >
+                  {editSaving
+                    ? <><Loader2 size={14} className="animate-spin mr-2" /> Saving...</>
+                    : 'Save Changes'
+                  }
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

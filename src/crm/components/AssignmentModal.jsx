@@ -1,8 +1,7 @@
 // src/crm/components/AssignmentModal.jsx
 // ✅ Smart suggestion + employee stats
 // ✅ Reassignment warning popup with 2-step confirmation
-// ✅ FIX: aria-describedby={undefined} on DialogContent (Radix UI requirement)
-// ✅ FIX: safe avatar initial extraction — no crash when name is empty/null
+// ✅ FIX: Added hidden DialogDescription to satisfy Radix UI accessibility requirements
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -67,20 +66,11 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      {/*
-        aria-describedby={undefined} suppresses the Radix UI
-        "Missing Description" console warning without adding visible text.
-        overflow-hidden is required for the absolute-positioned warning overlay.
-      */}
-      <DialogContent
-        aria-describedby={undefined}
-        className="max-w-md flex flex-col relative overflow-hidden"
-        style={{ maxHeight: '90vh' }}
-      >
+      <DialogContent className="max-w-md flex flex-col relative overflow-hidden" style={{ maxHeight: '90vh' }}>
 
-        {/* ═════════════════════════════════════════ */}
-        {/* ✅ REASSIGNMENT WARNING OVERLAY                    */}
-        {/* ═════════════════════════════════════════ */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ✅ REASSIGNMENT WARNING OVERLAY                                          */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {showConfirm && (
           <div className="absolute inset-0 z-20 bg-white rounded-lg flex flex-col p-5 overflow-y-auto">
 
@@ -158,6 +148,10 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
             <Users size={18} className="text-blue-600" />
             Assign Lead{leads.length > 1 ? `s (${leads.length})` : ''}
           </DialogTitle>
+          {/* ✅ Hidden DialogDescription to satisfy Radix UI a11y requirements */}
+          <DialogDescription className="sr-only">
+            Select an employee to assign {leads.length} lead{leads.length > 1 ? 's' : ''}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">

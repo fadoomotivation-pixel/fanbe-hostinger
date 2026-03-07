@@ -1,7 +1,7 @@
 // src/crm/components/AssignmentModal.jsx
 // ✅ Smart suggestion + employee stats
 // ✅ Reassignment warning popup with 2-step confirmation
-// ✅ FIX: Added hidden DialogDescription to satisfy Radix UI accessibility requirements
+// ✅ FIX: Removed flex layout from DialogContent that was causing rendering issues
 import React, { useState, useEffect } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -66,15 +66,15 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md flex flex-col relative overflow-hidden" style={{ maxHeight: '90vh' }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-hidden">
 
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {/* ✅ REASSIGNMENT WARNING OVERLAY                                          */}
         {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {showConfirm && (
-          <div className="absolute inset-0 z-20 bg-white rounded-lg flex flex-col p-5 overflow-y-auto">
+          <div className="absolute inset-0 z-50 bg-white rounded-lg flex flex-col p-6 overflow-y-auto">
 
-            <div className="flex items-center gap-2.5 mb-1">
+            <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-amber-600" />
               </div>
@@ -84,7 +84,7 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
               </div>
             </div>
 
-            <p className="text-sm text-gray-600 mt-3 mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
+            <p className="text-sm text-gray-600 mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
               <span className="font-bold text-amber-700">{alreadyAssigned.length}</span>{' '}
               lead{alreadyAssigned.length > 1 ? 's are' : ' is'}{' '}
               <span className="font-semibold">already assigned</span> to another employee.{' '}
@@ -97,7 +97,7 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
               Leads being reassigned
             </p>
 
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-4 flex-1 overflow-y-auto">
               {alreadyAssigned.map(lead => (
                 <div key={lead.id}
                   className="flex items-center gap-2 bg-white border border-amber-200 rounded-xl px-3 py-2.5 shadow-sm">
@@ -131,7 +131,7 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
               </div>
             )}
 
-            <div className="flex gap-2 pt-2 border-t border-gray-100 mt-auto">
+            <div className="flex gap-2 pt-3 border-t border-gray-100">
               <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>
                 ← Go Back
               </Button>
@@ -143,25 +143,24 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
         )}
 
         {/* ── NORMAL MODAL CONTENT ── */}
-        <DialogHeader className="shrink-0">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users size={18} className="text-blue-600" />
             Assign Lead{leads.length > 1 ? `s (${leads.length})` : ''}
           </DialogTitle>
-          {/* ✅ Hidden DialogDescription to satisfy Radix UI a11y requirements */}
           <DialogDescription className="sr-only">
             Select an employee to assign {leads.length} lead{leads.length > 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-2 pr-1">
+        <div className="space-y-4 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
 
           {/* Leads selected */}
           <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
             <p className="text-sm text-blue-800 mb-2 font-semibold">
               {leads.length} Lead{leads.length > 1 ? 's' : ''} selected
             </p>
-            <div className="text-xs text-blue-600 overflow-y-auto" style={{ maxHeight: '80px' }}>
+            <div className="text-xs text-blue-600" style={{ maxHeight: '80px', overflowY: 'auto' }}>
               {leads.map(l => l.name).join(', ')}
             </div>
           </div>
@@ -252,7 +251,7 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
           })()}
         </div>
 
-        <DialogFooter className="shrink-0 pt-3 border-t mt-2">
+        <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={handleClose} className="flex-1">Cancel</Button>
           <Button
             onClick={handleAssignClick}

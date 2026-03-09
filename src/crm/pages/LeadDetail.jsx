@@ -17,7 +17,7 @@ import {
   IndianRupee, CreditCard, Hash, StickyNote
 } from 'lucide-react';
 
-// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+// ✅ Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -27,28 +27,28 @@ const parseLocalDate = (dateStr) => {
 };
 
 const CALL_OUTCOMES = [
-  { id: 'Not Answered',  label: 'No Answer',    emoji: '\uD83D\uDCF5', cls: 'bg-gray-100 text-gray-700 border-gray-200' },
-  { id: 'Busy',          label: 'Busy',         emoji: '\uD83D\uDD34', cls: 'bg-red-50 text-red-700 border-red-200' },
-  { id: 'Connected',     label: 'Connected',    emoji: '\u2705', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { id: 'Switched Off',  label: 'Switched Off', emoji: '\uD83D\uDCF4', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { id: 'Not Answered',  label: 'No Answer',    emoji: '📵', cls: 'bg-gray-100 text-gray-700 border-gray-200' },
+  { id: 'Busy',          label: 'Busy',         emoji: '🔴', cls: 'bg-red-50 text-red-700 border-red-200' },
+  { id: 'Connected',     label: 'Connected',    emoji: '✅', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { id: 'Switched Off',  label: 'Switched Off', emoji: '📴', cls: 'bg-orange-50 text-orange-700 border-orange-200' },
 ];
 
 const LEAD_STATUSES = [
-  { id: 'FollowUp',      label: 'Follow Up',       emoji: '\uD83D\uDCC5' },
-  { id: 'SiteVisit',     label: 'Site Visit',      emoji: '\uD83D\uDCCD' },
-  { id: 'NotInterested', label: 'Not Interested',  emoji: '\u274C' },
-  { id: 'CallBackLater', label: 'Call Back Later', emoji: '\uD83D\uDD04' },
+  { id: 'FollowUp',      label: 'Follow Up',       emoji: '📅' },
+  { id: 'SiteVisit',     label: 'Site Visit',      emoji: '📍' },
+  { id: 'NotInterested', label: 'Not Interested',  emoji: '❌' },
+  { id: 'CallBackLater', label: 'Call Back Later', emoji: '🔄' },
 ];
 
 const QUICK_TAGS = [
-  { label: '\uD83D\uDCB0 Price Issue',      value: '#PriceIssue' },
-  { label: '\uD83D\uDCC5 Callback',         value: '#Callback' },
-  { label: '\uD83C\uDFE0 Site Visit?',      value: '#SiteVisit' },
-  { label: '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67 Family Decision', value: '#FamilyDecision' },
-  { label: '\uD83C\uDFE6 Loan Needed',      value: '#LoanNeeded' },
-  { label: '\u2705 Very Interested',        value: '#VeryInterested' },
-  { label: '\u23F0 Not Available',          value: '#NotAvailable' },
-  { label: '\uD83D\uDD04 Follow Up',        value: '#FollowUp' },
+  { label: '💰 Price Issue',      value: '#PriceIssue' },
+  { label: '📅 Callback',         value: '#Callback' },
+  { label: '🏠 Site Visit?',      value: '#SiteVisit' },
+  { label: '👨‍👩‍👧 Family Decision', value: '#FamilyDecision' },
+  { label: '🏦 Loan Needed',      value: '#LoanNeeded' },
+  { label: '✅ Very Interested',  value: '#VeryInterested' },
+  { label: '⏰ Not Available',    value: '#NotAvailable' },
+  { label: '🔄 Follow Up',        value: '#FollowUp' },
 ];
 
 const PAYMENT_MODES = ['Cash', 'Cheque', 'NEFT', 'UPI'];
@@ -84,10 +84,10 @@ const formatPhone = (p) => {
 
 const formatINR = (val) => {
   const n = Number(val) || 0;
-  if (n >= 10000000) return `\u20B9${(n / 10000000).toFixed(2)} Cr`;
-  if (n >= 100000)   return `\u20B9${(n / 100000).toFixed(2)} L`;
-  if (n >= 1000)     return `\u20B9${n.toLocaleString('en-IN')}`;
-  return `\u20B9${n}`;
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000)   return `₹${(n / 100000).toFixed(2)} L`;
+  if (n >= 1000)     return `₹${n.toLocaleString('en-IN')}`;
+  return `₹${n}`;
 };
 
 const LeadDetail = () => {
@@ -206,10 +206,10 @@ const LeadDetail = () => {
       });
       const patch = { last_activity: new Date().toISOString() };
       if (leadStatus) patch.status = leadStatus;
-      // Terminal statuses: clear follow-up date so lead exits all reminder tabs
       if (leadStatus === 'NotInterested') {
         patch.follow_up_date = null;
         patch.followUpDate = null;
+        setFollowDate('');
       } else if (followDate) {
         patch.follow_up_date = followDate;
         patch.followUpDate = followDate;
@@ -223,7 +223,7 @@ const LeadDetail = () => {
           visitDate: followDate, status: 'Scheduled', notes: quickNote || null,
         });
       }
-      toast({ title: 'Logged!', description: leadStatus ? `Status \u2192 ${leadStatus}` : 'Call saved' });
+      toast({ title: 'Logged!', description: leadStatus ? `Status → ${leadStatus}` : 'Call saved' });
       setShowSheet(false);
       setOutcome(''); setLeadStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
@@ -258,7 +258,7 @@ const LeadDetail = () => {
         bookingDate:   new Date().toISOString().split('T')[0],
         notes:         bookingForm.notes || '',
       });
-      toast({ title: '\uD83C\uDFC6 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
+      toast({ title: '🏆 Booking confirmed!', description: `Unit ${bookingForm.unitNumber} booked for ${formatINR(bookingForm.bookingAmount)}` });
       setShowBookingSheet(false);
       setBookingForm({ bookingAmount: '', tokenAmount: '', partialPayment: '', unitNumber: '', paymentMode: 'Cash', notes: '' });
     } catch (e) {
@@ -407,10 +407,10 @@ const LeadDetail = () => {
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Details</p>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            { label: 'Budget',  value: lead.budget || '\u2014',   icon: '\uD83D\uDCB0' },
-            { label: 'Project', value: lead.project || 'Not set',  icon: '\uD83C\uDFD7\uFE0F' },
-            { label: 'Source',  value: lead.source || '\u2014',   icon: '\uD83D\uDCCC' },
-            { label: 'Email',   value: lead.email || 'Not given',  icon: '\u2709\uFE0F' },
+            { label: 'Budget',  value: lead.budget || '—',   icon: '💰' },
+            { label: 'Project', value: lead.project || 'Not set',  icon: '🏗️' },
+            { label: 'Source',  value: lead.source || '—',   icon: '📌' },
+            { label: 'Email',   value: lead.email || 'Not given',  icon: '✉️' },
           ].map(item => (
             <div key={item.label} className="bg-gray-50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
@@ -439,7 +439,7 @@ const LeadDetail = () => {
         {(lead.assignedToName || lead.assigned_to_name) && (
           <p className="text-[10px] text-gray-300 mt-3">
             Assigned by {lead.assignedToName || lead.assigned_to_name}
-            {(lead.assignedAt || lead.assigned_at) && ` \u00B7 ${timeAgo(lead.assignedAt || lead.assigned_at)}`}
+            {(lead.assignedAt || lead.assigned_at) && ` · ${timeAgo(lead.assignedAt || lead.assigned_at)}`}
           </p>
         )}
       </div>
@@ -500,8 +500,8 @@ const LeadDetail = () => {
                           : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
                       </p>
                       <p className="text-[10px] text-gray-400 mt-0.5">
-                        {item.time ? format(new Date(item.time), 'dd MMM yyyy, h:mm a') : '\u2014'}
-                        {item.employee ? ` \u00B7 ${item.employee}` : ''}
+                        {item.time ? format(new Date(item.time), 'dd MMM yyyy, h:mm a') : '—'}
+                        {item.employee ? ` · ${item.employee}` : ''}
                       </p>
                       {item.notes && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.notes}</p>}
                     </div>
@@ -608,7 +608,7 @@ const LeadDetail = () => {
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight">{lead.name}</p>
-                  <p className="text-xs text-gray-400">{formatPhone(lead.phone)} \u00B7 Log call outcome</p>
+                  <p className="text-xs text-gray-400">{formatPhone(lead.phone)} · Log call outcome</p>
                 </div>
                 <button onClick={() => setShowSheet(false)}
                   className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
@@ -617,7 +617,7 @@ const LeadDetail = () => {
               </div>
 
               {/* Step 1 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">1 \u00B7 What happened on the call?</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">1 · What happened on the call?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {CALL_OUTCOMES.map(o => (
                   <button key={o.id} onClick={() => setOutcome(o.id)}
@@ -630,14 +630,12 @@ const LeadDetail = () => {
               </div>
 
               {/* Step 2 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">2 \u00B7 Update Lead Status</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">2 · Update Lead Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {LEAD_STATUSES.map(s => (
                   <button key={s.id} onClick={() => {
-                    const next = leadStatus === s.id ? '' : s.id;
-                    setLeadStatus(next);
-                    // Clear follow-up date for terminal statuses
-                    if (next === 'NotInterested') setFollowDate('');
+                    setLeadStatus(leadStatus === s.id ? '' : s.id);
+                    if (s.id === 'NotInterested') setFollowDate('');
                   }}
                     className={`flex items-center gap-2 px-3 py-3 rounded-2xl border-2 text-sm font-semibold transition-all touch-manipulation ${
                       leadStatus === s.id ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F] shadow-sm scale-[1.02]' : 'border-gray-100 bg-gray-50 text-gray-700'
@@ -647,11 +645,11 @@ const LeadDetail = () => {
                 ))}
               </div>
 
-              {/* Step 3 — hidden for terminal statuses (NotInterested) */}
+              {/* Step 3 - Hidden when NotInterested */}
               {leadStatus !== 'NotInterested' && (
                 <>
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    {leadStatus === 'SiteVisit' ? '3 \u00B7 Schedule Visit Date' : '3 \u00B7 Follow-up Date (optional)'}
+                    {leadStatus === 'SiteVisit' ? '3 · Schedule Visit Date' : '3 · Follow-up Date (optional)'}
                   </p>
                   <div className="flex gap-2 mb-2">
                     {[{ label: 'Tomorrow', days: 1 }, { label: '3 Days', days: 3 }, { label: 'Next Week', days: 7 }].map(opt => {
@@ -673,7 +671,7 @@ const LeadDetail = () => {
               )}
 
               {/* Step 4 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 \u00B7 Quick Note (optional)</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 · Quick Note (optional)</p>
               <div className="mb-5">
                 <SmartNotesInput
                   value={quickNote}
@@ -726,7 +724,7 @@ const LeadDetail = () => {
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight flex items-center gap-2">
                     <Trophy size={20} className="text-[#D4AF37]" /> Book This Lead
                   </p>
-                  <p className="text-xs text-gray-400">{lead.name} \u00B7 {lead.project || 'No project'}</p>
+                  <p className="text-xs text-gray-400">{lead.name} · {lead.project || 'No project'}</p>
                 </div>
                 <button onClick={() => setShowBookingSheet(false)}
                   className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
@@ -743,7 +741,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Booking Amount *</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
                       <input type="number" placeholder="e.g. 5000000"
                         value={bookingForm.bookingAmount}
                         onChange={e => updateBookingField('bookingAmount', e.target.value)}
@@ -753,7 +751,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Token Amount * (collected today)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
                       <input type="number" placeholder="e.g. 100000"
                         value={bookingForm.tokenAmount}
                         onChange={e => updateBookingField('tokenAmount', e.target.value)}
@@ -763,7 +761,7 @@ const LeadDetail = () => {
                   <div>
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Partial Payment (optional)</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">\u20B9</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
                       <input type="number" placeholder="0"
                         value={bookingForm.partialPayment}
                         onChange={e => updateBookingField('partialPayment', e.target.value)}

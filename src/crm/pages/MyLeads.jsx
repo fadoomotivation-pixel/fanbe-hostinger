@@ -218,8 +218,15 @@ const MyLeads = () => {
         notes:    quickNote || `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)  patch.status         = newStatus;
-      if (followDate) { patch.follow_up_date = followDate; patch.followUpDate = followDate; }
+      if (newStatus) patch.status = newStatus;
+      // Terminal statuses: clear follow-up date so lead exits all reminder tabs
+      if (newStatus === 'NotInterested') {
+        patch.follow_up_date = null;
+        patch.followUpDate = null;
+      } else if (followDate) {
+        patch.follow_up_date = followDate;
+        patch.followUpDate = followDate;
+      }
       await updateLead(quickLead.id, patch);
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
@@ -584,7 +591,11 @@ const MyLeads = () => {
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Update Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_STATUSES.map(s => (
-                  <button key={s.id} onClick={() => setNewStatus(newStatus === s.id ? '' : s.id)}
+                  <button key={s.id} onClick={() => {
+                    const next = newStatus === s.id ? '' : s.id;
+                    setNewStatus(next);
+                    if (next === 'NotInterested') setFollowDate('');
+                  }}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 text-sm font-semibold touch-manipulation transition-all ${
                       newStatus === s.id
                         ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F] shadow-sm scale-[1.02]'
@@ -595,33 +606,37 @@ const MyLeads = () => {
                 ))}
               </div>
 
-              {/* Step 3 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
-              </p>
-              {/* Quick date chips */}
-              <div className="flex gap-2 mb-2">
-                {[
-                  { label: '\uD83C\uDF05 Tomorrow', days: 1 },
-                  { label: '3 Days',  days: 3 },
-                  { label: 'Next Week', days: 7 },
-                ].map(opt => {
-                  const d = new Date(); d.setDate(d.getDate() + opt.days);
-                  const ds = d.toISOString().split('T')[0];
-                  return (
-                    <button key={opt.label} onClick={() => setFollowDate(ds)}
-                      className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
-                        followDate === ds
-                          ? 'border-blue-400 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 bg-white text-gray-600'
-                      }`}>
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
-                className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
+              {/* Step 3 — hidden for terminal statuses */}
+              {newStatus !== 'NotInterested' && (
+                <>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
+                  </p>
+                  {/* Quick date chips */}
+                  <div className="flex gap-2 mb-2">
+                    {[
+                      { label: '\uD83C\uDF05 Tomorrow', days: 1 },
+                      { label: '3 Days',  days: 3 },
+                      { label: 'Next Week', days: 7 },
+                    ].map(opt => {
+                      const d = new Date(); d.setDate(d.getDate() + opt.days);
+                      const ds = d.toISOString().split('T')[0];
+                      return (
+                        <button key={opt.label} onClick={() => setFollowDate(ds)}
+                          className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                            followDate === ds
+                              ? 'border-blue-400 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 bg-white text-gray-600'
+                          }`}>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
+                    className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
+                </>
+              )}
 
               {/* Step 4 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quick Note (optional)</p>

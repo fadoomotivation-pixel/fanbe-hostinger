@@ -29,8 +29,9 @@ const FollowUpReminders = () => {
     const myLeads = leads.filter(l =>
       (l.assignedTo === userId || l.assigned_to === userId) &&
       (l.followUpDate || l.follow_up_date) &&
-      l.status !== 'Booked' && 
-      l.status !== 'Lost'
+      l.status !== 'Booked' &&
+      l.status !== 'Lost' &&
+      l.status !== 'NotInterested'
     );
 
     // Normalize follow-up date field and sort by earliest first

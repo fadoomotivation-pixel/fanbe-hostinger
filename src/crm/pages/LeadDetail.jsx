@@ -8,15 +8,6 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { format, isToday, isPast, formatDistanceToNow } from 'date-fns';
-
-// ✅ Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
-const parseLocalDate = (dateStr) => {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const d = dateStr.split('T')[0];
-  const [y, m, day] = d.split('-').map(Number);
-  if (!y || !m || !day) return null;
-  return new Date(y, m - 1, day);
-};
 import SmartNotesInput from '@/crm/components/SmartNotesInput';
 import {
   ArrowLeft, Phone, MessageCircle, Edit, ChevronRight,
@@ -25,6 +16,15 @@ import {
   MapPin, Target, Loader2, Mail, Trophy, Building2,
   IndianRupee, CreditCard, Hash, StickyNote
 } from 'lucide-react';
+
+// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+const parseLocalDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = dateStr.split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
+};
 
 const CALL_OUTCOMES = [
   { id: 'Not Answered',  label: 'No Answer',    emoji: '\uD83D\uDCF5', cls: 'bg-gray-100 text-gray-700 border-gray-200' },

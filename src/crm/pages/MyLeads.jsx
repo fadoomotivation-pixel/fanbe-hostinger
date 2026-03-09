@@ -480,7 +480,7 @@ const MyLeads = () => {
                     <span className={`flex items-center gap-1 ${
                       overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
                     }`}>
-                      <Calendar size={11} /> {format(parseLocalDate(fu), 'dd MMM')}
+                      <Calendar size={11} /> {parseLocalDate(fu) ? format(parseLocalDate(fu), 'dd MMM') : fu}
                     </span>
                   )}
                 </div>

@@ -75,6 +75,8 @@ const EditLead = () => {
     setIsSubmitting(true);
 
     try {
+      const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(formData.status);
+      const followUp = isTerminal ? null : (formData.followUpDate || null);
       await updateLead(id, {
         name: formData.name,
         phone: formData.phone,
@@ -85,8 +87,8 @@ const EditLead = () => {
         budget: formData.budget,
         source: formData.source,
         notes: formData.notes,
-        followUpDate: formData.followUpDate,
-        follow_up_date: formData.followUpDate,
+        followUpDate: followUp,
+        follow_up_date: followUp,
       });
 
       toast({ title: 'Success', description: 'Lead updated successfully' });
@@ -238,14 +240,16 @@ const EditLead = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Next Follow-up Date</label>
-                  <Input 
-                    type="date"
-                    value={formData.followUpDate}
-                    onChange={(e) => setFormData({...formData, followUpDate: e.target.value})}
-                  />
-                </div>
+                {!['NotInterested', 'Lost', 'Booked'].includes(formData.status) && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Next Follow-up Date</label>
+                    <Input
+                      type="date"
+                      value={formData.followUpDate}
+                      onChange={(e) => setFormData({...formData, followUpDate: e.target.value})}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
 

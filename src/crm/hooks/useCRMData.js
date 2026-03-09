@@ -463,7 +463,7 @@ export const useCRMData = () => {
       if (result.success) {
         await fetchBookings();
         if (log.leadId) {
-          const leadUpdate = { status: 'Booked' };
+          const leadUpdate = { status: 'Booked', follow_up_date: null, followUpDate: null };
           if (log.tokenAmount    !== undefined) leadUpdate.tokenAmount    = log.tokenAmount;
           if (log.bookingAmount  !== undefined) leadUpdate.bookingAmount  = log.bookingAmount;
           if (log.partialPayment !== undefined) leadUpdate.partialPayment = log.partialPayment;

@@ -550,11 +550,11 @@ const MyLeads = () => {
       {/* ── QUICK LOG BOTTOM SHEET ── */}
       {quickLead && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setQuickLead(null)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+          <div className="fixed inset-0 bg-black/50 z-[60]" onClick={() => setQuickLead(null)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-3xl shadow-2xl"
                style={{ maxHeight: '92vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <div className="flex justify-center pt-3"><div className="w-10 h-1 bg-gray-200 rounded-full" /></div>
-            <div className="px-4 pb-8">
+            <div className="px-4 pb-24">
               {/* Header */}
               <div className="flex items-center justify-between my-4">
                 <div>

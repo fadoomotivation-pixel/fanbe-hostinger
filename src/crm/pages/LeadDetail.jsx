@@ -598,13 +598,13 @@ const LeadDetail = () => {
       {/* ════════════════════════════════════════════════ */}
       {showSheet && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowSheet(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+          <div className="fixed inset-0 bg-black/50 z-[60] touch-none" onClick={() => setShowSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-3xl shadow-2xl"
                style={{ maxHeight: '94vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="px-4 pb-8">
+            <div className="px-4 pb-24">
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight">{lead.name}</p>
@@ -714,13 +714,13 @@ const LeadDetail = () => {
       {/* ════════════════════════════════════════════════ */}
       {showBookingSheet && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40 touch-none" onClick={() => setShowBookingSheet(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
+          <div className="fixed inset-0 bg-black/50 z-[60] touch-none" onClick={() => setShowBookingSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-3xl shadow-2xl"
                style={{ maxHeight: '94vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-gray-200 rounded-full" />
             </div>
-            <div className="px-4 pb-8">
+            <div className="px-4 pb-24">
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg leading-tight flex items-center gap-2">

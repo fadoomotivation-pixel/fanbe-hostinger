@@ -7,7 +7,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { format, parseISO, isToday, isPast, formatDistanceToNow } from 'date-fns';
+import { format, isToday, isPast, formatDistanceToNow } from 'date-fns';
+
+// ✅ Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+const parseLocalDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = dateStr.split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
+};
+import SmartNotesInput from '@/crm/components/SmartNotesInput';
 import {
   ArrowLeft, Phone, MessageCircle, Edit, ChevronRight,
   Clock, CheckCircle, X, Calendar, AlertCircle,
@@ -177,8 +187,9 @@ const LeadDetail = () => {
   const isBooked = lead.status === 'Booked';
   let isOverdue = false, isFollowToday = false;
   try {
-    isOverdue     = followUpRaw && isPast(parseISO(followUpRaw)) && !isToday(parseISO(followUpRaw));
-    isFollowToday = followUpRaw && isToday(parseISO(followUpRaw));
+    const fuDate = parseLocalDate(followUpRaw);
+    isOverdue     = fuDate && isPast(fuDate) && !isToday(fuDate);
+    isFollowToday = fuDate && isToday(fuDate);
   } catch { /* ignore */ }
   const today = new Date().toISOString().split('T')[0];
 
@@ -195,7 +206,7 @@ const LeadDetail = () => {
       });
       const patch = { last_activity: new Date().toISOString() };
       if (leadStatus) patch.status = leadStatus;
-      if (followDate) patch.follow_up_date = followDate;
+      if (followDate) { patch.follow_up_date = followDate; patch.followUpDate = followDate; }
       await updateLead(id, patch);
       if (quickNote) await addLeadNote(id, quickNote, user?.name || 'User');
       if (leadStatus === 'SiteVisit' && followDate) {
@@ -358,7 +369,7 @@ const LeadDetail = () => {
             isOverdue ? 'bg-red-50 text-red-700' : isFollowToday ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
           }`}>
             <Calendar size={14} />
-            Follow-up: {format(parseISO(followUpRaw), 'EEE, dd MMM yyyy')}
+            Follow-up: {format(parseLocalDate(followUpRaw), 'EEE, dd MMM yyyy')}
           </div>
         )}
 
@@ -509,9 +520,25 @@ const LeadDetail = () => {
             {lead.notes && (
               <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-900 mt-3 whitespace-pre-wrap max-h-48 overflow-y-auto">{lead.notes}</div>
             )}
-            <textarea value={newNote} onChange={e => setNewNote(e.target.value)}
-              placeholder="Add a note..." rows={2}
-              className="w-full mt-2 text-sm border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20" />
+            <div className="mt-2">
+              <SmartNotesInput
+                value={newNote}
+                onChange={setNewNote}
+                existingNotes={lead.notes || ''}
+                placeholder="Add a note..."
+                rows={2}
+                maxLength={500}
+                onSuggestionAccept={(actions) => {
+                  if (actions.suggestStatus) {
+                    toast({ title: 'Suggestion', description: `Consider changing status to "${actions.suggestStatus}"` });
+                  }
+                  if (actions.suggestFollowUp && typeof actions.suggestFollowUp === 'number') {
+                    const d = new Date(); d.setDate(d.getDate() + actions.suggestFollowUp);
+                    toast({ title: 'Follow-up suggested', description: `Set follow-up for ${d.toLocaleDateString('en-IN')}` });
+                  }
+                }}
+              />
+            </div>
             <button onClick={handleAddNote} disabled={!newNote.trim() || addingNote}
               className="w-full py-2.5 bg-[#0F3A5F] text-white rounded-xl text-sm font-semibold disabled:opacity-40 active:bg-[#0a2d4f] transition-all touch-manipulation">
               {addingNote ? <span className="flex items-center justify-center gap-2"><Loader2 size={14} className="animate-spin" /> Saving...</span> : '+ Save Note'}
@@ -631,25 +658,27 @@ const LeadDetail = () => {
 
               {/* Step 4 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 \u00B7 Quick Note (optional)</p>
-              <div className="relative mb-2">
-                <textarea
+              <div className="mb-5">
+                <SmartNotesInput
                   value={quickNote}
-                  onChange={e => setQuickNote(e.target.value.slice(0, 500))}
+                  onChange={setQuickNote}
+                  existingNotes={lead.notes || ''}
                   placeholder="What did the lead say? Any remarks..."
-                  rows={3} maxLength={500}
-                  className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] pr-16"
+                  rows={3}
+                  maxLength={500}
+                  onSuggestionAccept={(actions) => {
+                    if (actions.suggestStatus && !leadStatus) {
+                      setLeadStatus(actions.suggestStatus);
+                      toast({ title: 'Status suggested', description: `Set to "${actions.suggestStatus}"` });
+                    }
+                    if (actions.followUpDate && !followDate) {
+                      setFollowDate(actions.followUpDate);
+                    } else if (actions.suggestFollowUp && !followDate && typeof actions.suggestFollowUp === 'number') {
+                      const d = new Date(); d.setDate(d.getDate() + actions.suggestFollowUp);
+                      setFollowDate(d.toISOString().split('T')[0]);
+                    }
+                  }}
                 />
-                <span className="absolute bottom-3 right-3 text-[10px] text-gray-400 pointer-events-none">
-                  {quickNote.length}/500
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mb-5">
-                {QUICK_TAGS.map(tag => (
-                  <button key={tag.value} type="button" onClick={() => appendTag(tag.value)}
-                    className="px-2.5 py-1 rounded-full border border-gray-200 bg-gray-50 text-xs text-gray-600 font-medium hover:bg-[#0F3A5F]/10 hover:border-[#0F3A5F]/30 hover:text-[#0F3A5F] active:scale-95 transition-all touch-manipulation">
-                    {tag.label}
-                  </button>
-                ))}
               </div>
 
               <button onClick={handleSave} disabled={!outcome || saving}

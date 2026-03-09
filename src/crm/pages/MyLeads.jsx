@@ -8,7 +8,20 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import { format, parseISO, isToday, isTomorrow, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { useMobile } from '@/lib/useMobile';
+import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
+import { format, isToday, isTomorrow, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+
+// ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
+// This prevents timezone drift where a "tomorrow" date in UTC could appear as
+// "today" in IST, or vice-versa.
+const parseLocalDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = dateStr.split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
+};
 import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
@@ -45,9 +58,11 @@ const urgencyScore = (lead) => {
   const fu = lead.follow_up_date || lead.followUpDate;
   if (!fu) return lead.status === 'New' ? 2 : 1;
   try {
-    if (isPast(parseISO(fu)) && !isToday(parseISO(fu))) return 100;
-    if (isToday(parseISO(fu))) return 90;
-    return Math.max(0, 10 - differenceInDays(parseISO(fu), new Date()));
+    const d = parseLocalDate(fu);
+    if (!d) return 1;
+    if (isPast(d) && !isToday(d)) return 100;
+    if (isToday(d)) return 90;
+    return Math.max(0, 10 - differenceInDays(d, new Date()));
   } catch { return 1; }
 };
 
@@ -88,6 +103,7 @@ const MyLeads = () => {
   const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const { toast } = useToast();
+  const isMobile  = useMobile();
 
   const [tab, setTab]               = useState('all');
   const [search, setSearch]         = useState('');
@@ -138,7 +154,8 @@ const MyLeads = () => {
       const fu = l.follow_up_date || l.followUpDate;
       if (!fu) return;
       try {
-        const d = parseISO(fu);
+        const d = parseLocalDate(fu);
+        if (!d) return;
         if (isPast(d) && !isToday(d))  overdue++;
         else if (isToday(d))            todayCount++;
         else if (isTomorrow(d))         tomorrowCount++;
@@ -152,17 +169,17 @@ const MyLeads = () => {
     if (tab === 'overdue') {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
-        try { return fu && isPast(parseISO(fu)) && !isToday(parseISO(fu)); } catch { return false; }
+        try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d); } catch { return false; }
       });
     } else if (tab === 'today') {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
-        try { return fu && isToday(parseISO(fu)); } catch { return false; }
+        try { const d = parseLocalDate(fu); return d && isToday(d); } catch { return false; }
       });
     } else if (tab === 'tomorrow') {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
-        try { return fu && isTomorrow(parseISO(fu)); } catch { return false; }
+        try { const d = parseLocalDate(fu); return d && isTomorrow(d); } catch { return false; }
       });
     } else if (tab === 'followup') {
       arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
@@ -413,15 +430,16 @@ const MyLeads = () => {
           const fu = lead.follow_up_date || lead.followUpDate;
           let overdueFlag = false, todayFlag = false, tomorrowFlag = false;
           try {
-            overdueFlag  = fu && isPast(parseISO(fu))  && !isToday(parseISO(fu));
-            todayFlag    = fu && isToday(parseISO(fu));
-            tomorrowFlag = fu && isTomorrow(parseISO(fu));
+            const fuDate = parseLocalDate(fu);
+            overdueFlag  = fuDate && isPast(fuDate) && !isToday(fuDate);
+            todayFlag    = fuDate && isToday(fuDate);
+            tomorrowFlag = fuDate && isTomorrow(fuDate);
           } catch { /* ignore */ }
           const sc         = statusColors[lead.status] || statusColors.New;
           const interest   = lead.interestLevel || lead.interest_level;
           const latestNote = getLatestNote(lead.notes);
 
-          return (
+          const cardEl = (
             <div key={lead.id}
               className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
                 overdueFlag  ? 'border-red-200 border-l-4 border-l-red-400' :
@@ -455,7 +473,7 @@ const MyLeads = () => {
                     <span className={`flex items-center gap-1 ${
                       overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
                     }`}>
-                      <Calendar size={11} /> {format(parseISO(fu), 'dd MMM')}
+                      <Calendar size={11} /> {format(parseLocalDate(fu), 'dd MMM')}
                     </span>
                   )}
                 </div>
@@ -501,6 +519,24 @@ const MyLeads = () => {
               </div>
             </div>
           );
+
+          // On mobile, wrap with swipeable card for gesture support
+          if (isMobile) {
+            return (
+              <SwipeableLeadCard
+                key={lead.id}
+                lead={lead}
+                onCall={(l) => { window.location.href = `tel:${l.phone}`; }}
+                onQuickAction={(l) => {
+                  setQuickLead(l);
+                  setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
+                }}
+              >
+                {cardEl}
+              </SwipeableLeadCard>
+            );
+          }
+          return cardEl;
         })}
       </div>
 

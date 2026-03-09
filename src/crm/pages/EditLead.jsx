@@ -43,7 +43,8 @@ const EditLead = () => {
     }
 
     // Check if this lead is assigned to current user
-    if (lead.assignedTo !== user?.id) {
+    const userId = user?.uid || user?.id;
+    if (lead.assignedTo !== userId && lead.assigned_to !== userId) {
       toast({ title: 'Access denied', description: 'You can only edit your own leads', variant: 'destructive' });
       navigate('/crm/sales/my-leads');
       return;
@@ -59,9 +60,9 @@ const EditLead = () => {
       budget: lead.budget || '',
       source: lead.source || '',
       notes: lead.notes || '',
-      followUpDate: lead.followUpDate || '',
+      followUpDate: lead.followUpDate || lead.follow_up_date || '',
     });
-  }, [lead, user, navigate, toast]);
+  }, [lead, leadsLoading, user, navigate, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,6 +86,7 @@ const EditLead = () => {
         source: formData.source,
         notes: formData.notes,
         followUpDate: formData.followUpDate,
+        follow_up_date: formData.followUpDate,
       });
 
       toast({ title: 'Success', description: 'Lead updated successfully' });
@@ -188,9 +190,13 @@ const EditLead = () => {
                     <Select value={formData.status} onValueChange={(val) => setFormData({...formData, status: val})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="New">New</SelectItem>
                         <SelectItem value="Open">Open</SelectItem>
                         <SelectItem value="FollowUp">Follow Up</SelectItem>
+                        <SelectItem value="CallBackLater">Call Back Later</SelectItem>
+                        <SelectItem value="SiteVisit">Site Visit</SelectItem>
                         <SelectItem value="Booked">Booked</SelectItem>
+                        <SelectItem value="NotInterested">Not Interested</SelectItem>
                         <SelectItem value="Lost">Lost</SelectItem>
                       </SelectContent>
                     </Select>

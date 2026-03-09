@@ -287,18 +287,26 @@ export const useCRMData = () => {
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
 
       // ✅ Optimistic local update — sync BOTH follow_up_date AND followUpDate
-      const newFollowUp = updates.follow_up_date ?? updates.followUpDate ?? null;
+      // Determine the new follow-up date: explicit value from either field, or keep existing
+      const hasFollowUpUpdate = updates.follow_up_date !== undefined || updates.followUpDate !== undefined;
+      const newFollowUp = hasFollowUpUpdate
+        ? (updates.follow_up_date ?? updates.followUpDate ?? null)
+        : undefined; // undefined = no change
       setLeads(prev => prev.map(l => {
         if (l.id !== id) return l;
-        return {
+        const updated = {
           ...l,
           ...updates,
           lastActivity:   new Date().toISOString(),
           status:         updates.status        !== undefined ? updates.status        : l.status,
           interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
-          follow_up_date: newFollowUp !== null ? newFollowUp : l.follow_up_date,
-          followUpDate:   newFollowUp !== null ? newFollowUp : l.followUpDate,
         };
+        // Only override follow-up dates if explicitly changed in this update
+        if (hasFollowUpUpdate) {
+          updated.follow_up_date = newFollowUp;
+          updated.followUpDate   = newFollowUp;
+        }
+        return updated;
       }));
     } catch (err) { console.error('[Leads] updateLead unexpected error:', err); }
   };

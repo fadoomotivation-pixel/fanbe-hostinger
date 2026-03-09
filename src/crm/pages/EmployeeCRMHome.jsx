@@ -17,7 +17,16 @@ import {
   Target, Zap, Copy, CheckCircle
 } from 'lucide-react';
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
-import { differenceInHours, differenceInDays, parseISO, format, formatDistanceToNow } from 'date-fns';
+import { differenceInHours, differenceInDays, format, formatDistanceToNow } from 'date-fns';
+
+// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+const parseLocalDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = dateStr.split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
+};
 
 // ─── TAB IDs ───────────────────────────────────────────
 const TABS = {
@@ -129,7 +138,7 @@ const EmployeeCRMHome = () => {
       let daysUntilFollowUp = null;
       if (fuDate) {
         try {
-          daysUntilFollowUp = differenceInDays(parseISO(fuDate), now);
+          daysUntilFollowUp = differenceInDays(parseLocalDate(fuDate), now);
           if (daysUntilFollowUp < 0) followUpPriority = 1;
           else if (daysUntilFollowUp === 0) followUpPriority = 2;
           else if (daysUntilFollowUp === 1) followUpPriority = 3;
@@ -320,10 +329,10 @@ const EmployeeCRMHome = () => {
     setSaving(true);
     try {
       const updates = { status: 'FollowUp' };
-      if (followUpDate) updates.followUpDate = followUpDate;
+      if (followUpDate) { updates.followUpDate = followUpDate; updates.follow_up_date = followUpDate; }
       if (callNote) updates.notes = `${actionLead.notes || ''}\n[${new Date().toLocaleString('en-IN')}] ${callNote}`.trim();
       await updateLead(actionLead.id, updates);
-      toast({ title: 'Follow-up Set', description: followUpDate ? `Reminder for ${format(parseISO(followUpDate), 'MMM dd')}` : 'Status updated' });
+      toast({ title: 'Follow-up Set', description: followUpDate ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
       closeAction();
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -664,7 +673,7 @@ const EmployeeCRMHome = () => {
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-center">
                     <p className="text-xs text-blue-600 font-medium">Follow-up set for</p>
                     <p className="text-lg font-bold text-blue-800">
-                      {followUpDate ? format(parseISO(followUpDate), 'EEE, MMM dd') : 'Today'}
+                      {followUpDate ? format(parseLocalDate(followUpDate), 'EEE, MMM dd') : 'Today'}
                     </p>
                   </div>
                   <Textarea placeholder="Notes for next call..." value={callNote}

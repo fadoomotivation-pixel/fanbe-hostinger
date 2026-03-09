@@ -5,8 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Phone, Check, Calendar, AlertCircle } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isPast } from 'date-fns';
+import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import { useToast } from '@/components/ui/use-toast';
+
+// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+const parseLocalDate = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const d = dateStr.split('T')[0];
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return null;
+  return new Date(y, m - 1, day);
+};
 
 const FollowUpReminders = () => {
   const { user } = useAuth();
@@ -16,28 +25,33 @@ const FollowUpReminders = () => {
 
   useEffect(() => {
     // Filter leads assigned to current user with follow-up dates
-    const myLeads = leads.filter(l => 
-      l.assignedTo === user?.id && 
-      l.followUpDate && 
+    const userId = user?.uid || user?.id;
+    const myLeads = leads.filter(l =>
+      (l.assignedTo === userId || l.assigned_to === userId) &&
+      (l.followUpDate || l.follow_up_date) &&
       l.status !== 'Booked' && 
       l.status !== 'Lost'
     );
 
-    // Sort by follow-up date (earliest first)
-    const sortedLeads = myLeads.sort((a, b) => {
-      const dateA = new Date(a.followUpDate);
-      const dateB = new Date(b.followUpDate);
-      return dateA - dateB;
+    // Normalize follow-up date field and sort by earliest first
+    const withDates = myLeads.map(l => ({
+      ...l,
+      followUpDate: l.followUpDate || l.follow_up_date,
+    }));
+    const sortedLeads = withDates.sort((a, b) => {
+      const dateA = parseLocalDate(a.followUpDate);
+      const dateB = parseLocalDate(b.followUpDate);
+      return (dateA || 0) - (dateB || 0);
     });
 
     // Group by priority
-    const overdueLeads = sortedLeads.filter(l => isPast(parseISO(l.followUpDate)) && !isToday(parseISO(l.followUpDate)));
-    const todayLeads = sortedLeads.filter(l => isToday(parseISO(l.followUpDate)));
-    const tomorrowLeads = sortedLeads.filter(l => isTomorrow(parseISO(l.followUpDate)));
+    const overdueLeads = sortedLeads.filter(l => isPast(parseLocalDate(l.followUpDate)) && !isToday(parseLocalDate(l.followUpDate)));
+    const todayLeads = sortedLeads.filter(l => isToday(parseLocalDate(l.followUpDate)));
+    const tomorrowLeads = sortedLeads.filter(l => isTomorrow(parseLocalDate(l.followUpDate)));
     const upcomingLeads = sortedLeads.filter(l => 
-      !isPast(parseISO(l.followUpDate)) && 
-      !isToday(parseISO(l.followUpDate)) && 
-      !isTomorrow(parseISO(l.followUpDate))
+      !isPast(parseLocalDate(l.followUpDate)) && 
+      !isToday(parseLocalDate(l.followUpDate)) && 
+      !isTomorrow(parseLocalDate(l.followUpDate))
     ).slice(0, 5);
 
     setReminders({
@@ -68,7 +82,7 @@ const FollowUpReminders = () => {
       title: `Follow up with ${lead.name}`,
       description: `Call ${lead.name} (${lead.phone}) for ${lead.project}`,
       type: 'Follow-up Call',
-      priority: isToday(parseISO(lead.followUpDate)) ? 'High' : 'Medium',
+      priority: isToday(parseLocalDate(lead.followUpDate)) ? 'High' : 'Medium',
       deadline: lead.followUpDate,
       employeeId: user?.id,
       leadId: lead.id,
@@ -83,7 +97,8 @@ const FollowUpReminders = () => {
   const handleMarkComplete = async (lead) => {
     await updateLead(lead.id, {
       followUpDate: null,
-      lastActivity: new Date().toISOString(),
+      follow_up_date: null,
+      last_activity: new Date().toISOString(),
     });
 
     toast({
@@ -93,7 +108,7 @@ const FollowUpReminders = () => {
   };
 
   const getPriorityColor = (followUpDate) => {
-    const date = parseISO(followUpDate);
+    const date = parseLocalDate(followUpDate);
     if (isPast(date) && !isToday(date)) return 'bg-red-100 text-red-800';
     if (isToday(date)) return 'bg-orange-100 text-orange-800';
     if (isTomorrow(date)) return 'bg-yellow-100 text-yellow-800';
@@ -112,7 +127,7 @@ const FollowUpReminders = () => {
         <p className="text-xs text-gray-600">{lead.project || 'General'}</p>
         <p className="text-xs text-gray-500 mt-1">
           <Calendar className="inline h-3 w-3 mr-1" />
-          {format(parseISO(lead.followUpDate), 'MMM dd, yyyy')}
+          {format(parseLocalDate(lead.followUpDate), 'MMM dd, yyyy')}
         </p>
       </div>
       <div className="flex gap-2">

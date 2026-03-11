@@ -213,7 +213,7 @@ const EmployeeCRMHome = () => {
   const followUpLeads = useMemo(() => {
     const grouped = { overdue: [], today: [], tomorrow: [], thisWeek: [], noDate: [] };
     analyzedLeads.forEach(l => {
-      if (l._normalizedStatus === LEAD_STATUS.LOST) return;
+      if (l._normalizedStatus === LEAD_STATUS.LOST || l._normalizedStatus === LEAD_STATUS.BOOKED) return;
       if (l._followUpPriority === 1) grouped.overdue.push(l);
       else if (l._followUpPriority === 2) grouped.today.push(l);
       else if (l._followUpPriority === 3) grouped.tomorrow.push(l);
@@ -327,11 +327,15 @@ const EmployeeCRMHome = () => {
         closeAction();
       } else if (outcome.id === 'booked') {
         updates.status = 'Booked';
+        updates.follow_up_date = null;
+        updates.followUpDate = null;
         await updateLead(actionLead.id, updates);
         toast({ title: 'Booked!', description: `${actionLead.name} marked as Booked` });
         closeAction();
       } else if (outcome.id === 'not_interested') {
         updates.status = 'Lost';
+        updates.follow_up_date = null;
+        updates.followUpDate = null;
         await updateLead(actionLead.id, updates);
         toast({ title: 'Marked Lost', description: `${actionLead.name} not interested` });
         closeAction();
@@ -349,7 +353,7 @@ const EmployeeCRMHome = () => {
       if (followUpDate) { updates.followUpDate = followUpDate; updates.follow_up_date = followUpDate; }
       if (callNote) updates.notes = `${actionLead.notes || ''}\n[${new Date().toLocaleString('en-IN')}] ${callNote}`.trim();
       await updateLead(actionLead.id, updates);
-      toast({ title: 'Follow-up Set', description: followUpDate ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
+      toast({ title: 'Follow-up Set', description: followUpDate && parseLocalDate(followUpDate) ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
       closeAction();
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -684,7 +688,7 @@ const EmployeeCRMHome = () => {
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-center">
                     <p className="text-xs text-blue-600 font-medium">Follow-up set for</p>
                     <p className="text-lg font-bold text-blue-800">
-                      {followUpDate ? format(parseLocalDate(followUpDate), 'EEE, MMM dd') : 'Today'}
+                      {followUpDate && parseLocalDate(followUpDate) ? format(parseLocalDate(followUpDate), 'EEE, MMM dd') : 'Today'}
                     </p>
                   </div>
                   <Textarea placeholder="Notes for next call..." value={callNote}

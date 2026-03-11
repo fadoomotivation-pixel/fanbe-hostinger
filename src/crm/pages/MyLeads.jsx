@@ -151,10 +151,13 @@ const MyLeads = () => {
       });
   }, [leads, calls, userId, sortBy]);
 
+  const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
+
   // ✅ Schedule counts — always computed live from latest leads state
   const scheduleCounts = useMemo(() => {
     let overdue = 0, todayCount = 0, tomorrowCount = 0;
     myLeads.forEach(l => {
+      if (TERMINAL_STATUSES.includes(l.status)) return;
       const fu = l.follow_up_date || l.followUpDate;
       if (!fu) return;
       try {
@@ -172,16 +175,19 @@ const MyLeads = () => {
     let arr = myLeads;
     if (tab === 'overdue') {
       arr = arr.filter(l => {
+        if (TERMINAL_STATUSES.includes(l.status)) return false;
         const fu = l.follow_up_date || l.followUpDate;
         try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d); } catch { return false; }
       });
     } else if (tab === 'today') {
       arr = arr.filter(l => {
+        if (TERMINAL_STATUSES.includes(l.status)) return false;
         const fu = l.follow_up_date || l.followUpDate;
         try { const d = parseLocalDate(fu); return d && isToday(d); } catch { return false; }
       });
     } else if (tab === 'tomorrow') {
       arr = arr.filter(l => {
+        if (TERMINAL_STATUSES.includes(l.status)) return false;
         const fu = l.follow_up_date || l.followUpDate;
         try { const d = parseLocalDate(fu); return d && isTomorrow(d); } catch { return false; }
       });
@@ -223,7 +229,14 @@ const MyLeads = () => {
       });
       const patch = { last_activity: new Date().toISOString() };
       if (newStatus)  patch.status         = newStatus;
-      if (followDate) { patch.follow_up_date = followDate; patch.followUpDate = followDate; }
+      const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(newStatus);
+      if (isTerminal) {
+        patch.follow_up_date = null;
+        patch.followUpDate = null;
+      } else if (followDate) {
+        patch.follow_up_date = followDate;
+        patch.followUpDate = followDate;
+      }
       await updateLead(quickLead.id, patch);
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
@@ -473,7 +486,7 @@ const MyLeads = () => {
                 <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                   {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
                   {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
-                  {fu && (
+                  {fu && parseLocalDate(fu) && (
                     <span className={`flex items-center gap-1 ${
                       overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
                     }`}>

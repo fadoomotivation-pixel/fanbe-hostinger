@@ -476,13 +476,14 @@ export const useCRMData = () => {
     finally { setBookingsLoading(false); }
   };
 
+  // ✅ FIX: addBookingLog now clears follow_up_date when marking Booked,
+  // and calls updateLead BEFORE fetchBookings to avoid Realtime race condition.
   const addBookingLog = async (log) => {
     try {
       const result = await addBooking(log);
       if (result.success) {
-        await fetchBookings();
         if (log.leadId) {
-          const leadUpdate = { status: 'Booked' };
+          const leadUpdate = { status: 'Booked', follow_up_date: null, followUpDate: null };
           if (log.tokenAmount    !== undefined) leadUpdate.tokenAmount    = log.tokenAmount;
           if (log.bookingAmount  !== undefined) leadUpdate.bookingAmount  = log.bookingAmount;
           if (log.partialPayment !== undefined) leadUpdate.partialPayment = log.partialPayment;
@@ -490,6 +491,7 @@ export const useCRMData = () => {
           if (log.paymentMode    !== undefined) leadUpdate.paymentMode    = log.paymentMode;
           await updateLead(log.leadId, leadUpdate);
         }
+        await fetchBookings();
         return result.data;
       }
       return null;

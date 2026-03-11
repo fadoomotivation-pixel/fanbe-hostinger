@@ -207,7 +207,8 @@ const LeadDetail = () => {
       });
       const patch = { last_activity: new Date().toISOString() };
       if (leadStatus) patch.status = leadStatus;
-      if (leadStatus === 'NotInterested') {
+      const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(leadStatus);
+      if (isTerminal) {
         patch.follow_up_date = null;
         patch.followUpDate = null;
         setFollowDate('');
@@ -372,7 +373,7 @@ const LeadDetail = () => {
           </button>
         </a>
 
-        {followUpRaw && (
+        {followUpRaw && parseLocalDate(followUpRaw) && (
           <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm mb-3 font-medium ${
             isOverdue ? 'bg-red-50 text-red-700' : isFollowToday ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
           }`}>

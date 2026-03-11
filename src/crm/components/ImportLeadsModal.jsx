@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -35,10 +34,9 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
       budget: ['budget', 'price', 'range', 'amount', 'investment', 'आपका_बजट_कितना_है?', 'client_budget'],
       email: ['email', 'e-mail', 'email_address', 'mail'],
       source: ['source', 'lead_source', 'platform'],
-      // Source clues for Facebook/Instagram/Google ads
       ad_clues: ['ad_name', 'campaign', 'adset_name', 'campaign_name', 'ad name', 'campaign name'],
       form_clues: ['form_id', 'form_name', 'form name'],
-      platform_clues: ['platform'] // fb, ig, google
+      platform_clues: ['platform']
   };
 
   const handleFileChange = (e) => {
@@ -58,34 +56,24 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
     reader.onload = (e) => {
       try {
         let rawData = e.target.result;
-        
-        // Check if it's a CSV/TSV file by extension
         const isCSV = file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.tsv');
         
         if (isCSV) {
-          // Handle CSV/TSV files (including Facebook Lead Ads format)
-          // Try to detect encoding and parse
           Papa.parse(rawData, {
             header: false,
             skipEmptyLines: true,
-            delimiter: '', // Auto-detect (handles tabs and commas)
-            encoding: 'UTF-16LE', // Support UTF-16
+            delimiter: '',
+            encoding: 'UTF-16LE',
             complete: (results) => {
               if (results.data && results.data.length >= 2) {
                 let headers = results.data[0];
                 let rows = results.data.slice(1);
-                
-                // Clean headers (remove BOM and extra spaces)
                 headers = headers.map(h => String(h).trim().replace(/^\uFEFF/, ''));
-                
-                // Filter out empty rows
                 rows = rows.filter(row => row.some(cell => cell && String(cell).trim()));
-                
                 if (rows.length === 0) {
                   toast({ title: "Error", description: "No valid data rows found in file.", variant: "destructive" });
                   return;
                 }
-                
                 processParsedData(headers, rows, 'File Import');
               } else {
                 toast({ title: "Error", description: "File is empty or missing data.", variant: "destructive" });
@@ -97,18 +85,15 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
             }
           });
         } else {
-          // Handle Excel files (.xlsx, .xls)
           const data = new Uint8Array(rawData);
           const wb = XLSX.read(data, { type: 'array' });
           const wsname = wb.SheetNames[0];
           const ws = wb.Sheets[wsname];
-          
           const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
           if (json.length < 2) {
               toast({ title: "Error", description: "File is empty or missing headers.", variant: "destructive" });
               return;
           }
-
           const headers = json[0].map(h => String(h).trim());
           const rows = json.slice(1);
           processParsedData(headers, rows, 'File Import');
@@ -118,10 +103,8 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
         toast({ title: "Error", description: "Failed to parse file. Please ensure it's a valid CSV or Excel file.", variant: "destructive" });
       }
     };
-    
-    // Read as text for CSV, arraybuffer for Excel
     if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.tsv')) {
-      reader.readAsText(file, 'UTF-16LE'); // Try UTF-16 first for Facebook files
+      reader.readAsText(file, 'UTF-16LE');
     } else {
       reader.readAsArrayBuffer(file);
     }
@@ -129,7 +112,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
 
   const handlePasteParse = () => {
       if (!pastedText.trim()) return;
-
       Papa.parse(pastedText, {
           header: false,
           skipEmptyLines: true,
@@ -137,14 +119,11 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
               if (results.data && results.data.length > 0) {
                   let headers = results.data[0];
                   let rows = results.data.slice(1);
-                  
                   const looksLikeHeader = headers.some(h => COLUMN_ALIASES.name.includes(String(h).toLowerCase()) || COLUMN_ALIASES.phone.includes(String(h).toLowerCase()));
-                  
                   if (!looksLikeHeader && results.data.length > 0) {
                       rows = results.data;
                       headers = ["Name", "Phone", "Budget", "Source"];
                   }
-
                   processParsedData(headers, rows, 'Manual Paste');
               }
           }
@@ -157,7 +136,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
   };
 
   const detectSource = (row, map, sourceDefault) => {
-      // 1. Check explicit source/platform column
       if (map.sourceIdx !== -1 && row[map.sourceIdx]) {
         const platform = String(row[map.sourceIdx]).toLowerCase().trim();
         if (platform === 'fb') return 'Facebook Ads';
@@ -165,34 +143,24 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
         if (platform === 'google') return 'Google Ads';
         return row[map.sourceIdx];
       }
-      
-      // 2. Check platform clues column
       if (map.platformClueIdx !== -1 && row[map.platformClueIdx]) {
         const platform = String(row[map.platformClueIdx]).toLowerCase().trim();
         if (platform === 'fb') return 'Facebook Ads';
         if (platform === 'ig') return 'Instagram Ads';
         if (platform === 'google') return 'Google Ads';
       }
-      
-      // 3. Check Ad clues
       if (map.adClueIdx !== -1 && row[map.adClueIdx]) {
            const val = String(row[map.adClueIdx]).toLowerCase();
-           if(val.includes('google')) return 'Google Ads';
-           if(val.includes('facebook') || val.includes('fb')) return 'Facebook Ads';
-           if(val.includes('instagram') || val.includes('ig')) return 'Instagram Ads';
-           // Default to Facebook Ads if ad_name exists
+           if (val.includes('google')) return 'Google Ads';
+           if (val.includes('facebook') || val.includes('fb')) return 'Facebook Ads';
+           if (val.includes('instagram') || val.includes('ig')) return 'Instagram Ads';
            return 'Facebook Ads';
       }
-
-      // 4. Check Form clues
       if (map.formClueIdx !== -1 && row[map.formClueIdx]) return 'Website Form';
-
-      // 5. Fallback
       return sourceDefault;
   };
 
   const processParsedData = (headers, rows, sourceDefault) => {
-        // Map Columns
         const map = {
             nameIdx: getColumnIndex(headers, 'name'),
             phoneIdx: getColumnIndex(headers, 'phone'),
@@ -204,10 +172,14 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
             platformClueIdx: headers.findIndex(h => COLUMN_ALIASES.platform_clues.includes(String(h).toLowerCase())),
         };
 
+        // ✅ FIX: Build a Set of all existing DB phones once (not per-row)
+        const existingPhones = new Set(leads.map(l => String(l.phone).replace(/[^0-9]/g, '')));
+        // ✅ FIX: Track phones seen within this batch to catch within-batch duplicates
+        const batchPhones = new Set();
+
         const processed = rows.map((row, idx) => {
             const detectedSource = detectSource(row, map, sourceDefault);
             
-            // Clean phone number (remove 'p:', '+', extra spaces)
             let phone = map.phoneIdx !== -1 ? String(row[map.phoneIdx]) : (row[1] || '');
             phone = phone.replace(/^p:/, '').replace(/\+/g, '').trim();
             
@@ -222,7 +194,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                 errors: []
             };
 
-            // Validation
             if (!lead.name || String(lead.name).trim() === '') {
                 lead.isValid = false;
                 lead.errors.push("Missing Name");
@@ -234,17 +205,20 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                 lead.errors.push("Invalid Phone (10+ digits)");
             } else {
                 lead.phone = cleanPhone;
-                // Duplicate Check in Current Batch is handled implicitly by user review, 
-                // Global Duplicate Check happens at import time or here? 
-                // Let's do a soft check here against existing DB
-                if (leads.some(l => l.phone === cleanPhone)) {
+                // ✅ FIX: Check both DB phones AND within-batch phones
+                if (existingPhones.has(cleanPhone)) {
                     lead.isValid = false;
                     lead.errors.push("Duplicate Phone");
+                } else if (batchPhones.has(cleanPhone)) {
+                    lead.isValid = false;
+                    lead.errors.push("Duplicate in Batch");
+                } else {
+                    batchPhones.add(cleanPhone);
                 }
             }
 
             if (lead.budget && isNaN(String(lead.budget).replace(/[^0-9.]/g, ''))) {
-                lead.errors.push("Check Budget Format"); // Warning
+                lead.errors.push("Check Budget Format");
             }
 
             return lead;
@@ -261,8 +235,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
 
     let assignedTo = null;
     let assignedToName = null;
-    
-    // FIX: Properly handle the "unassigned" selection
     if (selectedEmployeeId && selectedEmployeeId !== 'unassigned' && selectedEmployeeId.trim() !== '') {
         const emp = employees.find(e => e.id === selectedEmployeeId);
         if (emp) {
@@ -271,17 +243,22 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
         }
     }
 
+    // ✅ FIX: Build a live phone set at import time — not relying on stale React state
+    // This prevents race conditions where leads array hasn't updated between batches
+    const importedPhones = new Set(leads.map(l => String(l.phone).replace(/[^0-9]/g, '')));
+
     const batchSize = 10;
     for (let i = 0; i < validLeads.length; i += batchSize) {
          const batch = validLeads.slice(i, i + batchSize);
          await new Promise(r => setTimeout(r, 100));
 
          batch.forEach(item => {
-             // Double check duplicates (race condition protection)
-             const isDuplicate = leads.some(l => l.phone === item.phone);
-             if (isDuplicate) {
+             // ✅ FIX: Check against our live Set, not stale leads array
+             if (importedPhones.has(item.phone)) {
                  setImportStats(prev => ({ ...prev, failed: prev.failed + 1, current: prev.current + 1 }));
              } else {
+                 // Mark as imported immediately so next batch won't re-insert same phone
+                 importedPhones.add(item.phone);
                  addLead({
                      name: item.name,
                      phone: item.phone,
@@ -292,7 +269,7 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                      assignedToName: assignedToName,
                      assignmentDate: assignedTo ? new Date().toISOString() : null,
                      notes: [],
-                     status: 'Open' // Default
+                     status: 'Open'
                  });
                  setImportStats(prev => ({ ...prev, success: prev.success + 1, current: prev.current + 1 }));
              }
@@ -339,7 +316,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                             <TabsTrigger value="paste">Copy & Paste</TabsTrigger>
                         </TabsList>
                     </div>
-                    
                     <div className="flex-1 p-6 overflow-y-auto">
                         <TabsContent value="file" className="mt-0 h-full flex flex-col gap-4">
                             <div 
@@ -392,7 +368,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                              </Button>
                         </div>
                     </div>
-
                     <div className="flex-1 overflow-hidden p-0 bg-white">
                          <div className="overflow-auto h-full">
                             <table className="w-full text-sm text-left">

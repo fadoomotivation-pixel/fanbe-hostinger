@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -43,11 +43,14 @@ const MobileLeadList = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('mobileLeads_activeTab') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [temperatureFilter, setTemperatureFilter] = useState('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [selectedLeadForCallLog, setSelectedLeadForCallLog] = useState(null);
+
+  // Persist active tab to sessionStorage
+  useEffect(() => { sessionStorage.setItem('mobileLeads_activeTab', activeTab); }, [activeTab]);
 
   const myLeads = useMemo(() => {
     let result = leads.filter(l => l.assignedTo === user.id || l.assigned_to === user.id);

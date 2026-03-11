@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
+import SmartDateInput from '@/crm/components/SmartDateInput';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -243,10 +244,9 @@ const EditLead = () => {
                 {!['NotInterested', 'Lost', 'Booked'].includes(formData.status) && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Next Follow-up Date</label>
-                    <Input 
-                      type="date"
+                    <SmartDateInput
                       value={formData.followUpDate}
-                      onChange={(e) => setFormData({...formData, followUpDate: e.target.value})}
+                      onChange={(v) => setFormData({...formData, followUpDate: v})}
                     />
                   </div>
                 )}

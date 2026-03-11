@@ -8,8 +8,9 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { format, isToday, isPast, formatDistanceToNow } from 'date-fns';
+import SmartDateInput from '@/crm/components/SmartDateInput';
 
-// ✅ Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
+// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -665,8 +666,9 @@ const LeadDetail = () => {
                       );
                     })}
                   </div>
-                  <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
-                    className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
+                  <div className="mb-5">
+                    <SmartDateInput value={followDate} onChange={setFollowDate} min={today} />
+                  </div>
                 </>
               )}
 

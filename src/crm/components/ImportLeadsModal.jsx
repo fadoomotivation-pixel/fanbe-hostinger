@@ -27,7 +27,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
   const [importStats, setImportStats] = useState({ total: 0, current: 0, success: 0, failed: 0 });
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
 
-  // Improved Smart Source Detection Maps
   const COLUMN_ALIASES = {
       name: ['name', 'first_name', 'full_name', 'lead_name', 'client_name', 'customer_name', 'firstname', 'fullname', 'full name'],
       phone: ['phone', 'mobile', 'contact', 'cell', 'phone_number', 'phonenumber', 'contact_number', 'mobile_number', 'whatsapp', 'phone number'],
@@ -57,7 +56,6 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
       try {
         let rawData = e.target.result;
         const isCSV = file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.tsv');
-        
         if (isCSV) {
           Papa.parse(rawData, {
             header: false,
@@ -172,14 +170,16 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
             platformClueIdx: headers.findIndex(h => COLUMN_ALIASES.platform_clues.includes(String(h).toLowerCase())),
         };
 
-        // ✅ FIX: Build a Set of all existing DB phones once (not per-row)
-        const existingPhones = new Set(leads.map(l => String(l.phone).replace(/[^0-9]/g, '')));
-        // ✅ FIX: Track phones seen within this batch to catch within-batch duplicates
+        // Build phone -> lead map for rich duplicate info
+        const existingPhoneMap = {};
+        leads.forEach(l => {
+            const p = String(l.phone).replace(/[^0-9]/g, '');
+            if (p) existingPhoneMap[p] = l;
+        });
         const batchPhones = new Set();
 
         const processed = rows.map((row, idx) => {
             const detectedSource = detectSource(row, map, sourceDefault);
-            
             let phone = map.phoneIdx !== -1 ? String(row[map.phoneIdx]) : (row[1] || '');
             phone = phone.replace(/^p:/, '').replace(/\+/g, '').trim();
             
@@ -191,24 +191,32 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                 email: map.emailIdx !== -1 ? row[map.emailIdx] : '',
                 source: detectedSource,
                 isValid: true,
-                errors: []
+                errors: [],
+                duplicateInfo: null  // will hold existing lead details if duplicate
             };
 
             if (!lead.name || String(lead.name).trim() === '') {
                 lead.isValid = false;
                 lead.errors.push("Missing Name");
             }
-            
+
             const cleanPhone = String(lead.phone).replace(/[^0-9]/g, '');
             if (cleanPhone.length < 10) {
                 lead.isValid = false;
                 lead.errors.push("Invalid Phone (10+ digits)");
             } else {
                 lead.phone = cleanPhone;
-                // ✅ FIX: Check both DB phones AND within-batch phones
-                if (existingPhones.has(cleanPhone)) {
+                if (existingPhoneMap[cleanPhone]) {
+                    // Duplicate in DB — attach full existing lead info
+                    const existing = existingPhoneMap[cleanPhone];
                     lead.isValid = false;
                     lead.errors.push("Duplicate Phone");
+                    lead.duplicateInfo = {
+                        assignedTo: existing.assignedToName || 'Unassigned',
+                        status: existing.status || 'Unknown',
+                        leadName: existing.name || '',
+                        source: existing.source || '',
+                    };
                 } else if (batchPhones.has(cleanPhone)) {
                     lead.isValid = false;
                     lead.errors.push("Duplicate in Batch");
@@ -243,21 +251,16 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
         }
     }
 
-    // ✅ FIX: Build a live phone set at import time — not relying on stale React state
-    // This prevents race conditions where leads array hasn't updated between batches
     const importedPhones = new Set(leads.map(l => String(l.phone).replace(/[^0-9]/g, '')));
 
     const batchSize = 10;
     for (let i = 0; i < validLeads.length; i += batchSize) {
          const batch = validLeads.slice(i, i + batchSize);
          await new Promise(r => setTimeout(r, 100));
-
          batch.forEach(item => {
-             // ✅ FIX: Check against our live Set, not stale leads array
              if (importedPhones.has(item.phone)) {
                  setImportStats(prev => ({ ...prev, failed: prev.failed + 1, current: prev.current + 1 }));
              } else {
-                 // Mark as imported immediately so next batch won't re-insert same phone
                  importedPhones.add(item.phone);
                  addLead({
                      name: item.name,
@@ -281,8 +284,11 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
   const handleDownloadSkipped = () => {
       const skipped = data.filter(d => !d.isValid);
       const csvContent = "data:text/csv;charset=utf-8," 
-          + "Name,Phone,Budget,Error\n"
-          + skipped.map(r => `${r.name},${r.phone},${r.budget},"${r.errors.join('; ')}"`).join("\n");
+          + "Name,Phone,Budget,Error,Existing Assigned To,Existing Status\n"
+          + skipped.map(r => {
+              const info = r.duplicateInfo;
+              return `${r.name},${r.phone},${r.budget},"${r.errors.join('; ')}","${info ? info.assignedTo : ''}","${info ? info.status : ''}"`;
+          }).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
@@ -298,6 +304,17 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
       setStep(1);
       setSelectedEmployeeId('');
       setImportStats({ total: 0, current: 0, success: 0, failed: 0 });
+  };
+
+  // Status badge color helper
+  const statusColor = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'open': return 'bg-blue-100 text-blue-700';
+      case 'won': return 'bg-green-100 text-green-700';
+      case 'lost': return 'bg-red-100 text-red-700';
+      case 'follow up': return 'bg-yellow-100 text-yellow-700';
+      default: return 'bg-gray-100 text-gray-600';
+    }
   };
 
   return (
@@ -383,11 +400,38 @@ const ImportLeadsModal = ({ isOpen, onClose, employees = [] }) => {
                                 <tbody className="divide-y">
                                     {data.map((row, i) => (
                                         <tr key={i} className={`hover:bg-gray-50 ${!row.isValid ? 'bg-red-50' : ''}`}>
-                                            <td className="p-3 text-center">{row.isValid ? <CheckCircle size={16} className="text-green-500" /> : <XCircle size={16} className="text-red-500" />}</td>
+                                            <td className="p-3 text-center">
+                                                {row.isValid
+                                                    ? <CheckCircle size={16} className="text-green-500" />
+                                                    : <XCircle size={16} className="text-red-500" />}
+                                            </td>
                                             <td className="p-3 font-medium">{row.name}</td>
                                             <td className="p-3 font-mono">{row.phone}</td>
                                             <td className="p-3"><Badge variant="outline">{row.source}</Badge></td>
-                                            <td className="p-3 text-xs text-gray-500">{row.isValid ? 'Ready' : <span className="text-red-600 font-medium">{row.errors.join(', ')}</span>}</td>
+                                            <td className="p-3 text-xs">
+                                                {row.isValid ? (
+                                                    <span className="text-gray-500">Ready</span>
+                                                ) : row.duplicateInfo ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-red-600 font-semibold">Duplicate Phone</span>
+                                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                                            <span className="inline-flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 rounded px-1.5 py-0.5 text-[11px] font-medium">
+                                                                👤 {row.duplicateInfo.assignedTo}
+                                                            </span>
+                                                            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium ${statusColor(row.duplicateInfo.status)}`}>
+                                                                {row.duplicateInfo.status}
+                                                            </span>
+                                                            {row.duplicateInfo.source && (
+                                                                <span className="inline-flex items-center bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 text-[11px]">
+                                                                    {row.duplicateInfo.source}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-red-600 font-medium">{row.errors.join(', ')}</span>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

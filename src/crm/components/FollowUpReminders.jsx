@@ -29,8 +29,9 @@ const FollowUpReminders = () => {
     const myLeads = leads.filter(l =>
       (l.assignedTo === userId || l.assigned_to === userId) &&
       (l.followUpDate || l.follow_up_date) &&
-      l.status !== 'Booked' && 
-      l.status !== 'Lost'
+      l.status !== 'Booked' &&
+      l.status !== 'Lost' &&
+      l.status !== 'NotInterested'
     );
 
     // Normalize follow-up date field and sort by earliest first
@@ -45,14 +46,13 @@ const FollowUpReminders = () => {
     });
 
     // Group by priority
-    const overdueLeads = sortedLeads.filter(l => isPast(parseLocalDate(l.followUpDate)) && !isToday(parseLocalDate(l.followUpDate)));
-    const todayLeads = sortedLeads.filter(l => isToday(parseLocalDate(l.followUpDate)));
-    const tomorrowLeads = sortedLeads.filter(l => isTomorrow(parseLocalDate(l.followUpDate)));
-    const upcomingLeads = sortedLeads.filter(l => 
-      !isPast(parseLocalDate(l.followUpDate)) && 
-      !isToday(parseLocalDate(l.followUpDate)) && 
-      !isTomorrow(parseLocalDate(l.followUpDate))
-    ).slice(0, 5);
+    const overdueLeads = sortedLeads.filter(l => { const d = parseLocalDate(l.followUpDate); return d && isPast(d) && !isToday(d); });
+    const todayLeads = sortedLeads.filter(l => { const d = parseLocalDate(l.followUpDate); return d && isToday(d); });
+    const tomorrowLeads = sortedLeads.filter(l => { const d = parseLocalDate(l.followUpDate); return d && isTomorrow(d); });
+    const upcomingLeads = sortedLeads.filter(l => {
+      const d = parseLocalDate(l.followUpDate);
+      return d && !isPast(d) && !isToday(d) && !isTomorrow(d);
+    }).slice(0, 5);
 
     setReminders({
       overdue: overdueLeads,
@@ -127,7 +127,7 @@ const FollowUpReminders = () => {
         <p className="text-xs text-gray-600">{lead.project || 'General'}</p>
         <p className="text-xs text-gray-500 mt-1">
           <Calendar className="inline h-3 w-3 mr-1" />
-          {format(parseLocalDate(lead.followUpDate), 'MMM dd, yyyy')}
+          {parseLocalDate(lead.followUpDate) ? format(parseLocalDate(lead.followUpDate), 'MMM dd, yyyy') : lead.followUpDate}
         </p>
       </div>
       <div className="flex gap-2">

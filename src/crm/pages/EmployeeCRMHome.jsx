@@ -15,10 +15,10 @@ import {
   Phone, PhoneOff, PhoneMissed, PhoneIncoming, Clock, Calendar,
   AlertCircle, Search, ChevronRight, MessageCircle, X, Check,
   MapPin, Flame, Wind, Snowflake, Loader2, RefreshCw, TrendingUp,
-  Target, Zap, Copy, CheckCircle
+  Target, Zap, Copy, CheckCircle, UserCheck
 } from 'lucide-react';
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
-import { differenceInHours, differenceInDays, format, formatDistanceToNow } from 'date-fns';
+import { differenceInHours, differenceInDays, differenceInMinutes, format, formatDistanceToNow } from 'date-fns';
 
 // Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
@@ -27,6 +27,32 @@ const parseLocalDate = (dateStr) => {
   const [y, m, day] = d.split('-').map(Number);
   if (!y || !m || !day) return null;
   return new Date(y, m - 1, day);
+};
+
+// ─── Format assignment time ─────────────────────────
+// Returns a compact, human-readable assignment time string
+const formatAssignedTime = (ts) => {
+  if (!ts) return null;
+  try {
+    const d = new Date(ts);
+    const now = new Date();
+    const mins = differenceInMinutes(now, d);
+    const hrs = differenceInHours(now, d);
+    const days = differenceInDays(now, d);
+
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
+    if (days === 1) return `Yesterday ${format(d, 'h:mm a')}`;
+    if (days < 7) return `${days}d ago · ${format(d, 'h:mm a')}`;
+    return format(d, 'dd MMM · h:mm a');
+  } catch { return null; }
+};
+
+// Returns full date-time string for tooltip
+const fullAssignedTime = (ts) => {
+  if (!ts) return '';
+  try { return format(new Date(ts), "dd MMM yyyy 'at' h:mm a"); } catch { return ''; }
 };
 
 // ─── TAB IDs ───────────────────────────────────────────
@@ -88,24 +114,20 @@ const EmployeeCRMHome = () => {
   const [followUpDate, setFollowUpDate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Persist active tab to sessionStorage
   useEffect(() => { sessionStorage.setItem('crmHome_activeTab', activeTab); }, [activeTab]);
 
   const userId = user?.uid || user?.id;
 
-  // ── My leads ────────────────────────────────────────
   const myLeads = useMemo(() =>
     leads.filter(l => l.assignedTo === userId || l.assigned_to === userId),
     [leads, userId]
   );
 
-  // ── My calls ────────────────────────────────────────
   const myCalls = useMemo(() =>
     calls?.filter(c => c.employeeId === userId || c.employee_id === userId) || [],
     [calls, userId]
   );
 
-  // ── Today's stats ──────────────────────────────────
   const today = new Date().toISOString().split('T')[0];
   const todayStats = useMemo(() => {
     const todayCalls = myCalls.filter(c => c.timestamp?.startsWith(today));
@@ -118,7 +140,6 @@ const EmployeeCRMHome = () => {
     };
   }, [myCalls, siteVisits, bookings, today, userId, myLeads.length]);
 
-  // ── Analyze leads with call history ─────────────────
   const analyzedLeads = useMemo(() => {
     const now = new Date();
     return myLeads.map(lead => {
@@ -156,6 +177,9 @@ const EmployeeCRMHome = () => {
       const callScore = callStatus === 'never_called' ? 100 : callStatus === 'needs_retry' ? 80 : callStatus === 'recently_unanswered' ? 40 : 10;
       const fuScore = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
 
+      // Resolve assignment timestamp from multiple possible field names
+      const assignedAt = lead.assignmentDate || lead.assignment_date || lead.assignedAt || lead.assigned_at || null;
+
       return {
         ...lead,
         _callStatus: callStatus,
@@ -167,11 +191,11 @@ const EmployeeCRMHome = () => {
         _interest: interest,
         _normalizedStatus: status,
         _score: callScore + fuScore + tempScore,
+        _assignedAt: assignedAt,
       };
     });
   }, [myLeads, myCalls]);
 
-  // ── TAB: "Call Now" — prioritized calling list ───────
   const callNowLeads = useMemo(() =>
     analyzedLeads
       .filter(l => l._normalizedStatus !== LEAD_STATUS.BOOKED && l._normalizedStatus !== LEAD_STATUS.LOST)
@@ -179,7 +203,6 @@ const EmployeeCRMHome = () => {
     [analyzedLeads]
   );
 
-  // ── TAB: "Follow Up" — grouped ─────────────────────
   const followUpLeads = useMemo(() => {
     const grouped = { overdue: [], today: [], tomorrow: [], thisWeek: [], noDate: [] };
     analyzedLeads.forEach(l => {
@@ -201,7 +224,6 @@ const EmployeeCRMHome = () => {
     total: followUpLeads.overdue.length + followUpLeads.today.length + followUpLeads.tomorrow.length + followUpLeads.thisWeek.length,
   }), [followUpLeads]);
 
-  // ── TAB: "All Leads" — filtered search ──────────────
   const allLeadsFiltered = useMemo(() => {
     let filtered = analyzedLeads;
     if (statusFilter !== 'all') filtered = filtered.filter(l => l._normalizedStatus === statusFilter);
@@ -214,14 +236,12 @@ const EmployeeCRMHome = () => {
     return filtered.sort((a, b) => b._score - a._score);
   }, [analyzedLeads, statusFilter, searchTerm]);
 
-  // ── Status counts ──────────────────────────────────
   const statusCounts = useMemo(() => {
     const c = { Open: 0, FollowUp: 0, Booked: 0, Lost: 0, total: myLeads.length };
     analyzedLeads.forEach(l => { if (c[l._normalizedStatus] !== undefined) c[l._normalizedStatus]++; });
     return c;
   }, [analyzedLeads, myLeads.length]);
 
-  // ── Recent activity (last 5 calls) ─────────────────
   const recentActivity = useMemo(() =>
     myCalls.slice(0, 5).map(c => ({
       type: 'call',
@@ -232,7 +252,6 @@ const EmployeeCRMHome = () => {
     [myCalls]
   );
 
-  // ── Refresh ─────────────────────────────────────────
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchLeads();
@@ -240,7 +259,6 @@ const EmployeeCRMHome = () => {
     toast({ title: 'Refreshed', description: 'Lead data updated' });
   }, [fetchLeads, toast]);
 
-  // ── Copy phone ──────────────────────────────────────
   const copyPhone = useCallback((phone, leadId) => {
     navigator.clipboard?.writeText(phone).then(() => {
       setCopiedId(leadId);
@@ -248,7 +266,6 @@ const EmployeeCRMHome = () => {
     });
   }, []);
 
-  // ── ACTION: Open quick action for a lead ────────────
   const openAction = useCallback((lead) => {
     setActionLead(lead);
     setActionStep('call_status');
@@ -263,7 +280,6 @@ const EmployeeCRMHome = () => {
     setFollowUpDate('');
   }, []);
 
-  // ── ACTION: Log call with 1 tap ────────────────────
   const handleQuickCallStatus = useCallback(async (statusObj) => {
     if (!actionLead || saving) return;
     setSaving(true);
@@ -279,20 +295,14 @@ const EmployeeCRMHome = () => {
         duration: 0,
         notes: callNote || `Quick log: ${statusObj.label}`,
       });
-      if (statusObj.id === 'connected') {
-        setActionStep('outcome');
-      } else {
-        setActionStep('follow_up_quick');
-      }
+      if (statusObj.id === 'connected') setActionStep('outcome');
+      else setActionStep('follow_up_quick');
       toast({ title: statusObj.label, description: `Call logged for ${actionLead.name}` });
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }, [actionLead, saving, addCallLog, userId, user?.name, callNote, toast]);
 
-  // ── ACTION: Handle outcome after connected call ─────
   const handleOutcome = useCallback(async (outcome) => {
     if (!actionLead || saving) return;
     setSaving(true);
@@ -304,8 +314,7 @@ const EmployeeCRMHome = () => {
         setSaving(false);
         return;
       } else if (outcome.id === 'site_visit') {
-        updates.status = 'FollowUp';
-        updates.siteVisitStatus = 'planned';
+        updates.status = 'FollowUp'; updates.siteVisitStatus = 'planned';
         await updateLead(actionLead.id, updates);
         toast({ title: 'Site Visit Planned', description: `Marked for ${actionLead.name}` });
         closeAction();
@@ -322,12 +331,9 @@ const EmployeeCRMHome = () => {
       }
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }, [actionLead, saving, updateLead, toast, closeAction]);
 
-  // ── ACTION: Save follow-up date ─────────────────────
   const handleSaveFollowUp = useCallback(async () => {
     if (!actionLead || saving) return;
     setSaving(true);
@@ -340,9 +346,7 @@ const EmployeeCRMHome = () => {
       closeAction();
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }, [actionLead, saving, followUpDate, callNote, updateLead, toast, closeAction]);
 
   const setQuickDate = (days) => {
@@ -351,11 +355,9 @@ const EmployeeCRMHome = () => {
     setFollowUpDate(d.toISOString().split('T')[0]);
   };
 
-  // ── Greeting ──────────────────────────────────────
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  // ── LOADING ─────────────────────────────────────────
   if (leadsLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] gap-3">
@@ -370,7 +372,6 @@ const EmployeeCRMHome = () => {
 
       {/* ─── HEADER ─────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white border-b shadow-sm">
-        {/* Greeting + stats row */}
         <div className="px-4 pt-3 pb-2">
           <div className="flex items-center justify-between">
             <div>
@@ -383,8 +384,6 @@ const EmployeeCRMHome = () => {
               <RefreshCw size={16} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
-
-          {/* Gold motivational strip */}
           {(followUpCounts.overdue + followUpCounts.today > 0) && (
             <div className="mt-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-xl px-3 py-2">
               <p className="text-xs font-semibold text-[#0F3A5F]">
@@ -395,7 +394,6 @@ const EmployeeCRMHome = () => {
           )}
         </div>
 
-        {/* Priority strip — horizontal scroll */}
         <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
           {[
             { label: 'Overdue', count: followUpCounts.overdue, color: 'bg-red-50 border-red-200 text-red-700', icon: AlertCircle, dot: 'bg-red-500' },
@@ -411,7 +409,6 @@ const EmployeeCRMHome = () => {
           ))}
         </div>
 
-        {/* Quick stats row */}
         <div className="grid grid-cols-4 border-t border-gray-100">
           {[
             { label: 'Leads', value: todayStats.totalLeads, color: 'text-[#0F3A5F]' },
@@ -426,7 +423,6 @@ const EmployeeCRMHome = () => {
           ))}
         </div>
 
-        {/* Tab bar */}
         <div className="flex border-t border-gray-100">
           {[
             { id: TABS.CALL_NOW, label: 'Call Now', count: callNowLeads.length },
@@ -459,7 +455,6 @@ const EmployeeCRMHome = () => {
       {/* ─── TAB CONTENT ───────────────────────────── */}
       <div className="px-3 pt-3">
 
-        {/* ═══ TAB: CALL NOW ═══════════════════════════ */}
         {activeTab === TABS.CALL_NOW && (
           <div className="space-y-2">
             {callNowLeads.filter(l => l._callStatus === 'never_called').length > 0 && (
@@ -478,7 +473,6 @@ const EmployeeCRMHome = () => {
           </div>
         )}
 
-        {/* ═══ TAB: FOLLOW UP ═════════════════════════ */}
         {activeTab === TABS.FOLLOW_UP && (
           <div className="space-y-4">
             {followUpCounts.overdue > 0 && (
@@ -512,7 +506,6 @@ const EmployeeCRMHome = () => {
           </div>
         )}
 
-        {/* ═══ TAB: ALL LEADS ═════════════════════════ */}
         {activeTab === TABS.ALL_LEADS && (
           <div className="space-y-3">
             <div className="relative">
@@ -551,7 +544,6 @@ const EmployeeCRMHome = () => {
           </div>
         )}
 
-        {/* ── Recent Activity ──────────────────────── */}
         {activeTab === TABS.CALL_NOW && recentActivity.length > 0 && (
           <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Recent Activity</p>
@@ -574,7 +566,7 @@ const EmployeeCRMHome = () => {
         )}
       </div>
 
-      {/* ─── ACTION MODAL (Bottom Sheet Style) ─────── */}
+      {/* ─── ACTION MODAL ─────────────────────────── */}
       <Dialog open={!!actionLead} onOpenChange={() => closeAction()}>
         <DialogContent className="max-w-md mx-auto sm:max-w-sm !rounded-t-2xl !rounded-b-none sm:!rounded-2xl fixed bottom-0 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 left-0 right-0 sm:left-1/2 sm:-translate-x-1/2 p-0 border-0 shadow-2xl max-h-[85vh] overflow-hidden">
           <div className="flex justify-center pt-2 pb-1 sm:hidden">
@@ -586,6 +578,13 @@ const EmployeeCRMHome = () => {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-base text-[#0F3A5F] truncate">{actionLead.name}</h3>
                   <p className="text-xs text-gray-500">{actionLead.project} &middot; {formatPhone(actionLead.phone)}</p>
+                  {/* Assignment time in modal */}
+                  {actionLead._assignedAt && (
+                    <p className="text-[11px] text-[#D4AF37] font-medium mt-0.5 flex items-center gap-1">
+                      <UserCheck size={11} />
+                      Assigned {formatAssignedTime(actionLead._assignedAt)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 ml-2">
                   <a href={`tel:${actionLead.phone}`}
@@ -700,6 +699,9 @@ const EmployeeCRMHome = () => {
 
 // ─── LEAD CARD COMPONENT ─────────────────────────────
 const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, onCopy, copiedId }) => {
+  const assignedTime = formatAssignedTime(lead._assignedAt);
+  const assignedFull = fullAssignedTime(lead._assignedAt);
+
   const getCallBadge = () => {
     switch (lead._callStatus) {
       case 'never_called': return <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>;
@@ -750,6 +752,13 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
               </span>
             )}
           </div>
+          {/* ── ASSIGNMENT TIME — clearly visible below badges ── */}
+          {assignedTime && (
+            <div className="flex items-center gap-1 mt-1" title={assignedFull}>
+              <UserCheck size={10} className="text-[#D4AF37] shrink-0" />
+              <span className="text-[10px] text-[#8B6914] font-medium">{assignedTime}</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-1.5 shrink-0">
           <button onClick={e => { e.stopPropagation(); onCopy?.(lead.phone, lead.id); }}
@@ -781,34 +790,45 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
       <span className="text-[10px] bg-white/80 px-1.5 py-0.5 rounded-full font-bold text-gray-600">{leads.length}</span>
     </div>
     <div className="bg-white/60 divide-y divide-gray-100">
-      {leads.map(lead => (
-        <div key={lead.id} className="flex items-center gap-2 px-3 py-2.5">
-          <div className="flex-1 min-w-0" onClick={() => onNavigate(lead.id)}>
-            <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              {lead.project && <span className="text-[10px] text-gray-400">{lead.project}</span>}
-              {lead._daysUntilFollowUp !== null && (
-                <span className={`text-[9px] font-bold ${
-                  lead._daysUntilFollowUp < 0 ? 'text-red-600' : lead._daysUntilFollowUp === 0 ? 'text-amber-600' : 'text-blue-600'
-                }`}>
-                  {lead._daysUntilFollowUp < 0 ? `${Math.abs(lead._daysUntilFollowUp)}d overdue`
-                    : lead._daysUntilFollowUp === 0 ? 'Today' : lead._daysUntilFollowUp === 1 ? 'Tomorrow' : `In ${lead._daysUntilFollowUp}d`}
-                </span>
+      {leads.map(lead => {
+        const assignedTime = formatAssignedTime(lead._assignedAt);
+        const assignedFull = fullAssignedTime(lead._assignedAt);
+        return (
+          <div key={lead.id} className="flex items-center gap-2 px-3 py-2.5">
+            <div className="flex-1 min-w-0" onClick={() => onNavigate(lead.id)}>
+              <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                {lead.project && <span className="text-[10px] text-gray-400">{lead.project}</span>}
+                {lead._daysUntilFollowUp !== null && (
+                  <span className={`text-[9px] font-bold ${
+                    lead._daysUntilFollowUp < 0 ? 'text-red-600' : lead._daysUntilFollowUp === 0 ? 'text-amber-600' : 'text-blue-600'
+                  }`}>
+                    {lead._daysUntilFollowUp < 0 ? `${Math.abs(lead._daysUntilFollowUp)}d overdue`
+                      : lead._daysUntilFollowUp === 0 ? 'Today' : lead._daysUntilFollowUp === 1 ? 'Tomorrow' : `In ${lead._daysUntilFollowUp}d`}
+                  </span>
+                )}
+              </div>
+              {/* Assignment time in follow-up section */}
+              {assignedTime && (
+                <div className="flex items-center gap-1 mt-0.5" title={assignedFull}>
+                  <UserCheck size={10} className="text-[#D4AF37] shrink-0" />
+                  <span className="text-[10px] text-[#8B6914] font-medium">{assignedTime}</span>
+                </div>
               )}
             </div>
+            <div className="flex gap-1.5 shrink-0">
+              <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center active:scale-95">
+                <Phone size={14} className="text-emerald-600" />
+              </a>
+              <button onClick={() => onAction(lead)}
+                className="w-8 h-8 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center active:scale-95">
+                <ChevronRight size={14} className="text-[#D4AF37]" />
+              </button>
+            </div>
           </div>
-          <div className="flex gap-1.5 shrink-0">
-            <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
-              className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center active:scale-95">
-              <Phone size={14} className="text-emerald-600" />
-            </a>
-            <button onClick={() => onAction(lead)}
-              className="w-8 h-8 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center active:scale-95">
-              <ChevronRight size={14} className="text-[#D4AF37]" />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   </div>
 ));

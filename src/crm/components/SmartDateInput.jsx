@@ -2,7 +2,7 @@
 // Date input that accepts typed/pasted dates in DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD
 // and converts them to YYYY-MM-DD for the native <input type="date">.
 // Shows a green tick or red warning next to the field as validation feedback.
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
 /**
@@ -65,6 +65,20 @@ const SmartDateInput = ({
   const [textValue, setTextValue] = useState('');
   const [validation, setValidation] = useState(null); // 'valid' | 'invalid' | null
   const clearTimer = useRef(null);
+  const didAutoFill = useRef(false);
+
+  // Auto-fill today's date on initial mount when value is empty
+  useEffect(() => {
+    if (!didAutoFill.current && !value) {
+      didAutoFill.current = true;
+      const now = new Date();
+      const todayStr = pad(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      onChange(todayStr);
+      setValidation('valid');
+      clearTimeout(clearTimer.current);
+      clearTimer.current = setTimeout(() => setValidation(null), 3000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showValidation = useCallback((status) => {
     setValidation(status);

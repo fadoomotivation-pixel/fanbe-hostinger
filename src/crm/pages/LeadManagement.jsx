@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +35,7 @@ const LeadManagement = () => {
   const { leads, addLead, updateLead, deleteLead, employees, getUniqueSources } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('unassigned');
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('leadMgmt_activeTab') || 'unassigned');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
@@ -51,6 +51,9 @@ const LeadManagement = () => {
     name: '', phone: '', email: '', project: '',
     source: 'Website', budget: '', status: 'Open', notes: ''
   });
+
+  // Persist active tab to sessionStorage
+  useEffect(() => { sessionStorage.setItem('leadMgmt_activeTab', activeTab); }, [activeTab]);
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 

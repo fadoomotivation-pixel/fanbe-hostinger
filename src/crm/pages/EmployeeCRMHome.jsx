@@ -1,7 +1,7 @@
 // src/crm/pages/EmployeeCRMHome.jsx
 // Employee daily command center — mobile-first, 1-thumb operation
 // Design: Deep navy #0F3A5F, Gold #D4AF37 accent, emerald success
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import SmartDateInput from '@/crm/components/SmartDateInput';
 import {
   Phone, PhoneOff, PhoneMissed, PhoneIncoming, Clock, Calendar,
   AlertCircle, Search, ChevronRight, MessageCircle, X, Check,
@@ -74,7 +75,7 @@ const EmployeeCRMHome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState(TABS.CALL_NOW);
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('crmHome_activeTab') || TABS.CALL_NOW);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -86,6 +87,9 @@ const EmployeeCRMHome = () => {
   const [callNote, setCallNote] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Persist active tab to sessionStorage
+  useEffect(() => { sessionStorage.setItem('crmHome_activeTab', activeTab); }, [activeTab]);
 
   const userId = user?.uid || user?.id;
 
@@ -661,9 +665,10 @@ const EmployeeCRMHome = () => {
                     ))}
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400">Or pick a date:</label>
-                    <Input type="date" value={followUpDate} min={today} className="h-9 text-sm rounded-xl"
-                      onChange={e => { setFollowUpDate(e.target.value); setActionStep('follow_up_confirm'); }} />
+                    <label className="text-[10px] text-gray-400">Or pick / type a date:</label>
+                    <SmartDateInput value={followUpDate} min={today}
+                      className="h-9 text-sm rounded-xl border border-gray-200 px-3 focus:outline-none focus:border-[#0F3A5F]"
+                      onChange={(v) => { setFollowUpDate(v); if (v) setActionStep('follow_up_confirm'); }} />
                   </div>
                 </div>
               )}

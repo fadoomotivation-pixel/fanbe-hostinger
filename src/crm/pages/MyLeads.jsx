@@ -3,13 +3,14 @@
 // ✅ Schedule Banner: Overdue / Today / Tomorrow tappable summary cards
 // ✅ Tomorrow tab added so employees plan ahead
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useMobile } from '@/lib/useMobile';
 import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
+import SmartDateInput from '@/crm/components/SmartDateInput';
 import { format, isToday, isTomorrow, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 
 // ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
@@ -105,7 +106,7 @@ const MyLeads = () => {
   const { toast } = useToast();
   const isMobile  = useMobile();
 
-  const [tab, setTab]               = useState('all');
+  const [tab, setTab]               = useState(() => sessionStorage.getItem('myLeads_activeTab') || 'all');
   const [search, setSearch]         = useState('');
   const [sortBy, setSortBy]         = useState('urgency');
   const [quickLead, setQuickLead]   = useState(null);
@@ -115,6 +116,9 @@ const MyLeads = () => {
   const [quickNote, setQuickNote]   = useState('');
   const [saving, setSaving]         = useState(false);
   const [copiedId, setCopiedId]     = useState(null);
+
+  // Persist active tab to sessionStorage
+  useEffect(() => { sessionStorage.setItem('myLeads_activeTab', tab); }, [tab]);
 
   const userId = user?.uid || user?.id;
   const today  = new Date().toISOString().split('T')[0];
@@ -620,8 +624,9 @@ const MyLeads = () => {
                   );
                 })}
               </div>
-              <input type="date" min={today} value={followDate} onChange={e => setFollowDate(e.target.value)}
-                className="w-full border-2 border-gray-100 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-[#0F3A5F] mb-5" />
+              <div className="mb-5">
+                <SmartDateInput value={followDate} onChange={setFollowDate} min={today} />
+              </div>
 
               {/* Step 4 */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quick Note (optional)</p>

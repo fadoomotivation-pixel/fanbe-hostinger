@@ -177,8 +177,15 @@ const EmployeeCRMHome = () => {
       const callScore = callStatus === 'never_called' ? 100 : callStatus === 'needs_retry' ? 80 : callStatus === 'recently_unanswered' ? 40 : 10;
       const fuScore = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
 
-      // Resolve assignment timestamp from multiple possible field names
-      const assignedAt = lead.assignmentDate || lead.assignment_date || lead.assignedAt || lead.assigned_at || null;
+      // ✅ FIX: Resolve assignment timestamp — falls back to createdAt so ALL leads show a time
+      const assignedAt =
+        lead.assignmentDate ||
+        lead.assignment_date ||
+        lead.assignedAt ||
+        lead.assigned_at ||
+        lead.createdAt ||
+        lead.created_at ||
+        null;
 
       return {
         ...lead,

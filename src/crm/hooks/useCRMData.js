@@ -7,6 +7,7 @@
 // ✅ FIX: fetchLeads request-ID guard — only the LATEST in-flight fetch applies setLeads.
 //        If Realtime fires two fetchLeads() concurrently, the older one that arrives late
 //        is silently discarded, so stale data can never overwrite fresh data.
+// ✅ FIX: updateLead auto-stamps assigned_at whenever assignedTo changes
 import { useState, useEffect, useRef } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -265,8 +266,6 @@ export const useCRMData = () => {
       if (updates.callAttempt      !== undefined) mapped.call_attempt       = updates.callAttempt;
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
-      if (updates.assignedTo       !== undefined) mapped.assigned_to        = updates.assignedTo;
-      if (updates.assignedToName   !== undefined) mapped.assigned_to_name   = updates.assignedToName;
       if (updates.project          !== undefined) mapped.project            = updates.project;
       if (updates.followUpDate     !== undefined) mapped.next_followup_date = updates.followUpDate;
       if (updates.follow_up_date   !== undefined) mapped.next_followup_date = updates.follow_up_date;
@@ -277,10 +276,26 @@ export const useCRMData = () => {
       if (updates.paymentMode      !== undefined) mapped.payment_mode       = updates.paymentMode   || 'Cash';
       if (updates.unitNumber       !== undefined) mapped.unit_number        = updates.unitNumber    || '';
       if (updates.isVIP            !== undefined) mapped.is_vip             = updates.isVIP;
-      if (updates.assignedAt           !== undefined) mapped.assigned_at           = updates.assignedAt;
       if (updates.prevAssignedTo       !== undefined) mapped.prev_assigned_to      = updates.prevAssignedTo;
       if (updates.prevAssignedToName   !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
       if (updates.prevAssignedAt       !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
+
+      // ✅ FIX: When assignedTo changes, always update both assigned_to_name AND
+      // stamp assigned_at with current time so employees see accurate assignment time.
+      if (updates.assignedTo !== undefined) {
+        mapped.assigned_to = updates.assignedTo;
+        // Only stamp a new timestamp if actually assigning to someone
+        if (updates.assignedTo) {
+          mapped.assigned_at = updates.assignedAt || new Date().toISOString();
+        } else {
+          mapped.assigned_at = null;
+        }
+      } else if (updates.assignedAt !== undefined) {
+        // Allow explicit override if caller provides it
+        mapped.assigned_at = updates.assignedAt;
+      }
+      if (updates.assignedToName !== undefined) mapped.assigned_to_name = updates.assignedToName;
+
       mapped.updated_at = new Date().toISOString();
 
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
@@ -300,6 +315,10 @@ export const useCRMData = () => {
           lastActivity:   new Date().toISOString(),
           status:         updates.status        !== undefined ? updates.status        : l.status,
           interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
+          // ✅ Sync assignedAt in local state when assignedTo changes
+          assignedAt: updates.assignedTo !== undefined && updates.assignedTo
+            ? (updates.assignedAt || new Date().toISOString())
+            : updates.assignedTo === null ? null : l.assignedAt,
         };
         // Only override follow-up dates if explicitly changed in this update
         if (hasFollowUpUpdate) {

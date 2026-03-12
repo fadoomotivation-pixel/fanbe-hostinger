@@ -27,7 +27,7 @@ import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
   Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote,
-  CalendarDays, Sunrise, AlarmClock
+  CalendarDays, Sunrise, AlarmClock, UserCheck
 } from 'lucide-react';
 
 // ── Quick outcome sheet ─────────────────────────────────────────────────
@@ -80,6 +80,25 @@ const TABS = [
 const timeAgo = (ts) => {
   if (!ts) return 'Never';
   try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
+};
+
+// Format assignment time as compact relative string
+const formatAssignedTime = (ts) => {
+  if (!ts) return null;
+  try {
+    const d = new Date(ts);
+    const now = new Date();
+    const mins = Math.floor((now - d) / 60000);
+    const hrs = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
+    if (days === 1) return `Yesterday ${format(d, 'h:mm a')}`;
+    if (days < 7) return `${days}d ago`;
+    return format(d, 'dd MMM');
+  } catch { return null; }
 };
 
 const formatPhone = (p) => {
@@ -236,6 +255,7 @@ const MyLeads = () => {
       } else if (followDate) {
         patch.follow_up_date = followDate;
         patch.followUpDate = followDate;
+        patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
@@ -495,11 +515,24 @@ const MyLeads = () => {
                   )}
                 </div>
 
-                <p className="text-[10px] text-gray-300 mt-1.5">
-                  {lead._callCount > 0
-                    ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
-                    : 'Never contacted'}
-                </p>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <p className="text-[10px] text-gray-300">
+                    {lead._callCount > 0
+                      ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
+                      : 'Never contacted'}
+                  </p>
+                  {/* Assignment date */}
+                  {(() => {
+                    const assignedAt = lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at;
+                    const aTime = formatAssignedTime(assignedAt);
+                    return aTime ? (
+                      <span className="flex items-center gap-0.5 text-[10px] text-[#8B6914] font-medium">
+                        <UserCheck size={10} className="text-[#D4AF37]" />
+                        {aTime}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
 
                 {latestNote && (
                   <div className="flex items-start gap-1.5 mt-2 bg-amber-50 rounded-xl px-2.5 py-1.5">

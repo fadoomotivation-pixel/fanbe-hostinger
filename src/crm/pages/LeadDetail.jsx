@@ -24,7 +24,7 @@ import {
   Clock, CheckCircle, X, Calendar, AlertCircle,
   FileText, ChevronDown, ChevronUp, PhoneCall, Copy,
   MapPin, Target, Loader2, Mail, Trophy, Building2,
-  IndianRupee, CreditCard, Hash, StickyNote
+  IndianRupee, CreditCard, Hash, StickyNote, UserCheck
 } from 'lucide-react';
 
 const CALL_OUTCOMES = [
@@ -108,7 +108,7 @@ const LeadDetail = () => {
   const [followDate, setFollowDate]             = useState('');
   const [quickNote, setQuickNote]               = useState('');
   const [saving, setSaving]                     = useState(false);
-  const [showNotes, setShowNotes]               = useState(false);
+  const [showNotes, setShowNotes]               = useState(true);
   const [showHistory, setShowHistory]           = useState(true);
   const [newNote, setNewNote]                   = useState('');
   const [addingNote, setAddingNote]             = useState(false);
@@ -215,6 +215,7 @@ const LeadDetail = () => {
       } else if (followDate) {
         patch.follow_up_date = followDate;
         patch.followUpDate = followDate;
+        patch.follow_up_status = 'pending';
       }
       await updateLead(id, patch);
       if (quickNote) await addLeadNote(id, quickNote, user?.name || 'User');
@@ -438,11 +439,14 @@ const LeadDetail = () => {
             )}
           </div>
         )}
-        {(lead.assignedToName || lead.assigned_to_name) && (
-          <p className="text-[10px] text-gray-300 mt-3">
-            Assigned by {lead.assignedToName || lead.assigned_to_name}
-            {(lead.assignedAt || lead.assigned_at) && ` · ${timeAgo(lead.assignedAt || lead.assigned_at)}`}
-          </p>
+        {(lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at) && (
+          <div className="flex items-center gap-1.5 mt-3 bg-[#D4AF37]/5 rounded-lg px-2.5 py-1.5">
+            <UserCheck size={12} className="text-[#D4AF37] shrink-0" />
+            <p className="text-[11px] text-[#8B6914] font-medium">
+              Assigned {timeAgo(lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at)}
+              {(lead.assignedToName || lead.assigned_to_name) && ` by ${lead.assignedToName || lead.assigned_to_name}`}
+            </p>
+          </div>
         )}
       </div>
 
@@ -526,9 +530,29 @@ const LeadDetail = () => {
         </button>
         {showNotes && (
           <div className="px-4 pb-4 border-t border-gray-50 space-y-3">
-            {lead.notes && (
-              <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-900 mt-3 whitespace-pre-wrap max-h-48 overflow-y-auto">{lead.notes}</div>
-            )}
+            {lead.notes && (() => {
+              const lines = lead.notes.split('\n').map(l => l.trim()).filter(Boolean);
+              const parsed = lines.map(line => {
+                const match = line.match(/^\[(.+?)\]\s*(.+?):\s*(.+)$/);
+                if (match) return { time: match[1], author: match[2], text: match[3] };
+                return { time: null, author: null, text: line };
+              });
+              return (
+                <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                  {parsed.slice().reverse().map((note, i) => (
+                    <div key={i} className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                      <p className="text-sm text-amber-900">{note.text}</p>
+                      {(note.author || note.time) && (
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          {note.author && <span className="font-semibold">{note.author}</span>}
+                          {note.time && <span> · {note.time}</span>}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="mt-2">
               <SmartNotesInput
                 value={newNote}

@@ -92,6 +92,17 @@ const formatPhone = (p) => {
   return p;
 };
 
+// Extract latest note line for quick preview
+const getLatestNote = (notes) => {
+  if (!notes || typeof notes !== 'string') return null;
+  const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+  const last = lines[lines.length - 1];
+  // Strip timestamp prefix like [12/3/2026, 10:30:00 AM] Author:
+  const clean = last.replace(/^\[.*?\]\s*[^:]*:\s*/, '').trim();
+  return clean.length > 0 ? clean : null;
+};
+
 const EmployeeCRMHome = () => {
   const { user } = useAuth();
   const {
@@ -350,7 +361,11 @@ const EmployeeCRMHome = () => {
     setSaving(true);
     try {
       const updates = { status: 'FollowUp' };
-      if (followUpDate) { updates.followUpDate = followUpDate; updates.follow_up_date = followUpDate; }
+      if (followUpDate) {
+        updates.followUpDate = followUpDate;
+        updates.follow_up_date = followUpDate;
+        updates.follow_up_status = 'pending';
+      }
       if (callNote) updates.notes = `${actionLead.notes || ''}\n[${new Date().toLocaleString('en-IN')}] ${callNote}`.trim();
       await updateLead(actionLead.id, updates);
       toast({ title: 'Follow-up Set', description: followUpDate && parseLocalDate(followUpDate) ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
@@ -596,6 +611,29 @@ const EmployeeCRMHome = () => {
                       Assigned {formatAssignedTime(actionLead._assignedAt)}
                     </p>
                   )}
+                  {/* Show existing follow-up date if any */}
+                  {(() => {
+                    const fuDate = actionLead.followUpDate || actionLead.follow_up_date;
+                    if (!fuDate) return null;
+                    const parsed = parseLocalDate(fuDate);
+                    if (!parsed) return null;
+                    return (
+                      <p className="text-[11px] text-blue-600 font-medium mt-0.5 flex items-center gap-1">
+                        <Calendar size={11} />
+                        Follow-up: {format(parsed, 'dd MMM yyyy')}
+                      </p>
+                    );
+                  })()}
+                  {/* Show last note for context */}
+                  {(() => {
+                    const note = getLatestNote(actionLead.notes);
+                    if (!note) return null;
+                    return (
+                      <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1" title={note}>
+                        Last note: {note}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="flex gap-2 ml-2">
                   <a href={`tel:${actionLead.phone}`}
@@ -712,6 +750,7 @@ const EmployeeCRMHome = () => {
 const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, onCopy, copiedId }) => {
   const assignedTime = formatAssignedTime(lead._assignedAt);
   const assignedFull = fullAssignedTime(lead._assignedAt);
+  const latestNote = getLatestNote(lead.notes);
 
   const getCallBadge = () => {
     switch (lead._callStatus) {
@@ -770,6 +809,12 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
               <span className="text-[10px] text-[#8B6914] font-medium">{assignedTime}</span>
             </div>
           )}
+          {/* ── LATEST NOTE — quick context for the employee ── */}
+          {latestNote && (
+            <div className="flex items-start gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-1 max-w-[200px]">
+              <span className="text-[10px] text-amber-700 line-clamp-1 leading-snug">{latestNote}</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-1.5 shrink-0">
           <button onClick={e => { e.stopPropagation(); onCopy?.(lead.phone, lead.id); }}
@@ -804,6 +849,7 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
       {leads.map(lead => {
         const assignedTime = formatAssignedTime(lead._assignedAt);
         const assignedFull = fullAssignedTime(lead._assignedAt);
+        const latestNote = getLatestNote(lead.notes);
         return (
           <div key={lead.id} className="flex items-center gap-2 px-3 py-2.5">
             <div className="flex-1 min-w-0" onClick={() => onNavigate(lead.id)}>
@@ -824,6 +870,12 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
                 <div className="flex items-center gap-1 mt-0.5" title={assignedFull}>
                   <UserCheck size={10} className="text-[#D4AF37] shrink-0" />
                   <span className="text-[10px] text-[#8B6914] font-medium">{assignedTime}</span>
+                </div>
+              )}
+              {/* Latest note for context */}
+              {latestNote && (
+                <div className="mt-0.5">
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded line-clamp-1">{latestNote}</span>
                 </div>
               )}
             </div>

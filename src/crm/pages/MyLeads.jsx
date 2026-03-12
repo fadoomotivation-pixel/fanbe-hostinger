@@ -125,7 +125,8 @@ const getLatestNote = (notes) => {
 
 const MyLeads = () => {
   const { user }  = useAuth();
-  const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
+  // ✅ FIX: destructure fetchLeads so we can force-refresh after quick log save
+  const { leads, leadsLoading, calls, updateLead, addCallLog, fetchLeads } = useCRMData();
   const navigate  = useNavigate();
   const { toast } = useToast();
   const isMobile  = useMobile();
@@ -285,7 +286,9 @@ const MyLeads = () => {
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
-  // Quick log save — ✅ tab is preserved after save (no tab reset)
+  // ✅ FIX: Quick log save — after updateLead optimistic patch, force a fresh
+  // fetchLeads() so the filtered tabs immediately reflect the new follow-up date.
+  // Without this, the lead stays in the old tab until Supabase Realtime fires.
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
@@ -314,6 +317,9 @@ const MyLeads = () => {
         patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
+      // ✅ Force a fresh fetch so tab filters (Today/Overdue/Tomorrow) reflect
+      // the new follow-up date immediately — don't wait for Realtime
+      fetchLeads();
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       // ✅ Close modal but KEEP current tab — do not reset tab state
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');

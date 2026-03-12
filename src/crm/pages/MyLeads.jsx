@@ -67,15 +67,18 @@ const urgencyScore = (lead) => {
   } catch { return 1; }
 };
 
+// ✅ New tab is FIRST so employees see fresh leads immediately
 const TABS = [
+  { id: 'new',      label: 'New' },
   { id: 'all',      label: 'All' },
   { id: 'overdue',  label: '\uD83D\uDEA8 Overdue' },
   { id: 'today',    label: '\uD83D\uDCC5 Today' },
   { id: 'tomorrow', label: '\uD83C\uDF05 Tomorrow' },
   { id: 'followup', label: 'Follow Up' },
-  { id: 'new',      label: 'New' },
   { id: 'booked',   label: 'Booked' },
 ];
+
+const TAB_STORAGE_KEY = 'myLeads_activeTab';
 
 const timeAgo = (ts) => {
   if (!ts) return 'Never';
@@ -125,7 +128,13 @@ const MyLeads = () => {
   const { toast } = useToast();
   const isMobile  = useMobile();
 
-  const [tab, setTab]               = useState(() => sessionStorage.getItem('myLeads_activeTab') || 'all');
+  // ✅ Read persisted tab from sessionStorage; default to 'new' if nothing saved
+  const [tab, setTab]               = useState(() => {
+    const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+    // Validate the saved tab is still a valid tab id
+    const valid = TABS.map(t => t.id);
+    return saved && valid.includes(saved) ? saved : 'new';
+  });
   const [search, setSearch]         = useState('');
   const [sortBy, setSortBy]         = useState('urgency');
   const [quickLead, setQuickLead]   = useState(null);
@@ -136,8 +145,10 @@ const MyLeads = () => {
   const [saving, setSaving]         = useState(false);
   const [copiedId, setCopiedId]     = useState(null);
 
-  // Persist active tab to sessionStorage
-  useEffect(() => { sessionStorage.setItem('myLeads_activeTab', tab); }, [tab]);
+  // ✅ Persist active tab to sessionStorage on every tab change
+  useEffect(() => {
+    sessionStorage.setItem(TAB_STORAGE_KEY, tab);
+  }, [tab]);
 
   const userId = user?.uid || user?.id;
   const today  = new Date().toISOString().split('T')[0];
@@ -230,7 +241,7 @@ const MyLeads = () => {
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
-  // Quick log save
+  // Quick log save — ✅ tab is preserved after save (no tab reset)
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
@@ -255,10 +266,12 @@ const MyLeads = () => {
       } else if (followDate) {
         patch.follow_up_date = followDate;
         patch.followUpDate = followDate;
+        patch.next_followup_date = followDate;
         patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
+      // ✅ Close modal but KEEP current tab — do not reset tab state
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });

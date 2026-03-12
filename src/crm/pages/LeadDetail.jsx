@@ -352,8 +352,8 @@ const LeadDetail = () => {
         <div className="flex-1 min-w-0">
           <p className="font-bold text-[#0F3A5F] text-base truncate leading-tight">{lead.name}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${sc.bg} ${sc.text}`}>{lead.status || 'New'}</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${ic.bg} ${ic.text}`}>{lead.interestLevel || lead.interest_level || 'Cold'}</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${sc.bg} ${sc.text}`}>{lead.status || 'New'}</span>
+            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${ic.bg} ${ic.text}`}>{lead.interestLevel || lead.interest_level || 'Cold'}</span>
           </div>
         </div>
         <button onClick={() => navigate(`/crm/sales/edit-lead/${id}`)}
@@ -376,13 +376,13 @@ const LeadDetail = () => {
           </div>
           <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-white/20">
             {lead.unitNumber && (
-              <div><p className="text-[10px] text-emerald-200 uppercase">Unit</p><p className="text-sm font-bold">{lead.unitNumber}</p></div>
+              <div><p className="text-[11px] text-emerald-200 uppercase">Unit</p><p className="text-sm font-bold">{lead.unitNumber}</p></div>
             )}
             {(lead.tokenAmount > 0) && (
-              <div><p className="text-[10px] text-emerald-200 uppercase">Token</p><p className="text-sm font-bold">{formatINR(lead.tokenAmount)}</p></div>
+              <div><p className="text-[11px] text-emerald-200 uppercase">Token</p><p className="text-sm font-bold">{formatINR(lead.tokenAmount)}</p></div>
             )}
             {(lead.bookingAmount > 0) && (
-              <div><p className="text-[10px] text-emerald-200 uppercase">Booking</p><p className="text-sm font-bold">{formatINR(lead.bookingAmount)}</p></div>
+              <div><p className="text-[11px] text-emerald-200 uppercase">Booking</p><p className="text-sm font-bold">{formatINR(lead.bookingAmount)}</p></div>
             )}
           </div>
         </div>
@@ -408,7 +408,7 @@ const LeadDetail = () => {
           className="flex items-center gap-3 bg-[#0F3A5F] text-white rounded-2xl px-4 py-3.5 mb-3 active:bg-[#0a2d4f] touch-manipulation transition-all">
           <div className="bg-white/20 rounded-full p-2"><Phone size={18} /></div>
           <div className="flex-1">
-            <p className="text-[11px] text-blue-200">Tap to Call</p>
+            <p className="text-xs text-blue-200">Tap to Call</p>
             <p className="text-xl font-black tracking-wide">{formatPhone(lead.phone)}</p>
           </div>
           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopyPhone(); }}
@@ -450,7 +450,7 @@ const LeadDetail = () => {
 
       {/* ── Lead Details Grid ── */}
       <div className="bg-white mx-3 mt-2 rounded-2xl shadow-sm border border-gray-100 p-4">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Details</p>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Details</p>
         <div className="grid grid-cols-2 gap-2.5">
           {[
             { label: 'Budget',  value: lead.budget || '—',   icon: '💰' },
@@ -458,8 +458,8 @@ const LeadDetail = () => {
             { label: 'Source',  value: lead.source || '—',   icon: '📌' },
             { label: 'Email',   value: lead.email || 'Not given',  icon: '✉️' },
           ].map(item => (
-            <div key={item.label} className="bg-gray-50 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
+            <div key={item.label} className="bg-gray-50 rounded-xl p-3.5">
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">{item.label}</p>
               <p className="text-sm font-semibold text-gray-800 mt-0.5 truncate">{item.icon} {item.value}</p>
             </div>
           ))}
@@ -467,14 +467,14 @@ const LeadDetail = () => {
         {isBooked && (lead.tokenAmount > 0 || lead.partialPayment > 0) && (
           <div className="grid grid-cols-2 gap-2.5 mt-2.5">
             {lead.partialPayment > 0 && (
-              <div className="bg-amber-50 rounded-xl p-3">
-                <p className="text-[10px] text-amber-600 uppercase tracking-wide">Partial Payment</p>
+              <div className="bg-amber-50 rounded-xl p-3.5">
+                <p className="text-[11px] text-amber-600 uppercase tracking-wide">Partial Payment</p>
                 <p className="text-sm font-semibold text-amber-800 mt-0.5">{formatINR(lead.partialPayment)}</p>
               </div>
             )}
             {(lead.bookingAmount - lead.tokenAmount - (lead.partialPayment || 0)) > 0 && (
-              <div className="bg-red-50 rounded-xl p-3">
-                <p className="text-[10px] text-red-600 uppercase tracking-wide">Pending</p>
+              <div className="bg-red-50 rounded-xl p-3.5">
+                <p className="text-[11px] text-red-600 uppercase tracking-wide">Pending</p>
                 <p className="text-sm font-semibold text-red-800 mt-0.5">
                   {formatINR(lead.bookingAmount - lead.tokenAmount - (lead.partialPayment || 0))}
                 </p>
@@ -485,7 +485,7 @@ const LeadDetail = () => {
         {(lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at) && (
           <div className="flex items-center gap-1.5 mt-3 bg-[#D4AF37]/5 rounded-lg px-2.5 py-1.5">
             <UserCheck size={12} className="text-[#D4AF37] shrink-0" />
-            <p className="text-[11px] text-[#8B6914] font-medium">
+            <p className="text-xs text-[#8B6914] font-medium">
               Assigned {timeAgo(lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at)}
               {(lead.assignedToName || lead.assigned_to_name) && ` by ${lead.assignedToName || lead.assigned_to_name}`}
             </p>
@@ -500,9 +500,9 @@ const LeadDetail = () => {
           { label: 'Connected', value: leadCalls.filter(c => ['Connected','connected','interested'].includes(c.status)).length, color: 'text-emerald-600', icon: CheckCircle },
           { label: 'Visits',    value: leadVisits.length, color: 'text-purple-600', icon: MapPin },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 text-center">
             <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">{s.label}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{s.label}</p>
           </div>
         ))}
       </div>
@@ -511,7 +511,7 @@ const LeadDetail = () => {
       <div className="bg-white mx-3 mt-2 rounded-2xl shadow-sm border border-gray-100">
         <button onClick={() => setShowHistory(!showHistory)}
           className="w-full flex items-center justify-between px-4 py-3 touch-manipulation">
-          <span className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          <span className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
             <Clock size={13} /> Activity Timeline ({timeline.length})
           </span>
           {showHistory ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -548,7 +548,7 @@ const LeadDetail = () => {
                           : item.type === 'visit' ? `Visit - ${item.status || 'Scheduled'}`
                           : `Booking${item.amount ? ` - ${formatINR(item.amount)}` : ''}`}
                       </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
+                      <p className="text-[11px] text-gray-400 mt-0.5">
                         {item.time ? format(new Date(item.time), 'dd MMM yyyy, h:mm a') : '—'}
                         {item.employee ? ` · ${item.employee}` : ''}
                       </p>
@@ -566,7 +566,7 @@ const LeadDetail = () => {
       <div className="bg-white mx-3 mt-2 rounded-2xl shadow-sm border border-gray-100">
         <button onClick={() => setShowNotes(!showNotes)}
           className="w-full flex items-center justify-between px-4 py-3 touch-manipulation">
-          <span className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          <span className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
             <FileText size={13} /> Notes
           </span>
           {showNotes ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
@@ -584,9 +584,9 @@ const LeadDetail = () => {
                 <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
                   {parsed.slice().reverse().map((note, i) => (
                     <div key={i} className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                      <p className="text-sm text-amber-900">{note.text}</p>
+                      <p className="text-sm text-amber-900 leading-relaxed">{note.text}</p>
                       {(note.author || note.time) && (
-                        <p className="text-[10px] text-amber-600 mt-1">
+                        <p className="text-[11px] text-amber-600 mt-1.5">
                           {note.author && <span className="font-semibold">{note.author}</span>}
                           {note.time && <span> · {note.time}</span>}
                         </p>
@@ -630,25 +630,25 @@ const LeadDetail = () => {
       {/* ✅ Mobile: bottom-16 → sits above MobileBottomNav (h-16 = 64px)  */}
       {/* ✅ Desktop: bottom-0 → no nav bar, anchors to viewport bottom      */}
       {/*                                                                  */}
-      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 px-4 py-3 flex gap-2">
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 px-3 py-2.5 flex gap-2">
 
         {/* Call */}
         <a href={`tel:${lead.phone}`}
-          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold active:bg-emerald-100 touch-manipulation">
-          <Phone size={15} /> Call
+          className="flex items-center justify-center gap-1.5 px-3.5 py-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-bold active:bg-emerald-100 touch-manipulation">
+          <Phone size={16} /> Call
         </a>
 
         {/* WhatsApp icon-only */}
         <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
           target="_blank" rel="noreferrer"
-          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-xs font-bold active:bg-[#25D366]/20 touch-manipulation">
-          <MessageCircle size={15} />
+          className="flex items-center justify-center px-3.5 py-3.5 bg-[#25D366]/10 border border-[#25D366]/20 rounded-xl text-[#25D366] text-sm font-bold active:bg-[#25D366]/20 touch-manipulation">
+          <MessageCircle size={16} />
         </a>
 
         {/* Log Call — mobile only; desktop uses inline card button above */}
         <button
           onClick={() => setShowSheet(true)}
-          className="flex-1 md:hidden flex items-center justify-center gap-2 py-3 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
+          className="flex-1 md:hidden flex items-center justify-center gap-2 py-3.5 bg-[#0F3A5F] rounded-xl text-white text-sm font-bold active:bg-[#0a2d4f] touch-manipulation transition-all">
           <PhoneCall size={16} /> Log Call
         </button>
 
@@ -656,8 +656,8 @@ const LeadDetail = () => {
         {!isBooked && (
           <button
             onClick={() => setShowSiteVisitSheet(true)}
-            className="flex items-center justify-center gap-1.5 px-3 py-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 text-xs font-bold active:bg-purple-100 touch-manipulation">
-            <MapPin size={15} /> Visit
+            className="flex items-center justify-center gap-1.5 px-3.5 py-3.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 text-sm font-bold active:bg-purple-100 touch-manipulation">
+            <MapPin size={16} /> Visit
           </button>
         )}
 
@@ -665,7 +665,7 @@ const LeadDetail = () => {
         {!isBooked && (
           <button
             onClick={() => setShowBookingSheet(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black shadow-md active:bg-[#c4a030] touch-manipulation transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-[#D4AF37] rounded-xl text-[#0F3A5F] text-sm font-black shadow-md active:bg-[#c4a030] touch-manipulation transition-all">
             <Trophy size={16} /> Book
           </button>
         )}
@@ -695,7 +695,7 @@ const LeadDetail = () => {
               </div>
 
               {/* Step 1 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">1 · What happened on the call?</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">1 · What happened on the call?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {CALL_OUTCOMES.map(o => (
                   <button key={o.id} onClick={() => setOutcome(o.id)}
@@ -708,7 +708,7 @@ const LeadDetail = () => {
               </div>
 
               {/* Step 2 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">2 · Update Lead Status</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">2 · Update Lead Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {LEAD_STATUSES.map(s => (
                   <button key={s.id} onClick={() => {
@@ -726,7 +726,7 @@ const LeadDetail = () => {
               {/* Step 3 - Hidden when NotInterested */}
               {leadStatus !== 'NotInterested' && (
                 <>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">
                     {leadStatus === 'SiteVisit' ? '3 · Schedule Visit Date' : '3 · Follow-up Date (optional)'}
                   </p>
                   <div className="flex gap-2 mb-2">
@@ -750,7 +750,7 @@ const LeadDetail = () => {
               )}
 
               {/* Step 4 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">4 · Quick Note (optional)</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">4 · Quick Note (optional)</p>
               <div className="mb-5">
                 <SmartNotesInput
                   value={quickNote}
@@ -813,7 +813,7 @@ const LeadDetail = () => {
 
               {/* Payment Details */}
               <div className="bg-gradient-to-r from-[#0F3A5F]/5 to-[#D4AF37]/5 rounded-2xl p-4 mb-4">
-                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <p className="text-xs font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <IndianRupee size={12} /> Payment Details
                 </p>
                 <div className="space-y-3">
@@ -860,7 +860,7 @@ const LeadDetail = () => {
 
               {/* Unit */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <p className="text-xs font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <Building2 size={12} /> Unit Details
                 </p>
                 <div>
@@ -874,7 +874,7 @@ const LeadDetail = () => {
 
               {/* Payment Mode */}
               <div className="mb-4">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
                   <CreditCard size={12} /> Payment Mode
                 </p>
                 <div className="grid grid-cols-4 gap-2">
@@ -893,7 +893,7 @@ const LeadDetail = () => {
 
               {/* Notes */}
               <div className="mb-5">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
                   <StickyNote size={12} /> Notes (optional)
                 </p>
                 <textarea value={bookingForm.notes} onChange={e => updateBookingField('notes', e.target.value)}
@@ -939,7 +939,7 @@ const LeadDetail = () => {
 
               {/* Visit Date */}
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 mb-4">
-                <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <p className="text-xs font-black text-purple-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <Calendar size={12} /> Visit Date *
                 </p>
                 <div className="flex gap-2 mb-2">
@@ -967,7 +967,7 @@ const LeadDetail = () => {
 
               {/* Visit Time */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <p className="text-xs font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
                   <Clock size={12} /> Visit Time (optional)
                 </p>
                 <div className="grid grid-cols-4 gap-2 mb-2">
@@ -995,7 +995,7 @@ const LeadDetail = () => {
 
               {/* Location */}
               <div className="mb-4">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
                   <MapPin size={12} /> Location / Site
                 </p>
                 <input type="text" placeholder="e.g. Project site, office, model flat..."
@@ -1006,7 +1006,7 @@ const LeadDetail = () => {
 
               {/* Notes */}
               <div className="mb-5">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
                   <StickyNote size={12} /> Notes (optional)
                 </p>
                 <textarea value={siteVisitForm.notes} onChange={e => updateSiteVisitField('notes', e.target.value)}

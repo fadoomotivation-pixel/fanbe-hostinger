@@ -140,28 +140,28 @@ const DailyCalling = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-lg font-black text-[#0F3A5F]">Call CRM</h1>
-              <p className="text-[11px] text-gray-400">{myLeads.length} active leads to call</p>
+              <p className="text-xs text-gray-500">{myLeads.length} active leads to call</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2.5 py-1.5 rounded-full">
                 {format(new Date(), 'dd MMM')}
               </span>
             </div>
           </div>
 
           {/* ── Today's Progress Stats ── */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="bg-blue-50 rounded-xl px-3 py-2 text-center border border-blue-100">
-              <p className="text-xl font-black text-blue-700">{todayStats.total}</p>
-              <p className="text-[9px] font-bold text-blue-500 uppercase">Calls Today</p>
+          <div className="grid grid-cols-3 gap-2.5 mb-3">
+            <div className="bg-blue-50 rounded-xl px-3 py-3 text-center border border-blue-100">
+              <p className="text-2xl font-black text-blue-700">{todayStats.total}</p>
+              <p className="text-[11px] font-bold text-blue-500 uppercase">Calls Today</p>
             </div>
-            <div className="bg-green-50 rounded-xl px-3 py-2 text-center border border-green-100">
-              <p className="text-xl font-black text-green-700">{todayStats.connected}</p>
-              <p className="text-[9px] font-bold text-green-500 uppercase">Connected</p>
+            <div className="bg-green-50 rounded-xl px-3 py-3 text-center border border-green-100">
+              <p className="text-2xl font-black text-green-700">{todayStats.connected}</p>
+              <p className="text-[11px] font-bold text-green-500 uppercase">Connected</p>
             </div>
-            <div className="bg-amber-50 rounded-xl px-3 py-2 text-center border border-amber-100">
-              <p className="text-xl font-black text-amber-700">{todayStats.notConnected}</p>
-              <p className="text-[9px] font-bold text-amber-500 uppercase">Missed</p>
+            <div className="bg-amber-50 rounded-xl px-3 py-3 text-center border border-amber-100">
+              <p className="text-2xl font-black text-amber-700">{todayStats.notConnected}</p>
+              <p className="text-[11px] font-bold text-amber-500 uppercase">Missed</p>
             </div>
           </div>
 
@@ -195,16 +195,16 @@ const DailyCalling = () => {
                   <X size={18} />
                 </button>
               </div>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="px-2 py-0.5 bg-white/20 text-white/90 text-[10px] font-bold rounded-full">
+              <div className="flex items-center gap-3 mt-2.5">
+                <span className="px-2.5 py-1 bg-white/20 text-white/90 text-xs font-bold rounded-full">
                   {selectedLead.status || 'New'}
                 </span>
-                <span className="flex items-center gap-1 text-white/70 text-[10px]">
+                <span className="flex items-center gap-1 text-white/70 text-xs">
                   <TemperatureIcon level={selectedLead.interestLevel || selectedLead.interest_level} />
                   {selectedLead.interestLevel || selectedLead.interest_level || 'Cold'}
                 </span>
                 {selectedLead.budget && (
-                  <span className="text-white/70 text-[10px]">{selectedLead.budget}</span>
+                  <span className="text-white/70 text-xs">{selectedLead.budget}</span>
                 )}
               </div>
             </div>
@@ -224,14 +224,14 @@ const DailyCalling = () => {
 
             {/* Call outcome chips */}
             <div className="px-4 pt-3 pb-2">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Call Outcome</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Call Outcome</p>
+              <div className="grid grid-cols-2 gap-2.5">
                 {CALL_OUTCOMES.map(o => {
                   const Icon = o.icon;
                   const isSelected = callStatus === o.value;
                   return (
                     <button key={o.value} onClick={() => setCallStatus(o.value)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all touch-manipulation ${
+                      className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all touch-manipulation ${
                         isSelected ? o.color : 'border-gray-100 bg-gray-50 text-gray-600'
                       }`}>
                       <Icon size={14} className={isSelected ? o.iconColor : 'text-gray-400'} />
@@ -261,7 +261,7 @@ const DailyCalling = () => {
             {/* Save */}
             <div className="px-4 pb-4">
               <button onClick={handleSubmit} disabled={!callStatus || saving}
-                className="w-full py-3 bg-[#0F3A5F] text-white rounded-xl text-sm font-bold disabled:opacity-40 active:bg-[#0a2d4f] shadow-lg transition-all touch-manipulation">
+                className="w-full py-3.5 bg-[#0F3A5F] text-white rounded-xl text-base font-bold disabled:opacity-40 active:bg-[#0a2d4f] shadow-lg transition-all touch-manipulation">
                 {saving
                   ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> Saving...</span>
                   : 'Log Call & Next Lead'
@@ -274,7 +274,7 @@ const DailyCalling = () => {
 
       {/* ── Lead List — tap to start calling ── */}
       <div className="px-3 pt-3">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">
+        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 px-1">
           {selectedLead ? 'Other Leads' : 'Tap a lead to start calling'}
         </p>
         <div className="space-y-2">
@@ -296,7 +296,7 @@ const DailyCalling = () => {
                 className={`bg-white rounded-xl border shadow-sm active:scale-[0.98] transition-all touch-manipulation cursor-pointer ${
                   isFuToday ? 'border-amber-200 border-l-4 border-l-amber-400' : 'border-gray-100'
                 }`}>
-                <div className="flex items-center px-3 py-3 gap-3">
+                <div className="flex items-center px-4 py-3.5 gap-3">
                   {/* Temperature dot */}
                   <div className="shrink-0">
                     <TemperatureIcon level={interest} />
@@ -308,34 +308,34 @@ const DailyCalling = () => {
                       <p className="font-bold text-sm text-gray-900 truncate">{lead.name}</p>
                       {interest === 'Hot' && <Flame size={11} className="text-red-500 shrink-0" />}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
+                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                       <span>{lead.phone}</span>
-                      {lead.project && <span className="truncate max-w-[80px]">{lead.project}</span>}
+                      {lead.project && <span className="truncate max-w-[100px]">{lead.project}</span>}
                     </div>
                   </div>
 
                   {/* Status + Follow-up */}
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-full">
+                    <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">
                       {lead.status || 'New'}
                     </span>
                     {isFuToday && (
-                      <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
-                        <Clock size={9} /> Today
+                      <span className="text-[11px] text-amber-600 font-bold flex items-center gap-1">
+                        <Clock size={11} /> Today
                       </span>
                     )}
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                     <a href={`tel:${lead.phone}`}
-                      className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center active:bg-emerald-100">
-                      <Phone size={13} className="text-emerald-600" />
+                      className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center active:bg-emerald-100 touch-manipulation">
+                      <Phone size={15} className="text-emerald-600" />
                     </a>
                     <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
                       target="_blank" rel="noreferrer"
-                      className="w-8 h-8 rounded-full bg-green-50 border border-green-200 flex items-center justify-center active:bg-green-100">
-                      <MessageCircle size={13} className="text-[#25D366]" />
+                      className="w-9 h-9 rounded-full bg-green-50 border border-green-200 flex items-center justify-center active:bg-green-100 touch-manipulation">
+                      <MessageCircle size={15} className="text-[#25D366]" />
                     </a>
                   </div>
                 </div>
@@ -348,24 +348,24 @@ const DailyCalling = () => {
       {/* ── Recent Call History ── */}
       {myCalls.length > 0 && (
         <div className="px-3 pt-4 pb-2">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">
+          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5 px-1">
             Recent Calls
           </p>
           <div className="space-y-1.5">
             {myCalls.slice(0, 8).map(call => (
-              <div key={call.id} className="bg-white rounded-lg border border-gray-100 px-3 py-2 flex items-center gap-3">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+              <div key={call.id} className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                   call.status === 'Connected' ? 'bg-green-100' : 'bg-gray-100'
                 }`}>
-                  <Phone size={12} className={call.status === 'Connected' ? 'text-green-600' : 'text-gray-400'} />
+                  <Phone size={14} className={call.status === 'Connected' ? 'text-green-600' : 'text-gray-400'} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800 truncate">{call.leadName}</p>
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{call.leadName}</p>
+                  <p className="text-xs text-gray-400">
                     {call.status} {call.duration ? `| ${call.duration}m` : ''}
                   </p>
                 </div>
-                <span className="text-[10px] text-gray-400 shrink-0">
+                <span className="text-xs text-gray-400 shrink-0">
                   {(() => {
                     try { return format(new Date(call.timestamp), 'h:mm a'); } catch { return ''; }
                   })()}

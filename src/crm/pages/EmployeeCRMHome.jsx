@@ -18,7 +18,7 @@ import {
   Target, Zap, Copy, CheckCircle, UserCheck
 } from 'lucide-react';
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
-import { differenceInHours, differenceInDays, differenceInMinutes, format, formatDistanceToNow } from 'date-fns';
+import { differenceInHours, differenceInDays, differenceInMinutes, format, formatDistanceToNow, isYesterday } from 'date-fns';
 
 // Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
@@ -115,6 +115,7 @@ const EmployeeCRMHome = () => {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('crmHome_activeTab') || TABS.CALL_NOW);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
@@ -222,10 +223,16 @@ const EmployeeCRMHome = () => {
   );
 
   const followUpLeads = useMemo(() => {
-    const grouped = { overdue: [], today: [], tomorrow: [], thisWeek: [], noDate: [] };
+    const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], thisWeek: [], noDate: [] };
     analyzedLeads.forEach(l => {
       if (l._normalizedStatus === LEAD_STATUS.LOST || l._normalizedStatus === LEAD_STATUS.BOOKED) return;
-      if (l._followUpPriority === 1) grouped.overdue.push(l);
+      if (l._followUpPriority === 1) {
+        // Separate yesterday from general overdue
+        const fuDate = l.followUpDate || l.follow_up_date || l.next_followup_date;
+        const parsed = fuDate ? parseLocalDate(fuDate) : null;
+        if (parsed && isYesterday(parsed)) grouped.yesterday.push(l);
+        else grouped.overdue.push(l);
+      }
       else if (l._followUpPriority === 2) grouped.today.push(l);
       else if (l._followUpPriority === 3) grouped.tomorrow.push(l);
       else if (l._followUpPriority === 4) grouped.thisWeek.push(l);
@@ -236,10 +243,11 @@ const EmployeeCRMHome = () => {
 
   const followUpCounts = useMemo(() => ({
     overdue: followUpLeads.overdue.length,
+    yesterday: followUpLeads.yesterday.length,
     today: followUpLeads.today.length,
     tomorrow: followUpLeads.tomorrow.length,
     thisWeek: followUpLeads.thisWeek.length,
-    total: followUpLeads.overdue.length + followUpLeads.today.length + followUpLeads.tomorrow.length + followUpLeads.thisWeek.length,
+    total: followUpLeads.overdue.length + followUpLeads.yesterday.length + followUpLeads.today.length + followUpLeads.tomorrow.length + followUpLeads.thisWeek.length,
   }), [followUpLeads]);
 
   const allLeadsFiltered = useMemo(() => {
@@ -251,8 +259,16 @@ const EmployeeCRMHome = () => {
         l.name?.toLowerCase().includes(q) || l.phone?.includes(q) || l.project?.toLowerCase().includes(q)
       );
     }
+    if (dateFilter) {
+      filtered = filtered.filter(l => {
+        const fu = l.follow_up_date || l.followUpDate;
+        const created = (l.createdAt || l.created_at || '').split('T')[0];
+        const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
+        return fu === dateFilter || created === dateFilter || assigned === dateFilter;
+      });
+    }
     return filtered.sort((a, b) => b._score - a._score);
-  }, [analyzedLeads, statusFilter, searchTerm]);
+  }, [analyzedLeads, statusFilter, searchTerm, dateFilter]);
 
   const statusCounts = useMemo(() => {
     const c = { Open: 0, FollowUp: 0, Booked: 0, Lost: 0, total: myLeads.length };
@@ -452,7 +468,7 @@ const EmployeeCRMHome = () => {
         <div className="flex border-t border-gray-100">
           {[
             { id: TABS.CALL_NOW, label: 'Call Now', count: callNowLeads.length },
-            { id: TABS.FOLLOW_UP, label: 'Follow Up', count: followUpCounts.overdue + followUpCounts.today, urgent: followUpCounts.overdue > 0 },
+            { id: TABS.FOLLOW_UP, label: 'Follow Up', count: followUpCounts.overdue + followUpCounts.yesterday + followUpCounts.today, urgent: followUpCounts.overdue > 0 || followUpCounts.yesterday > 0 },
             { id: TABS.ALL_LEADS, label: 'All', count: myLeads.length },
           ].map(tab => (
             <button
@@ -506,6 +522,11 @@ const EmployeeCRMHome = () => {
                 leads={followUpLeads.overdue} color="border-red-200 bg-red-50" onAction={openAction}
                 onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
             )}
+            {followUpCounts.yesterday > 0 && (
+              <FollowUpSection title="Yesterday" icon={<Clock size={14} className="text-orange-600" />}
+                leads={followUpLeads.yesterday} color="border-orange-200 bg-orange-50" onAction={openAction}
+                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+            )}
             {followUpCounts.today > 0 && (
               <FollowUpSection title="Today" icon={<Clock size={14} className="text-amber-600" />}
                 leads={followUpLeads.today} color="border-amber-200 bg-amber-50" onAction={openAction}
@@ -534,16 +555,36 @@ const EmployeeCRMHome = () => {
 
         {activeTab === TABS.ALL_LEADS && (
           <div className="space-y-3">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
-              <Input placeholder="Search name, phone, project..." className="pl-9 h-9 text-sm rounded-xl"
-                value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5">
-                  <X size={14} className="text-gray-400" />
-                </button>
-              )}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+                <Input placeholder="Search name, phone, project..." className="pl-9 h-9 text-sm rounded-xl"
+                  value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5">
+                    <X size={14} className="text-gray-400" />
+                  </button>
+                )}
+              </div>
+              <div className="relative shrink-0">
+                <input type="date" value={dateFilter}
+                  onChange={e => setDateFilter(e.target.value)}
+                  className={`w-9 h-9 rounded-xl border text-transparent cursor-pointer focus:outline-none ${
+                    dateFilter ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-100'
+                  }`} />
+                <Calendar size={15} className={`absolute left-2.5 top-2 pointer-events-none ${
+                  dateFilter ? 'text-purple-600' : 'text-gray-400'
+                }`} />
+              </div>
             </div>
+            {dateFilter && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Calendar size={11} /> {format(parseLocalDate(dateFilter), 'dd MMM yyyy')}
+                </span>
+                <button onClick={() => setDateFilter('')} className="text-xs text-gray-400 underline">Clear</button>
+              </div>
+            )}
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
               {[
                 { id: 'all', label: 'All', count: statusCounts.total, color: 'bg-gray-100 text-gray-700' },

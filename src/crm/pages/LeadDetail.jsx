@@ -103,6 +103,7 @@ const LeadDetail = () => {
 
   const [showSheet, setShowSheet]               = useState(false);
   const [showBookingSheet, setShowBookingSheet] = useState(false);
+  const [showSiteVisitSheet, setShowSiteVisitSheet] = useState(false);
   const [outcome, setOutcome]                   = useState('');
   const [leadStatus, setLeadStatus]             = useState('');
   const [followDate, setFollowDate]             = useState('');
@@ -114,6 +115,15 @@ const LeadDetail = () => {
   const [addingNote, setAddingNote]             = useState(false);
   const [copiedPhone, setCopiedPhone]           = useState(false);
   const [bookingSaving, setBookingSaving]       = useState(false);
+  const [siteVisitSaving, setSiteVisitSaving]   = useState(false);
+
+  // Site Visit form state
+  const [siteVisitForm, setSiteVisitForm] = useState({
+    visitDate: '',
+    visitTime: '',
+    location: '',
+    notes: '',
+  });
 
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
@@ -169,9 +179,9 @@ const LeadDetail = () => {
 
   // Lock body scroll when any sheet open
   useEffect(() => {
-    document.body.style.overflow = (showSheet || showBookingSheet) ? 'hidden' : '';
+    document.body.style.overflow = (showSheet || showBookingSheet || showSiteVisitSheet) ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [showSheet, showBookingSheet]);
+  }, [showSheet, showBookingSheet, showSiteVisitSheet]);
 
   if (leadsLoading || !lead) {
     return (
@@ -270,6 +280,38 @@ const LeadDetail = () => {
     setBookingSaving(false);
   };
 
+  // ── Save Site Visit ──────────────────────────────────────────────────
+  const handleSiteVisit = async () => {
+    const { visitDate, location } = siteVisitForm;
+    if (!visitDate) {
+      toast({ title: 'Select visit date', variant: 'destructive' }); return;
+    }
+    setSiteVisitSaving(true);
+    try {
+      await addSiteVisitLog({
+        leadId: id, leadName: lead.name, projectName: lead.project || '',
+        employeeId: userId, employeeName: user?.name || '',
+        visitDate: siteVisitForm.visitDate,
+        visitTime: siteVisitForm.visitTime || null,
+        location: siteVisitForm.location || null,
+        status: 'Scheduled',
+        notes: siteVisitForm.notes || null,
+      });
+      await updateLead(id, {
+        status: 'SiteVisit',
+        follow_up_date: siteVisitForm.visitDate,
+        followUpDate: siteVisitForm.visitDate,
+        last_activity: new Date().toISOString(),
+      });
+      toast({ title: 'Site visit scheduled!', description: `Visit on ${format(parseLocalDate(siteVisitForm.visitDate), 'dd MMM yyyy')}` });
+      setShowSiteVisitSheet(false);
+      setSiteVisitForm({ visitDate: '', visitTime: '', location: '', notes: '' });
+    } catch (e) {
+      toast({ title: 'Failed to schedule', description: e.message, variant: 'destructive' });
+    }
+    setSiteVisitSaving(false);
+  };
+
   const handleAddNote = async () => {
     if (!newNote.trim()) return;
     setAddingNote(true);
@@ -287,6 +329,7 @@ const LeadDetail = () => {
   };
 
   const updateBookingField = (field, value) => setBookingForm(prev => ({ ...prev, [field]: value }));
+  const updateSiteVisitField = (field, value) => setSiteVisitForm(prev => ({ ...prev, [field]: value }));
 
   const appendTag = (tagValue) => {
     setQuickNote(prev => {
@@ -609,6 +652,15 @@ const LeadDetail = () => {
           <PhoneCall size={16} /> Log Call
         </button>
 
+        {/* Site Visit — visible when not already booked */}
+        {!isBooked && (
+          <button
+            onClick={() => setShowSiteVisitSheet(true)}
+            className="flex items-center justify-center gap-1.5 px-3 py-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-700 text-xs font-bold active:bg-purple-100 touch-manipulation">
+            <MapPin size={15} /> Visit
+          </button>
+        )}
+
         {/* Book — always visible when not already booked */}
         {!isBooked && (
           <button
@@ -854,6 +906,119 @@ const LeadDetail = () => {
                 {bookingSaving
                   ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Processing...</span>
                   : <span className="flex items-center justify-center gap-2"><Trophy size={18} /> Confirm Booking</span>
+                }
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      {/* ════════════════════════════════════════════════ */}
+      {/* SITE VISIT BOTTOM SHEET                                          */}
+      {/* ════════════════════════════════════════════════ */}
+      {showSiteVisitSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[60] touch-none" onClick={() => setShowSiteVisitSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-3xl shadow-2xl"
+               style={{ maxHeight: '94vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+            <div className="px-4 pb-24">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <p className="font-black text-[#0F3A5F] text-lg leading-tight flex items-center gap-2">
+                    <MapPin size={20} className="text-purple-600" /> Book Site Visit
+                  </p>
+                  <p className="text-xs text-gray-400">{lead.name} · {lead.project || 'No project'}</p>
+                </div>
+                <button onClick={() => setShowSiteVisitSheet(false)}
+                  className="p-2 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation">
+                  <X size={18} className="text-gray-600" />
+                </button>
+              </div>
+
+              {/* Visit Date */}
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 mb-4">
+                <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Calendar size={12} /> Visit Date *
+                </p>
+                <div className="flex gap-2 mb-2">
+                  {[
+                    { label: 'Tomorrow', days: 1 },
+                    { label: 'Day After', days: 2 },
+                    { label: 'This Weekend', days: (() => { const d = new Date(); return (6 - d.getDay() + 7) % 7 || 7; })() },
+                  ].map(opt => {
+                    const target = new Date(); target.setDate(target.getDate() + opt.days);
+                    const targetStr = target.toISOString().split('T')[0];
+                    return (
+                      <button key={opt.label} onClick={() => updateSiteVisitField('visitDate', targetStr)}
+                        className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
+                          siteVisitForm.visitDate === targetStr
+                            ? 'border-purple-400 bg-purple-50 text-purple-700'
+                            : 'border-gray-200 bg-white text-gray-600'
+                        }`}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <SmartDateInput value={siteVisitForm.visitDate} onChange={(v) => updateSiteVisitField('visitDate', v)} min={today} />
+              </div>
+
+              {/* Visit Time */}
+              <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                <p className="text-[10px] font-black text-[#0F3A5F] uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Clock size={12} /> Visit Time (optional)
+                </p>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {['10:00 AM', '11:00 AM', '02:00 PM', '04:00 PM'].map(time => (
+                    <button key={time} onClick={() => updateSiteVisitField('visitTime', time)}
+                      className={`py-2.5 rounded-xl text-xs font-semibold border-2 transition-all touch-manipulation ${
+                        siteVisitForm.visitTime === time
+                          ? 'border-purple-400 bg-purple-50 text-purple-700'
+                          : 'border-gray-100 bg-white text-gray-600'
+                      }`}>
+                      {time}
+                    </button>
+                  ))}
+                </div>
+                <input type="time"
+                  value={siteVisitForm.visitTime ? '' : ''}
+                  onChange={e => {
+                    const [h, m] = e.target.value.split(':');
+                    const hr = parseInt(h); const ampm = hr >= 12 ? 'PM' : 'AM';
+                    const hr12 = hr % 12 || 12;
+                    updateSiteVisitField('visitTime', `${hr12}:${m} ${ampm}`);
+                  }}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 transition" />
+              </div>
+
+              {/* Location */}
+              <div className="mb-4">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <MapPin size={12} /> Location / Site
+                </p>
+                <input type="text" placeholder="e.g. Project site, office, model flat..."
+                  value={siteVisitForm.location}
+                  onChange={e => updateSiteVisitField('location', e.target.value)}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-purple-400 transition" />
+              </div>
+
+              {/* Notes */}
+              <div className="mb-5">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                  <StickyNote size={12} /> Notes (optional)
+                </p>
+                <textarea value={siteVisitForm.notes} onChange={e => updateSiteVisitField('notes', e.target.value)}
+                  placeholder="Any special instructions or remarks..." rows={2}
+                  className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-purple-400" />
+              </div>
+
+              <button onClick={handleSiteVisit} disabled={siteVisitSaving}
+                className="w-full py-4 bg-purple-600 text-white rounded-2xl text-base font-black disabled:opacity-40 active:bg-purple-700 shadow-xl touch-manipulation transition-all">
+                {siteVisitSaving
+                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Scheduling...</span>
+                  : <span className="flex items-center justify-center gap-2"><MapPin size={18} /> Schedule Site Visit</span>
                 }
               </button>
             </div>

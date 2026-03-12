@@ -17,6 +17,7 @@ import {
 } from '@/crm/utils/statusUtils';
 
 const FILTER_TABS = [
+  { key: 'new', label: 'New' },
   { key: 'all', label: 'All' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'today', label: 'Today' },
@@ -52,6 +53,23 @@ const MobileLeadList = () => {
   // Persist active tab to sessionStorage
   useEffect(() => { sessionStorage.setItem('mobileLeads_activeTab', activeTab); }, [activeTab]);
 
+  // ✅ Restore & persist scroll position across refreshes
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('mobileLeads_scrollPos');
+    if (savedScroll) {
+      requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
+    }
+    let scrollTimer;
+    const handleScroll = () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        sessionStorage.setItem('mobileLeads_scrollPos', String(window.scrollY));
+      }, 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', handleScroll); clearTimeout(scrollTimer); };
+  }, []);
+
   const myLeads = useMemo(() => {
     let result = leads.filter(l => l.assignedTo === user.id || l.assigned_to === user.id);
 
@@ -85,7 +103,15 @@ const MobileLeadList = () => {
       );
     }
 
-    if (activeTab === 'overdue') result = result.filter(l => l._priority === 1);
+    if (activeTab === 'new') {
+      result = result.filter(l => l._status === 'Open' || l._status === 'New' || !l._status);
+      // ✅ Sort by assignment date descending — most recently assigned first
+      result = [...result].sort((a, b) => {
+        const aTime = new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0);
+        const bTime = new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0);
+        return bTime - aTime;
+      });
+    } else if (activeTab === 'overdue') result = result.filter(l => l._priority === 1);
     else if (activeTab === 'today') result = result.filter(l => l._priority === 2);
     else if (activeTab === 'upcoming') result = result.filter(l => l._priority >= 3 && l._priority <= 5);
 

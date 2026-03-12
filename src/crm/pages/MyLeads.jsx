@@ -79,6 +79,7 @@ const TABS = [
 ];
 
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
+const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
 
 const timeAgo = (ts) => {
   if (!ts) return 'Never';
@@ -149,6 +150,25 @@ const MyLeads = () => {
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);
   }, [tab]);
+
+  // ✅ Restore scroll position on mount
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem(SCROLL_STORAGE_KEY);
+    if (savedScroll) {
+      // Delay to let DOM render before scrolling
+      requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
+    }
+    // Save scroll position on scroll (debounced)
+    let scrollTimer;
+    const handleScroll = () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY));
+      }, 200);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', handleScroll); clearTimeout(scrollTimer); };
+  }, []);
 
   const userId = user?.uid || user?.id;
   const today  = new Date().toISOString().split('T')[0];
@@ -225,6 +245,12 @@ const MyLeads = () => {
       arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
     } else if (tab === 'new') {
       arr = arr.filter(l => l.status === 'New' || l.status === 'Open' || !l.status);
+      // ✅ Sort New tab by assignment date descending — most recently assigned first
+      arr = [...arr].sort((a, b) => {
+        const aTime = new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0);
+        const bTime = new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0);
+        return bTime - aTime;
+      });
     } else if (tab === 'booked') {
       arr = arr.filter(l => l.status === 'Booked');
     }

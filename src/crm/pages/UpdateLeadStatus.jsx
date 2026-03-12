@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
@@ -9,9 +9,35 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ArrowLeft, Save, Flame, Wind, Snowflake, Phone, PhoneOff, PhoneMissed,
-  Calendar, IndianRupee, MapPin, CheckCircle2, XCircle
+  Calendar, IndianRupee, MapPin, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { addDays, format } from 'date-fns';
+import { NOTE_TEMPLATES } from '@/crm/data/noteTemplates';
+
+// ── Parse note history from lead.notes string ──
+const parseNoteHistory = (notesStr) => {
+  if (!notesStr || typeof notesStr !== 'string') return [];
+  const lines = notesStr.split('\n').filter(l => l.trim());
+  const entries = [];
+  let currentEntry = null;
+
+  for (const line of lines) {
+    const match = line.match(/^\[(.+?)\]\s*(.+?):\s*(.*)$/);
+    if (match) {
+      if (currentEntry) entries.push(currentEntry);
+      currentEntry = { timestamp: match[1], author: match[2], text: match[3] };
+    } else if (currentEntry) {
+      currentEntry.text += '\n' + line;
+    } else {
+      entries.push({ timestamp: '', author: '', text: line });
+    }
+  }
+  if (currentEntry) entries.push(currentEntry);
+  return entries.reverse(); // newest first
+};
+
+// ── Draft auto-save key ──
+const getDraftKey = (leadId) => `updateLead_draft_${leadId}`;
 
 const UpdateLeadStatus = () => {
   const { leadId } = useParams();
@@ -20,37 +46,81 @@ const UpdateLeadStatus = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const draftTimerRef = useRef(null);
 
   const lead = leads.find(l => l.id === leadId);
 
-  const [formData, setFormData] = useState({
-    actionType: 'quick_update',
-    status: 'Open',
-    interestLevel: 'Warm',
-    callOutcome: '',
-    callDuration: '',
-    followUpDate: '',
-    followUpTime: '',
-    tokenAmount: '',
-    bookingAmount: '',
-    visitDate: '',
-    visitTime: '',
-    notes: '',
-    workStage: 'to_do',
+  const [formData, setFormData] = useState(() => {
+    // ✅ Restore draft from localStorage if available
+    const draftKey = getDraftKey(leadId);
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only restore if draft is less than 24 hours old
+        if (parsed._savedAt && Date.now() - parsed._savedAt < 86400000) {
+          const { _savedAt, ...rest } = parsed;
+          return rest;
+        }
+      }
+    } catch { /* ignore corrupt draft */ }
+    return {
+      actionType: 'quick_update',
+      status: 'Open',
+      interestLevel: 'Warm',
+      callOutcome: '',
+      callDuration: '',
+      followUpDate: '',
+      followUpTime: '',
+      tokenAmount: '',
+      bookingAmount: '',
+      visitDate: '',
+      visitTime: '',
+      notes: '',
+      workStage: 'to_do',
+    };
   });
 
   useEffect(() => {
     if (lead) {
-      setFormData(prev => ({
-        ...prev,
-        status: lead.status || 'Open',
-        interestLevel: lead.interestLevel || lead.interest_level || 'Warm',
-        followUpDate: lead.followUpDate || lead.follow_up_date || '',
-        followUpTime: lead.followUpTime || lead.follow_up_time || '',
-        workStage: lead.callAttempt || lead.call_attempt || 'to_do',
-      }));
+      setFormData(prev => {
+        // Don't overwrite draft notes if they exist
+        const hasDraftNotes = prev.notes && prev.notes.trim().length > 0;
+        return {
+          ...prev,
+          status: prev.status !== 'Open' ? prev.status : (lead.status || 'Open'),
+          interestLevel: lead.interestLevel || lead.interest_level || prev.interestLevel || 'Warm',
+          followUpDate: prev.followUpDate || lead.followUpDate || lead.follow_up_date || '',
+          followUpTime: prev.followUpTime || lead.followUpTime || lead.follow_up_time || '',
+          workStage: prev.workStage !== 'to_do' ? prev.workStage : (lead.callAttempt || lead.call_attempt || 'to_do'),
+          notes: hasDraftNotes ? prev.notes : '',
+        };
+      });
     }
   }, [lead]);
+
+  // ✅ Auto-save draft to localStorage on every form change (debounced 1s)
+  useEffect(() => {
+    if (!leadId) return;
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(getDraftKey(leadId), JSON.stringify({ ...formData, _savedAt: Date.now() }));
+      } catch { /* storage full — ignore */ }
+    }, 1000);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [formData, leadId]);
+
+  // ✅ Append template text to notes (never replace)
+  const appendTemplate = useCallback((template) => {
+    setFormData(prev => ({
+      ...prev,
+      notes: prev.notes
+        ? `${prev.notes}\n${template.text}`
+        : template.text,
+    }));
+  }, []);
 
   if (leadsLoading) {
     return (
@@ -71,6 +141,8 @@ const UpdateLeadStatus = () => {
       </div>
     );
   }
+
+  const noteHistory = parseNoteHistory(lead.notes);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,29 +214,33 @@ const UpdateLeadStatus = () => {
         });
       }
 
-      let noteText = `Status: ${formData.status}\nInterest: ${formData.interestLevel}\nWork Stage: ${formData.workStage}`;
+      // ✅ Build note text — this APPENDS via addLeadNote (never overwrites)
+      let noteText = `Status: ${formData.status} | Interest: ${formData.interestLevel} | Stage: ${formData.workStage}`;
       if (formData.callOutcome) {
         const outcomeLabels = {
-          connected:    '✅ Call Connected',
-          not_answered: '📵 Not Answered',
-          wrong_number: '❌ Wrong Number',
-          switched_off: '📴 Switched Off',
-          busy:         '📞 Busy'
+          connected:    'Call Connected',
+          not_answered: 'Not Answered',
+          wrong_number: 'Wrong Number',
+          switched_off: 'Switched Off',
+          busy:         'Busy'
         };
-        noteText += `\nCall: ${outcomeLabels[formData.callOutcome]}`;
+        noteText += ` | Call: ${outcomeLabels[formData.callOutcome]}`;
         if (formData.callDuration) noteText += ` (${formData.callDuration} min)`;
       }
       if (formData.followUpDate) {
-        noteText += `\nFollow-up: ${format(new Date(formData.followUpDate), 'dd MMM yyyy')}${formData.followUpTime ? ' at ' + formData.followUpTime : ''}`;
+        noteText += ` | F/U: ${format(new Date(formData.followUpDate), 'dd MMM yyyy')}${formData.followUpTime ? ' ' + formData.followUpTime : ''}`;
       }
-      if (formData.tokenAmount)   noteText += `\nToken: ₹${Number(formData.tokenAmount).toLocaleString('en-IN')}`;
-      if (formData.bookingAmount) noteText += `\nBooking: ₹${Number(formData.bookingAmount).toLocaleString('en-IN')}`;
-      noteText += `\n\nNotes: ${formData.notes}`;
+      if (formData.tokenAmount)   noteText += ` | Token: ${Number(formData.tokenAmount).toLocaleString('en-IN')}`;
+      if (formData.bookingAmount) noteText += ` | Booking: ${Number(formData.bookingAmount).toLocaleString('en-IN')}`;
+      noteText += `\n${formData.notes}`;
 
       await addLeadNote(lead.id, noteText, user?.name || 'Employee');
 
-      toast({ title: '✅ Updated', description: 'Lead updated successfully' });
-      navigate(`/crm/lead/${lead.id}`);
+      // ✅ Clear draft after successful save
+      try { localStorage.removeItem(getDraftKey(leadId)); } catch { /* ignore */ }
+
+      toast({ title: 'Updated', description: 'Lead updated successfully' });
+      navigate(-1);
     } catch (error) {
       console.error('Failed to update:', error);
       toast({ title: 'Error', description: 'Failed to update lead', variant: 'destructive' });
@@ -180,12 +256,15 @@ const UpdateLeadStatus = () => {
   ];
 
   const callOutcomes = [
-    { value: 'connected',    label: 'Connected ✅',   icon: Phone,      selectedClass: 'bg-green-50 border-green-300 ring-1 ring-green-200',  iconClass: 'text-green-600'  },
+    { value: 'connected',    label: 'Connected',    icon: Phone,      selectedClass: 'bg-green-50 border-green-300 ring-1 ring-green-200',  iconClass: 'text-green-600'  },
     { value: 'not_answered', label: 'No Answer',     icon: PhoneMissed,selectedClass: 'bg-yellow-50 border-yellow-300 ring-1 ring-yellow-200',iconClass: 'text-yellow-600' },
     { value: 'wrong_number', label: 'Wrong Number',  icon: XCircle,    selectedClass: 'bg-red-50 border-red-300 ring-1 ring-red-200',        iconClass: 'text-red-600'    },
     { value: 'switched_off', label: 'Switched Off',  icon: PhoneOff,   selectedClass: 'bg-gray-100 border-gray-300 ring-1 ring-gray-200',    iconClass: 'text-gray-600'   },
-    { value: 'busy',         label: 'Busy 📞',      icon: Phone,      selectedClass: 'bg-orange-50 border-orange-300 ring-1 ring-orange-200',iconClass: 'text-orange-600' },
+    { value: 'busy',         label: 'Busy',          icon: Phone,      selectedClass: 'bg-orange-50 border-orange-300 ring-1 ring-orange-200',iconClass: 'text-orange-600' },
   ];
+
+  // Quick template chips — pick a curated subset for the UI
+  const quickTemplates = NOTE_TEMPLATES.slice(0, 8);
 
   return (
     // ✅ pb-36 so sticky footer doesn't overlap last section
@@ -338,7 +417,7 @@ const UpdateLeadStatus = () => {
           <div className="bg-blue-50 rounded-xl p-4 border-2 border-blue-200">
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="h-4 w-4 text-blue-600" />
-              <Label className="text-sm font-semibold text-blue-800">3 — Follow-up Date (Optional)</Label>
+              <Label className="text-sm font-semibold text-blue-800">Follow-up Date</Label>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -389,7 +468,7 @@ const UpdateLeadStatus = () => {
             {[
               { value: 'to_do', label: 'To Do',  className: 'bg-slate-100 text-slate-700 border-slate-300' },
               { value: 'doing', label: 'Doing',  className: 'bg-blue-100 text-blue-700 border-blue-300'    },
-              { value: 'did',   label: 'Done ✅', className: 'bg-green-100 text-green-700 border-green-300'  },
+              { value: 'did',   label: 'Done',    className: 'bg-green-100 text-green-700 border-green-300'  },
             ].map(stage => (
               <button key={stage.value} type="button"
                 onClick={() => setFormData({ ...formData, workStage: stage.value })}
@@ -402,17 +481,68 @@ const UpdateLeadStatus = () => {
           </div>
         </div>
 
-        {/* NOTES */}
+        {/* ✅ SMART NOTES — template chips + auto-save + append-only */}
         <div className="bg-white rounded-xl p-4 border shadow-sm">
-          <Label className="text-sm font-semibold mb-2 block text-gray-700">4 — Quick Note (optional)</Label>
+          <Label className="text-sm font-semibold mb-2 block text-gray-700">4 — Notes</Label>
+
+          {/* Quick-tap template chips */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {quickTemplates.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => appendTemplate(t)}
+                className="px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-[11px] font-medium text-gray-600 active:bg-blue-50 active:border-blue-300 active:text-blue-700 transition touch-manipulation"
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <Textarea
-            placeholder="What did the lead say? Any remarks..."
+            placeholder="What did the lead say? Tap chips above or type here..."
             value={formData.notes}
             onChange={e => setFormData({ ...formData, notes: e.target.value })}
             rows={3}
             className="text-sm"
           />
+          {formData.notes && (
+            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+              <Clock size={10} /> Draft auto-saved
+            </p>
+          )}
         </div>
+
+        {/* ✅ NOTE HISTORY — collapsible, shows previous notes with timestamps */}
+        {noteHistory.length > 0 && (
+          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowHistory(!showHistory)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 active:bg-gray-50"
+            >
+              <span>Previous Notes ({noteHistory.length})</span>
+              {showHistory ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+            {showHistory && (
+              <div className="border-t divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                {noteHistory.map((entry, i) => (
+                  <div key={i} className="px-4 py-2.5">
+                    {entry.timestamp && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-semibold text-gray-400">{entry.timestamp}</span>
+                        {entry.author && (
+                          <span className="text-[10px] text-blue-600 font-medium">{entry.author}</span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{entry.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
       </form>
 
@@ -426,7 +556,7 @@ const UpdateLeadStatus = () => {
             className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 font-semibold text-base"
           >
             <Save size={18} className="mr-2" />
-            {loading ? 'Saving...' : '💾 Save & Update Lead'}
+            {loading ? 'Saving...' : 'Save & Update Lead'}
           </Button>
           <Button
             type="button"

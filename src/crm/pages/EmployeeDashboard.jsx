@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Phone, MapPin, CheckCircle, TrendingUp, AlertCircle,
-  ArrowRight, Calendar, Download
+  ArrowRight, Calendar, Download, UserCheck
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
@@ -198,6 +199,12 @@ const EmployeeDashboard = () => {
                       <div>
                         <p className="font-bold text-gray-800">{lead.name}</p>
                         <p className="text-xs text-red-500">Due: {new Date(lead.followUpDate).toLocaleDateString()}</p>
+                        {(lead.assignedAt || lead.assigned_at) && (
+                          <p className="text-[10px] text-[#8B6914] flex items-center gap-1 mt-0.5">
+                            <UserCheck size={10} className="text-[#D4AF37]" />
+                            Assigned {(() => { try { return formatDistanceToNow(new Date(lead.assignedAt || lead.assigned_at), { addSuffix: true }); } catch { return ''; } })()}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="h-8 w-8 p-0 border-red-200" onClick={() => window.location.href = `tel:${lead.phone}`}>
@@ -242,6 +249,12 @@ const EmployeeDashboard = () => {
                       <div>
                         <p className="font-medium text-gray-800">{lead.name}</p>
                         <p className="text-xs text-gray-500">{lead.project} • {lead.status}</p>
+                        {(lead.assignedAt || lead.assigned_at) && (
+                          <p className="text-[10px] text-[#8B6914] flex items-center gap-1 mt-0.5">
+                            <UserCheck size={10} className="text-[#D4AF37]" />
+                            Assigned {(() => { try { return formatDistanceToNow(new Date(lead.assignedAt || lead.assigned_at), { addSuffix: true }); } catch { return ''; } })()}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>

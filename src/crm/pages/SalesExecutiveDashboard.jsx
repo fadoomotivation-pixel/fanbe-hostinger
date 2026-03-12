@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Phone, Users, Calendar, TrendingUp, CheckSquare, PlusCircle, 
-  Clock, ArrowUpRight, DollarSign, Activity 
+import {
+  Phone, Users, Calendar, TrendingUp, CheckSquare, PlusCircle,
+  Clock, ArrowUpRight, DollarSign, Activity, UserCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import FollowUpReminders from '@/crm/components/FollowUpReminders';
 
 const SalesExecutiveDashboard = () => {
@@ -173,6 +173,12 @@ const SalesExecutiveDashboard = () => {
                            <div>
                               <p className="font-medium text-sm">{lead.name}</p>
                               <p className="text-xs text-gray-500">{lead.project} • {lead.phone}</p>
+                              {(lead.assignedAt || lead.assigned_at) && (
+                                <p className="text-[10px] text-[#8B6914] flex items-center gap-1 mt-0.5">
+                                  <UserCheck size={10} className="text-[#D4AF37]" />
+                                  Assigned {(() => { try { return formatDistanceToNow(new Date(lead.assignedAt || lead.assigned_at), { addSuffix: true }); } catch { return ''; } })()}
+                                </p>
+                              )}
                            </div>
                            <div className={`px-2 py-1 rounded text-xs ${
                               lead.status === 'Booked' ? 'bg-green-100 text-green-700' :

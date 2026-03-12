@@ -267,8 +267,21 @@ export const useCRMData = () => {
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
       if (updates.project          !== undefined) mapped.project            = updates.project;
-      if (updates.followUpDate     !== undefined) mapped.next_followup_date = updates.followUpDate;
-      if (updates.follow_up_date   !== undefined) mapped.next_followup_date = updates.follow_up_date;
+      // ✅ FIX: Update BOTH next_followup_date AND follow_up_date columns.
+      // The DB trigger calculate_followup_priority() uses follow_up_date,
+      // so if only next_followup_date is updated, the priority stays stale
+      // and the lead keeps showing as overdue even after rescheduling.
+      if (updates.followUpDate     !== undefined) {
+        mapped.next_followup_date = updates.followUpDate;
+        mapped.follow_up_date     = updates.followUpDate;
+      }
+      if (updates.follow_up_date   !== undefined) {
+        mapped.next_followup_date = updates.follow_up_date;
+        mapped.follow_up_date     = updates.follow_up_date;
+      }
+      if (updates.follow_up_time   !== undefined) mapped.follow_up_time   = updates.follow_up_time;
+      if (updates.follow_up_notes  !== undefined) mapped.follow_up_notes  = updates.follow_up_notes;
+      if (updates.follow_up_status !== undefined) mapped.follow_up_status = updates.follow_up_status;
       if (updates.last_activity    !== undefined) mapped.updated_at         = updates.last_activity;
       if (updates.tokenAmount      !== undefined) mapped.token_amount       = updates.tokenAmount  || 0;
       if (updates.bookingAmount    !== undefined) mapped.booking_amount     = updates.bookingAmount || 0;
@@ -324,6 +337,7 @@ export const useCRMData = () => {
         if (hasFollowUpUpdate) {
           updated.follow_up_date = newFollowUp;
           updated.followUpDate   = newFollowUp;
+          updated.next_followup_date = newFollowUp;
         }
         return updated;
       }));

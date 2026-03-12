@@ -347,7 +347,7 @@ const MyLeads = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-lg font-black text-[#0F3A5F]">My Leads</h1>
-              <p className="text-[11px] text-gray-400">{myLeads.length} leads assigned to you</p>
+              <p className="text-xs text-gray-500">{myLeads.length} leads assigned to you</p>
             </div>
             <div className="flex items-center gap-2">
               {urgentCount > 0 && (
@@ -357,8 +357,8 @@ const MyLeads = () => {
               )}
               <button
                 onClick={() => setSortBy(s => s === 'urgency' ? 'name' : s === 'name' ? 'recent' : 'urgency')}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 rounded-full text-[10px] font-semibold text-gray-600 active:bg-gray-200">
-                <ArrowUpDown size={11} />
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-full text-xs font-semibold text-gray-600 active:bg-gray-200 touch-manipulation">
+                <ArrowUpDown size={13} />
                 {sortBy === 'urgency' ? 'Priority' : sortBy === 'name' ? 'A-Z' : 'Recent'}
               </button>
             </div>
@@ -398,7 +398,7 @@ const MyLeads = () => {
           )}
 
           {/* Tab filters */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {TABS.map(t => {
               let badge = '';
               if (t.id === 'overdue'   && scheduleCounts.overdue    > 0) badge = ` (${scheduleCounts.overdue})`;
@@ -408,7 +408,7 @@ const MyLeads = () => {
               if (t.id === 'all') badge = ` (${myLeads.length})`;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation ${
+                  className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all touch-manipulation ${
                     tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
                   }`}>
                   {t.label}{badge}
@@ -426,8 +426,8 @@ const MyLeads = () => {
         <div className="px-3 pt-3">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-4 pt-3 pb-2">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                <CalendarDays size={12} /> My Schedule
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                <CalendarDays size={13} /> My Schedule
               </p>
             </div>
             <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
@@ -438,7 +438,7 @@ const MyLeads = () => {
                 className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
                   tab === 'overdue' ? 'bg-red-50' : 'hover:bg-red-50/50'
                 }`}>
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   scheduleCounts.overdue > 0 ? 'bg-red-100' : 'bg-gray-100'
                 }`}>
                   <AlarmClock size={16} className={scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-400'} />
@@ -446,7 +446,7 @@ const MyLeads = () => {
                 <p className={`text-xl font-black leading-none ${
                   scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-300'
                 }`}>{scheduleCounts.overdue}</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
               </button>
 
               {/* Today */}
@@ -455,7 +455,7 @@ const MyLeads = () => {
                 className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
                   tab === 'today' ? 'bg-amber-50' : 'hover:bg-amber-50/50'
                 }`}>
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   scheduleCounts.today > 0 ? 'bg-amber-100' : 'bg-gray-100'
                 }`}>
                   <Clock size={16} className={scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-400'} />
@@ -463,7 +463,7 @@ const MyLeads = () => {
                 <p className={`text-xl font-black leading-none ${
                   scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-300'
                 }`}>{scheduleCounts.today}</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
               </button>
 
               {/* Tomorrow */}
@@ -472,7 +472,7 @@ const MyLeads = () => {
                 className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
                   tab === 'tomorrow' ? 'bg-blue-50' : 'hover:bg-blue-50/50'
                 }`}>
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   scheduleCounts.tomorrow > 0 ? 'bg-blue-100' : 'bg-gray-100'
                 }`}>
                   <Sunrise size={16} className={scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-400'} />
@@ -480,7 +480,7 @@ const MyLeads = () => {
                 <p className={`text-xl font-black leading-none ${
                   scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-300'
                 }`}>{scheduleCounts.tomorrow}</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
               </button>
 
             </div>
@@ -513,8 +513,8 @@ const MyLeads = () => {
 
       {/* ── Section Label when viewing a schedule segment ── */}
       {['overdue', 'yesterday', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
-        <div className="px-4 pt-4 pb-1">
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+        <div className="px-4 pt-4 pb-2">
+          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
             {tab === 'overdue'    ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
             : tab === 'yesterday' ? `\u23EA ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} from yesterday — call now!`
             : tab === 'today'     ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
@@ -524,7 +524,7 @@ const MyLeads = () => {
       )}
 
       {/* ── Lead Cards ── */}
-      <div className="px-3 pt-2 space-y-2">
+      <div className="px-3 pt-3 space-y-3">
         {filtered.length === 0 && (
           <div className="text-center py-16">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -571,7 +571,7 @@ const MyLeads = () => {
 
               {/* Card body */}
               <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
-                className="w-full text-left px-4 pt-3.5 pb-2 touch-manipulation">
+                className="w-full text-left px-4 pt-4 pb-3 touch-manipulation">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -581,27 +581,27 @@ const MyLeads = () => {
                     <p className="text-sm text-gray-500 mt-0.5">{formatPhone(lead.phone)}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${sc}`}>{lead.status || 'New'}</span>
-                    {overdueFlag  && <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-bold"><AlertCircle size={9} /> Overdue</span>}
-                    {todayFlag    && <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold"><Clock size={9} /> Today</span>}
-                    {tomorrowFlag && <span className="flex items-center gap-0.5 text-[10px] text-blue-600 font-bold"><Sunrise size={9} /> Tomorrow</span>}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${sc}`}>{lead.status || 'New'}</span>
+                    {overdueFlag  && <span className="flex items-center gap-1 text-[11px] text-red-600 font-bold"><AlertCircle size={11} /> Overdue</span>}
+                    {todayFlag    && <span className="flex items-center gap-1 text-[11px] text-amber-600 font-bold"><Clock size={11} /> Today</span>}
+                    {tomorrowFlag && <span className="flex items-center gap-1 text-[11px] text-blue-600 font-bold"><Sunrise size={11} /> Tomorrow</span>}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                <div className="flex items-center gap-3 mt-2.5 text-xs text-gray-500">
                   {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
                   {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
                   {fu && parseLocalDate(fu) && (
                     <span className={`flex items-center gap-1 ${
                       overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
                     }`}>
-                      <Calendar size={11} /> {format(parseLocalDate(fu), 'dd MMM')}
+                      <Calendar size={12} /> {format(parseLocalDate(fu), 'dd MMM')}
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <p className="text-[10px] text-gray-300">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <p className="text-[11px] text-gray-400">
                     {lead._callCount > 0
                       ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
                       : 'Never contacted'}
@@ -611,8 +611,8 @@ const MyLeads = () => {
                     const assignedAt = lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at;
                     const aTime = formatAssignedTime(assignedAt);
                     return aTime ? (
-                      <span className="flex items-center gap-0.5 text-[10px] text-[#8B6914] font-medium">
-                        <UserCheck size={10} className="text-[#D4AF37]" />
+                      <span className="flex items-center gap-1 text-[11px] text-[#8B6914] font-medium">
+                        <UserCheck size={11} className="text-[#D4AF37]" />
                         {aTime}
                       </span>
                     ) : null;
@@ -620,36 +620,36 @@ const MyLeads = () => {
                 </div>
 
                 {latestNote && (
-                  <div className="flex items-start gap-1.5 mt-2 bg-amber-50 rounded-xl px-2.5 py-1.5">
-                    <StickyNote size={11} className="text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
+                  <div className="flex items-start gap-2 mt-2.5 bg-amber-50 rounded-xl px-3 py-2">
+                    <StickyNote size={12} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
                   </div>
                 )}
               </button>
 
               {/* Card action row */}
-              <div className="flex border-t border-gray-50">
+              <div className="flex border-t border-gray-100">
                 <a href={`tel:${lead.phone}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-emerald-600 active:bg-emerald-50 touch-manipulation">
-                  <Phone size={14} /> Call
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-emerald-600 active:bg-emerald-50 touch-manipulation">
+                  <Phone size={15} /> Call
                 </a>
                 <button onClick={() => copyPhone(lead.phone, lead.id)}
-                  className="flex items-center justify-center gap-1.5 px-4 py-3 text-xs font-semibold text-gray-400 border-x border-gray-50 active:bg-gray-50 touch-manipulation">
+                  className="flex items-center justify-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-gray-400 border-x border-gray-100 active:bg-gray-50 touch-manipulation">
                   {copiedId === lead.id
-                    ? <CheckCircle size={14} className="text-emerald-500" />
-                    : <Copy size={14} />}
+                    ? <CheckCircle size={15} className="text-emerald-500" />
+                    : <Copy size={15} />}
                 </button>
                 <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
                   target="_blank" rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
-                  <MessageCircle size={14} /> WhatsApp
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
+                  <MessageCircle size={15} /> WhatsApp
                 </a>
                 <button onClick={() => {
                   setQuickLead(lead);
                   setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
                 }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
-                  <PhoneCall size={14} /> Log
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
+                  <PhoneCall size={15} /> Log
                 </button>
               </div>
             </div>
@@ -701,7 +701,7 @@ const MyLeads = () => {
               </div>
 
               {/* Step 1 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">How did the call go?</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">How did the call go?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_OUTCOMES.map(o => (
                   <button key={o.id} onClick={() => setOutcome(o.id)}
@@ -716,7 +716,7 @@ const MyLeads = () => {
               </div>
 
               {/* Step 2 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Update Status</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Update Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_STATUSES.map(s => (
                   <button key={s.id} onClick={() => setNewStatus(newStatus === s.id ? '' : s.id)}
@@ -731,7 +731,7 @@ const MyLeads = () => {
               </div>
 
               {/* Step 3 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">
                 {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
               </p>
               {/* Quick date chips */}
@@ -760,7 +760,7 @@ const MyLeads = () => {
               </div>
 
               {/* Step 4 */}
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quick Note (optional)</p>
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Quick Note (optional)</p>
               <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
                 placeholder="What did the lead say?" rows={2}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] mb-5" />

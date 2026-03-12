@@ -167,11 +167,11 @@ const MobileLeadList = () => {
   return (
     <div className="pb-24 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="bg-white border-b px-4 pt-4 pb-2 sticky top-0 z-20">
+      <div className="bg-white border-b px-4 pt-4 pb-3 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-lg md:text-2xl font-bold text-gray-900">My Leads</h1>
-            <p className="text-xs text-gray-500">{myLeads.length} leads assigned</p>
+            <p className="text-xs text-gray-500 mt-0.5">{myLeads.length} leads assigned</p>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -213,7 +213,7 @@ const MobileLeadList = () => {
                 : 'bg-blue-50 border-blue-200 text-blue-700 hover:border-blue-300 active:scale-95'
             }`}
           >
-            <span className="text-[10px] font-medium">Open</span>
+            <span className="text-[11px] font-medium">Open</span>
             <span className="text-sm font-bold">{stats.open}</span>
           </button>
           
@@ -225,7 +225,7 @@ const MobileLeadList = () => {
                 : 'bg-orange-50 border-orange-200 text-orange-700 hover:border-orange-300 active:scale-95'
             }`}
           >
-            <span className="text-[10px] font-medium">Follow Up</span>
+            <span className="text-[11px] font-medium">Follow Up</span>
             <span className="text-sm font-bold">{stats.followUp}</span>
           </button>
           
@@ -237,7 +237,7 @@ const MobileLeadList = () => {
                 : 'bg-green-50 border-green-200 text-green-700 hover:border-green-300 active:scale-95'
             }`}
           >
-            <span className="text-[10px] font-medium">Booked</span>
+            <span className="text-[11px] font-medium">Booked</span>
             <span className="text-sm font-bold">{stats.booked}</span>
           </button>
           
@@ -249,7 +249,7 @@ const MobileLeadList = () => {
                 : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300 active:scale-95'
             }`}
           >
-            <span className="text-[10px] font-medium">Lost</span>
+            <span className="text-[11px] font-medium">Lost</span>
             <span className="text-sm font-bold">{stats.lost}</span>
           </button>
 
@@ -265,7 +265,7 @@ const MobileLeadList = () => {
             }`}
           >
             <Flame size={12} className={temperatureFilter === 'Hot' ? 'text-white' : 'text-red-500'} />
-            <span className={`text-[10px] font-medium ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>Hot</span>
+            <span className={`text-[11px] font-medium ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>Hot</span>
             <span className={`text-sm font-bold ${temperatureFilter === 'Hot' ? 'text-white' : 'text-red-600'}`}>{stats.hot}</span>
           </button>
           
@@ -278,7 +278,7 @@ const MobileLeadList = () => {
             }`}
           >
             <Wind size={12} className={temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-500'} />
-            <span className={`text-[10px] font-medium ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>Warm</span>
+            <span className={`text-[11px] font-medium ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>Warm</span>
             <span className={`text-sm font-bold ${temperatureFilter === 'Warm' ? 'text-white' : 'text-amber-600'}`}>{stats.warm}</span>
           </button>
           
@@ -291,7 +291,7 @@ const MobileLeadList = () => {
             }`}
           >
             <Snowflake size={12} className={temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-400'} />
-            <span className={`text-[10px] font-medium ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>Cold</span>
+            <span className={`text-[11px] font-medium ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>Cold</span>
             <span className={`text-sm font-bold ${temperatureFilter === 'Cold' ? 'text-white' : 'text-blue-500'}`}>{stats.cold}</span>
           </button>
         </div>
@@ -301,26 +301,26 @@ const MobileLeadList = () => {
           <div className="mb-3 flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500">Filtering:</span>
             {statusFilter !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
                 Status: {statusFilter === 'FollowUp' ? 'Follow Up' : statusFilter}
-                <button onClick={() => setStatusFilter('all')} className="hover:bg-blue-200 rounded-full p-0.5">
-                  <X size={12} />
+                <button onClick={() => setStatusFilter('all')} className="hover:bg-blue-200 rounded-full p-0.5 touch-manipulation">
+                  <X size={13} />
                 </button>
               </span>
             )}
             {temperatureFilter !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full">
                 Temperature: {temperatureFilter}
-                <button onClick={() => setTemperatureFilter('all')} className="hover:bg-purple-200 rounded-full p-0.5">
-                  <X size={12} />
+                <button onClick={() => setTemperatureFilter('all')} className="hover:bg-purple-200 rounded-full p-0.5 touch-manipulation">
+                  <X size={13} />
                 </button>
               </span>
             )}
             {activeTab !== 'all' && (
-              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs font-medium px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">
                 Priority: {activeTab}
-                <button onClick={() => setActiveTab('all')} className="hover:bg-gray-200 rounded-full p-0.5">
-                  <X size={12} />
+                <button onClick={() => setActiveTab('all')} className="hover:bg-gray-200 rounded-full p-0.5 touch-manipulation">
+                  <X size={13} />
                 </button>
               </span>
             )}
@@ -328,7 +328,7 @@ const MobileLeadList = () => {
         )}
 
         {/* Search */}
-        <div className="bg-gray-100 rounded-lg flex items-center px-3 py-2 mb-3">
+        <div className="bg-gray-100 rounded-xl flex items-center px-3 py-2.5 mb-3">
           <Search size={16} className="text-gray-400 mr-2 shrink-0" />
           <input
             placeholder="Search name, phone, project..."
@@ -342,7 +342,7 @@ const MobileLeadList = () => {
         </div>
 
         {/* Priority Tabs */}
-        <div className="flex gap-1 overflow-x-auto no-scrollbar -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
           {FILTER_TABS.map(tab => {
             const count = tab.key === 'all' ? myLeads.length : summary[tab.key] || 0;
             const isActive = activeTab === tab.key;
@@ -351,15 +351,15 @@ const MobileLeadList = () => {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition touch-manipulation ${
                   isActive
                     ? isUrgent ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
                     : isUrgent ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                {tab.key === 'overdue' && <AlertCircle size={12} />}
+                {tab.key === 'overdue' && <AlertCircle size={13} />}
                 {tab.label}
-                <span className={`text-[10px] ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
+                <span className={`text-[11px] ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
                   {count}
                 </span>
               </button>
@@ -398,7 +398,7 @@ const MobileLeadList = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 md:gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map(lead => {
               const followUpDate = lead.followUpDate || lead.follow_up_date;
               const followUpTime = lead.followUpTime || lead.follow_up_time;
@@ -416,56 +416,56 @@ const MobileLeadList = () => {
                   }`}
                   onClick={() => navigate(`/crm/lead/${lead.id}`)}
                 >
-                  <div className="px-3 pt-3 pb-1 flex items-start justify-between">
+                  <div className="px-4 pt-3.5 pb-1.5 flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <TemperatureDot level={lead.interestLevel || lead.interest_level} />
-                        <h3 className="font-semibold text-gray-900 text-sm truncate">{lead.name}</h3>
+                        <h3 className="font-bold text-gray-900 text-base truncate">{lead.name}</h3>
                       </div>
                       {lead.project && (
-                        <p className="text-[11px] text-gray-400 mt-0.5 ml-5 truncate">{lead.project}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 ml-6 truncate">{lead.project}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${getStatusColor(lead.status)}`}>
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${getStatusColor(lead.status)}`}>
                         {lead._status === 'FollowUp' ? 'Follow Up' : lead._status}
                       </span>
-                      <ChevronRight size={14} className="text-gray-300" />
+                      <ChevronRight size={15} className="text-gray-300" />
                     </div>
                   </div>
 
                   {followUpDate && (
-                    <div className="px-3 pb-1">
+                    <div className="px-4 pb-1.5">
                       <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
                     </div>
                   )}
 
-                  <div className="px-3 pb-2.5 pt-1.5 flex justify-between items-center border-t border-gray-50 mt-1">
-                    <div className="text-[11px] text-gray-400 truncate">
+                  <div className="px-4 pb-3 pt-2 flex justify-between items-center border-t border-gray-50 mt-1.5">
+                    <div className="text-xs text-gray-500 truncate">
                       <span>{lead.phone}</span>
                       {lead.budget ? <span> · ₹{Number(lead.budget).toLocaleString('en-IN')}</span> : null}
                       {lastUpdated && (
                         <span className="hidden sm:inline"> · {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
                       )}
                     </div>
-                    <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                       <a
                         href={`tel:${lead.phone}`}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 border border-green-200 active:bg-green-100"
+                        className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100 touch-manipulation"
                       >
-                        <Phone size={14} className="text-green-600" />
+                        <Phone size={15} className="text-green-600" />
                       </a>
                       <button
                         onClick={() => setSelectedLeadForCallLog(lead)}
-                        className="h-8 px-2.5 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-[11px] font-medium active:bg-purple-100 flex items-center gap-1"
+                        className="h-9 px-3 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-xs font-semibold active:bg-purple-100 flex items-center gap-1.5 touch-manipulation"
                         title="Log call outcome - auto-creates follow-up"
                       >
-                        <PhoneCall size={12} />
+                        <PhoneCall size={13} />
                         Log
                       </button>
                       <button
                         onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-                        className="h-8 px-2.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-[11px] font-medium active:bg-blue-100"
+                        className="h-9 px-3 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-xs font-semibold active:bg-blue-100 touch-manipulation"
                       >
                         Update
                       </button>

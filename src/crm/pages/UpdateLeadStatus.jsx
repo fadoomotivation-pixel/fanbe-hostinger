@@ -271,9 +271,9 @@ const UpdateLeadStatus = () => {
     <div className="min-h-screen bg-gray-50 pb-36">
 
       {/* Sticky Header */}
-      <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
+      <div className="bg-white border-b px-4 py-3.5 sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded-full hover:bg-gray-100">
+          <button onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 touch-manipulation">
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div className="flex-1 min-w-0">
@@ -283,15 +283,15 @@ const UpdateLeadStatus = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-4 pt-4 space-y-3">
+      <form onSubmit={handleSubmit} className="px-4 pt-4 space-y-4">
 
         {/* QUICK ACTION TABS */}
-        <div className="bg-white rounded-xl p-3 border shadow-sm">
-          <Label className="text-xs font-semibold mb-2 block text-gray-600">QUICK ACTION</Label>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white rounded-xl p-4 border shadow-sm">
+          <Label className="text-xs font-semibold mb-2.5 block text-gray-600">QUICK ACTION</Label>
+          <div className="grid grid-cols-2 gap-2.5">
             <button type="button"
               onClick={() => setFormData(prev => ({ ...prev, actionType: 'quick_update', callOutcome: '', visitDate: '' }))}
-              className={`p-2 rounded-lg text-xs font-medium transition ${
+              className={`p-3 rounded-xl text-sm font-semibold transition touch-manipulation ${
                 formData.actionType === 'quick_update'
                   ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
                   : 'bg-gray-50 text-gray-600 border border-gray-200'
@@ -300,7 +300,7 @@ const UpdateLeadStatus = () => {
             </button>
             <button type="button"
               onClick={() => setFormData(prev => ({ ...prev, actionType: 'call_log', visitDate: '' }))}
-              className={`p-2 rounded-lg text-xs font-medium transition ${
+              className={`p-3 rounded-xl text-sm font-semibold transition touch-manipulation ${
                 formData.actionType === 'call_log'
                   ? 'bg-green-100 text-green-700 border-2 border-green-300'
                   : 'bg-gray-50 text-gray-600 border border-gray-200'
@@ -309,7 +309,7 @@ const UpdateLeadStatus = () => {
             </button>
             <button type="button"
               onClick={() => navigate(`/crm/sales/site-visits?leadId=${lead.id}`)}
-              className="p-2 rounded-lg text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">
+              className="p-3 rounded-xl text-sm font-semibold bg-purple-100 text-purple-700 border border-purple-200 touch-manipulation">
               Schedule Visit
             </button>
             <button type="button"
@@ -325,7 +325,7 @@ const UpdateLeadStatus = () => {
                   workStage: 'to_do',
                 }));
               }}
-              className="p-2 rounded-lg text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+              className="p-3 rounded-xl text-sm font-semibold bg-orange-100 text-orange-700 border border-orange-200 touch-manipulation">
               Call Tomorrow
             </button>
           </div>
@@ -335,18 +335,18 @@ const UpdateLeadStatus = () => {
         {formData.actionType === 'call_log' && (
           <div className="bg-white rounded-xl p-4 border shadow-sm">
             <Label className="text-sm font-semibold mb-3 block text-gray-700">1 — What happened on the call?</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {callOutcomes.map(outcome => {
                 const Icon = outcome.icon;
                 const isSelected = formData.callOutcome === outcome.value;
                 return (
                   <button key={outcome.value} type="button"
                     onClick={() => setFormData({ ...formData, callOutcome: outcome.value })}
-                    className={`p-3 rounded-lg border-2 transition flex items-center gap-2 ${
+                    className={`p-3.5 rounded-xl border-2 transition flex items-center gap-2.5 touch-manipulation ${
                       isSelected ? outcome.selectedClass : 'bg-white border-gray-200'
                     }`}>
                     <Icon size={18} className={isSelected ? outcome.iconClass : 'text-gray-400'} />
-                    <span className={`text-xs font-medium ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                    <span className={`text-sm font-medium ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
                       {outcome.label}
                     </span>
                     {isSelected && <CheckCircle2 size={14} className="ml-auto text-blue-600" />}
@@ -368,11 +368,11 @@ const UpdateLeadStatus = () => {
         {/* STATUS */}
         <div className="bg-white rounded-xl p-4 border shadow-sm">
           <Label className="text-sm font-semibold mb-3 block text-gray-700">2 — Update Lead Status</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             {['Open', 'FollowUp', 'Booked', 'Lost', 'Not Interested', 'Call Back Later'].map(status => (
               <button key={status} type="button"
                 onClick={() => setFormData({ ...formData, status: status === 'Not Interested' ? 'Lost' : status })}
-                className={`p-2.5 rounded-lg text-xs font-semibold border-2 transition ${
+                className={`p-3 rounded-xl text-sm font-semibold border-2 transition touch-manipulation ${
                   formData.status === status ||
                   (status === 'Not Interested' && formData.status === 'Lost')
                     ? status === 'Booked'          ? 'bg-green-50 border-green-300 text-green-700' :
@@ -391,20 +391,20 @@ const UpdateLeadStatus = () => {
         {/* INTEREST LEVEL */}
         <div className="bg-white rounded-xl p-4 border shadow-sm">
           <Label className="text-sm font-semibold mb-3 block text-gray-700">3 — Interest Level</Label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             {interestOptions.map(option => {
               const Icon = option.icon;
               const isSelected = formData.interestLevel === option.value;
               return (
                 <button key={option.value} type="button"
                   onClick={() => setFormData({ ...formData, interestLevel: option.value })}
-                  className={`p-3 rounded-lg border-2 transition ${
+                  className={`p-3.5 rounded-xl border-2 transition touch-manipulation ${
                     isSelected ? option.selectedClass : 'bg-white border-gray-200'
                   }`}>
-                  <div className="flex flex-col items-center gap-1">
-                    <Icon size={20} className={isSelected ? option.iconClass : 'text-gray-300'} />
-                    <p className={`font-bold text-xs ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{option.label}</p>
-                    <p className="text-[10px] text-gray-400">{option.sublabel}</p>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Icon size={22} className={isSelected ? option.iconClass : 'text-gray-300'} />
+                    <p className={`font-bold text-sm ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{option.label}</p>
+                    <p className="text-[11px] text-gray-400">{option.sublabel}</p>
                   </div>
                 </button>
               );
@@ -464,7 +464,7 @@ const UpdateLeadStatus = () => {
         {/* EMPLOYEE WORK TRACKER */}
         <div className="bg-white rounded-xl p-4 border shadow-sm">
           <Label className="text-sm font-semibold mb-3 block text-gray-700">My Work Progress</Label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             {[
               { value: 'to_do', label: 'To Do',  className: 'bg-slate-100 text-slate-700 border-slate-300' },
               { value: 'doing', label: 'Doing',  className: 'bg-blue-100 text-blue-700 border-blue-300'    },
@@ -472,7 +472,7 @@ const UpdateLeadStatus = () => {
             ].map(stage => (
               <button key={stage.value} type="button"
                 onClick={() => setFormData({ ...formData, workStage: stage.value })}
-                className={`p-2.5 rounded-lg text-xs font-semibold border-2 transition ${
+                className={`p-3 rounded-xl text-sm font-semibold border-2 transition touch-manipulation ${
                   formData.workStage === stage.value ? stage.className : 'bg-white border-gray-200 text-gray-500'
                 }`}>
                 {stage.label}
@@ -486,13 +486,13 @@ const UpdateLeadStatus = () => {
           <Label className="text-sm font-semibold mb-2 block text-gray-700">4 — Notes</Label>
 
           {/* Quick-tap template chips */}
-          <div className="flex flex-wrap gap-1.5 mb-3">
+          <div className="flex flex-wrap gap-2 mb-3">
             {quickTemplates.map(t => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => appendTemplate(t)}
-                className="px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-[11px] font-medium text-gray-600 active:bg-blue-50 active:border-blue-300 active:text-blue-700 transition touch-manipulation"
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-full text-xs font-medium text-gray-600 active:bg-blue-50 active:border-blue-300 active:text-blue-700 transition touch-manipulation"
               >
                 {t.label}
               </button>
@@ -507,8 +507,8 @@ const UpdateLeadStatus = () => {
             className="text-sm"
           />
           {formData.notes && (
-            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-              <Clock size={10} /> Draft auto-saved
+            <p className="text-[11px] text-gray-400 mt-1.5 flex items-center gap-1">
+              <Clock size={11} /> Draft auto-saved
             </p>
           )}
         </div>
@@ -527,12 +527,12 @@ const UpdateLeadStatus = () => {
             {showHistory && (
               <div className="border-t divide-y divide-gray-50 max-h-64 overflow-y-auto">
                 {noteHistory.map((entry, i) => (
-                  <div key={i} className="px-4 py-2.5">
+                  <div key={i} className="px-4 py-3">
                     {entry.timestamp && (
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-semibold text-gray-400">{entry.timestamp}</span>
+                        <span className="text-[11px] font-semibold text-gray-400">{entry.timestamp}</span>
                         {entry.author && (
-                          <span className="text-[10px] text-blue-600 font-medium">{entry.author}</span>
+                          <span className="text-[11px] text-blue-600 font-medium">{entry.author}</span>
                         )}
                       </div>
                     )}

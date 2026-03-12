@@ -169,13 +169,34 @@ const CRMSidebar = ({ isOpen, onClose }) => {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 overscroll-contain">
           {renderMenu()}
 
-          {/* Bookings link for employee roles */}
+          {/* Site Visits link for employee roles */}
           {user && EMPLOYEE_ROLES.includes(user.role) && (
             <Link
-              to="/crm/sales/my-bookings"
+              to="/crm/sales/site-visits"
               onClick={() => { if (window.innerWidth < 1024) onClose(); }}
               className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
-                ${ isActive('/crm/sales/my-bookings')
+                ${ isActive('/crm/sales/site-visits')
+                    ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
+                    : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
+                }`}
+            >
+              <MapPin
+                size={19}
+                className={`shrink-0 ${
+                  isActive('/crm/sales/site-visits') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
+                }`}
+              />
+              <span className="text-sm font-medium">Site Visits</span>
+            </Link>
+          )}
+
+          {/* Booked link for employee roles */}
+          {user && EMPLOYEE_ROLES.includes(user.role) && (
+            <Link
+              to="/crm/sales/bookings"
+              onClick={() => { if (window.innerWidth < 1024) onClose(); }}
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
+                ${ isActive('/crm/sales/bookings')
                     ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
                     : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
                 }`}
@@ -183,10 +204,10 @@ const CRMSidebar = ({ isOpen, onClose }) => {
               <Trophy
                 size={19}
                 className={`shrink-0 ${
-                  isActive('/crm/sales/my-bookings') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
+                  isActive('/crm/sales/bookings') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
                 }`}
               />
-              <span className="text-sm font-medium">Bookings</span>
+              <span className="text-sm font-medium">Booked</span>
             </Link>
           )}
 

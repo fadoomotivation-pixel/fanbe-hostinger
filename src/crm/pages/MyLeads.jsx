@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useMobile } from '@/lib/useMobile';
 import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
 import SmartDateInput from '@/crm/components/SmartDateInput';
-import { format, isToday, isTomorrow, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 
 // ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
 // This prevents timezone drift where a "tomorrow" date in UTC could appear as
@@ -69,13 +69,14 @@ const urgencyScore = (lead) => {
 
 // ✅ New tab is FIRST so employees see fresh leads immediately
 const TABS = [
-  { id: 'new',      label: 'New' },
-  { id: 'all',      label: 'All' },
-  { id: 'overdue',  label: '\uD83D\uDEA8 Overdue' },
-  { id: 'today',    label: '\uD83D\uDCC5 Today' },
-  { id: 'tomorrow', label: '\uD83C\uDF05 Tomorrow' },
-  { id: 'followup', label: 'Follow Up' },
-  { id: 'booked',   label: 'Booked' },
+  { id: 'new',       label: 'New' },
+  { id: 'all',       label: 'All' },
+  { id: 'overdue',   label: '\uD83D\uDEA8 Overdue' },
+  { id: 'yesterday', label: '\u23EA Yesterday' },
+  { id: 'today',     label: '\uD83D\uDCC5 Today' },
+  { id: 'tomorrow',  label: '\uD83C\uDF05 Tomorrow' },
+  { id: 'followup',  label: 'Follow Up' },
+  { id: 'booked',    label: 'Booked' },
 ];
 
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
@@ -138,6 +139,7 @@ const MyLeads = () => {
   });
   const [search, setSearch]         = useState('');
   const [sortBy, setSortBy]         = useState('urgency');
+  const [dateFilter, setDateFilter] = useState('');
   const [quickLead, setQuickLead]   = useState(null);
   const [outcome, setOutcome]       = useState('');
   const [newStatus, setNewStatus]   = useState('');
@@ -205,7 +207,7 @@ const MyLeads = () => {
 
   // ✅ Schedule counts — always computed live from latest leads state
   const scheduleCounts = useMemo(() => {
-    let overdue = 0, todayCount = 0, tomorrowCount = 0;
+    let overdue = 0, yesterdayCount = 0, todayCount = 0, tomorrowCount = 0;
     myLeads.forEach(l => {
       if (TERMINAL_STATUSES.includes(l.status)) return;
       const fu = l.follow_up_date || l.followUpDate;
@@ -213,12 +215,13 @@ const MyLeads = () => {
       try {
         const d = parseLocalDate(fu);
         if (!d) return;
-        if (isPast(d) && !isToday(d))  overdue++;
+        if (isYesterday(d))             yesterdayCount++;
+        else if (isPast(d) && !isToday(d))  overdue++;
         else if (isToday(d))            todayCount++;
         else if (isTomorrow(d))         tomorrowCount++;
       } catch { /* skip */ }
     });
-    return { overdue, today: todayCount, tomorrow: tomorrowCount };
+    return { overdue, yesterday: yesterdayCount, today: todayCount, tomorrow: tomorrowCount };
   }, [myLeads]);
 
   const filtered = useMemo(() => {
@@ -227,7 +230,13 @@ const MyLeads = () => {
       arr = arr.filter(l => {
         if (TERMINAL_STATUSES.includes(l.status)) return false;
         const fu = l.follow_up_date || l.followUpDate;
-        try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d); } catch { return false; }
+        try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d) && !isYesterday(d); } catch { return false; }
+      });
+    } else if (tab === 'yesterday') {
+      arr = arr.filter(l => {
+        if (TERMINAL_STATUSES.includes(l.status)) return false;
+        const fu = l.follow_up_date || l.followUpDate;
+        try { const d = parseLocalDate(fu); return d && isYesterday(d); } catch { return false; }
       });
     } else if (tab === 'today') {
       arr = arr.filter(l => {
@@ -262,8 +271,17 @@ const MyLeads = () => {
         l.project?.toLowerCase().includes(q)
       );
     }
+    // Date filter — filter by follow-up date or created date
+    if (dateFilter) {
+      arr = arr.filter(l => {
+        const fu = l.follow_up_date || l.followUpDate;
+        const created = (l.createdAt || l.created_at || '').split('T')[0];
+        const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
+        return fu === dateFilter || created === dateFilter || assigned === dateFilter;
+      });
+    }
     return arr;
-  }, [myLeads, tab, search]);
+  }, [myLeads, tab, search, dateFilter]);
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
@@ -340,26 +358,47 @@ const MyLeads = () => {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="relative mb-2">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search name, phone, project..."
-              className="w-full pl-9 pr-8 py-2.5 text-sm bg-gray-100 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20" />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                <X size={14} className="text-gray-400" />
-              </button>
-            )}
+          {/* Search + Date Filter */}
+          <div className="flex gap-2 mb-2">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, phone, project..."
+                className="w-full pl-9 pr-8 py-2.5 text-sm bg-gray-100 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20" />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X size={14} className="text-gray-400" />
+                </button>
+              )}
+            </div>
+            <div className="relative shrink-0">
+              <input type="date" value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
+                className={`w-10 h-10 rounded-xl border-2 text-transparent cursor-pointer focus:outline-none ${
+                  dateFilter ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-100'
+                }`} />
+              <Filter size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+                dateFilter ? 'text-purple-600' : 'text-gray-400'
+              }`} />
+            </div>
           </div>
+          {dateFilter && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <CalendarDays size={11} /> {format(parseLocalDate(dateFilter), 'dd MMM yyyy')}
+              </span>
+              <button onClick={() => setDateFilter('')} className="text-xs text-gray-400 underline">Clear</button>
+            </div>
+          )}
 
           {/* Tab filters */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
             {TABS.map(t => {
               let badge = '';
-              if (t.id === 'overdue'  && scheduleCounts.overdue   > 0) badge = ` (${scheduleCounts.overdue})`;
-              if (t.id === 'today'    && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
-              if (t.id === 'tomorrow' && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
+              if (t.id === 'overdue'   && scheduleCounts.overdue    > 0) badge = ` (${scheduleCounts.overdue})`;
+              if (t.id === 'yesterday' && scheduleCounts.yesterday  > 0) badge = ` (${scheduleCounts.yesterday})`;
+              if (t.id === 'today'     && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
+              if (t.id === 'tomorrow'  && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
               if (t.id === 'all') badge = ` (${myLeads.length})`;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
@@ -467,11 +506,12 @@ const MyLeads = () => {
       )}
 
       {/* ── Section Label when viewing a schedule segment ── */}
-      {['overdue', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
+      {['overdue', 'yesterday', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
         <div className="px-4 pt-4 pb-1">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            {tab === 'overdue'  ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
-            : tab === 'today'   ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
+            {tab === 'overdue'    ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
+            : tab === 'yesterday' ? `\u23EA ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} from yesterday — call now!`
+            : tab === 'today'     ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
             : `\uD83C\uDF05 ${filtered.length} Scheduled for tomorrow`}
           </p>
         </div>

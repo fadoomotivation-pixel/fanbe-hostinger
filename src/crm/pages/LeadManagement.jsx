@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,18 +18,26 @@ import AssignmentModal from '@/crm/components/AssignmentModal';
 import BulkDeleteModal from '@/crm/components/BulkDeleteModal';
 import { isVIPLead } from '@/lib/smartAssignmentEngine';
 
-// ── helper: safe date format ─────────────────────────────────────────
+// ── helper: safe date format ──────────────────────────────────────
 const fmtDate = (d, fmt = 'dd MMM yyyy') => {
   if (!d) return '—';
   try { return format(parseISO(d), fmt); } catch { return d; }
 };
 
-// ── Roles that should NEVER appear in the assignment dropdown ────────
+// ── Roles that should NEVER appear in the assignment dropdown ──────────
 const ADMIN_ROLES = [
   'super_admin', 'superadmin', 'admin',
   'sub_admin',   'subadmin',
   'hr_manager',  'hr',
 ];
+
+// ✅ Sort leads newest-assigned first
+const sortNewestFirst = (arr) =>
+  [...arr].sort((a, b) => {
+    const da = new Date(a.assignedAt || a.createdAt || 0);
+    const db = new Date(b.assignedAt || b.createdAt || 0);
+    return db - da;
+  });
 
 const LeadManagement = () => {
   const { leads, addLead, updateLead, deleteLead, employees, getUniqueSources } = useCRMData();
@@ -39,7 +47,7 @@ const LeadManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
   const [filterEmployee, setFilterEmployee] = useState('all');
-  const [filterAssignLog, setFilterAssignLog] = useState('all'); // for Assignment Log tab
+  const [filterAssignLog, setFilterAssignLog] = useState('all');
   const [showOnlyReassigned, setShowOnlyReassigned] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState([]);
@@ -52,23 +60,20 @@ const LeadManagement = () => {
     source: 'Website', budget: '', status: 'Open', notes: ''
   });
 
-  // Persist active tab to sessionStorage
   useEffect(() => { sessionStorage.setItem('leadMgmt_activeTab', activeTab); }, [activeTab]);
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
-  // ✅ FIX: Exclude admin roles instead of whitelisting sales roles.
-  // This prevents "empty dropdown" when employee roles are stored with
-  // different casing or spacing (e.g. "Sales Executive" vs "sales_executive").
   const salesEmployees = employees.filter(emp =>
     !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
   );
 
-  const myLeads = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
+  const myLeads        = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
   const unassignedLeads = myLeads.filter(l => !l.assignedTo);
-  const assignedLeads   = myLeads.filter(l => !!l.assignedTo);
+  // ✅ Always newest-assigned first for the assigned list
+  const assignedLeads  = useMemo(() => sortNewestFirst(myLeads.filter(l => !!l.assignedTo)), [myLeads]);
 
-  // ── Assignment Log data ──────────────────────────────────────────────
+  // ── Assignment Log data ──────────────────────────────────────────
   const reassignedCount = assignedLeads.filter(l => l.prevAssignedTo).length;
 
   const assignLogLeads = (
@@ -87,6 +92,7 @@ const LeadManagement = () => {
   });
 
   const filteredUnassigned = applyFilters(unassignedLeads);
+  // ✅ filteredAssigned already sorted via assignedLeads (sortNewestFirst)
   const filteredAssigned   = applyFilters(
     filterEmployee === 'all'
       ? assignedLeads
@@ -137,7 +143,6 @@ const LeadManagement = () => {
     else         setSelectedLeadIds([]);
   };
 
-  // ── ASSIGNMENT: save prev assignee when reassigning ──────────────────
   const handleAssignment = (empId, empName) => {
     const now = new Date().toISOString();
     selectedLeadIds.forEach(leadId => {
@@ -147,7 +152,6 @@ const LeadManagement = () => {
         assignedToName: empName,
         assignedAt:     now,
       };
-      // If already assigned to someone else → save previous assignment
       if (lead?.assignedTo && lead.assignedTo !== empId) {
         updates.prevAssignedTo     = lead.assignedTo;
         updates.prevAssignedToName = lead.assignedToName || null;
@@ -178,7 +182,6 @@ const LeadManagement = () => {
     setActiveTab('unassigned');
   };
 
-  // ── Export Assignment Log as CSV ─────────────────────────────────────
   const exportAssignLog = () => {
     const rows = [
       ['Lead Name', 'Phone', 'Project', 'Assigned To', 'Date Assigned', 'Prev Assigned To', 'Reassigned On', 'Status'],
@@ -350,7 +353,6 @@ const LeadManagement = () => {
         {/* ── ASSIGNMENT LOG TAB (admin only) ── */}
         {isAdmin && (
           <TabsContent value="assignlog" className="space-y-4">
-            {/* Filters + Export */}
             <div className="flex flex-wrap items-center gap-3">
               <Select value={filterAssignLog} onValueChange={setFilterAssignLog}>
                 <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by Employee" /></SelectTrigger>
@@ -390,7 +392,6 @@ const LeadManagement = () => {
               </div>
             </div>
 
-            {/* Assignment Log Table */}
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -417,7 +418,6 @@ const LeadManagement = () => {
                       <tr key={lead.id} className={`hover:bg-gray-50 transition-colors ${
                         lead.prevAssignedTo ? 'bg-amber-50/50' : ''
                       }`}>
-                        {/* Lead */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {lead.prevAssignedTo && (
@@ -429,13 +429,7 @@ const LeadManagement = () => {
                             </div>
                           </div>
                         </td>
-
-                        {/* Project */}
-                        <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell">
-                          {lead.project || '—'}
-                        </td>
-
-                        {/* Assigned To */}
+                        <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell">{lead.project || '—'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
@@ -444,20 +438,14 @@ const LeadManagement = () => {
                             <span className="font-medium text-gray-800 text-sm">{lead.assignedToName || '—'}</span>
                           </div>
                         </td>
-
-                        {/* Date Assigned */}
                         <td className="px-4 py-3">
                           {lead.assignedAt ? (
                             <div>
                               <p className="text-sm text-gray-700 font-medium">{fmtDate(lead.assignedAt, 'dd MMM yyyy')}</p>
                               <p className="text-xs text-gray-400">{fmtDate(lead.assignedAt, 'hh:mm a')}</p>
                             </div>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
+                          ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
-
-                        {/* Prev Assignee */}
                         <td className="px-4 py-3">
                           {lead.prevAssignedToName ? (
                             <div className="flex items-center gap-1.5">
@@ -469,24 +457,16 @@ const LeadManagement = () => {
                                 <p className="text-[10px] text-amber-500">was assigned</p>
                               </div>
                             </div>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
+                          ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
-
-                        {/* Reassigned On */}
                         <td className="px-4 py-3">
                           {lead.prevAssignedAt ? (
                             <div>
                               <p className="text-sm text-gray-600">{fmtDate(lead.prevAssignedAt, 'dd MMM yyyy')}</p>
                               <p className="text-xs text-gray-400">{fmtDate(lead.prevAssignedAt, 'hh:mm a')}</p>
                             </div>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
+                          ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
-
-                        {/* Status */}
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                             lead.status === 'Booked'   ? 'bg-green-100 text-green-800' :

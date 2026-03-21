@@ -4,6 +4,7 @@
 // ✅ Fixed: getSiteVisits orders by created_at (fallback for NULL visit_date rows)
 // ✅ Fixed: addSiteVisit now saves interest_level as its own column
 import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 // ==========================================
 // CALLS
@@ -202,6 +203,87 @@ export const deleteBooking = async (id) => {
     return { success: true };
   } catch (error) {
     console.error('[CRM] Delete booking error:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+// ==========================================
+// ANALYTICS
+// ==========================================
+
+// ==========================================
+// EMPLOYEE LEADS (submitted by employees for admin review)
+// ==========================================
+
+export const addEmployeeLead = async (leadData) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('employee_leads')
+      .insert([{
+        submitted_by:        leadData.submitted_by,
+        submitted_by_name:   leadData.submitted_by_name,
+        customer_name:       leadData.customer_name,
+        phone:               leadData.phone,
+        email:               leadData.email || null,
+        alternate_phone:     leadData.alternate_phone || null,
+        occupation:          leadData.occupation || null,
+        city:                leadData.city || null,
+        locality:            leadData.locality || null,
+        pincode:             leadData.pincode || null,
+        source:              leadData.source || 'Employee Referral',
+        interest_level:      leadData.interest_level || 'warm',
+        project_interested:  leadData.project_interested || null,
+        budget_range:        leadData.budget_range || null,
+        property_type:       leadData.property_type || null,
+        preferred_size:      leadData.preferred_size || null,
+        purpose:             leadData.purpose || null,
+        possession_timeline: leadData.possession_timeline || null,
+        financing:           leadData.financing || null,
+        how_they_know:       leadData.how_they_know || null,
+        customer_remarks:    leadData.customer_remarks || null,
+        employee_remarks:    leadData.employee_remarks || null,
+        site_visit_interest: leadData.site_visit_interest || false,
+        preferred_visit_date: leadData.preferred_visit_date || null,
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    console.error('[CRM] Add employee lead error:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+export const getEmployeeLeads = async (submittedBy = null) => {
+  try {
+    let query = supabaseAdmin
+      .from('employee_leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (submittedBy) query = query.eq('submitted_by', submittedBy);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('[CRM] Get employee leads error:', error);
+    return [];
+  }
+};
+
+export const updateEmployeeLead = async (id, updates) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('employee_leads')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    console.error('[CRM] Update employee lead error:', error);
     return { success: false, message: error.message };
   }
 };

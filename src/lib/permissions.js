@@ -112,6 +112,7 @@ const MENU_STRUCTURE = {
     { label: 'Reports & Analytics',   path: '/crm/admin/daily-reports',          icon: 'BarChart2' },
     { label: 'Performance',           path: '/crm/admin/performance',            icon: 'TrendingUp' },
     { label: 'Employee Intelligence', path: '/crm/admin/employee-intelligence',  icon: 'Award' },
+    { label: 'Employee Leads',        path: '/crm/admin/employee-leads',         icon: 'UserPlus' },
     { label: 'Revenue Analytics',     path: '/crm/admin/revenue-analytics',      icon: 'PieChart' },
     { label: 'Call Analytics',        path: '/crm/admin/call-analytics',         icon: 'PhoneCall' },
     { label: 'Booking Analytics',     path: '/crm/admin/booking-analytics',      icon: 'CalendarCheck' },
@@ -135,6 +136,7 @@ const MENU_STRUCTURE = {
     { label: 'Staff Management',      path: '/crm/admin/staff-management',       icon: 'UserCheck' },
     { label: 'Staff Performance',     path: '/crm/admin/staff-performance',      icon: 'TrendingUp' },
     { label: 'Employee Intelligence', path: '/crm/admin/employee-intelligence',  icon: 'Award' },
+    { label: 'Employee Leads',        path: '/crm/admin/employee-leads',         icon: 'UserPlus' },
     { label: 'Daily Reports',         path: '/crm/admin/daily-reports',          icon: 'FileText',        group: 'Reports' },
     { label: 'Revenue Analytics',     path: '/crm/admin/revenue-analytics',      icon: 'PieChart',        group: 'Reports' },
     { label: 'Call Logs',             path: '/crm/admin/call-analytics',         icon: 'PhoneCall',       group: 'Reports' },
@@ -165,20 +167,24 @@ const MENU_STRUCTURE = {
 
   // ✅ SIMPLIFIED Employee Menu — 6 items, Call CRM first
   [ROLES.SALES_EXECUTIVE]: [
-    { label: '📞 Call CRM',    path: '/crm/sales/crm',           icon: 'PhoneCall' },
-    { label: 'My Leads',       path: '/crm/sales/my-leads',      icon: 'Users' },
-    { label: 'Site Visits',    path: '/crm/sales/site-visits',   icon: 'MapPin' },
-    { label: 'Bookings',       path: '/crm/sales/bookings',      icon: 'CalendarCheck' },
-    { label: 'EOD Report',     path: '/crm/sales/eod-reports',   icon: 'FileText' },
-    { label: 'My Profile',     path: '/crm/profile',             icon: 'User' },
+    { label: '📞 Call CRM',    path: '/crm/sales/crm',                  icon: 'PhoneCall' },
+    { label: 'My Leads',       path: '/crm/sales/my-leads',             icon: 'Users' },
+    { label: 'Add Lead',       path: '/crm/sales/add-lead',             icon: 'UserPlus' },
+    { label: 'Submitted Leads', path: '/crm/sales/my-submitted-leads',  icon: 'ClipboardList' },
+    { label: 'Site Visits',    path: '/crm/sales/site-visits',          icon: 'MapPin' },
+    { label: 'Bookings',       path: '/crm/sales/bookings',             icon: 'CalendarCheck' },
+    { label: 'EOD Report',     path: '/crm/sales/eod-reports',          icon: 'FileText' },
+    { label: 'My Profile',     path: '/crm/profile',                    icon: 'User' },
   ],
 
   // ✅ SIMPLIFIED Telecaller Menu — call-focused
   [ROLES.TELECALLER]: [
-    { label: '📞 Call CRM',    path: '/crm/sales/crm',           icon: 'PhoneCall' },
-    { label: 'My Leads',       path: '/crm/sales/my-leads',      icon: 'Users' },
-    { label: 'EOD Report',     path: '/crm/sales/eod-reports',   icon: 'FileText' },
-    { label: 'My Profile',     path: '/crm/profile',             icon: 'User' },
+    { label: '📞 Call CRM',    path: '/crm/sales/crm',                  icon: 'PhoneCall' },
+    { label: 'My Leads',       path: '/crm/sales/my-leads',             icon: 'Users' },
+    { label: 'Add Lead',       path: '/crm/sales/add-lead',             icon: 'UserPlus' },
+    { label: 'Submitted Leads', path: '/crm/sales/my-submitted-leads',  icon: 'ClipboardList' },
+    { label: 'EOD Report',     path: '/crm/sales/eod-reports',          icon: 'FileText' },
+    { label: 'My Profile',     path: '/crm/profile',                    icon: 'User' },
   ],
 };
 

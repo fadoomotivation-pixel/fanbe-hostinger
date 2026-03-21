@@ -8,16 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  CheckCircle, XCircle, Clock, RefreshCw, Search, Phone, MapPin, User,
+  CheckCircle, RefreshCw, Search, Phone, MapPin, User,
   ChevronDown, ChevronUp, Calendar, Briefcase, MessageSquare, ArrowRight, Filter
 } from 'lucide-react';
-
-const STATUS_CONFIG = {
-  pending:   { label: 'Pending',   color: 'bg-amber-100 text-amber-800 border-amber-300', icon: Clock },
-  approved:  { label: 'Approved',  color: 'bg-green-100 text-green-800 border-green-300', icon: CheckCircle },
-  rejected:  { label: 'Rejected',  color: 'bg-red-100 text-red-800 border-red-300',       icon: XCircle },
-  converted: { label: 'Converted', color: 'bg-blue-100 text-blue-800 border-blue-300',    icon: CheckCircle },
-};
 
 const INTEREST_COLORS = {
   hot:  'bg-red-100 text-red-700 border-red-200',
@@ -39,11 +32,11 @@ const AdminEmployeeLeads = () => {
   const { toast } = useToast();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('pending');
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [adminNotes, setAdminNotes] = useState({});
   const [actionLoading, setActionLoading] = useState(null);
+  const [interestFilter, setInterestFilter] = useState('all');
 
   const fetchData = async () => {
     setLoading(true);
@@ -58,30 +51,6 @@ const AdminEmployeeLeads = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  const handleStatusChange = async (lead, newStatus) => {
-    setActionLoading(lead.id);
-    try {
-      const updates = {
-        admin_status: newStatus,
-        admin_notes: adminNotes[lead.id] || lead.admin_notes || null,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-      };
-
-      const result = await updateEmployeeLead(lead.id, updates);
-      if (result.success) {
-        toast({ title: `Lead ${newStatus}`, description: `"${lead.customer_name}" has been ${newStatus}.` });
-        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, ...updates } : l));
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (err) {
-      toast({ title: 'Error', description: err.message || 'Failed to update lead.', variant: 'destructive' });
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
   const handleConvertToLead = async (lead) => {
     setActionLoading(lead.id);
@@ -100,12 +69,12 @@ const AdminEmployeeLeads = () => {
       if (newLead) {
         await updateEmployeeLead(lead.id, {
           admin_status: 'converted',
-          admin_notes: adminNotes[lead.id] || lead.admin_notes || 'Converted to main lead.',
+          admin_notes: adminNotes[lead.id] || 'Converted to main lead.',
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
           converted_lead_id: newLead.id,
         });
-        toast({ title: 'Lead Converted!', description: `"${lead.customer_name}" has been added to the main leads system.` });
+        toast({ title: 'Lead Converted!', description: `"${lead.customer_name}" added to main leads system.` });
         setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, admin_status: 'converted', converted_lead_id: newLead.id } : l));
       } else {
         throw new Error('Failed to create lead');
@@ -118,20 +87,24 @@ const AdminEmployeeLeads = () => {
   };
 
   const filtered = leads
-    .filter(l => filter === 'all' ? true : l.admin_status === filter)
+    .filter(l => {
+      if (interestFilter === 'all') return true;
+      return l.interest_level === interestFilter;
+    })
     .filter(l => {
       if (!search) return true;
       const q = search.toLowerCase();
       return (l.customer_name || '').toLowerCase().includes(q)
         || (l.phone || '').includes(q)
         || (l.submitted_by_name || '').toLowerCase().includes(q)
-        || (l.city || '').toLowerCase().includes(q);
+        || (l.city || '').toLowerCase().includes(q)
+        || (l.project_interested || '').toLowerCase().includes(q);
     });
 
   const stats = {
     total: leads.length,
-    pending: leads.filter(l => l.admin_status === 'pending').length,
-    approved: leads.filter(l => l.admin_status === 'approved').length,
+    hot: leads.filter(l => l.interest_level === 'hot').length,
+    warm: leads.filter(l => l.interest_level === 'warm').length,
     converted: leads.filter(l => l.admin_status === 'converted').length,
   };
 
@@ -143,7 +116,7 @@ const AdminEmployeeLeads = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Employee Submitted Leads</h1>
-            <p className="text-sm text-gray-500 mt-1">Review and manage leads submitted by your team</p>
+            <p className="text-sm text-gray-500 mt-1">Leads submitted by your team members</p>
           </div>
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
             <RefreshCw size={16} className={`mr-1 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -153,9 +126,9 @@ const AdminEmployeeLeads = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Total', value: stats.total, color: 'border-gray-300', bg: 'bg-gray-50' },
-            { label: 'Pending', value: stats.pending, color: 'border-amber-400', bg: 'bg-amber-50' },
-            { label: 'Approved', value: stats.approved, color: 'border-green-400', bg: 'bg-green-50' },
+            { label: 'Total Leads', value: stats.total, color: 'border-gray-300', bg: 'bg-gray-50' },
+            { label: 'Hot Leads', value: stats.hot, color: 'border-red-400', bg: 'bg-red-50' },
+            { label: 'Warm Leads', value: stats.warm, color: 'border-amber-400', bg: 'bg-amber-50' },
             { label: 'Converted', value: stats.converted, color: 'border-blue-400', bg: 'bg-blue-50' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-xl border-l-4 ${s.color} p-3 shadow-sm`}>
@@ -169,15 +142,20 @@ const AdminEmployeeLeads = () => {
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input placeholder="Search by name, phone, employee, city..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search by name, phone, employee, city, project..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {['all', 'pending', 'approved', 'rejected', 'converted'].map(f => (
-              <Button key={f} variant={filter === f ? 'default' : 'outline'} size="sm"
-                onClick={() => setFilter(f)}
-                className={filter === f ? 'bg-blue-600 text-white' : ''}
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'hot', label: 'Hot' },
+              { key: 'warm', label: 'Warm' },
+              { key: 'cold', label: 'Cold' },
+            ].map(f => (
+              <Button key={f.key} variant={interestFilter === f.key ? 'default' : 'outline'} size="sm"
+                onClick={() => setInterestFilter(f.key)}
+                className={interestFilter === f.key ? 'bg-blue-600 text-white' : ''}
               >
-                {f === 'all' ? `All (${leads.length})` : `${STATUS_CONFIG[f]?.label} (${leads.filter(l => l.admin_status === f).length})`}
+                {f.label}
               </Button>
             ))}
           </div>
@@ -196,22 +174,18 @@ const AdminEmployeeLeads = () => {
         ) : (
           <div className="space-y-3">
             {filtered.map(lead => {
-              const status = STATUS_CONFIG[lead.admin_status] || STATUS_CONFIG.pending;
-              const StatusIcon = status.icon;
               const isExpanded = expandedId === lead.id;
               const isActioning = actionLoading === lead.id;
+              const isConverted = lead.admin_status === 'converted';
 
               return (
-                <Card key={lead.id} className={`border shadow-sm hover:shadow-md transition-all ${isExpanded ? 'ring-2 ring-blue-200' : ''}`}>
+                <Card key={lead.id} className={`border shadow-sm hover:shadow-md transition-all ${isExpanded ? 'ring-2 ring-blue-200' : ''} ${isConverted ? 'opacity-70' : ''}`}>
                   <CardContent className="p-4">
                     {/* Summary Row */}
                     <div className="flex items-start justify-between gap-3 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : lead.id)}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-gray-900 text-lg">{lead.customer_name}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${status.color}`}>
-                            <StatusIcon size={12} className="inline mr-1" />{status.label}
-                          </span>
                           {lead.interest_level && (
                             <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${INTEREST_COLORS[lead.interest_level] || ''}`}>
                               {lead.interest_level.toUpperCase()}
@@ -220,6 +194,11 @@ const AdminEmployeeLeads = () => {
                           {lead.site_visit_interest && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 font-medium">
                               Site Visit
+                            </span>
+                          )}
+                          {isConverted && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 font-medium">
+                              <CheckCircle size={12} className="inline mr-1" />Converted
                             </span>
                           )}
                         </div>
@@ -275,37 +254,26 @@ const AdminEmployeeLeads = () => {
                           </div>
                         )}
 
-                        {/* Admin Actions */}
-                        {lead.admin_status === 'pending' && (
+                        {/* Admin: Convert to Lead (only if not already converted) */}
+                        {!isConverted && (
                           <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
                             <Textarea
-                              placeholder="Add notes for this lead (optional)..."
+                              placeholder="Add notes (optional)..."
                               value={adminNotes[lead.id] || ''}
                               onChange={(e) => setAdminNotes(prev => ({ ...prev, [lead.id]: e.target.value }))}
                               rows={2}
                               className="bg-white"
                             />
-                            <div className="flex gap-2 flex-wrap">
-                              <Button size="sm" onClick={() => handleConvertToLead(lead)} disabled={isActioning}
-                                className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <ArrowRight size={14} className="mr-1" /> Convert to Lead
-                              </Button>
-                              <Button size="sm" onClick={() => handleStatusChange(lead, 'approved')} disabled={isActioning}
-                                className="bg-green-600 hover:bg-green-700 text-white">
-                                <CheckCircle size={14} className="mr-1" /> Approve
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleStatusChange(lead, 'rejected')} disabled={isActioning}
-                                className="border-red-300 text-red-600 hover:bg-red-50">
-                                <XCircle size={14} className="mr-1" /> Reject
-                              </Button>
-                            </div>
+                            <Button size="sm" onClick={() => handleConvertToLead(lead)} disabled={isActioning}
+                              className="bg-blue-600 hover:bg-blue-700 text-white">
+                              <ArrowRight size={14} className="mr-1" /> {isActioning ? 'Converting...' : 'Convert to Main Lead'}
+                            </Button>
                           </div>
                         )}
 
-                        {lead.admin_status !== 'pending' && lead.admin_notes && (
-                          <div className="p-3 bg-slate-50 rounded-lg border">
-                            <p className="text-xs font-medium text-gray-500 uppercase mb-1">Admin Notes</p>
-                            <p className="text-sm text-gray-700">{lead.admin_notes}</p>
+                        {isConverted && (
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
+                            <CheckCircle size={14} className="inline mr-1" /> This lead has been converted to the main leads system.
                           </div>
                         )}
                       </div>

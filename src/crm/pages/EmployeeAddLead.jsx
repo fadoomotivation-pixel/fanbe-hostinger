@@ -68,7 +68,7 @@ const EmployeeAddLead = () => {
       });
 
       if (result.success) {
-        toast({ title: 'Lead Submitted!', description: 'Your lead has been sent to admin for review.' });
+        toast({ title: 'Lead Submitted!', description: 'Your lead has been sent to admin successfully.' });
         navigate('/crm/sales/my-submitted-leads');
       } else {
         throw new Error(result.message);
@@ -95,7 +95,7 @@ const EmployeeAddLead = () => {
               <UserPlus size={28} className="text-emerald-600" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a lead for admin review</p>
+            <p className="text-sm text-gray-500 mt-1">Submit a new lead to admin</p>
           </div>
         </div>
 
@@ -312,7 +312,7 @@ const EmployeeAddLead = () => {
           <div className="flex gap-3 pb-8">
             <Button type="submit" disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3">
               <Save size={18} className="mr-2" />
-              {loading ? 'Submitting...' : 'Submit Lead to Admin'}
+              {loading ? 'Submitting...' : 'Submit Lead'}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate('/crm/sales/my-submitted-leads')} disabled={loading}>
               Cancel

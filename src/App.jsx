@@ -82,6 +82,9 @@ import ImportWorkLogs from './crm/pages/ImportWorkLogs';
 import ImportLeads from './crm/pages/ImportLeads';
 import ClearCacheUtility from './crm/pages/ClearCacheUtility';
 import LeadsAssignmentDebug from './crm/pages/LeadsAssignmentDebug';
+import EmployeeAddLead from './crm/pages/EmployeeAddLead';
+import EmployeeSubmittedLeads from './crm/pages/EmployeeSubmittedLeads';
+import AdminEmployeeLeads from './crm/pages/AdminEmployeeLeads';
 
 // ✅ HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
@@ -170,6 +173,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/call-analytics"      element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><CallAnalytics /></ProtectedRoute>} />
                     <Route path="admin/booking-analytics"   element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><BookingAnalytics /></ProtectedRoute>} />
                     <Route path="admin/employee-intelligence" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><EmployeeIntelligence /></ProtectedRoute>} />
+                    <Route path="admin/employee-leads" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><AdminEmployeeLeads /></ProtectedRoute>} />
 
                     {/* HR Module */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
@@ -195,6 +199,8 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/site-visits"   element={<SiteVisits />} />
                     <Route path="sales/bookings"      element={<Bookings />} />
                     <Route path="sales/tasks"         element={<Tasks />} />
+                    <Route path="sales/add-lead"            element={<EmployeeAddLead />} />
+                    <Route path="sales/my-submitted-leads"  element={<EmployeeSubmittedLeads />} />
                     <Route path="sales/eod-reports"   element={<EODReports />} />
                     <Route path="sales/tools"         element={user?.role === 'super_admin' ? <PromotionMaterialsManager /> : <PromotionMaterialsViewer />} />
                     <Route path="sales/performance"   element={<SalesExecutivePerformance />} />

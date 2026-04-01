@@ -2,6 +2,7 @@
 // Mobile-first lead list: priority segments, urgency sort, inline quick-log
 // ✅ Schedule Banner: Overdue / Today / Tomorrow tappable summary cards
 // ✅ Tomorrow tab added so employees plan ahead
+// ✅ Submitted Leads tab embedded inline (no separate page needed)
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -11,11 +12,10 @@ import { useToast } from '@/components/ui/use-toast';
 import { useMobile } from '@/lib/useMobile';
 import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
 import SmartDateInput from '@/crm/components/SmartDateInput';
+import { getEmployeeLeads } from '@/lib/crmSupabase';
 import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 
 // ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
-// This prevents timezone drift where a "tomorrow" date in UTC could appear as
-// "today" in IST, or vice-versa.
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -27,7 +27,8 @@ import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
   Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote,
-  CalendarDays, Sunrise, AlarmClock, UserCheck
+  CalendarDays, Sunrise, AlarmClock, UserCheck,
+  Plus, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 // ── Quick outcome sheet ─────────────────────────────────────────────────
@@ -77,17 +78,34 @@ const TABS = [
   { id: 'tomorrow',  label: '\uD83C\uDF05 Tomorrow' },
   { id: 'followup',  label: 'Follow Up' },
   { id: 'booked',    label: 'Booked' },
+  { id: 'submitted', label: '\uD83D\uDCCB Submitted' },
 ];
 
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
+
+// ── Submitted Leads constants ────────────────────────────────────────────
+const INTEREST_COLORS_SL = {
+  hot:  'bg-red-100 text-red-700',
+  warm: 'bg-amber-100 text-amber-700',
+  cold: 'bg-blue-100 text-blue-700',
+};
+const SL_STATUS_STYLES = {
+  pending:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
+  converted: 'bg-blue-100 text-blue-700 border border-blue-200',
+  rejected:  'bg-red-100 text-red-700 border border-red-200',
+};
+const SL_STATUS_LABELS = { pending: 'Pending', converted: 'Converted \u2713', rejected: 'Rejected' };
+const SL_PROPERTY_LABELS = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
+const SL_PURPOSE_LABELS = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
+const SL_TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
+const SL_FINANCING_LABELS = { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
 
 const timeAgo = (ts) => {
   if (!ts) return 'Never';
   try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
 };
 
-// Format assignment time as compact relative string
 const formatAssignedTime = (ts) => {
   if (!ts) return null;
   try {
@@ -96,7 +114,6 @@ const formatAssignedTime = (ts) => {
     const mins = Math.floor((now - d) / 60000);
     const hrs = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
-
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     if (hrs < 24) return `${hrs}h ago`;
@@ -114,7 +131,6 @@ const formatPhone = (p) => {
   return p;
 };
 
-// Extract latest line of notes
 const getLatestNote = (notes) => {
   if (!notes || typeof notes !== 'string') return null;
   const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
@@ -125,16 +141,13 @@ const getLatestNote = (notes) => {
 
 const MyLeads = () => {
   const { user }  = useAuth();
-  // ✅ FIX: destructure fetchLeads so we can force-refresh after quick log save
   const { leads, leadsLoading, calls, updateLead, addCallLog, fetchLeads } = useCRMData();
   const navigate  = useNavigate();
   const { toast } = useToast();
   const isMobile  = useMobile();
 
-  // ✅ Read persisted tab from sessionStorage; default to 'new' if nothing saved
-  const [tab, setTab]               = useState(() => {
+  const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
-    // Validate the saved tab is still a valid tab id
     const valid = TABS.map(t => t.id);
     return saved && valid.includes(saved) ? saved : 'new';
   });
@@ -149,19 +162,20 @@ const MyLeads = () => {
   const [saving, setSaving]         = useState(false);
   const [copiedId, setCopiedId]     = useState(null);
 
-  // ✅ Persist active tab to sessionStorage on every tab change
+  // ── Submitted Leads state ──────────────────────────────────────────────
+  const [submittedLeads, setSubmittedLeads]     = useState([]);
+  const [submittedLoading, setSubmittedLoading] = useState(false);
+  const [submittedExpandedId, setSubmittedExpandedId] = useState(null);
+
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, tab);
   }, [tab]);
 
-  // ✅ Restore scroll position on mount
   useEffect(() => {
     const savedScroll = sessionStorage.getItem(SCROLL_STORAGE_KEY);
     if (savedScroll) {
-      // Delay to let DOM render before scrolling
       requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
     }
-    // Save scroll position on scroll (debounced)
     let scrollTimer;
     const handleScroll = () => {
       clearTimeout(scrollTimer);
@@ -176,6 +190,16 @@ const MyLeads = () => {
   const userId = user?.uid || user?.id;
   const today  = new Date().toISOString().split('T')[0];
 
+  // ── Fetch submitted leads when tab is active ──────────────────────────
+  useEffect(() => {
+    if (tab !== 'submitted') return;
+    setSubmittedLoading(true);
+    getEmployeeLeads(userId)
+      .then(data => setSubmittedLeads(data || []))
+      .catch(err => { console.error('Failed to fetch submitted leads:', err); toast({ title: 'Error', description: 'Failed to load submitted leads.', variant: 'destructive' }); })
+      .finally(() => setSubmittedLoading(false));
+  }, [tab, userId]);
+
   const copyPhone = useCallback((phone, leadId) => {
     navigator.clipboard?.writeText(phone).then(() => {
       setCopiedId(leadId);
@@ -183,7 +207,6 @@ const MyLeads = () => {
     });
   }, []);
 
-  // My leads with call analysis
   const myLeads = useMemo(() => {
     const myCalls = calls?.filter(c => c.employeeId === userId) || [];
     return leads
@@ -206,7 +229,6 @@ const MyLeads = () => {
 
   const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
 
-  // ✅ Schedule counts — always computed live from latest leads state
   const scheduleCounts = useMemo(() => {
     let overdue = 0, yesterdayCount = 0, todayCount = 0, tomorrowCount = 0;
     myLeads.forEach(l => {
@@ -255,7 +277,6 @@ const MyLeads = () => {
       arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
     } else if (tab === 'new') {
       arr = arr.filter(l => l.status === 'New' || l.status === 'Open' || !l.status);
-      // ✅ Sort New tab by assignment date descending — most recently assigned first
       arr = [...arr].sort((a, b) => {
         const aTime = new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0);
         const bTime = new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0);
@@ -272,7 +293,6 @@ const MyLeads = () => {
         l.project?.toLowerCase().includes(q)
       );
     }
-    // Date filter — filter by follow-up date or created date
     if (dateFilter) {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
@@ -286,9 +306,6 @@ const MyLeads = () => {
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
-  // ✅ FIX: Quick log save — after updateLead optimistic patch, force a fresh
-  // fetchLeads() so the filtered tabs immediately reflect the new follow-up date.
-  // Without this, the lead stays in the old tab until Supabase Realtime fires.
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
@@ -305,7 +322,7 @@ const MyLeads = () => {
         notes:    quickNote || `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)  patch.status         = newStatus;
+      if (newStatus)  patch.status = newStatus;
       const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(newStatus);
       if (isTerminal) {
         patch.follow_up_date = null;
@@ -317,11 +334,8 @@ const MyLeads = () => {
         patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
-      // ✅ Force a fresh fetch so tab filters (Today/Overdue/Tomorrow) reflect
-      // the new follow-up date immediately — don't wait for Realtime
       fetchLeads();
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
-      // ✅ Close modal but KEEP current tab — do not reset tab state
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -364,37 +378,41 @@ const MyLeads = () => {
             </div>
           </div>
 
-          {/* Search + Date Filter */}
-          <div className="flex gap-2 mb-2">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, phone, project..."
-                className="w-full pl-9 pr-8 py-2.5 text-sm bg-gray-100 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20" />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X size={14} className="text-gray-400" />
-                </button>
+          {/* Search + Date Filter — hide on Submitted tab */}
+          {tab !== 'submitted' && (
+            <>
+              <div className="flex gap-2 mb-2">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search name, phone, project..."
+                    className="w-full pl-9 pr-8 py-2.5 text-sm bg-gray-100 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20" />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <X size={14} className="text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                <div className="relative shrink-0">
+                  <input type="date" value={dateFilter}
+                    onChange={e => setDateFilter(e.target.value)}
+                    className={`w-10 h-10 rounded-xl border-2 text-transparent cursor-pointer focus:outline-none ${
+                      dateFilter ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-100'
+                    }`} />
+                  <Filter size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+                    dateFilter ? 'text-purple-600' : 'text-gray-400'
+                  }`} />
+                </div>
+              </div>
+              {dateFilter && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <CalendarDays size={11} /> {format(parseLocalDate(dateFilter), 'dd MMM yyyy')}
+                  </span>
+                  <button onClick={() => setDateFilter('')} className="text-xs text-gray-400 underline">Clear</button>
+                </div>
               )}
-            </div>
-            <div className="relative shrink-0">
-              <input type="date" value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)}
-                className={`w-10 h-10 rounded-xl border-2 text-transparent cursor-pointer focus:outline-none ${
-                  dateFilter ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-100'
-                }`} />
-              <Filter size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${
-                dateFilter ? 'text-purple-600' : 'text-gray-400'
-              }`} />
-            </div>
-          </div>
-          {dateFilter && (
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                <CalendarDays size={11} /> {format(parseLocalDate(dateFilter), 'dd MMM yyyy')}
-              </span>
-              <button onClick={() => setDateFilter('')} className="text-xs text-gray-400 underline">Clear</button>
-            </div>
+            </>
           )}
 
           {/* Tab filters */}
@@ -406,6 +424,7 @@ const MyLeads = () => {
               if (t.id === 'today'     && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
               if (t.id === 'tomorrow'  && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
               if (t.id === 'all') badge = ` (${myLeads.length})`;
+              if (t.id === 'submitted' && submittedLeads.length > 0) badge = ` (${submittedLeads.length})`;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all touch-manipulation ${
@@ -420,260 +439,392 @@ const MyLeads = () => {
       </div>
 
       {/* ══════════════════════════════════════════════ */}
-      {/* ✅ MY SCHEDULE BANNER — always visible, tappable to filter */}
+      {/* ✅ SUBMITTED LEADS TAB CONTENT               */}
       {/* ══════════════════════════════════════════════ */}
-      {(scheduleCounts.overdue > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && (
-        <div className="px-3 pt-3">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 pt-3 pb-2">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                <CalendarDays size={13} /> My Schedule
-              </p>
-            </div>
-            <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+      {tab === 'submitted' ? (
+        <div className="px-4 pt-4 pb-20">
 
-              {/* Overdue */}
-              <button
-                onClick={() => { setTab('overdue'); setSearch(''); }}
-                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                  tab === 'overdue' ? 'bg-red-50' : 'hover:bg-red-50/50'
-                }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  scheduleCounts.overdue > 0 ? 'bg-red-100' : 'bg-gray-100'
-                }`}>
-                  <AlarmClock size={16} className={scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-400'} />
-                </div>
-                <p className={`text-xl font-black leading-none ${
-                  scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-300'
-                }`}>{scheduleCounts.overdue}</p>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
-              </button>
-
-              {/* Today */}
-              <button
-                onClick={() => { setTab('today'); setSearch(''); }}
-                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                  tab === 'today' ? 'bg-amber-50' : 'hover:bg-amber-50/50'
-                }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  scheduleCounts.today > 0 ? 'bg-amber-100' : 'bg-gray-100'
-                }`}>
-                  <Clock size={16} className={scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-400'} />
-                </div>
-                <p className={`text-xl font-black leading-none ${
-                  scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-300'
-                }`}>{scheduleCounts.today}</p>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
-              </button>
-
-              {/* Tomorrow */}
-              <button
-                onClick={() => { setTab('tomorrow'); setSearch(''); }}
-                className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                  tab === 'tomorrow' ? 'bg-blue-50' : 'hover:bg-blue-50/50'
-                }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  scheduleCounts.tomorrow > 0 ? 'bg-blue-100' : 'bg-gray-100'
-                }`}>
-                  <Sunrise size={16} className={scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-400'} />
-                </div>
-                <p className={`text-xl font-black leading-none ${
-                  scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-300'
-                }`}>{scheduleCounts.tomorrow}</p>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
-              </button>
-
-            </div>
-
-            {/* Context line under banner */}
-            {tab === 'overdue' && scheduleCounts.overdue > 0 && (
-              <div className="px-4 py-2 bg-red-50 border-t border-red-100">
-                <p className="text-xs text-red-700 font-semibold flex items-center gap-1.5">
-                  <AlertCircle size={12} /> {scheduleCounts.overdue} lead{scheduleCounts.overdue > 1 ? 's' : ''} missed — follow up now!
-                </p>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[
+              { label: 'Total', value: submittedLeads.length, color: 'border-emerald-400' },
+              { label: 'This Month', value: submittedLeads.filter(l => { const d = new Date(l.created_at); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length, color: 'border-blue-400' },
+              { label: 'Pending', value: submittedLeads.filter(l => !l.admin_status || l.admin_status === 'pending').length, color: 'border-yellow-400' },
+            ].map(s => (
+              <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.color} p-3 shadow-sm`}>
+                <p className="text-xs text-gray-500 uppercase">{s.label}</p>
+                <p className="text-2xl font-bold text-gray-900">{s.value}</p>
               </div>
-            )}
-            {tab === 'today' && scheduleCounts.today > 0 && (
-              <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
-                <p className="text-xs text-amber-700 font-semibold flex items-center gap-1.5">
-                  <Clock size={12} /> {scheduleCounts.today} follow-up{scheduleCounts.today > 1 ? 's' : ''} due today — get calling!
-                </p>
-              </div>
-            )}
-            {tab === 'tomorrow' && scheduleCounts.tomorrow > 0 && (
-              <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
-                <p className="text-xs text-blue-700 font-semibold flex items-center gap-1.5">
-                  <Sunrise size={12} /> {scheduleCounts.tomorrow} lead{scheduleCounts.tomorrow > 1 ? 's' : ''} scheduled for tomorrow — be prepared!
-                </p>
-              </div>
-            )}
+            ))}
           </div>
-        </div>
-      )}
 
-      {/* ── Section Label when viewing a schedule segment ── */}
-      {['overdue', 'yesterday', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
-            {tab === 'overdue'    ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
-            : tab === 'yesterday' ? `\u23EA ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} from yesterday — call now!`
-            : tab === 'today'     ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
-            : `\uD83C\uDF05 ${filtered.length} Scheduled for tomorrow`}
-          </p>
-        </div>
-      )}
+          {/* Add Lead button */}
+          <button
+            onClick={() => navigate('/crm/sales/add-lead')}
+            className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation"
+          >
+            <Plus size={18} /> Add New Submitted Lead
+          </button>
 
-      {/* ── Lead Cards ── */}
-      <div className="px-3 pt-3 space-y-3">
-        {filtered.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              {tab === 'tomorrow'
-                ? <Sunrise size={24} className="text-blue-400" />
-                : tab === 'overdue'
-                ? <AlarmClock size={24} className="text-red-400" />
-                : <Search size={24} className="text-gray-400" />}
+          {submittedLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Loader2 size={32} className="animate-spin mb-2" />
+              Loading...
             </div>
-            <p className="text-sm text-gray-500 font-medium">
-              {tab === 'tomorrow' ? 'No follow-ups tomorrow \uD83C\uDF89' :
-               tab === 'overdue'  ? 'No overdue leads \u2705' :
-               tab === 'today'    ? 'Nothing due today \uD83C\uDF89' :
-               'No leads found'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {tab === 'tomorrow' ? 'Log calls and schedule follow-ups to plan ahead'
-               : tab === 'overdue' ? 'Great job staying on top of your leads!'
-               : 'Try adjusting your filters'}
-            </p>
-          </div>
-        )}
+          ) : submittedLeads.length === 0 ? (
+            <div className="text-center py-16">
+              <AlertCircle size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-gray-500 text-lg">No leads submitted yet</p>
+              <button
+                onClick={() => navigate('/crm/sales/add-lead')}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold"
+              >
+                <Plus size={18} /> Submit Your First Lead
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {submittedLeads.map(lead => {
+                const isExpanded = submittedExpandedId === lead.id;
+                const status = lead.admin_status || 'pending';
+                return (
+                  <div key={lead.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                    <div className="p-4">
+                      {/* Main row — clickable to expand */}
+                      <div
+                        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 cursor-pointer"
+                        onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-gray-900 text-base">{lead.customer_name}</h3>
+                            {lead.interest_level && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTEREST_COLORS_SL[lead.interest_level] || ''}`}>
+                                {lead.interest_level.toUpperCase()}
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SL_STATUS_STYLES[status] || SL_STATUS_STYLES.pending}`}>
+                              {SL_STATUS_LABELS[status] || status}
+                            </span>
+                            {lead.site_visit_interest && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                                Site Visit
+                              </span>
+                            )}
+                          </div>
 
-        {filtered.map(lead => {
-          const fu = lead.follow_up_date || lead.followUpDate;
-          let overdueFlag = false, todayFlag = false, tomorrowFlag = false;
-          try {
-            const fuDate = parseLocalDate(fu);
-            overdueFlag  = fuDate && isPast(fuDate) && !isToday(fuDate);
-            todayFlag    = fuDate && isToday(fuDate);
-            tomorrowFlag = fuDate && isTomorrow(fuDate);
-          } catch { /* ignore */ }
-          const sc         = statusColors[lead.status] || statusColors.New;
-          const interest   = lead.interestLevel || lead.interest_level;
-          const latestNote = getLatestNote(lead.notes);
+                          <div className="mt-2 text-sm text-gray-600 space-y-1">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <span className="flex items-center gap-1"><Phone size={13} /> {lead.phone}</span>
+                              {lead.city && <span className="flex items-center gap-1"><MapPin size={13} /> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
+                              {lead.project_interested && <span className="flex items-center gap-1"><Briefcase size={13} /> {lead.project_interested}</span>}
+                            </div>
+                            {lead.budget_range && <p><strong>Budget:</strong> {lead.budget_range}</p>}
+                          </div>
+                        </div>
 
-          const cardEl = (
-            <div key={lead.id}
-              className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
-                overdueFlag  ? 'border-red-200 border-l-4 border-l-red-400' :
-                todayFlag    ? 'border-amber-200 border-l-4 border-l-amber-400' :
-                tomorrowFlag ? 'border-blue-200 border-l-4 border-l-blue-400' : 'border-gray-100'
-              }`}>
+                        <div className="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap shrink-0">
+                          <span className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </span>
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </div>
 
-              {/* Card body */}
-              <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
-                className="w-full text-left px-4 pt-4 pb-3 touch-manipulation">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-bold text-gray-900 text-base truncate">{lead.name}</p>
-                      {interest === 'Hot' && <Flame size={13} className="text-red-500 shrink-0" />}
+                      {/* Expanded details */}
+                      {isExpanded && (
+                        <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm text-gray-600">
+                          {lead.email && <span><strong>Email:</strong> {lead.email}</span>}
+                          {lead.alternate_phone && <span><strong>Alt Phone:</strong> {lead.alternate_phone}</span>}
+                          {lead.occupation && <span><strong>Occupation:</strong> {lead.occupation}</span>}
+                          {lead.property_type && <span><strong>Type:</strong> {SL_PROPERTY_LABELS[lead.property_type] || lead.property_type}</span>}
+                          {lead.purpose && <span><strong>Purpose:</strong> {SL_PURPOSE_LABELS[lead.purpose] || lead.purpose}</span>}
+                          {lead.possession_timeline && <span><strong>Timeline:</strong> {SL_TIMELINE_LABELS[lead.possession_timeline] || lead.possession_timeline}</span>}
+                          {lead.financing && <span><strong>Financing:</strong> {SL_FINANCING_LABELS[lead.financing] || lead.financing}</span>}
+                          {lead.follow_up_date && (
+                            <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>
+                          )}
+                          {lead.how_they_know && (
+                            <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>
+                          )}
+                          {lead.customer_remarks && (
+                            <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs">
+                              <strong>Customer Remarks:</strong> {lead.customer_remarks}
+                            </div>
+                          )}
+                          {lead.employee_remarks && (
+                            <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs">
+                              <strong>My Assessment:</strong> {lead.employee_remarks}
+                            </div>
+                          )}
+                          {lead.preferred_visit_date && (
+                            <span className="col-span-2"><strong>Preferred Visit:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">{formatPhone(lead.phone)}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${sc}`}>{lead.status || 'New'}</span>
-                    {overdueFlag  && <span className="flex items-center gap-1 text-[11px] text-red-600 font-bold"><AlertCircle size={11} /> Overdue</span>}
-                    {todayFlag    && <span className="flex items-center gap-1 text-[11px] text-amber-600 font-bold"><Clock size={11} /> Today</span>}
-                    {tomorrowFlag && <span className="flex items-center gap-1 text-[11px] text-blue-600 font-bold"><Sunrise size={11} /> Tomorrow</span>}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 mt-2.5 text-xs text-gray-500">
-                  {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
-                  {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
-                  {fu && parseLocalDate(fu) && (
-                    <span className={`flex items-center gap-1 ${
-                      overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
-                    }`}>
-                      <Calendar size={12} /> {format(parseLocalDate(fu), 'dd MMM')}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <p className="text-[11px] text-gray-400">
-                    {lead._callCount > 0
-                      ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
-                      : 'Never contacted'}
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* ══════════════════════════════════════════════ */}
+          {/* ✅ MY SCHEDULE BANNER                        */}
+          {/* ══════════════════════════════════════════════ */}
+          {(scheduleCounts.overdue > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && (
+            <div className="px-3 pt-3">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 pt-3 pb-2">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <CalendarDays size={13} /> My Schedule
                   </p>
-                  {/* Assignment date */}
-                  {(() => {
-                    const assignedAt = lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at;
-                    const aTime = formatAssignedTime(assignedAt);
-                    return aTime ? (
-                      <span className="flex items-center gap-1 text-[11px] text-[#8B6914] font-medium">
-                        <UserCheck size={11} className="text-[#D4AF37]" />
-                        {aTime}
-                      </span>
-                    ) : null;
-                  })()}
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+
+                  {/* Overdue */}
+                  <button
+                    onClick={() => { setTab('overdue'); setSearch(''); }}
+                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                      tab === 'overdue' ? 'bg-red-50' : 'hover:bg-red-50/50'
+                    }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      scheduleCounts.overdue > 0 ? 'bg-red-100' : 'bg-gray-100'
+                    }`}>
+                      <AlarmClock size={16} className={scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-400'} />
+                    </div>
+                    <p className={`text-xl font-black leading-none ${
+                      scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-300'
+                    }`}>{scheduleCounts.overdue}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
+                  </button>
+
+                  {/* Today */}
+                  <button
+                    onClick={() => { setTab('today'); setSearch(''); }}
+                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                      tab === 'today' ? 'bg-amber-50' : 'hover:bg-amber-50/50'
+                    }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      scheduleCounts.today > 0 ? 'bg-amber-100' : 'bg-gray-100'
+                    }`}>
+                      <Clock size={16} className={scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-400'} />
+                    </div>
+                    <p className={`text-xl font-black leading-none ${
+                      scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-300'
+                    }`}>{scheduleCounts.today}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
+                  </button>
+
+                  {/* Tomorrow */}
+                  <button
+                    onClick={() => { setTab('tomorrow'); setSearch(''); }}
+                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
+                      tab === 'tomorrow' ? 'bg-blue-50' : 'hover:bg-blue-50/50'
+                    }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      scheduleCounts.tomorrow > 0 ? 'bg-blue-100' : 'bg-gray-100'
+                    }`}>
+                      <Sunrise size={16} className={scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-400'} />
+                    </div>
+                    <p className={`text-xl font-black leading-none ${
+                      scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-300'
+                    }`}>{scheduleCounts.tomorrow}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
+                  </button>
+
                 </div>
 
-                {latestNote && (
-                  <div className="flex items-start gap-2 mt-2.5 bg-amber-50 rounded-xl px-3 py-2">
-                    <StickyNote size={12} className="text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
+                {tab === 'overdue' && scheduleCounts.overdue > 0 && (
+                  <div className="px-4 py-2 bg-red-50 border-t border-red-100">
+                    <p className="text-xs text-red-700 font-semibold flex items-center gap-1.5">
+                      <AlertCircle size={12} /> {scheduleCounts.overdue} lead{scheduleCounts.overdue > 1 ? 's' : ''} missed — follow up now!
+                    </p>
                   </div>
                 )}
-              </button>
-
-              {/* Card action row */}
-              <div className="flex border-t border-gray-100">
-                <a href={`tel:${lead.phone}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-emerald-600 active:bg-emerald-50 touch-manipulation">
-                  <Phone size={15} /> Call
-                </a>
-                <button onClick={() => copyPhone(lead.phone, lead.id)}
-                  className="flex items-center justify-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-gray-400 border-x border-gray-100 active:bg-gray-50 touch-manipulation">
-                  {copiedId === lead.id
-                    ? <CheckCircle size={15} className="text-emerald-500" />
-                    : <Copy size={15} />}
-                </button>
-                <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
-                  target="_blank" rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
-                  <MessageCircle size={15} /> WhatsApp
-                </a>
-                <button onClick={() => {
-                  setQuickLead(lead);
-                  setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
-                }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
-                  <PhoneCall size={15} /> Log
-                </button>
+                {tab === 'today' && scheduleCounts.today > 0 && (
+                  <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
+                    <p className="text-xs text-amber-700 font-semibold flex items-center gap-1.5">
+                      <Clock size={12} /> {scheduleCounts.today} follow-up{scheduleCounts.today > 1 ? 's' : ''} due today — get calling!
+                    </p>
+                  </div>
+                )}
+                {tab === 'tomorrow' && scheduleCounts.tomorrow > 0 && (
+                  <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
+                    <p className="text-xs text-blue-700 font-semibold flex items-center gap-1.5">
+                      <Sunrise size={12} /> {scheduleCounts.tomorrow} lead{scheduleCounts.tomorrow > 1 ? 's' : ''} scheduled for tomorrow — be prepared!
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          );
+          )}
 
-          // On mobile, wrap with swipeable card for gesture support
-          if (isMobile) {
-            return (
-              <SwipeableLeadCard
-                key={lead.id}
-                lead={lead}
-                onCall={(l) => { window.location.href = `tel:${l.phone}`; }}
-                onQuickAction={(l) => {
-                  setQuickLead(l);
-                  setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
-                }}
-              >
-                {cardEl}
-              </SwipeableLeadCard>
-            );
-          }
-          return cardEl;
-        })}
-      </div>
+          {/* ── Section Label when viewing a schedule segment ── */}
+          {['overdue', 'yesterday', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                {tab === 'overdue'    ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
+                : tab === 'yesterday' ? `\u23EA ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} from yesterday — call now!`
+                : tab === 'today'     ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
+                : `\uD83C\uDF05 ${filtered.length} Scheduled for tomorrow`}
+              </p>
+            </div>
+          )}
+
+          {/* ── Lead Cards ── */}
+          <div className="px-3 pt-3 space-y-3">
+            {filtered.length === 0 && (
+              <div className="text-center py-16">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  {tab === 'tomorrow'
+                    ? <Sunrise size={24} className="text-blue-400" />
+                    : tab === 'overdue'
+                    ? <AlarmClock size={24} className="text-red-400" />
+                    : <Search size={24} className="text-gray-400" />}
+                </div>
+                <p className="text-sm text-gray-500 font-medium">
+                  {tab === 'tomorrow' ? 'No follow-ups tomorrow \uD83C\uDF89' :
+                   tab === 'overdue'  ? 'No overdue leads \u2705' :
+                   tab === 'today'    ? 'Nothing due today \uD83C\uDF89' :
+                   'No leads found'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {tab === 'tomorrow' ? 'Log calls and schedule follow-ups to plan ahead'
+                   : tab === 'overdue' ? 'Great job staying on top of your leads!'
+                   : 'Try adjusting your filters'}
+                </p>
+              </div>
+            )}
+
+            {filtered.map(lead => {
+              const fu = lead.follow_up_date || lead.followUpDate;
+              let overdueFlag = false, todayFlag = false, tomorrowFlag = false;
+              try {
+                const fuDate = parseLocalDate(fu);
+                overdueFlag  = fuDate && isPast(fuDate) && !isToday(fuDate);
+                todayFlag    = fuDate && isToday(fuDate);
+                tomorrowFlag = fuDate && isTomorrow(fuDate);
+              } catch { /* ignore */ }
+              const sc         = statusColors[lead.status] || statusColors.New;
+              const interest   = lead.interestLevel || lead.interest_level;
+              const latestNote = getLatestNote(lead.notes);
+
+              const cardEl = (
+                <div key={lead.id}
+                  className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
+                    overdueFlag  ? 'border-red-200 border-l-4 border-l-red-400' :
+                    todayFlag    ? 'border-amber-200 border-l-4 border-l-amber-400' :
+                    tomorrowFlag ? 'border-blue-200 border-l-4 border-l-blue-400' : 'border-gray-100'
+                  }`}>
+
+                  <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
+                    className="w-full text-left px-4 pt-4 pb-3 touch-manipulation">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-gray-900 text-base truncate">{lead.name}</p>
+                          {interest === 'Hot' && <Flame size={13} className="text-red-500 shrink-0" />}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-0.5">{formatPhone(lead.phone)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${sc}`}>{lead.status || 'New'}</span>
+                        {overdueFlag  && <span className="flex items-center gap-1 text-[11px] text-red-600 font-bold"><AlertCircle size={11} /> Overdue</span>}
+                        {todayFlag    && <span className="flex items-center gap-1 text-[11px] text-amber-600 font-bold"><Clock size={11} /> Today</span>}
+                        {tomorrowFlag && <span className="flex items-center gap-1 text-[11px] text-blue-600 font-bold"><Sunrise size={11} /> Tomorrow</span>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-2.5 text-xs text-gray-500">
+                      {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
+                      {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
+                      {fu && parseLocalDate(fu) && (
+                        <span className={`flex items-center gap-1 ${
+                          overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
+                        }`}>
+                          <Calendar size={12} /> {format(parseLocalDate(fu), 'dd MMM')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <p className="text-[11px] text-gray-400">
+                        {lead._callCount > 0
+                          ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
+                          : 'Never contacted'}
+                      </p>
+                      {(() => {
+                        const assignedAt = lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at;
+                        const aTime = formatAssignedTime(assignedAt);
+                        return aTime ? (
+                          <span className="flex items-center gap-1 text-[11px] text-[#8B6914] font-medium">
+                            <UserCheck size={11} className="text-[#D4AF37]" />
+                            {aTime}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
+
+                    {latestNote && (
+                      <div className="flex items-start gap-2 mt-2.5 bg-amber-50 rounded-xl px-3 py-2">
+                        <StickyNote size={12} className="text-amber-500 shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Card action row */}
+                  <div className="flex border-t border-gray-100">
+                    <a href={`tel:${lead.phone}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-emerald-600 active:bg-emerald-50 touch-manipulation">
+                      <Phone size={15} /> Call
+                    </a>
+                    <button onClick={() => copyPhone(lead.phone, lead.id)}
+                      className="flex items-center justify-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-gray-400 border-x border-gray-100 active:bg-gray-50 touch-manipulation">
+                      {copiedId === lead.id
+                        ? <CheckCircle size={15} className="text-emerald-500" />
+                        : <Copy size={15} />}
+                    </button>
+                    <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
+                      target="_blank" rel="noreferrer"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
+                      <MessageCircle size={15} /> WhatsApp
+                    </a>
+                    <button onClick={() => {
+                      setQuickLead(lead);
+                      setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
+                    }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
+                      <PhoneCall size={15} /> Log
+                    </button>
+                  </div>
+                </div>
+              );
+
+              if (isMobile) {
+                return (
+                  <SwipeableLeadCard
+                    key={lead.id}
+                    lead={lead}
+                    onCall={(l) => { window.location.href = `tel:${l.phone}`; }}
+                    onQuickAction={(l) => {
+                      setQuickLead(l);
+                      setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
+                    }}
+                  >
+                    {cardEl}
+                  </SwipeableLeadCard>
+                );
+              }
+              return cardEl;
+            })}
+          </div>
+        </>
+      )}
 
       {/* ── QUICK LOG BOTTOM SHEET ── */}
       {quickLead && (
@@ -683,7 +834,6 @@ const MyLeads = () => {
                style={{ maxHeight: '92vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <div className="flex justify-center pt-3"><div className="w-10 h-1 bg-gray-200 rounded-full" /></div>
             <div className="px-4 pb-8">
-              {/* Header */}
               <div className="flex items-center justify-between my-4">
                 <div>
                   <p className="font-black text-[#0F3A5F] text-lg">{quickLead.name}</p>
@@ -700,7 +850,6 @@ const MyLeads = () => {
                 </div>
               </div>
 
-              {/* Step 1 */}
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">How did the call go?</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_OUTCOMES.map(o => (
@@ -715,7 +864,6 @@ const MyLeads = () => {
                 ))}
               </div>
 
-              {/* Step 2 */}
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Update Status</p>
               <div className="grid grid-cols-2 gap-2 mb-5">
                 {QUICK_STATUSES.map(s => (
@@ -730,11 +878,9 @@ const MyLeads = () => {
                 ))}
               </div>
 
-              {/* Step 3 */}
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">
                 {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
               </p>
-              {/* Quick date chips */}
               <div className="flex gap-2 mb-2">
                 {[
                   { label: '\uD83C\uDF05 Tomorrow', days: 1 },
@@ -759,13 +905,11 @@ const MyLeads = () => {
                 <SmartDateInput value={followDate} onChange={setFollowDate} min={today} />
               </div>
 
-              {/* Step 4 */}
               <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Quick Note (optional)</p>
               <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
                 placeholder="What did the lead say?" rows={2}
                 className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] mb-5" />
 
-              {/* Save */}
               <button onClick={handleQuickSave} disabled={!outcome || saving}
                 className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#0a2d4f] shadow-xl touch-manipulation transition-all">
                 {saving

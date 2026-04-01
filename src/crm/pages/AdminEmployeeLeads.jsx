@@ -106,6 +106,7 @@ const AdminEmployeeLeads = () => {
     hot: leads.filter(l => l.interest_level === 'hot').length,
     warm: leads.filter(l => l.interest_level === 'warm').length,
     converted: leads.filter(l => l.admin_status === 'converted').length,
+    pending: leads.filter(l => !l.admin_status || l.admin_status === 'pending').length,
   };
 
   return (
@@ -124,12 +125,13 @@ const AdminEmployeeLeads = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           {[
-            { label: 'Total Leads', value: stats.total, color: 'border-gray-300', bg: 'bg-gray-50' },
-            { label: 'Hot Leads', value: stats.hot, color: 'border-red-400', bg: 'bg-red-50' },
-            { label: 'Warm Leads', value: stats.warm, color: 'border-amber-400', bg: 'bg-amber-50' },
-            { label: 'Converted', value: stats.converted, color: 'border-blue-400', bg: 'bg-blue-50' },
+            { label: 'Total Leads',    value: stats.total,     color: 'border-gray-300',   bg: 'bg-gray-50' },
+            { label: 'Hot Leads',      value: stats.hot,       color: 'border-red-400',    bg: 'bg-red-50' },
+            { label: 'Warm Leads',     value: stats.warm,      color: 'border-amber-400',  bg: 'bg-amber-50' },
+            { label: 'Converted',      value: stats.converted, color: 'border-blue-400',   bg: 'bg-blue-50' },
+            { label: 'Pending Review', value: stats.pending,   color: 'border-yellow-400', bg: 'bg-yellow-50' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-xl border-l-4 ${s.color} p-3 shadow-sm`}>
               <p className="text-xs text-gray-500 uppercase tracking-wide">{s.label}</p>
@@ -201,18 +203,26 @@ const AdminEmployeeLeads = () => {
                               <CheckCircle size={12} className="inline mr-1" />Converted
                             </span>
                           )}
+                          {/* Employee attribution pill */}
+                          {lead.submitted_by_name && (
+                            <span className="flex items-center gap-1 text-xs bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+                              <User size={12} /> {lead.submitted_by_name}
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 text-sm text-gray-600 flex items-center gap-4 flex-wrap">
                           <span className="flex items-center gap-1"><Phone size={14} /> {lead.phone}</span>
                           {lead.city && <span className="flex items-center gap-1"><MapPin size={14} /> {lead.city}</span>}
-                          <span className="flex items-center gap-1"><User size={14} /> {lead.submitted_by_name}</span>
                           {lead.project_interested && <span className="flex items-center gap-1"><Briefcase size={14} /> {lead.project_interested}</span>}
+                        </div>
+                        {/* Submission timestamp */}
+                        <div className="mt-1">
+                          <span className="text-xs text-gray-400">
+                            Submitted: {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400 whitespace-nowrap hidden sm:block">
-                          {new Date(lead.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                        </span>
                         {isExpanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                       </div>
                     </div>
@@ -235,6 +245,7 @@ const AdminEmployeeLeads = () => {
                           {lead.source && <Detail label="Source" value={lead.source} />}
                           {lead.how_they_know && <Detail label="How They Know Us" value={lead.how_they_know} />}
                           {lead.preferred_visit_date && <Detail label="Preferred Visit" value={new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')} />}
+                          {lead.follow_up_date && <Detail label="Follow-up Date" value={new Date(lead.follow_up_date).toLocaleDateString('en-IN')} />}
                         </div>
 
                         {(lead.customer_remarks || lead.employee_remarks) && (
@@ -254,7 +265,7 @@ const AdminEmployeeLeads = () => {
                           </div>
                         )}
 
-                        {/* Admin: Convert to Lead (only if not already converted) */}
+                        {/* Admin: Convert to Lead */}
                         {!isConverted && (
                           <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
                             <Textarea

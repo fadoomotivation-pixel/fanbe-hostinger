@@ -3,6 +3,7 @@
 // ✅ Fixed: addCall now saves major_objection column
 // ✅ Fixed: getSiteVisits orders by created_at (fallback for NULL visit_date rows)
 // ✅ Fixed: addSiteVisit now saves interest_level as its own column
+// ✅ Added: follow_up_date to addEmployeeLead
 import { supabase } from './supabase';
 import { supabaseAdmin } from './supabase';
 
@@ -208,10 +209,6 @@ export const deleteBooking = async (id) => {
 };
 
 // ==========================================
-// ANALYTICS
-// ==========================================
-
-// ==========================================
 // EMPLOYEE LEADS (submitted by employees for admin review)
 // ==========================================
 
@@ -239,6 +236,7 @@ export const addEmployeeLead = async (leadData) => {
         purpose:             leadData.purpose || null,
         possession_timeline: leadData.possession_timeline || null,
         financing:           leadData.financing || null,
+        follow_up_date:      leadData.follow_up_date || null,
         how_they_know:       leadData.how_they_know || null,
         customer_remarks:    leadData.customer_remarks || null,
         employee_remarks:    leadData.employee_remarks || null,

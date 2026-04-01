@@ -5,7 +5,7 @@ import { getEmployeeLeads } from '@/lib/crmSupabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Phone, AlertCircle, RefreshCw, MapPin, Calendar, Briefcase } from 'lucide-react';
+import { Plus, Phone, AlertCircle, RefreshCw, MapPin, Calendar, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
 
 const INTEREST_COLORS = {
   hot:  'bg-red-100 text-red-700',
@@ -13,12 +13,25 @@ const INTEREST_COLORS = {
   cold: 'bg-blue-100 text-blue-700',
 };
 
+const STATUS_STYLES = {
+  pending:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
+  converted: 'bg-blue-100 text-blue-700 border border-blue-200',
+  rejected:  'bg-red-100 text-red-700 border border-red-200',
+};
+const STATUS_LABELS = { pending: 'Pending', converted: 'Converted ✓', rejected: 'Rejected' };
+
+const PROPERTY_LABELS = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
+const PURPOSE_LABELS = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
+const TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
+const FINANCING_LABELS = { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
+
 const EmployeeSubmittedLeads = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -85,44 +98,89 @@ const EmployeeSubmittedLeads = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {leads.map(lead => (
-              <Card key={lead.id} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 text-lg">{lead.customer_name}</h3>
-                        {lead.interest_level && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTEREST_COLORS[lead.interest_level] || ''}`}>
-                            {lead.interest_level.toUpperCase()}
+            {leads.map(lead => {
+              const isExpanded = expandedId === lead.id;
+              const status = lead.admin_status || 'pending';
+              return (
+                <Card key={lead.id} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    {/* Main row — clickable */}
+                    <div
+                      className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 cursor-pointer"
+                      onClick={() => setExpandedId(isExpanded ? null : lead.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 text-lg">{lead.customer_name}</h3>
+                          {lead.interest_level && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTEREST_COLORS[lead.interest_level] || ''}`}>
+                              {lead.interest_level.toUpperCase()}
+                            </span>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
+                            {STATUS_LABELS[status] || status}
                           </span>
-                        )}
-                        {lead.site_visit_interest && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
-                            Site Visit
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-2 space-y-1 text-sm text-gray-600">
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <span className="flex items-center gap-1"><Phone size={14} /> {lead.phone}</span>
-                          {lead.city && <span className="flex items-center gap-1"><MapPin size={14} /> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
-                          {lead.project_interested && <span className="flex items-center gap-1"><Briefcase size={14} /> {lead.project_interested}</span>}
+                          {lead.site_visit_interest && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                              Site Visit
+                            </span>
+                          )}
                         </div>
-                        {lead.budget_range && <p><strong>Budget:</strong> {lead.budget_range}</p>}
-                        {lead.employee_remarks && <p className="text-gray-500 italic truncate">&quot;{lead.employee_remarks}&quot;</p>}
+
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <span className="flex items-center gap-1"><Phone size={14} /> {lead.phone}</span>
+                            {lead.city && <span className="flex items-center gap-1"><MapPin size={14} /> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
+                            {lead.project_interested && <span className="flex items-center gap-1"><Briefcase size={14} /> {lead.project_interested}</span>}
+                          </div>
+                          {lead.budget_range && <p><strong>Budget:</strong> {lead.budget_range}</p>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </span>
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </div>
                     </div>
 
-                    <div className="text-right text-xs text-gray-400 whitespace-nowrap">
-                      <Calendar size={12} className="inline mr-1" />
-                      {new Date(lead.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        {lead.email && <span><strong>Email:</strong> {lead.email}</span>}
+                        {lead.alternate_phone && <span><strong>Alt Phone:</strong> {lead.alternate_phone}</span>}
+                        {lead.occupation && <span><strong>Occupation:</strong> {lead.occupation}</span>}
+                        {lead.property_type && <span><strong>Type:</strong> {PROPERTY_LABELS[lead.property_type] || lead.property_type}</span>}
+                        {lead.purpose && <span><strong>Purpose:</strong> {PURPOSE_LABELS[lead.purpose] || lead.purpose}</span>}
+                        {lead.possession_timeline && <span><strong>Timeline:</strong> {TIMELINE_LABELS[lead.possession_timeline] || lead.possession_timeline}</span>}
+                        {lead.financing && <span><strong>Financing:</strong> {FINANCING_LABELS[lead.financing] || lead.financing}</span>}
+                        {lead.follow_up_date && (
+                          <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>
+                        )}
+                        {lead.how_they_know && (
+                          <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>
+                        )}
+                        {lead.customer_remarks && (
+                          <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs">
+                            <strong>Customer Remarks:</strong> {lead.customer_remarks}
+                          </div>
+                        )}
+                        {lead.employee_remarks && (
+                          <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs">
+                            <strong>My Assessment:</strong> {lead.employee_remarks}
+                          </div>
+                        )}
+                        {lead.preferred_visit_date && (
+                          <span className="col-span-2"><strong>Preferred Visit:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

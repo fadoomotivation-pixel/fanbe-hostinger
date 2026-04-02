@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, Save, UserPlus, Phone, MapPin, Briefcase, MessageSquare, Calendar, User } from 'lucide-react';
+import { ArrowLeft, Save, UserPlus, Phone, MapPin, Briefcase, MessageSquare, Calendar, User, ShieldCheck } from 'lucide-react';
 
 const EmployeeAddLead = () => {
   const navigate = useNavigate();
@@ -67,11 +67,17 @@ const EmployeeAddLead = () => {
         submitted_by_name: user.name || user.username,
         preferred_visit_date: formData.preferred_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
+        // Mark as pre_approved — admin can see & modify; employee sees read-only in My Leads
+        admin_status: 'pre_approved',
       });
 
       if (result.success) {
-        toast({ title: 'Lead Submitted!', description: 'Your lead has been sent to admin successfully.' });
-        navigate('/crm/sales/my-submitted-leads');
+        toast({
+          title: '\u2705 Lead Submitted!',
+          description: 'Your lead is now visible in My Leads. Admin will review and take action.',
+        });
+        // Go directly to My Leads (not Submitted Leads)
+        navigate('/crm/sales/my-leads');
       } else {
         throw new Error(result.message);
       }
@@ -89,7 +95,7 @@ const EmployeeAddLead = () => {
 
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="icon" onClick={() => navigate('/crm/sales/my-submitted-leads')} className="rounded-full">
+          <Button variant="outline" size="icon" onClick={() => navigate('/crm/sales/my-leads')} className="rounded-full">
             <ArrowLeft size={20} />
           </Button>
           <div>
@@ -97,8 +103,17 @@ const EmployeeAddLead = () => {
               <UserPlus size={28} className="text-emerald-600" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a new lead to admin</p>
+            <p className="text-sm text-gray-500 mt-1">Submit a new lead — it will appear in My Leads after submission</p>
           </div>
+        </div>
+
+        {/* Pre-approved notice */}
+        <div className="flex items-center gap-3 p-3 mb-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
+          <ShieldCheck size={18} className="text-indigo-600 shrink-0" />
+          <span>
+            Leads you submit are marked <strong>Pre-Approved</strong> and visible to admin for review and assignment.
+            You can view them in <strong>My Leads</strong> but only admin can modify them.
+          </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -288,7 +303,7 @@ const EmployeeAddLead = () => {
               </div>
               <div>
                 <Label>Your Assessment / Remarks</Label>
-                <Textarea placeholder="Your personal assessment of this lead — how serious, any red flags, etc." value={formData.employee_remarks} onChange={(e) => handleChange('employee_remarks', e.target.value)} rows={3} className="mt-1" />
+                <Textarea placeholder="Your personal assessment of this lead \u2014 how serious, any red flags, etc." value={formData.employee_remarks} onChange={(e) => handleChange('employee_remarks', e.target.value)} rows={3} className="mt-1" />
               </div>
             </CardContent>
           </Card>
@@ -326,7 +341,7 @@ const EmployeeAddLead = () => {
               <Save size={18} className="mr-2" />
               {loading ? 'Submitting...' : 'Submit Lead'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => navigate('/crm/sales/my-submitted-leads')} disabled={loading}>
+            <Button type="button" variant="outline" onClick={() => navigate('/crm/sales/my-leads')} disabled={loading}>
               Cancel
             </Button>
           </div>

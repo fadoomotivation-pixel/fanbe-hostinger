@@ -96,18 +96,19 @@ const EmployeeAddLead = () => {
         admin_status: 'pending',
       });
 
-      if (!result.success) {
-        toast({
-          title: 'Lead saved in My Leads',
-          description: 'Superadmin/admin activity log could not be created this time.',
-          variant: 'destructive',
-        });
-      }
+      toast(
+        result.success
+          ? {
+              title: '\u2705 Lead Submitted!',
+              description: 'Lead created in My Leads and shared with admin review.',
+            }
+          : {
+              title: 'Lead created in My Leads',
+              description: 'Admin review activity could not be logged this time.',
+              variant: 'destructive',
+            }
+      );
 
-      toast({
-        title: '\u2705 Lead Submitted!',
-        description: 'Lead created in My Leads successfully.',
-      });
       navigate('/crm/sales/my-leads');
     } catch (error) {
       console.error('Failed to submit lead:', error);

@@ -8,6 +8,10 @@
 //        If Realtime fires two fetchLeads() concurrently, the older one that arrives late
 //        is silently discarded, so stale data can never overwrite fresh data.
 // ✅ FIX: updateLead auto-stamps assigned_at whenever assignedTo changes
+// ✅ FIX: visibilitychange listener now uses a "was hidden" guard so it never fires
+//        a duplicate fetchLeads() on initial page load (Chromium fires the event
+//        immediately when the page first becomes visible, which previously caused
+//        req#1 and req#2 to both apply 2084 leads and trigger a 300ms forced reflow).
 import { useState, useEffect, useRef } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -57,6 +61,12 @@ export const useCRMData = () => {
   // This kills the "last-write-wins" race condition between concurrent fetches.
   const leadsReqId = useRef(0);
 
+  // ✅ Guard for visibilitychange: only refetch when the tab was previously
+  // hidden. Chromium fires visibilitychange with state='visible' on the
+  // initial page load before the tab has ever been hidden, which previously
+  // triggered a duplicate fetchLeads() right after the initial fetch.
+  const tabWasHidden = useRef(false);
+
   // Load localStorage once
   useEffect(() => {
     const get = (key, def) => { try { const i = localStorage.getItem(key); return i ? JSON.parse(i) : def; } catch { return def; } };
@@ -104,12 +114,19 @@ export const useCRMData = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
       .subscribe();
 
-    // ✅ Refetch leads whenever the browser tab regains focus.
-    // This fixes the stale-state case where the employee saved from LeadDetail
-    // while MyLeads was mounted in the background, and the race condition left
-    // MyLeads with an old date.  A simple focus/visibility refresh is enough.
+    // ✅ FIX: Only refetch when the tab returns from being hidden.
+    // Previously, Chromium fired visibilitychange='visible' on the initial
+    // page load (before the tab was ever hidden), causing fetchLeads() to
+    // run twice immediately — once from the initial useEffect above and once
+    // here — resulting in req#1 and req#2 both applying 2084 leads and
+    // triggering two 300ms+ forced reflows in the leads list renderer.
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') fetchLeads();
+      if (document.visibilityState === 'hidden') {
+        tabWasHidden.current = true;
+      } else if (document.visibilityState === 'visible' && tabWasHidden.current) {
+        tabWasHidden.current = false;
+        fetchLeads();
+      }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 

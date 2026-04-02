@@ -67,16 +67,15 @@ const EmployeeAddLead = () => {
         submitted_by_name: user.name || user.username,
         preferred_visit_date: formData.preferred_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
-        admin_status: 'pre_approved',
+        admin_status: 'pending',
       });
 
       if (result.success) {
         toast({
           title: '\u2705 Lead Submitted!',
-          description: 'Your lead has been submitted. View it in the Submitted Leads tab.',
+          description: 'Your lead has been submitted successfully.',
         });
-        // Navigate to My Leads and activate the 'submitted' tab
-        navigate('/crm/sales/my-leads', { state: { tab: 'submitted' } });
+        navigate('/crm/sales/my-leads');
       } else {
         throw new Error(result.message);
       }
@@ -102,16 +101,15 @@ const EmployeeAddLead = () => {
               <UserPlus size={28} className="text-emerald-600" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a new lead — it will appear in the Submitted tab after submission</p>
+            <p className="text-sm text-gray-500 mt-1">Submit a new lead and continue in My Leads</p>
           </div>
         </div>
 
-        {/* Pre-approved notice */}
+        {/* Review notice */}
         <div className="flex items-center gap-3 p-3 mb-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
           <ShieldCheck size={18} className="text-indigo-600 shrink-0" />
           <span>
-            Leads you submit are marked <strong>Pre-Approved</strong> and visible to admin for review and assignment.
-            You can view them in the <strong>📋 Submitted</strong> tab in My Leads.
+            Leads you submit are marked <strong>Pending Review</strong> and are visible to superadmin/admin in Employee Submitted Leads.
           </span>
         </div>
 

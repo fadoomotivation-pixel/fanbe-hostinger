@@ -96,20 +96,7 @@ const EmployeeAddLead = () => {
         admin_status: 'pending',
       });
 
-      toast(
-        result.success
-          ? {
-              title: '\u2705 Lead Submitted!',
-              description: 'Lead created in My Leads and shared with admin review.',
-            }
-          : {
-              title: 'Lead created in My Leads',
-              description: 'Admin review activity could not be logged this time.',
-              variant: 'destructive',
-            }
-      );
 
-      navigate('/crm/sales/my-leads');
     } catch (error) {
       console.error('Failed to submit lead:', error);
       toast({ title: 'Error', description: error.message || 'Failed to submit lead. Please try again.', variant: 'destructive' });

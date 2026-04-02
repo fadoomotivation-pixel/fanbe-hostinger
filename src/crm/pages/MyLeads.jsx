@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useMobile } from '@/lib/useMobile';
 import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
@@ -143,10 +143,16 @@ const MyLeads = () => {
   const { user }  = useAuth();
   const { leads, leadsLoading, calls, updateLead, addCallLog, fetchLeads } = useCRMData();
   const navigate  = useNavigate();
+  const location  = useLocation();
   const { toast } = useToast();
   const isMobile  = useMobile();
 
   const [tab, setTab] = useState(() => {
+    // If navigated from add-lead (or any page) with a tab hint, honour it
+    if (location.state?.tab) {
+      const valid = TABS.map(t => t.id);
+      if (valid.includes(location.state.tab)) return location.state.tab;
+    }
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
     const valid = TABS.map(t => t.id);
     return saved && valid.includes(saved) ? saved : 'new';
@@ -514,21 +520,34 @@ const MyLeads = () => {
                           </div>
 
                           <div className="mt-2 text-sm text-gray-600 space-y-1">
-                            <div className="flex items-center gap-4 flex-wrap">
-                              <span className="flex items-center gap-1"><Phone size={13} /> {lead.phone}</span>
-                              {lead.city && <span className="flex items-center gap-1"><MapPin size={13} /> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
-                              {lead.project_interested && <span className="flex items-center gap-1"><Briefcase size={13} /> {lead.project_interested}</span>}
-                            </div>
-                            {lead.budget_range && <p><strong>Budget:</strong> {lead.budget_range}</p>}
+                            {lead.phone && (
+                              <div className="flex items-center gap-1">
+                                <Phone size={13} className="text-gray-400" />
+                                <span>{formatPhone(lead.phone)}</span>
+                              </div>
+                            )}
+                            {lead.project_interested && (
+                              <div className="flex items-center gap-1">
+                                <Briefcase size={13} className="text-gray-400" />
+                                <span>{lead.project_interested}</span>
+                              </div>
+                            )}
+                            {lead.budget_range && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-400 text-xs">Budget:</span>
+                                <span>{lead.budget_range}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap shrink-0">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={12} />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-gray-400">
                             {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                           </span>
-                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          {isExpanded
+                            ? <ChevronUp size={16} className="text-gray-400" />
+                            : <ChevronDown size={16} className="text-gray-400" />}
                         </div>
                       </div>
 
@@ -538,28 +557,23 @@ const MyLeads = () => {
                           {lead.email && <span><strong>Email:</strong> {lead.email}</span>}
                           {lead.alternate_phone && <span><strong>Alt Phone:</strong> {lead.alternate_phone}</span>}
                           {lead.occupation && <span><strong>Occupation:</strong> {lead.occupation}</span>}
+                          {lead.city && <span><strong>City:</strong> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
                           {lead.property_type && <span><strong>Type:</strong> {SL_PROPERTY_LABELS[lead.property_type] || lead.property_type}</span>}
                           {lead.purpose && <span><strong>Purpose:</strong> {SL_PURPOSE_LABELS[lead.purpose] || lead.purpose}</span>}
                           {lead.possession_timeline && <span><strong>Timeline:</strong> {SL_TIMELINE_LABELS[lead.possession_timeline] || lead.possession_timeline}</span>}
                           {lead.financing && <span><strong>Financing:</strong> {SL_FINANCING_LABELS[lead.financing] || lead.financing}</span>}
-                          {lead.follow_up_date && (
-                            <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>
-                          )}
-                          {lead.how_they_know && (
-                            <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>
-                          )}
+                          {lead.follow_up_date && <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>}
+                          {lead.preferred_visit_date && <span><strong>Visit Date:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>}
+                          {lead.how_they_know && <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>}
                           {lead.customer_remarks && (
                             <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs">
-                              <strong>Customer Remarks:</strong> {lead.customer_remarks}
+                              <strong>Customer:</strong> {lead.customer_remarks}
                             </div>
                           )}
                           {lead.employee_remarks && (
                             <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs">
-                              <strong>My Assessment:</strong> {lead.employee_remarks}
+                              <strong>My Notes:</strong> {lead.employee_remarks}
                             </div>
-                          )}
-                          {lead.preferred_visit_date && (
-                            <span className="col-span-2"><strong>Preferred Visit:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>
                           )}
                         </div>
                       )}
@@ -571,355 +585,154 @@ const MyLeads = () => {
           )}
         </div>
       ) : (
-        <>
-          {/* ══════════════════════════════════════════════ */}
-          {/* ✅ MY SCHEDULE BANNER                        */}
-          {/* ══════════════════════════════════════════════ */}
-          {(scheduleCounts.overdue > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && (
-            <div className="px-3 pt-3">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-4 pt-3 pb-2">
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <CalendarDays size={13} /> My Schedule
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+        /* ══════════════════════════════════════════════ */
+        /* NORMAL LEADS TAB CONTENT                      */
+        /* ══════════════════════════════════════════════ */
+        <div className="px-4 pt-3 pb-20">
 
-                  {/* Overdue */}
-                  <button
-                    onClick={() => { setTab('overdue'); setSearch(''); }}
-                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                      tab === 'overdue' ? 'bg-red-50' : 'hover:bg-red-50/50'
-                    }`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      scheduleCounts.overdue > 0 ? 'bg-red-100' : 'bg-gray-100'
-                    }`}>
-                      <AlarmClock size={16} className={scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-400'} />
-                    </div>
-                    <p className={`text-xl font-black leading-none ${
-                      scheduleCounts.overdue > 0 ? 'text-red-600' : 'text-gray-300'
-                    }`}>{scheduleCounts.overdue}</p>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Overdue</p>
-                  </button>
-
-                  {/* Today */}
-                  <button
-                    onClick={() => { setTab('today'); setSearch(''); }}
-                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                      tab === 'today' ? 'bg-amber-50' : 'hover:bg-amber-50/50'
-                    }`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      scheduleCounts.today > 0 ? 'bg-amber-100' : 'bg-gray-100'
-                    }`}>
-                      <Clock size={16} className={scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-400'} />
-                    </div>
-                    <p className={`text-xl font-black leading-none ${
-                      scheduleCounts.today > 0 ? 'text-amber-600' : 'text-gray-300'
-                    }`}>{scheduleCounts.today}</p>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Today</p>
-                  </button>
-
-                  {/* Tomorrow */}
-                  <button
-                    onClick={() => { setTab('tomorrow'); setSearch(''); }}
-                    className={`flex flex-col items-center gap-1 py-3 transition-all touch-manipulation active:scale-95 ${
-                      tab === 'tomorrow' ? 'bg-blue-50' : 'hover:bg-blue-50/50'
-                    }`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      scheduleCounts.tomorrow > 0 ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}>
-                      <Sunrise size={16} className={scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-400'} />
-                    </div>
-                    <p className={`text-xl font-black leading-none ${
-                      scheduleCounts.tomorrow > 0 ? 'text-blue-600' : 'text-gray-300'
-                    }`}>{scheduleCounts.tomorrow}</p>
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Tomorrow</p>
-                  </button>
-
-                </div>
-
-                {tab === 'overdue' && scheduleCounts.overdue > 0 && (
-                  <div className="px-4 py-2 bg-red-50 border-t border-red-100">
-                    <p className="text-xs text-red-700 font-semibold flex items-center gap-1.5">
-                      <AlertCircle size={12} /> {scheduleCounts.overdue} lead{scheduleCounts.overdue > 1 ? 's' : ''} missed — follow up now!
-                    </p>
+          {/* Schedule banner */}
+          {(scheduleCounts.overdue > 0 || scheduleCounts.yesterday > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && tab === 'new' && (
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {scheduleCounts.overdue > 0 && (
+                <button onClick={() => setTab('overdue')}
+                  className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-left active:bg-red-100 touch-manipulation">
+                  <AlertCircle size={18} className="text-red-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-red-700">{scheduleCounts.overdue} Overdue</p>
+                    <p className="text-xs text-red-500">Needs attention</p>
                   </div>
-                )}
-                {tab === 'today' && scheduleCounts.today > 0 && (
-                  <div className="px-4 py-2 bg-amber-50 border-t border-amber-100">
-                    <p className="text-xs text-amber-700 font-semibold flex items-center gap-1.5">
-                      <Clock size={12} /> {scheduleCounts.today} follow-up{scheduleCounts.today > 1 ? 's' : ''} due today — get calling!
-                    </p>
+                </button>
+              )}
+              {scheduleCounts.yesterday > 0 && (
+                <button onClick={() => setTab('yesterday')}
+                  className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl text-left active:bg-orange-100 touch-manipulation">
+                  <AlarmClock size={18} className="text-orange-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-orange-700">{scheduleCounts.yesterday} Yesterday</p>
+                    <p className="text-xs text-orange-500">Follow up now</p>
                   </div>
-                )}
-                {tab === 'tomorrow' && scheduleCounts.tomorrow > 0 && (
-                  <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
-                    <p className="text-xs text-blue-700 font-semibold flex items-center gap-1.5">
-                      <Sunrise size={12} /> {scheduleCounts.tomorrow} lead{scheduleCounts.tomorrow > 1 ? 's' : ''} scheduled for tomorrow — be prepared!
-                    </p>
+                </button>
+              )}
+              {scheduleCounts.today > 0 && (
+                <button onClick={() => setTab('today')}
+                  className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left active:bg-amber-100 touch-manipulation">
+                  <CalendarDays size={18} className="text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-amber-700">{scheduleCounts.today} Today</p>
+                    <p className="text-xs text-amber-500">Due today</p>
                   </div>
-                )}
-              </div>
+                </button>
+              )}
+              {scheduleCounts.tomorrow > 0 && (
+                <button onClick={() => setTab('tomorrow')}
+                  className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-left active:bg-blue-100 touch-manipulation">
+                  <Sunrise size={18} className="text-blue-500 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-blue-700">{scheduleCounts.tomorrow} Tomorrow</p>
+                    <p className="text-xs text-blue-500">Plan ahead</p>
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
-          {/* ── Section Label when viewing a schedule segment ── */}
-          {['overdue', 'yesterday', 'today', 'tomorrow'].includes(tab) && filtered.length > 0 && (
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                {tab === 'overdue'    ? `\uD83D\uDEA8 ${filtered.length} Overdue lead${filtered.length > 1 ? 's' : ''} — call them now`
-                : tab === 'yesterday' ? `\u23EA ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} from yesterday — call now!`
-                : tab === 'today'     ? `\uD83D\uDCC5 ${filtered.length} Follow-up${filtered.length > 1 ? 's' : ''} due today`
-                : `\uD83C\uDF05 ${filtered.length} Scheduled for tomorrow`}
+          {filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <UserCheck size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-gray-500 text-lg">No leads in this view</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {tab === 'new' ? 'No new leads assigned yet' : `No leads match the "${tab}" filter`}
               </p>
             </div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map(lead => (
+                <SwipeableLeadCard
+                  key={lead.id}
+                  lead={lead}
+                  onTap={() => navigate(`/crm/sales/lead/${lead.id}`)}
+                  onQuickLog={() => { setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote(''); }}
+                  statusColors={statusColors}
+                  formatPhone={formatPhone}
+                  formatAssignedTime={formatAssignedTime}
+                  getLatestNote={getLatestNote}
+                  copiedId={copiedId}
+                  onCopyPhone={copyPhone}
+                />
+              ))}
+            </div>
           )}
+        </div>
+      )}
 
-          {/* ── Lead Cards ── */}
-          <div className="px-3 pt-3 space-y-3">
-            {filtered.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  {tab === 'tomorrow'
-                    ? <Sunrise size={24} className="text-blue-400" />
-                    : tab === 'overdue'
-                    ? <AlarmClock size={24} className="text-red-400" />
-                    : <Search size={24} className="text-gray-400" />}
-                </div>
-                <p className="text-sm text-gray-500 font-medium">
-                  {tab === 'tomorrow' ? 'No follow-ups tomorrow \uD83C\uDF89' :
-                   tab === 'overdue'  ? 'No overdue leads \u2705' :
-                   tab === 'today'    ? 'Nothing due today \uD83C\uDF89' :
-                   'No leads found'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {tab === 'tomorrow' ? 'Log calls and schedule follow-ups to plan ahead'
-                   : tab === 'overdue' ? 'Great job staying on top of your leads!'
-                   : 'Try adjusting your filters'}
-                </p>
+      {/* ── Quick Log Sheet ── */}
+      {quickLead && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setQuickLead(null)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative w-full bg-white rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">{quickLead.name}</h3>
+                <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+              </div>
+              <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
+                <X size={20} className="text-gray-600" />
+              </button>
+            </div>
+
+            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome</p>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {QUICK_OUTCOMES.map(o => (
+                <button key={o.id} onClick={() => setOutcome(o.id)}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
+                    outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F]/5 text-[#0F3A5F]' : 'border-gray-100 bg-gray-50 text-gray-600'
+                  }`}>
+                  <span className="text-xl">{o.emoji}</span>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status <span className="font-normal text-gray-400">(optional)</span></p>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {QUICK_STATUSES.map(s => (
+                <button key={s.id} onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
+                    newStatus === s.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-gray-50 text-gray-600'
+                  }`}>
+                  <span className="text-xl">{s.emoji}</span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {newStatus === 'FollowUp' && (
+              <div className="mb-4">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Follow-up Date</p>
+                <SmartDateInput
+                  value={followDate}
+                  onChange={setFollowDate}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none"
+                />
               </div>
             )}
 
-            {filtered.map(lead => {
-              const fu = lead.follow_up_date || lead.followUpDate;
-              let overdueFlag = false, todayFlag = false, tomorrowFlag = false;
-              try {
-                const fuDate = parseLocalDate(fu);
-                overdueFlag  = fuDate && isPast(fuDate) && !isToday(fuDate);
-                todayFlag    = fuDate && isToday(fuDate);
-                tomorrowFlag = fuDate && isTomorrow(fuDate);
-              } catch { /* ignore */ }
-              const sc         = statusColors[lead.status] || statusColors.New;
-              const interest   = lead.interestLevel || lead.interest_level;
-              const latestNote = getLatestNote(lead.notes);
-
-              const cardEl = (
-                <div key={lead.id}
-                  className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 ${
-                    overdueFlag  ? 'border-red-200 border-l-4 border-l-red-400' :
-                    todayFlag    ? 'border-amber-200 border-l-4 border-l-amber-400' :
-                    tomorrowFlag ? 'border-blue-200 border-l-4 border-l-blue-400' : 'border-gray-100'
-                  }`}>
-
-                  <button onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
-                    className="w-full text-left px-4 pt-4 pb-3 touch-manipulation">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-gray-900 text-base truncate">{lead.name}</p>
-                          {interest === 'Hot' && <Flame size={13} className="text-red-500 shrink-0" />}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-0.5">{formatPhone(lead.phone)}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${sc}`}>{lead.status || 'New'}</span>
-                        {overdueFlag  && <span className="flex items-center gap-1 text-[11px] text-red-600 font-bold"><AlertCircle size={11} /> Overdue</span>}
-                        {todayFlag    && <span className="flex items-center gap-1 text-[11px] text-amber-600 font-bold"><Clock size={11} /> Today</span>}
-                        {tomorrowFlag && <span className="flex items-center gap-1 text-[11px] text-blue-600 font-bold"><Sunrise size={11} /> Tomorrow</span>}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 mt-2.5 text-xs text-gray-500">
-                      {lead.project && <span className="truncate max-w-[120px]">\uD83C\uDFD7\uFE0F {lead.project}</span>}
-                      {lead.budget  && <span>\uD83D\uDCB0 {lead.budget}</span>}
-                      {fu && parseLocalDate(fu) && (
-                        <span className={`flex items-center gap-1 ${
-                          overdueFlag ? 'text-red-500' : todayFlag ? 'text-amber-600' : tomorrowFlag ? 'text-blue-600' : 'text-gray-400'
-                        }`}>
-                          <Calendar size={12} /> {format(parseLocalDate(fu), 'dd MMM')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <p className="text-[11px] text-gray-400">
-                        {lead._callCount > 0
-                          ? `${lead._callCount} call${lead._callCount > 1 ? 's' : ''} \u00B7 Last: ${timeAgo(lead._lastCall?.timestamp)}`
-                          : 'Never contacted'}
-                      </p>
-                      {(() => {
-                        const assignedAt = lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at;
-                        const aTime = formatAssignedTime(assignedAt);
-                        return aTime ? (
-                          <span className="flex items-center gap-1 text-[11px] text-[#8B6914] font-medium">
-                            <UserCheck size={11} className="text-[#D4AF37]" />
-                            {aTime}
-                          </span>
-                        ) : null;
-                      })()}
-                    </div>
-
-                    {latestNote && (
-                      <div className="flex items-start gap-2 mt-2.5 bg-amber-50 rounded-xl px-3 py-2">
-                        <StickyNote size={12} className="text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-800 leading-snug line-clamp-2">{latestNote}</p>
-                      </div>
-                    )}
-                  </button>
-
-                  {/* Card action row */}
-                  <div className="flex border-t border-gray-100">
-                    <a href={`tel:${lead.phone}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-emerald-600 active:bg-emerald-50 touch-manipulation">
-                      <Phone size={15} /> Call
-                    </a>
-                    <button onClick={() => copyPhone(lead.phone, lead.id)}
-                      className="flex items-center justify-center gap-1.5 px-4 py-3.5 text-sm font-semibold text-gray-400 border-x border-gray-100 active:bg-gray-50 touch-manipulation">
-                      {copiedId === lead.id
-                        ? <CheckCircle size={15} className="text-emerald-500" />
-                        : <Copy size={15} />}
-                    </button>
-                    <a href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
-                      target="_blank" rel="noreferrer"
-                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold text-[#25D366] active:bg-green-50 touch-manipulation">
-                      <MessageCircle size={15} /> WhatsApp
-                    </a>
-                    <button onClick={() => {
-                      setQuickLead(lead);
-                      setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
-                    }}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-black text-[#D4AF37] active:bg-amber-50 touch-manipulation">
-                      <PhoneCall size={15} /> Log
-                    </button>
-                  </div>
-                </div>
-              );
-
-              if (isMobile) {
-                return (
-                  <SwipeableLeadCard
-                    key={lead.id}
-                    lead={lead}
-                    onCall={(l) => { window.location.href = `tel:${l.phone}`; }}
-                    onQuickAction={(l) => {
-                      setQuickLead(l);
-                      setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
-                    }}
-                  >
-                    {cardEl}
-                  </SwipeableLeadCard>
-                );
-              }
-              return cardEl;
-            })}
-          </div>
-        </>
-      )}
-
-      {/* ── QUICK LOG BOTTOM SHEET ── */}
-      {quickLead && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setQuickLead(null)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl"
-               style={{ maxHeight: '92vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <div className="flex justify-center pt-3"><div className="w-10 h-1 bg-gray-200 rounded-full" /></div>
-            <div className="px-4 pb-8">
-              <div className="flex items-center justify-between my-4">
-                <div>
-                  <p className="font-black text-[#0F3A5F] text-lg">{quickLead.name}</p>
-                  <p className="text-xs text-gray-400">{formatPhone(quickLead.phone)}</p>
-                </div>
-                <div className="flex gap-2">
-                  <a href={`tel:${quickLead.phone}`}
-                    className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg active:scale-95 transition">
-                    <Phone size={18} />
-                  </a>
-                  <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100 active:bg-gray-200">
-                    <X size={18} className="text-gray-600" />
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">How did the call go?</p>
-              <div className="grid grid-cols-2 gap-2 mb-5">
-                {QUICK_OUTCOMES.map(o => (
-                  <button key={o.id} onClick={() => setOutcome(o.id)}
-                    className={`flex items-center gap-2 px-3 py-3 rounded-2xl border-2 text-sm font-semibold touch-manipulation transition-all ${
-                      outcome === o.id
-                        ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white shadow-lg scale-[1.02]'
-                        : 'border-gray-100 bg-gray-50 text-gray-700'
-                    }`}>
-                    {o.emoji} {o.label}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Update Status</p>
-              <div className="grid grid-cols-2 gap-2 mb-5">
-                {QUICK_STATUSES.map(s => (
-                  <button key={s.id} onClick={() => setNewStatus(newStatus === s.id ? '' : s.id)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl border-2 text-sm font-semibold touch-manipulation transition-all ${
-                      newStatus === s.id
-                        ? 'border-[#D4AF37] bg-[#D4AF37]/15 text-[#0F3A5F] shadow-sm scale-[1.02]'
-                        : 'border-gray-100 bg-gray-50 text-gray-700'
-                    }`}>
-                    {s.emoji} {s.label}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">
-                {newStatus === 'SiteVisit' ? 'Schedule Visit Date' : 'Reschedule Follow-up'}
-              </p>
-              <div className="flex gap-2 mb-2">
-                {[
-                  { label: '\uD83C\uDF05 Tomorrow', days: 1 },
-                  { label: '3 Days',  days: 3 },
-                  { label: 'Next Week', days: 7 },
-                ].map(opt => {
-                  const d = new Date(); d.setDate(d.getDate() + opt.days);
-                  const ds = d.toISOString().split('T')[0];
-                  return (
-                    <button key={opt.label} onClick={() => setFollowDate(ds)}
-                      className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
-                        followDate === ds
-                          ? 'border-blue-400 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 bg-white text-gray-600'
-                      }`}>
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mb-5">
-                <SmartDateInput value={followDate} onChange={setFollowDate} min={today} />
-              </div>
-
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2.5">Quick Note (optional)</p>
+            <div className="mb-5">
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note <span className="font-normal text-gray-400">(optional)</span></p>
               <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                placeholder="What did the lead say?" rows={2}
-                className="w-full border-2 border-gray-100 rounded-2xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:border-[#0F3A5F] mb-5" />
-
-              <button onClick={handleQuickSave} disabled={!outcome || saving}
-                className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl text-base font-black disabled:opacity-40 active:bg-[#0a2d4f] shadow-xl touch-manipulation transition-all">
-                {saving
-                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={18} className="animate-spin" /> Saving...</span>
-                  : 'Save & Update'
-                }
-              </button>
+                placeholder="e.g., Called, will call back tomorrow..."
+                rows={2}
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none resize-none" />
             </div>
+
+            <button onClick={handleQuickSave} disabled={saving}
+              className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:bg-[#0c2e4a] touch-manipulation disabled:opacity-60">
+              {saving ? <Loader2 size={20} className="animate-spin" /> : <PhoneCall size={20} />}
+              {saving ? 'Saving...' : 'Log Call'}
+            </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

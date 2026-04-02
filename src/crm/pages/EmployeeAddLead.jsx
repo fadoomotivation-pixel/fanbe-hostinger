@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { addEmployeeLead } from '@/lib/crmSupabase';
+import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ const EmployeeAddLead = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addLead } = useCRMData();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -61,6 +63,30 @@ const EmployeeAddLead = () => {
 
     setLoading(true);
     try {
+      const mainLead = await addLead({
+        name: formData.customer_name,
+        phone: formData.phone,
+        email: formData.email || '',
+        source: formData.source || 'Employee Referral',
+        interestLevel: formData.interest_level || 'warm',
+        budget: formData.budget_range || '',
+        project: formData.project_interested || '',
+        status: 'FollowUp',
+        followUpDate: formData.follow_up_date || null,
+        assignedTo: user.id,
+        assignedToName: user.name || user.username || user.email || 'Employee',
+        createdBy: user.id,
+        notes: [
+          '[Employee Lead Submission]',
+          formData.customer_remarks ? `Customer Remarks: ${formData.customer_remarks}` : null,
+          formData.employee_remarks ? `Employee Remarks: ${formData.employee_remarks}` : null,
+        ].filter(Boolean).join('\n'),
+      });
+
+      if (!mainLead) {
+        throw new Error('Failed to create lead in My Leads.');
+      }
+
       const result = await addEmployeeLead({
         ...formData,
         submitted_by: user.id,
@@ -70,15 +96,7 @@ const EmployeeAddLead = () => {
         admin_status: 'pending',
       });
 
-      if (result.success) {
-        toast({
-          title: '\u2705 Lead Submitted!',
-          description: 'Your lead has been submitted successfully.',
-        });
-        navigate('/crm/sales/my-leads');
-      } else {
-        throw new Error(result.message);
-      }
+
     } catch (error) {
       console.error('Failed to submit lead:', error);
       toast({ title: 'Error', description: error.message || 'Failed to submit lead. Please try again.', variant: 'destructive' });

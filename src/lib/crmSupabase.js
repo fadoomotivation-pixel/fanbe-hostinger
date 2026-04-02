@@ -242,6 +242,7 @@ export const addEmployeeLead = async (leadData) => {
         employee_remarks:    leadData.employee_remarks || null,
         site_visit_interest: leadData.site_visit_interest || false,
         preferred_visit_date: leadData.preferred_visit_date || null,
+        admin_status:        leadData.admin_status || 'pending',
       }])
       .select()
       .single();

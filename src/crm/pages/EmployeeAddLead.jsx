@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { addEmployeeLead } from '@/lib/crmSupabase';
+import { useCRMData } from '@/crm/hooks/useCRMData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ const EmployeeAddLead = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addLead } = useCRMData();
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -61,25 +63,52 @@ const EmployeeAddLead = () => {
 
     setLoading(true);
     try {
+      const mainLead = await addLead({
+        name: formData.customer_name,
+        phone: formData.phone,
+        email: formData.email || '',
+        source: formData.source || 'Employee Referral',
+        interestLevel: formData.interest_level || 'warm',
+        budget: formData.budget_range || '',
+        project: formData.project_interested || '',
+        status: 'FollowUp',
+        followUpDate: formData.follow_up_date || null,
+        assignedTo: user.id,
+        assignedToName: user.name || user.username || user.email || 'Employee',
+        createdBy: user.id,
+        notes: [
+          '[Employee Lead Submission]',
+          formData.customer_remarks ? `Customer Remarks: ${formData.customer_remarks}` : null,
+          formData.employee_remarks ? `Employee Remarks: ${formData.employee_remarks}` : null,
+        ].filter(Boolean).join('\n'),
+      });
+
+      if (!mainLead) {
+        throw new Error('Failed to create lead in My Leads.');
+      }
+
       const result = await addEmployeeLead({
         ...formData,
         submitted_by: user.id,
         submitted_by_name: user.name || user.username,
         preferred_visit_date: formData.preferred_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
-        admin_status: 'pre_approved',
+        admin_status: 'pending',
       });
 
-      if (result.success) {
+      if (!result.success) {
         toast({
-          title: '\u2705 Lead Submitted!',
-          description: 'Your lead has been submitted. View it in the Submitted Leads tab.',
+          title: 'Lead saved in My Leads',
+          description: 'Superadmin/admin activity log could not be created this time.',
+          variant: 'destructive',
         });
-        // Navigate to My Leads and activate the 'submitted' tab
-        navigate('/crm/sales/my-leads', { state: { tab: 'submitted' } });
-      } else {
-        throw new Error(result.message);
       }
+
+      toast({
+        title: '\u2705 Lead Submitted!',
+        description: 'Lead created in My Leads successfully.',
+      });
+      navigate('/crm/sales/my-leads');
     } catch (error) {
       console.error('Failed to submit lead:', error);
       toast({ title: 'Error', description: error.message || 'Failed to submit lead. Please try again.', variant: 'destructive' });
@@ -102,16 +131,15 @@ const EmployeeAddLead = () => {
               <UserPlus size={28} className="text-emerald-600" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a new lead — it will appear in the Submitted tab after submission</p>
+            <p className="text-sm text-gray-500 mt-1">Submit a new lead and continue in My Leads</p>
           </div>
         </div>
 
-        {/* Pre-approved notice */}
+        {/* Review notice */}
         <div className="flex items-center gap-3 p-3 mb-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
           <ShieldCheck size={18} className="text-indigo-600 shrink-0" />
           <span>
-            Leads you submit are marked <strong>Pre-Approved</strong> and visible to admin for review and assignment.
-            You can view them in the <strong>📋 Submitted</strong> tab in My Leads.
+            Leads you submit are marked <strong>Pending Review</strong> and are visible to superadmin/admin in Employee Submitted Leads.
           </span>
         </div>
 

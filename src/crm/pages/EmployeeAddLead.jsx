@@ -67,17 +67,16 @@ const EmployeeAddLead = () => {
         submitted_by_name: user.name || user.username,
         preferred_visit_date: formData.preferred_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
-        // Mark as pre_approved — admin can see & modify; employee sees read-only in My Leads
         admin_status: 'pre_approved',
       });
 
       if (result.success) {
         toast({
           title: '\u2705 Lead Submitted!',
-          description: 'Your lead is now visible in My Leads. Admin will review and take action.',
+          description: 'Your lead has been submitted. View it in the Submitted Leads tab.',
         });
-        // Go directly to My Leads (not Submitted Leads)
-        navigate('/crm/sales/my-leads');
+        // Navigate to My Leads and activate the 'submitted' tab
+        navigate('/crm/sales/my-leads', { state: { tab: 'submitted' } });
       } else {
         throw new Error(result.message);
       }
@@ -103,7 +102,7 @@ const EmployeeAddLead = () => {
               <UserPlus size={28} className="text-emerald-600" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a new lead — it will appear in My Leads after submission</p>
+            <p className="text-sm text-gray-500 mt-1">Submit a new lead — it will appear in the Submitted tab after submission</p>
           </div>
         </div>
 
@@ -112,7 +111,7 @@ const EmployeeAddLead = () => {
           <ShieldCheck size={18} className="text-indigo-600 shrink-0" />
           <span>
             Leads you submit are marked <strong>Pre-Approved</strong> and visible to admin for review and assignment.
-            You can view them in <strong>My Leads</strong> but only admin can modify them.
+            You can view them in the <strong>📋 Submitted</strong> tab in My Leads.
           </span>
         </div>
 
@@ -303,7 +302,7 @@ const EmployeeAddLead = () => {
               </div>
               <div>
                 <Label>Your Assessment / Remarks</Label>
-                <Textarea placeholder="Your personal assessment of this lead \u2014 how serious, any red flags, etc." value={formData.employee_remarks} onChange={(e) => handleChange('employee_remarks', e.target.value)} rows={3} className="mt-1" />
+                <Textarea placeholder="Your personal assessment of this lead — how serious, any red flags, etc." value={formData.employee_remarks} onChange={(e) => handleChange('employee_remarks', e.target.value)} rows={3} className="mt-1" />
               </div>
             </CardContent>
           </Card>

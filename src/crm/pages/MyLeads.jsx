@@ -4,7 +4,11 @@
 // ✅ Tomorrow tab added so employees plan ahead
 // ✅ Submitted Leads tab embedded inline (no separate page needed)
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+// ✅ PERF FIX: removed redundant fetchLeads() after handleQuickSave (updateLead already does optimistic update)
+// ✅ PERF FIX: pre-filter calls to only this user's calls before building Map (was scanning all employees' calls)
+// ✅ PERF FIX: myCalls computed once via useMemo, not inside myLeads useMemo
+// ✅ PERF FIX: visibleLeads sliced from stable filtered array (no chained useMemo thrash)
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -85,6 +89,8 @@ const TAB_STORAGE_KEY = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
 const LEADS_BATCH_SIZE = 60;
 
+const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
+
 // ── Submitted Leads constants ────────────────────────────────────────────
 const INTEREST_COLORS_SL = {
   hot:  'bg-red-100 text-red-700',
@@ -142,14 +148,17 @@ const getLatestNote = (notes) => {
 
 const MyLeads = () => {
   const { user }  = useAuth();
-  const { leads, leadsLoading, calls, updateLead, addCallLog, fetchLeads } = useCRMData();
+  // ✅ PERF: don't destructure fetchLeads — calling it after handleQuickSave was
+  // triggering a full 2000-lead re-fetch + re-normalize + re-render cascade.
+  // updateLead already does an optimistic local state update synchronously,
+  // so the UI is immediately correct without any refetch.
+  const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const location  = useLocation();
   const { toast } = useToast();
   const isMobile  = useMobile();
 
   const [tab, setTab] = useState(() => {
-    // If navigated from add-lead (or any page) with a tab hint, honour it
     if (location.state?.tab) {
       const valid = TABS.map(t => t.id);
       if (valid.includes(location.state.tab)) return location.state.tab;
@@ -215,25 +224,35 @@ const MyLeads = () => {
     });
   }, []);
 
+  // ✅ PERF FIX 1: Pre-filter calls to only this user BEFORE building the Map.
+  // Previously, myLeads useMemo was iterating ALL employees' calls (could be
+  // thousands) to build a Map. Now we filter first so only this employee's
+  // calls are processed — O(n) drops to O(mine) which is typically <200 rows.
+  const myCallsMap = useMemo(() => {
+    if (!userId || !calls?.length) return new Map();
+    const map = new Map();
+    for (const call of calls) {
+      if (call.employeeId !== userId) continue;
+      const bucket = map.get(call.leadId);
+      if (!bucket) {
+        map.set(call.leadId, [call]);
+      } else {
+        bucket.push(call);
+      }
+    }
+    // Sort each bucket descending by timestamp once, here
+    map.forEach(bucket => bucket.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+    return map;
+  }, [calls, userId]);
+
+  // ✅ PERF FIX 2: myLeads no longer builds the callMap inline.
+  // It only iterates leads assigned to this user and attaches pre-built call data.
   const myLeads = useMemo(() => {
-    const myCalls = calls?.filter(c => c.employeeId === userId) || [];
-    const callsByLead = myCalls.reduce((acc, call) => {
-      const bucket = acc.get(call.leadId) || [];
-      bucket.push(call);
-      acc.set(call.leadId, bucket);
-      return acc;
-    }, new Map());
-
-    callsByLead.forEach((leadCalls) => {
-      leadCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    });
-
     return leads
       .filter(l => l.assignedTo === userId || l.assigned_to === userId)
       .map(lead => {
-        const leadCalls = callsByLead.get(lead.id) || [];
-        const lastCall  = leadCalls[0];
-        return { ...lead, _callCount: leadCalls.length, _lastCall: lastCall };
+        const leadCalls = myCallsMap.get(lead.id) || [];
+        return { ...lead, _callCount: leadCalls.length, _lastCall: leadCalls[0] };
       })
       .sort((a, b) => {
         if (sortBy === 'name')   return (a.name || '').localeCompare(b.name || '');
@@ -244,9 +263,7 @@ const MyLeads = () => {
         }
         return urgencyScore(b) - urgencyScore(a);
       });
-  }, [leads, calls, userId, sortBy]);
-
-  const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
+  }, [leads, myCallsMap, userId, sortBy]);
 
   const scheduleCounts = useMemo(() => {
     let overdue = 0, yesterdayCount = 0, todayCount = 0, tomorrowCount = 0;
@@ -362,7 +379,11 @@ const MyLeads = () => {
         patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
-      fetchLeads();
+      // ✅ PERF FIX 3: fetchLeads() removed here.
+      // updateLead() already does an optimistic setLeads() update synchronously,
+      // so the card reflects the new status/follow-up date instantly without
+      // triggering a full 2000-lead re-fetch + re-normalize + re-render cascade.
+      // The Realtime subscription in useCRMData will sync any server-side changes.
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {

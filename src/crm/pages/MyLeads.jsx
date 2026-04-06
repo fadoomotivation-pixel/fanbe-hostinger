@@ -83,6 +83,7 @@ const TABS = [
 
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
+const LEADS_BATCH_SIZE = 60;
 
 // ── Submitted Leads constants ────────────────────────────────────────────
 const INTEREST_COLORS_SL = {
@@ -167,6 +168,7 @@ const MyLeads = () => {
   const [quickNote, setQuickNote]   = useState('');
   const [saving, setSaving]         = useState(false);
   const [copiedId, setCopiedId]     = useState(null);
+  const [visibleCount, setVisibleCount] = useState(LEADS_BATCH_SIZE);
 
   // ── Submitted Leads state ──────────────────────────────────────────────
   const [submittedLeads, setSubmittedLeads]     = useState([]);
@@ -215,11 +217,22 @@ const MyLeads = () => {
 
   const myLeads = useMemo(() => {
     const myCalls = calls?.filter(c => c.employeeId === userId) || [];
+    const callsByLead = myCalls.reduce((acc, call) => {
+      const bucket = acc.get(call.leadId) || [];
+      bucket.push(call);
+      acc.set(call.leadId, bucket);
+      return acc;
+    }, new Map());
+
+    callsByLead.forEach((leadCalls) => {
+      leadCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    });
+
     return leads
       .filter(l => l.assignedTo === userId || l.assigned_to === userId)
       .map(lead => {
-        const leadCalls = myCalls.filter(c => c.leadId === lead.id);
-        const lastCall  = leadCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        const leadCalls = callsByLead.get(lead.id) || [];
+        const lastCall  = leadCalls[0];
         return { ...lead, _callCount: leadCalls.length, _lastCall: lastCall };
       })
       .sort((a, b) => {
@@ -309,6 +322,15 @@ const MyLeads = () => {
     }
     return arr;
   }, [myLeads, tab, search, dateFilter]);
+  
+  useEffect(() => {
+    setVisibleCount(LEADS_BATCH_SIZE);
+  }, [tab, search, dateFilter, sortBy]);
+
+  const visibleLeads = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
@@ -646,7 +668,7 @@ const MyLeads = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filtered.map(lead => (
+              {visibleLeads.map(lead => (
                 <SwipeableLeadCard
                   key={lead.id}
                   lead={lead}
@@ -660,6 +682,15 @@ const MyLeads = () => {
                   onCopyPhone={copyPhone}
                 />
               ))}
+
+              {visibleCount < filtered.length && (
+                <button
+                  onClick={() => setVisibleCount(prev => prev + LEADS_BATCH_SIZE)}
+                  className="w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-[#0F3A5F] hover:bg-gray-50 transition-colors"
+                >
+                  Load more leads ({filtered.length - visibleCount} remaining)
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -152,10 +152,12 @@ const LeadManagement = () => {
         assignedToName: empName,
         assignedAt:     now,
       };
+      // ✅ FIX: Save previous assignee info + reassignedOn = now (the moment of reassign)
       if (lead?.assignedTo && lead.assignedTo !== empId) {
         updates.prevAssignedTo     = lead.assignedTo;
         updates.prevAssignedToName = lead.assignedToName || null;
-        updates.prevAssignedAt     = lead.assignedAt    || lead.createdAt || now;
+        updates.prevAssignedAt     = lead.assignedAt || lead.createdAt || now; // original assignment time
+        updates.reassignedOn       = now; // ✅ timestamp of THIS reassign action
       }
       updateLead(leadId, updates);
     });
@@ -190,7 +192,7 @@ const LeadManagement = () => {
         l.assignedToName || '',
         fmtDate(l.assignedAt, 'dd/MM/yyyy HH:mm'),
         l.prevAssignedToName || '',
-        fmtDate(l.prevAssignedAt, 'dd/MM/yyyy HH:mm'),
+        fmtDate(l.reassignedOn || l.prevAssignedAt, 'dd/MM/yyyy HH:mm'), // ✅ use reassignedOn
         l.status || '',
       ])
     ];
@@ -460,10 +462,11 @@ const LeadManagement = () => {
                           ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
                         <td className="px-4 py-3">
-                          {lead.prevAssignedAt ? (
+                          {/* ✅ FIX: Show reassignedOn (when reassign happened), not prevAssignedAt */}
+                          {lead.reassignedOn || lead.prevAssignedAt ? (
                             <div>
-                              <p className="text-sm text-gray-600">{fmtDate(lead.prevAssignedAt, 'dd MMM yyyy')}</p>
-                              <p className="text-xs text-gray-400">{fmtDate(lead.prevAssignedAt, 'hh:mm a')}</p>
+                              <p className="text-sm text-gray-600">{fmtDate(lead.reassignedOn || lead.prevAssignedAt, 'dd MMM yyyy')}</p>
+                              <p className="text-xs text-gray-400">{fmtDate(lead.reassignedOn || lead.prevAssignedAt, 'hh:mm a')}</p>
                             </div>
                           ) : <span className="text-xs text-gray-300">—</span>}
                         </td>

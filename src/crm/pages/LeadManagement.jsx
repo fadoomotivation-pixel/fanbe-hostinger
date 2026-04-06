@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,33 +30,23 @@ const ADMIN_ROLES = [
   'hr_manager',  'hr',
 ];
 
-const sortNewestFirst = (arr) =>
-  [...arr].sort((a, b) => {
-    const da = new Date(a.assignedAt || a.createdAt || 0);
-    const db = new Date(b.assignedAt || b.createdAt || 0);
-    return db - da;
-  });
-
 const LeadManagement = () => {
   const { leads, addLead, updateLead, deleteLead, employees, getUniqueSources } = useCRMData();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('leadMgmt_activeTab') || 'unassigned');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterSource, setFilterSource] = useState('all');
-  const [filterEmployee, setFilterEmployee] = useState('all');
-  const [filterAssignLog, setFilterAssignLog] = useState('all');
-  const [showOnlyReassigned, setShowOnlyReassigned] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // ── selection state (shared between tabs) ──
-  const [selectedLeadIds, setSelectedLeadIds]   = useState([]);
-  // ── Assignment Log tab selection (separate state) ──
-  const [selectedLogIds,  setSelectedLogIds]    = useState([]);
+  const [activeTab,           setActiveTab]           = useState(() => sessionStorage.getItem('leadMgmt_activeTab') || 'unassigned');
+  const [searchTerm,          setSearchTerm]          = useState('');
+  const [filterSource,        setFilterSource]        = useState('all');
+  const [filterEmployee,      setFilterEmployee]      = useState('all');
+  const [filterAssignLog,     setFilterAssignLog]     = useState('all');
+  const [showOnlyReassigned,  setShowOnlyReassigned]  = useState(false);
+  const [isImportModalOpen,   setIsImportModalOpen]   = useState(false);
+  const [selectedLeadIds,     setSelectedLeadIds]     = useState([]);
+  const [selectedLogIds,      setSelectedLogIds]      = useState([]);
 
   const [isAssignmentModalOpen,    setIsAssignmentModalOpen]    = useState(false);
   const [isBulkDeleteModalOpen,    setIsBulkDeleteModalOpen]    = useState(false);
-  // log-specific modals reuse same modals but with log selection
   const [isLogAssignModalOpen,     setIsLogAssignModalOpen]     = useState(false);
   const [isLogBulkDeleteModalOpen, setIsLogBulkDeleteModalOpen] = useState(false);
 
@@ -69,67 +59,103 @@ const LeadManagement = () => {
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
-  const salesEmployees = employees.filter(emp =>
-    !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
-  );
+  // ─ memoize salesEmployees (employees list rarely changes) ─────────────────
+  const salesEmployees = useMemo(() =>
+    employees.filter(emp =>
+      !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
+    ),
+  [employees]);
 
-  const myLeads         = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
-  const unassignedLeads = myLeads.filter(l => !l.assignedTo);
-  const assignedLeads   = useMemo(() => sortNewestFirst(myLeads.filter(l => !!l.assignedTo)), [myLeads]);
+  // ─ memoize base lists ────────────────────────────────────────────
+  const myLeads = useMemo(() =>
+    isAdmin ? leads : leads.filter(l => l.assignedTo === user.id),
+  [leads, isAdmin, user.id]);
 
-  const reassignedCount = assignedLeads.filter(l => l.prevAssignedTo).length;
+  const unassignedLeads = useMemo(() =>
+    myLeads.filter(l => !l.assignedTo),
+  [myLeads]);
 
-  const assignLogLeads = (
-    filterAssignLog === 'all'
-      ? assignedLeads
-      : assignedLeads.filter(l => l.assignedTo === filterAssignLog)
-  )
-    .filter(l => !showOnlyReassigned || l.prevAssignedTo)
-    .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt));
+  // sort once, memoized
+  const assignedLeads = useMemo(() =>
+    myLeads
+      .filter(l => !!l.assignedTo)
+      .sort((a, b) =>
+        new Date(b.assignedAt || b.createdAt || 0) -
+        new Date(a.assignedAt || a.createdAt || 0)
+      ),
+  [myLeads]);
 
-  const applyFilters = (list) => list.filter(l => {
-    const matchSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm);
-    const matchSource = filterSource === 'all' || l.source === filterSource;
-    return matchSearch && matchSource;
-  });
+  const reassignedCount = useMemo(() =>
+    assignedLeads.filter(l => l.prevAssignedTo).length,
+  [assignedLeads]);
 
-  const filteredUnassigned = applyFilters(unassignedLeads);
-  const filteredAssigned   = applyFilters(
-    filterEmployee === 'all' ? assignedLeads : assignedLeads.filter(l => l.assignedTo === filterEmployee)
-  );
+  // ─ memoize filtered lists (depend on filter state + base lists) ───────
+  const filteredUnassigned = useMemo(() => {
+    const lc = searchTerm.toLowerCase();
+    return unassignedLeads.filter(l => {
+      if (filterSource !== 'all' && l.source !== filterSource) return false;
+      if (lc && !l.name.toLowerCase().includes(lc) && !l.phone.includes(searchTerm)) return false;
+      return true;
+    });
+  }, [unassignedLeads, searchTerm, filterSource]);
+
+  const filteredAssigned = useMemo(() => {
+    const lc = searchTerm.toLowerCase();
+    return assignedLeads.filter(l => {
+      if (filterEmployee !== 'all' && l.assignedTo !== filterEmployee) return false;
+      if (filterSource   !== 'all' && l.source     !== filterSource)   return false;
+      if (lc && !l.name.toLowerCase().includes(lc) && !l.phone.includes(searchTerm)) return false;
+      return true;
+    });
+  }, [assignedLeads, searchTerm, filterSource, filterEmployee]);
+
+  const assignLogLeads = useMemo(() => {
+    return assignedLeads
+      .filter(l => filterAssignLog === 'all' || l.assignedTo === filterAssignLog)
+      .filter(l => !showOnlyReassigned || l.prevAssignedTo);
+  }, [assignedLeads, filterAssignLog, showOnlyReassigned]);
+
+  // ─ per-employee lead count (memoized map) ───────────────────────
+  const employeeLeadCount = useMemo(() => {
+    const map = {};
+    assignedLeads.forEach(l => {
+      if (l.assignedTo) map[l.assignedTo] = (map[l.assignedTo] || 0) + 1;
+    });
+    return map;
+  }, [assignedLeads]);
 
   const currentList = activeTab === 'assigned'  ? filteredAssigned
                     : activeTab === 'unassigned' ? filteredUnassigned
                     : [];
 
-  // ── Assignment Log helpers ──────────────────────────────────────
-  const allLogSelected  = assignLogLeads.length > 0 && selectedLogIds.length === assignLogLeads.length;
+  // ─ unique sources memoized ───────────────────────────────────
+  const uniqueSources = useMemo(() => getUniqueSources(), [leads]);
 
-  const handleLogSelectAll = (checked) => {
+  // ─ Assignment Log selection helpers ───────────────────────────
+  const allLogSelected = assignLogLeads.length > 0 && selectedLogIds.length === assignLogLeads.length;
+
+  const handleLogSelectAll = useCallback((checked) => {
     if (checked) setSelectedLogIds(assignLogLeads.map(l => l.id));
     else         setSelectedLogIds([]);
-  };
+  }, [assignLogLeads]);
 
-  const handleLogSelectOne = (id, checked) => {
+  const handleLogSelectOne = useCallback((id, checked) => {
     if (checked) setSelectedLogIds(prev => [...prev, id]);
     else         setSelectedLogIds(prev => prev.filter(x => x !== id));
-  };
+  }, []);
 
-  const handleLogSelectN = (n) => {
+  const handleLogSelectN = useCallback((n) => {
     const topN = assignLogLeads.slice(0, n).map(l => l.id);
-    const merged = [...new Set([...selectedLogIds, ...topN])];
-    setSelectedLogIds(merged);
-  };
+    setSelectedLogIds(prev => [...new Set([...prev, ...topN])]);
+  }, [assignLogLeads]);
 
-  // Bulk status on log: mark selected as FollowUp (same as other tabs)
-  const handleLogBulkStatus = () => {
+  const handleLogBulkStatus = useCallback(() => {
     selectedLogIds.forEach(id => updateLead(id, { status: 'FollowUp' }));
     toast({ title: 'Updated', description: `${selectedLogIds.length} leads moved to Follow Up` });
     setSelectedLogIds([]);
-  };
+  }, [selectedLogIds, updateLead, toast]);
 
-  // Assignment from log uses same AssignmentModal but we pass log selection
-  const handleLogAssignment = (empId, empName) => {
+  const handleLogAssignment = useCallback((empId, empName) => {
     const now = new Date().toISOString();
     selectedLogIds.forEach(leadId => {
       const lead = leads.find(l => l.id === leadId);
@@ -145,17 +171,17 @@ const LeadManagement = () => {
     toast({ title: 'Assigned', description: `${selectedLogIds.length} leads assigned to ${empName}` });
     setSelectedLogIds([]);
     setIsLogAssignModalOpen(false);
-  };
+  }, [selectedLogIds, leads, updateLead, toast]);
 
-  const handleLogBulkDelete = async (ids) => {
+  const handleLogBulkDelete = useCallback(async (ids) => {
     return new Promise(resolve => {
       ids.forEach(id => deleteLead(id));
       setSelectedLogIds(prev => prev.filter(x => !ids.includes(x)));
       resolve();
     });
-  };
+  }, [deleteLead]);
 
-  // ── Existing tab handlers ───────────────────────────────────────
+  // ─ Existing tab handlers ────────────────────────────────────────
   const handleSubmit = (e) => {
     e.preventDefault();
     const newLead = {
@@ -170,7 +196,7 @@ const LeadManagement = () => {
     setFormData({ name: '', phone: '', email: '', project: '', source: 'Website', budget: '', status: 'Open', notes: '' });
   };
 
-  const handleLeadAction = (action, lead) => {
+  const handleLeadAction = useCallback((action, lead) => {
     if (action === 'call')        window.location.href = `tel:${lead.phone}`;
     if (action === 'bulk_delete') setIsBulkDeleteModalOpen(true);
     if (action === 'bulk_assign') setIsAssignmentModalOpen(true);
@@ -179,24 +205,24 @@ const LeadManagement = () => {
       toast({ title: 'Updated', description: 'Selected leads moved to Follow Up' });
       setSelectedLeadIds([]);
     }
-  };
+  }, [selectedLeadIds, updateLead, toast]);
 
-  const handleStatusChange = (lead, newStatus) => {
+  const handleStatusChange = useCallback((lead, newStatus) => {
     updateLead(lead.id, { status: newStatus });
     toast({ title: 'Updated', description: 'Status changed successfully.' });
-  };
+  }, [updateLead, toast]);
 
-  const handleSelectLead   = (id, checked) => {
+  const handleSelectLead = useCallback((id, checked) => {
     if (checked) setSelectedLeadIds(prev => [...prev, id]);
     else         setSelectedLeadIds(prev => prev.filter(lid => lid !== id));
-  };
+  }, []);
 
-  const handleSelectAll = (checked) => {
+  const handleSelectAll = useCallback((checked) => {
     if (checked) setSelectedLeadIds(currentList.map(l => l.id));
     else         setSelectedLeadIds([]);
-  };
+  }, [currentList]);
 
-  const handleAssignment = (empId, empName) => {
+  const handleAssignment = useCallback((empId, empName) => {
     const now = new Date().toISOString();
     selectedLeadIds.forEach(leadId => {
       const lead = leads.find(l => l.id === leadId);
@@ -213,24 +239,24 @@ const LeadManagement = () => {
     setSelectedLeadIds([]);
     setIsAssignmentModalOpen(false);
     if (activeTab === 'unassigned') setActiveTab('assigned');
-  };
+  }, [selectedLeadIds, leads, updateLead, toast, activeTab]);
 
-  const handleBulkDelete = async (ids) => {
+  const handleBulkDelete = useCallback(async (ids) => {
     return new Promise(resolve => {
       ids.forEach(id => deleteLead(id));
       setSelectedLeadIds(prev => prev.filter(pId => !ids.includes(pId)));
       resolve();
     });
-  };
+  }, [deleteLead]);
 
-  const handleUnassign = () => {
+  const handleUnassign = useCallback(() => {
     selectedLeadIds.forEach(id => updateLead(id, { assignedTo: null, assignedToName: null, assignedAt: null }));
     toast({ title: 'Unassigned', description: `${selectedLeadIds.length} leads moved back to Unassigned` });
     setSelectedLeadIds([]);
     setActiveTab('unassigned');
-  };
+  }, [selectedLeadIds, updateLead, toast]);
 
-  const exportAssignLog = () => {
+  const exportAssignLog = useCallback(() => {
     const rows = [
       ['Lead Name', 'Phone', 'Project', 'Assigned To', 'Date Assigned', 'Prev Assigned To', 'Reassigned On', 'Status'],
       ...assignLogLeads.map(l => [
@@ -248,16 +274,17 @@ const LeadManagement = () => {
     const a    = document.createElement('a');
     a.href = url; a.download = `assignment-log-${format(new Date(), 'dd-MM-yyyy')}.csv`;
     a.click(); URL.revokeObjectURL(url);
-  };
+  }, [assignLogLeads]);
 
-  const leadsToAssign = currentList.filter(l => selectedLeadIds.includes(l.id));
-  const leadsToDelete = currentList.filter(l => selectedLeadIds.includes(l.id));
-  const logLeadsToAssign = assignLogLeads.filter(l => selectedLogIds.includes(l.id));
-  const logLeadsToDelete = assignLogLeads.filter(l => selectedLogIds.includes(l.id));
-  const uniqueSources    = getUniqueSources();
-  const employeeLeadCount = (empId) => assignedLeads.filter(l => l.assignedTo === empId).length;
+  // ─ modal payloads (memoized) ───────────────────────────────────
+  const leadsToAssign    = useMemo(() => currentList.filter(l => selectedLeadIds.includes(l.id)),   [currentList, selectedLeadIds]);
+  const leadsToDelete    = useMemo(() => currentList.filter(l => selectedLeadIds.includes(l.id)),   [currentList, selectedLeadIds]);
+  const logLeadsToAssign = useMemo(() => assignLogLeads.filter(l => selectedLogIds.includes(l.id)), [assignLogLeads, selectedLogIds]);
+  const logLeadsToDelete = useMemo(() => assignLogLeads.filter(l => selectedLogIds.includes(l.id)), [assignLogLeads, selectedLogIds]);
 
-  const logQuickSelectSizes = [10, 25, 50].filter(n => n < assignLogLeads.length);
+  const logQuickSelectSizes = useMemo(() =>
+    [10, 25, 50].filter(n => n < assignLogLeads.length),
+  [assignLogLeads.length]);
 
   return (
     <div className="space-y-6">
@@ -367,7 +394,7 @@ const LeadManagement = () => {
                   <SelectItem value="all">All Employees ({assignedLeads.length})</SelectItem>
                   {salesEmployees.map(emp => (
                     <SelectItem key={emp.id} value={emp.id}>
-                      {emp.name} <span className="ml-2 text-xs text-gray-400">({employeeLeadCount(emp.id)} leads)</span>
+                      {emp.name} <span className="ml-2 text-xs text-gray-400">({employeeLeadCount[emp.id] || 0} leads)</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -387,7 +414,7 @@ const LeadManagement = () => {
                       {emp.name?.[0]?.toUpperCase()}
                     </div>
                     <span className="font-medium text-gray-700">{emp.name}</span>
-                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px]">{employeeLeadCount(emp.id)}</Badge>
+                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px]">{employeeLeadCount[emp.id] || 0}</Badge>
                   </button>
                 ))}
               </div>
@@ -405,15 +432,13 @@ const LeadManagement = () => {
         {/* ── ASSIGNMENT LOG TAB ── */}
         {isAdmin && (
           <TabsContent value="assignlog" className="space-y-4">
-
-            {/* Filters row */}
             <div className="flex flex-wrap items-center gap-3">
               <Select value={filterAssignLog} onValueChange={setFilterAssignLog}>
                 <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by Employee" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
                   {salesEmployees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>{emp.name} ({employeeLeadCount(emp.id)})</SelectItem>
+                    <SelectItem key={emp.id} value={emp.id}>{emp.name} ({employeeLeadCount[emp.id] || 0})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -446,7 +471,7 @@ const LeadManagement = () => {
               </div>
             </div>
 
-            {/* ── Quick-select toolbar ── */}
+            {/* Quick-select toolbar */}
             {assignLogLeads.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 px-1">
                 <span className="text-xs text-gray-400 font-medium mr-1 shrink-0">Quick select:</span>
@@ -474,7 +499,7 @@ const LeadManagement = () => {
               </div>
             )}
 
-            {/* ── Bulk action bar (shows when something is selected) ── */}
+            {/* Bulk action bar */}
             {selectedLogIds.length > 0 && (
               <div className="bg-blue-50 border border-blue-100 px-4 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
@@ -503,18 +528,14 @@ const LeadManagement = () => {
               </div>
             )}
 
-            {/* ── Assignment Log table ── */}
+            {/* Assignment Log table */}
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {/* Checkbox column */}
                       <th className="px-4 py-3 w-10">
-                        <Checkbox
-                          checked={allLogSelected}
-                          onCheckedChange={handleLogSelectAll}
-                        />
+                        <Checkbox checked={allLogSelected} onCheckedChange={handleLogSelectAll} />
                       </th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Lead</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Project</th>
@@ -542,7 +563,6 @@ const LeadManagement = () => {
                         }`}
                         onClick={() => handleLogSelectOne(lead.id, !selectedLogIds.includes(lead.id))}
                       >
-                        {/* Checkbox cell — stop propagation so clicking checkbox doesn't double-toggle */}
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <Checkbox
                             checked={selectedLogIds.includes(lead.id)}
@@ -675,14 +695,12 @@ const LeadManagement = () => {
         </TabsContent>
       </Tabs>
 
-      {/* ── Modals for Unassigned / Assigned tabs ── */}
       <ImportLeadsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} employees={salesEmployees} />
       <AssignmentModal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
         leads={leadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleAssignment} />
       <BulkDeleteModal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)}
         leads={leadsToDelete} onDelete={handleBulkDelete} />
 
-      {/* ── Modals for Assignment Log tab ── */}
       <AssignmentModal isOpen={isLogAssignModalOpen} onClose={() => setIsLogAssignModalOpen(false)}
         leads={logLeadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleLogAssignment} />
       <BulkDeleteModal isOpen={isLogBulkDeleteModalOpen} onClose={() => setIsLogBulkDeleteModalOpen(false)}

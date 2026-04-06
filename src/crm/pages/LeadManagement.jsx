@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import { ROLES } from '@/lib/permissions';
-import { Search, Upload, UserCheck, Users, UserX, RefreshCw, History, ArrowRightLeft, Download } from 'lucide-react';
+import { Search, Upload, UserCheck, Users, UserX, RefreshCw, History, ArrowRightLeft, Download, UserPlus, Trash2, X, CheckSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import projects from '@/data/projects';
 import ImportLeadsModal from '@/crm/components/ImportLeadsModal';
@@ -18,20 +19,17 @@ import AssignmentModal from '@/crm/components/AssignmentModal';
 import BulkDeleteModal from '@/crm/components/BulkDeleteModal';
 import { isVIPLead } from '@/lib/smartAssignmentEngine';
 
-// ── helper: safe date format ──────────────────────────────────────
 const fmtDate = (d, fmt = 'dd MMM yyyy') => {
   if (!d) return '—';
   try { return format(parseISO(d), fmt); } catch { return d; }
 };
 
-// ── Roles that should NEVER appear in the assignment dropdown ──────────
 const ADMIN_ROLES = [
   'super_admin', 'superadmin', 'admin',
   'sub_admin',   'subadmin',
   'hr_manager',  'hr',
 ];
 
-// ✅ Sort leads newest-assigned first
 const sortNewestFirst = (arr) =>
   [...arr].sort((a, b) => {
     const da = new Date(a.assignedAt || a.createdAt || 0);
@@ -50,10 +48,17 @@ const LeadManagement = () => {
   const [filterAssignLog, setFilterAssignLog] = useState('all');
   const [showOnlyReassigned, setShowOnlyReassigned] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedLeadIds, setSelectedLeadIds] = useState([]);
 
-  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
-  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  // ── selection state (shared between tabs) ──
+  const [selectedLeadIds, setSelectedLeadIds]   = useState([]);
+  // ── Assignment Log tab selection (separate state) ──
+  const [selectedLogIds,  setSelectedLogIds]    = useState([]);
+
+  const [isAssignmentModalOpen,    setIsAssignmentModalOpen]    = useState(false);
+  const [isBulkDeleteModalOpen,    setIsBulkDeleteModalOpen]    = useState(false);
+  // log-specific modals reuse same modals but with log selection
+  const [isLogAssignModalOpen,     setIsLogAssignModalOpen]     = useState(false);
+  const [isLogBulkDeleteModalOpen, setIsLogBulkDeleteModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '', phone: '', email: '', project: '',
@@ -68,12 +73,10 @@ const LeadManagement = () => {
     !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
   );
 
-  const myLeads        = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
+  const myLeads         = isAdmin ? leads : leads.filter(l => l.assignedTo === user.id);
   const unassignedLeads = myLeads.filter(l => !l.assignedTo);
-  // ✅ Always newest-assigned first for the assigned list
-  const assignedLeads  = useMemo(() => sortNewestFirst(myLeads.filter(l => !!l.assignedTo)), [myLeads]);
+  const assignedLeads   = useMemo(() => sortNewestFirst(myLeads.filter(l => !!l.assignedTo)), [myLeads]);
 
-  // ── Assignment Log data ──────────────────────────────────────────
   const reassignedCount = assignedLeads.filter(l => l.prevAssignedTo).length;
 
   const assignLogLeads = (
@@ -85,24 +88,74 @@ const LeadManagement = () => {
     .sort((a, b) => new Date(b.assignedAt || b.createdAt) - new Date(a.assignedAt || a.createdAt));
 
   const applyFilters = (list) => list.filter(l => {
-    const matchSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        l.phone.includes(searchTerm);
+    const matchSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm);
     const matchSource = filterSource === 'all' || l.source === filterSource;
     return matchSearch && matchSource;
   });
 
   const filteredUnassigned = applyFilters(unassignedLeads);
-  // ✅ filteredAssigned already sorted via assignedLeads (sortNewestFirst)
   const filteredAssigned   = applyFilters(
-    filterEmployee === 'all'
-      ? assignedLeads
-      : assignedLeads.filter(l => l.assignedTo === filterEmployee)
+    filterEmployee === 'all' ? assignedLeads : assignedLeads.filter(l => l.assignedTo === filterEmployee)
   );
 
-  const currentList = activeTab === 'assigned'   ? filteredAssigned
-                    : activeTab === 'unassigned'  ? filteredUnassigned
+  const currentList = activeTab === 'assigned'  ? filteredAssigned
+                    : activeTab === 'unassigned' ? filteredUnassigned
                     : [];
 
+  // ── Assignment Log helpers ──────────────────────────────────────
+  const allLogSelected  = assignLogLeads.length > 0 && selectedLogIds.length === assignLogLeads.length;
+
+  const handleLogSelectAll = (checked) => {
+    if (checked) setSelectedLogIds(assignLogLeads.map(l => l.id));
+    else         setSelectedLogIds([]);
+  };
+
+  const handleLogSelectOne = (id, checked) => {
+    if (checked) setSelectedLogIds(prev => [...prev, id]);
+    else         setSelectedLogIds(prev => prev.filter(x => x !== id));
+  };
+
+  const handleLogSelectN = (n) => {
+    const topN = assignLogLeads.slice(0, n).map(l => l.id);
+    const merged = [...new Set([...selectedLogIds, ...topN])];
+    setSelectedLogIds(merged);
+  };
+
+  // Bulk status on log: mark selected as FollowUp (same as other tabs)
+  const handleLogBulkStatus = () => {
+    selectedLogIds.forEach(id => updateLead(id, { status: 'FollowUp' }));
+    toast({ title: 'Updated', description: `${selectedLogIds.length} leads moved to Follow Up` });
+    setSelectedLogIds([]);
+  };
+
+  // Assignment from log uses same AssignmentModal but we pass log selection
+  const handleLogAssignment = (empId, empName) => {
+    const now = new Date().toISOString();
+    selectedLogIds.forEach(leadId => {
+      const lead = leads.find(l => l.id === leadId);
+      const updates = { assignedTo: empId, assignedToName: empName, assignedAt: now };
+      if (lead?.assignedTo && lead.assignedTo !== empId) {
+        updates.prevAssignedTo     = lead.assignedTo;
+        updates.prevAssignedToName = lead.assignedToName || null;
+        updates.prevAssignedAt     = lead.assignedAt || lead.createdAt || now;
+        updates.reassignedOn       = now;
+      }
+      updateLead(leadId, updates);
+    });
+    toast({ title: 'Assigned', description: `${selectedLogIds.length} leads assigned to ${empName}` });
+    setSelectedLogIds([]);
+    setIsLogAssignModalOpen(false);
+  };
+
+  const handleLogBulkDelete = async (ids) => {
+    return new Promise(resolve => {
+      ids.forEach(id => deleteLead(id));
+      setSelectedLogIds(prev => prev.filter(x => !ids.includes(x)));
+      resolve();
+    });
+  };
+
+  // ── Existing tab handlers ───────────────────────────────────────
   const handleSubmit = (e) => {
     e.preventDefault();
     const newLead = {
@@ -118,9 +171,9 @@ const LeadManagement = () => {
   };
 
   const handleLeadAction = (action, lead) => {
-    if (action === 'call')         window.location.href = `tel:${lead.phone}`;
-    if (action === 'bulk_delete')  setIsBulkDeleteModalOpen(true);
-    if (action === 'bulk_assign')  setIsAssignmentModalOpen(true);
+    if (action === 'call')        window.location.href = `tel:${lead.phone}`;
+    if (action === 'bulk_delete') setIsBulkDeleteModalOpen(true);
+    if (action === 'bulk_assign') setIsAssignmentModalOpen(true);
     if (action === 'bulk_status') {
       selectedLeadIds.forEach(id => updateLead(id, { status: 'FollowUp' }));
       toast({ title: 'Updated', description: 'Selected leads moved to Follow Up' });
@@ -133,7 +186,7 @@ const LeadManagement = () => {
     toast({ title: 'Updated', description: 'Status changed successfully.' });
   };
 
-  const handleSelectLead = (id, checked) => {
+  const handleSelectLead   = (id, checked) => {
     if (checked) setSelectedLeadIds(prev => [...prev, id]);
     else         setSelectedLeadIds(prev => prev.filter(lid => lid !== id));
   };
@@ -147,17 +200,12 @@ const LeadManagement = () => {
     const now = new Date().toISOString();
     selectedLeadIds.forEach(leadId => {
       const lead = leads.find(l => l.id === leadId);
-      const updates = {
-        assignedTo:     empId,
-        assignedToName: empName,
-        assignedAt:     now,
-      };
-      // ✅ FIX: Save previous assignee info + reassignedOn = now (the moment of reassign)
+      const updates = { assignedTo: empId, assignedToName: empName, assignedAt: now };
       if (lead?.assignedTo && lead.assignedTo !== empId) {
         updates.prevAssignedTo     = lead.assignedTo;
         updates.prevAssignedToName = lead.assignedToName || null;
-        updates.prevAssignedAt     = lead.assignedAt || lead.createdAt || now; // original assignment time
-        updates.reassignedOn       = now; // ✅ timestamp of THIS reassign action
+        updates.prevAssignedAt     = lead.assignedAt || lead.createdAt || now;
+        updates.reassignedOn       = now;
       }
       updateLead(leadId, updates);
     });
@@ -168,7 +216,7 @@ const LeadManagement = () => {
   };
 
   const handleBulkDelete = async (ids) => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       ids.forEach(id => deleteLead(id));
       setSelectedLeadIds(prev => prev.filter(pId => !ids.includes(pId)));
       resolve();
@@ -176,9 +224,7 @@ const LeadManagement = () => {
   };
 
   const handleUnassign = () => {
-    selectedLeadIds.forEach(id => updateLead(id, {
-      assignedTo: null, assignedToName: null, assignedAt: null
-    }));
+    selectedLeadIds.forEach(id => updateLead(id, { assignedTo: null, assignedToName: null, assignedAt: null }));
     toast({ title: 'Unassigned', description: `${selectedLeadIds.length} leads moved back to Unassigned` });
     setSelectedLeadIds([]);
     setActiveTab('unassigned');
@@ -192,11 +238,11 @@ const LeadManagement = () => {
         l.assignedToName || '',
         fmtDate(l.assignedAt, 'dd/MM/yyyy HH:mm'),
         l.prevAssignedToName || '',
-        fmtDate(l.reassignedOn || l.prevAssignedAt, 'dd/MM/yyyy HH:mm'), // ✅ use reassignedOn
+        fmtDate(l.reassignedOn || l.prevAssignedAt, 'dd/MM/yyyy HH:mm'),
         l.status || '',
       ])
     ];
-    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -204,10 +250,14 @@ const LeadManagement = () => {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const leadsToAssign  = currentList.filter(l => selectedLeadIds.includes(l.id));
-  const leadsToDelete  = currentList.filter(l => selectedLeadIds.includes(l.id));
-  const uniqueSources  = getUniqueSources();
+  const leadsToAssign = currentList.filter(l => selectedLeadIds.includes(l.id));
+  const leadsToDelete = currentList.filter(l => selectedLeadIds.includes(l.id));
+  const logLeadsToAssign = assignLogLeads.filter(l => selectedLogIds.includes(l.id));
+  const logLeadsToDelete = assignLogLeads.filter(l => selectedLogIds.includes(l.id));
+  const uniqueSources    = getUniqueSources();
   const employeeLeadCount = (empId) => assignedLeads.filter(l => l.assignedTo === empId).length;
+
+  const logQuickSelectSizes = [10, 25, 50].filter(n => n < assignLogLeads.length);
 
   return (
     <div className="space-y-6">
@@ -224,7 +274,7 @@ const LeadManagement = () => {
         )}
       </div>
 
-      {/* Stats Row */}
+      {/* Stats */}
       {isAdmin && (
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-3">
@@ -251,7 +301,7 @@ const LeadManagement = () => {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={(t) => { setActiveTab(t); setSelectedLeadIds([]); }}>
+      <Tabs value={activeTab} onValueChange={(t) => { setActiveTab(t); setSelectedLeadIds([]); setSelectedLogIds([]); }}>
         <TabsList>
           {isAdmin && (
             <>
@@ -352,9 +402,11 @@ const LeadManagement = () => {
           </TabsContent>
         )}
 
-        {/* ── ASSIGNMENT LOG TAB (admin only) ── */}
+        {/* ── ASSIGNMENT LOG TAB ── */}
         {isAdmin && (
           <TabsContent value="assignlog" className="space-y-4">
+
+            {/* Filters row */}
             <div className="flex flex-wrap items-center gap-3">
               <Select value={filterAssignLog} onValueChange={setFilterAssignLog}>
                 <SelectTrigger className="w-[200px]"><SelectValue placeholder="Filter by Employee" /></SelectTrigger>
@@ -394,11 +446,76 @@ const LeadManagement = () => {
               </div>
             </div>
 
+            {/* ── Quick-select toolbar ── */}
+            {assignLogLeads.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 px-1">
+                <span className="text-xs text-gray-400 font-medium mr-1 shrink-0">Quick select:</span>
+                {logQuickSelectSizes.map(n => (
+                  <button key={n} onClick={() => handleLogSelectN(n)}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-medium transition-colors">
+                    <CheckSquare size={11} /> {n}
+                  </button>
+                ))}
+                <button onClick={() => handleLogSelectAll(true)}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-blue-300 text-blue-800 bg-blue-100 hover:bg-blue-200 font-semibold transition-colors">
+                  <CheckSquare size={11} /> All {assignLogLeads.length}
+                </button>
+                {selectedLogIds.length > 0 && (
+                  <>
+                    <button onClick={() => setSelectedLogIds([])}
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 bg-white hover:bg-gray-50 transition-colors ml-1">
+                      <X size={11} /> Clear
+                    </button>
+                    <span className="ml-auto text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full">
+                      {selectedLogIds.length} selected
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── Bulk action bar (shows when something is selected) ── */}
+            {selectedLogIds.length > 0 && (
+              <div className="bg-blue-50 border border-blue-100 px-4 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700 h-6">
+                    {selectedLogIds.length} Selected
+                  </Badge>
+                  <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-1 rounded transition-colors"
+                    onClick={() => setSelectedLogIds([])}>
+                    <X size={12} /> Clear
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => setIsLogAssignModalOpen(true)}>
+                    <UserPlus size={14} className="mr-2" /> Assign
+                  </Button>
+                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={handleLogBulkStatus}>
+                    <RefreshCw size={14} className="mr-2" /> Status
+                  </Button>
+                  <Button size="sm" variant="destructive"
+                    onClick={() => setIsLogBulkDeleteModalOpen(true)}>
+                    <Trash2 size={14} className="mr-2" /> Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Assignment Log table ── */}
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
+                      {/* Checkbox column */}
+                      <th className="px-4 py-3 w-10">
+                        <Checkbox
+                          checked={allLogSelected}
+                          onCheckedChange={handleLogSelectAll}
+                        />
+                      </th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Lead</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Project</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Assigned To</th>
@@ -411,15 +528,27 @@ const LeadManagement = () => {
                   <tbody className="divide-y">
                     {assignLogLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-16 text-center">
+                        <td colSpan={8} className="px-4 py-16 text-center">
                           <History size={32} className="mx-auto text-gray-200 mb-2" />
                           <p className="text-gray-400 text-sm">No assigned leads yet.</p>
                         </td>
                       </tr>
                     ) : assignLogLeads.map(lead => (
-                      <tr key={lead.id} className={`hover:bg-gray-50 transition-colors ${
-                        lead.prevAssignedTo ? 'bg-amber-50/50' : ''
-                      }`}>
+                      <tr key={lead.id}
+                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                          selectedLogIds.includes(lead.id)
+                            ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
+                            : lead.prevAssignedTo ? 'bg-amber-50/50' : ''
+                        }`}
+                        onClick={() => handleLogSelectOne(lead.id, !selectedLogIds.includes(lead.id))}
+                      >
+                        {/* Checkbox cell — stop propagation so clicking checkbox doesn't double-toggle */}
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedLogIds.includes(lead.id)}
+                            onCheckedChange={(c) => handleLogSelectOne(lead.id, c)}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {lead.prevAssignedTo && (
@@ -462,7 +591,6 @@ const LeadManagement = () => {
                           ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
                         <td className="px-4 py-3">
-                          {/* ✅ FIX: Show reassignedOn (when reassign happened), not prevAssignedAt */}
                           {lead.reassignedOn || lead.prevAssignedAt ? (
                             <div>
                               <p className="text-sm text-gray-600">{fmtDate(lead.reassignedOn || lead.prevAssignedAt, 'dd MMM yyyy')}</p>
@@ -547,11 +675,18 @@ const LeadManagement = () => {
         </TabsContent>
       </Tabs>
 
+      {/* ── Modals for Unassigned / Assigned tabs ── */}
       <ImportLeadsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} employees={salesEmployees} />
       <AssignmentModal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)}
         leads={leadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleAssignment} />
       <BulkDeleteModal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)}
         leads={leadsToDelete} onDelete={handleBulkDelete} />
+
+      {/* ── Modals for Assignment Log tab ── */}
+      <AssignmentModal isOpen={isLogAssignModalOpen} onClose={() => setIsLogAssignModalOpen(false)}
+        leads={logLeadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleLogAssignment} />
+      <BulkDeleteModal isOpen={isLogBulkDeleteModalOpen} onClose={() => setIsLogBulkDeleteModalOpen(false)}
+        leads={logLeadsToDelete} onDelete={handleLogBulkDelete} />
     </div>
   );
 };

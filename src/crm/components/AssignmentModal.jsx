@@ -1,21 +1,130 @@
 // src/crm/components/AssignmentModal.jsx
 // ✅ Smart suggestion + employee stats
 // ✅ Reassignment warning popup with 2-step confirmation
-// ✅ FIX: Removed flex layout from DialogContent that was causing rendering issues
-import React, { useState, useEffect } from 'react';
+// ✅ Searchable employee picker (replaces plain Select)
+// ✅ FIX: reassignedOn saved correctly as "now" when reassigning
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getEmployeeStats, suggestEmployee } from '@/lib/smartAssignmentEngine';
-import { Star, Briefcase, BarChart, Users, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
+import { Star, Briefcase, BarChart, Users, AlertTriangle, ArrowRight, UserCheck, Search, X } from 'lucide-react';
 
 // Safe initial: never crashes on null / undefined / empty string
 const initial = (name) => (name || '?').trim().charAt(0).toUpperCase() || '?';
 
+// ── Searchable Employee Picker ────────────────────────────────────────────────
+const EmployeePicker = ({ employees, selectedId, onSelect }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const selected = employees.find(e => e.id === selectedId);
+
+  const filtered = employees.filter(e =>
+    e.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  // close on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSelect = (emp) => {
+    onSelect(emp.id);
+    setQuery('');
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} className="relative">
+      {/* Trigger / selected display */}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2.5 bg-white hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all"
+      >
+        {selected ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+              {initial(selected.name)}
+            </div>
+            <span className="font-medium text-gray-800 text-sm truncate">{selected.name}</span>
+            <span className="text-xs text-gray-400 shrink-0">
+              {selected.currentLoad ?? 0} leads · ⭐ {selected.performanceScore ?? 1.0}
+            </span>
+          </div>
+        ) : (
+          <span className="text-gray-400 text-sm">Choose employee...</span>
+        )}
+        <Search size={14} className="text-gray-400 shrink-0 ml-2" />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-100 flex items-center gap-2">
+            <Search size={14} className="text-gray-400 shrink-0" />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search employee..."
+              className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400"
+            />
+            {query && (
+              <button onClick={() => setQuery('')} className="text-gray-300 hover:text-gray-600">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Employee list */}
+          <div className="max-h-56 overflow-y-auto divide-y divide-gray-50">
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6">No employee found</p>
+            ) : filtered.map(emp => (
+              <button
+                key={emp.id}
+                type="button"
+                onClick={() => handleSelect(emp)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 transition-colors text-left ${
+                  emp.id === selectedId ? 'bg-blue-50' : ''
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  {initial(emp.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{emp.name}</p>
+                  <p className="text-[11px] text-gray-400">{emp.currentLoad ?? 0} leads · ⭐ {emp.performanceScore ?? 1.0}</p>
+                </div>
+                {emp.id === selectedId && (
+                  <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                      <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main Modal ────────────────────────────────────────────────────────────────
 const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign, employees = [] }) => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [employeeStats, setEmployeeStats]           = useState([]);
@@ -27,7 +136,7 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
       setSelectedEmployeeId('');
       setSuggestion(null);
       setShowConfirm(false);
-      const stats   = getEmployeeStats(employees, allLeads);
+      const stats = getEmployeeStats(employees, allLeads);
       setEmployeeStats(stats);
       if (leads.length > 0) {
         const bestFit = suggestEmployee(leads[0], stats);
@@ -68,12 +177,9 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-hidden">
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* ✅ REASSIGNMENT WARNING OVERLAY                                          */}
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ── REASSIGNMENT WARNING OVERLAY ── */}
         {showConfirm && (
           <div className="absolute inset-0 z-50 bg-white rounded-lg flex flex-col p-6 overflow-y-auto">
-
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-amber-600" />
@@ -200,25 +306,14 @@ const AssignmentModal = ({ isOpen, onClose, leads = [], allLeads = [], onAssign,
             </div>
           )}
 
-          {/* Employee Dropdown */}
+          {/* ✅ Searchable Employee Picker */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Select Employee</label>
-            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-              <SelectTrigger><SelectValue placeholder="Choose employee..." /></SelectTrigger>
-              <SelectContent>
-                {employeeStats.map(emp => (
-                  <SelectItem key={emp.id} value={emp.id}>
-                    <div className="flex items-center justify-between w-full min-w-[200px]">
-                      <span>{emp.name}</span>
-                      <div className="flex gap-2 text-xs text-gray-500 ml-3">
-                        <span className="flex items-center"><Briefcase size={10} className="mr-1" />{emp.currentLoad} leads</span>
-                        <span className="flex items-center"><BarChart size={10} className="mr-1" />{emp.performanceScore}</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeePicker
+              employees={employeeStats}
+              selectedId={selectedEmployeeId}
+              onSelect={setSelectedEmployeeId}
+            />
           </div>
 
           {/* Selected Employee Stats */}

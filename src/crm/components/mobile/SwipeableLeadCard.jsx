@@ -1,9 +1,7 @@
 // src/crm/components/mobile/SwipeableLeadCard.jsx
-// ✅ Swipe REMOVED — was causing accidental call/quick-log triggers while scrolling
-// ✅ New design: large text, bold phone, coloured status pill, two stacked action buttons
-// ✅ Quick Log on top, Call below — so thumb naturally hits Quick Log first
+// Premium real estate CRM card — mobile-first, no overflow
 import React from 'react';
-import { Phone, Calendar, Clock, StickyNote, Copy, CheckCircle, PhoneCall } from 'lucide-react';
+import { Phone, Calendar, Clock, StickyNote, Copy, CheckCircle, PhoneCall, MapPin } from 'lucide-react';
 import { isPast, isToday, isTomorrow, isYesterday } from 'date-fns';
 
 const parseLocalDate = (dateStr) => {
@@ -18,24 +16,24 @@ const getFollowUpLabel = (dateStr) => {
   if (!dateStr) return null;
   try {
     const d = parseLocalDate(dateStr);
-    if (!d) return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' };
-    if (isToday(d))             return { text: 'Today',              color: 'text-amber-700 bg-amber-100' };
-    if (isTomorrow(d))          return { text: 'Tomorrow',           color: 'text-blue-700 bg-blue-100' };
-    if (isYesterday(d))         return { text: 'Yesterday',          color: 'text-orange-700 bg-orange-100' };
-    if (isPast(d))              return { text: `Overdue: ${dateStr.split('T')[0]}`, color: 'text-red-700 bg-red-100' };
-    return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' };
-  } catch { return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' }; }
+    if (!d) return { text: dateStr.split('T')[0], dot: '#9ca3af' };
+    if (isToday(d))     return { text: 'Today',     dot: '#f59e0b', bg: '#fffbeb', color: '#92400e' };
+    if (isTomorrow(d))  return { text: 'Tomorrow',  dot: '#3b82f6', bg: '#eff6ff', color: '#1e40af' };
+    if (isYesterday(d)) return { text: 'Yesterday', dot: '#f97316', bg: '#fff7ed', color: '#9a3412' };
+    if (isPast(d))      return { text: 'Overdue',   dot: '#ef4444', bg: '#fef2f2', color: '#991b1b' };
+    return { text: dateStr.split('T')[0], dot: '#9ca3af', bg: '#f9fafb', color: '#6b7280' };
+  } catch { return { text: dateStr.split('T')[0], dot: '#9ca3af', bg: '#f9fafb', color: '#6b7280' }; }
 };
 
-const DEFAULT_STATUS_COLORS = {
-  New:           'bg-blue-500 text-white',
-  Open:          'bg-sky-500 text-white',
-  FollowUp:      'bg-amber-500 text-white',
-  SiteVisit:     'bg-purple-500 text-white',
-  Booked:        'bg-emerald-500 text-white',
-  NotInterested: 'bg-gray-400 text-white',
-  Lost:          'bg-red-500 text-white',
-  CallBackLater: 'bg-indigo-500 text-white',
+const STATUS_STYLES = {
+  New:           { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
+  Open:          { bg: '#f0f9ff', color: '#0369a1', dot: '#0ea5e9' },
+  FollowUp:      { bg: '#fffbeb', color: '#92400e', dot: '#f59e0b' },
+  SiteVisit:     { bg: '#faf5ff', color: '#7e22ce', dot: '#a855f7' },
+  Booked:        { bg: '#f0fdf4', color: '#166534', dot: '#22c55e' },
+  NotInterested: { bg: '#f9fafb', color: '#6b7280', dot: '#d1d5db' },
+  Lost:          { bg: '#fef2f2', color: '#991b1b', dot: '#ef4444' },
+  CallBackLater: { bg: '#eef2ff', color: '#3730a3', dot: '#6366f1' },
 };
 
 const SwipeableLeadCard = ({
@@ -47,17 +45,13 @@ const SwipeableLeadCard = ({
   getLatestNote,
   copiedId,
   onCopyPhone,
-  // legacy props kept for compatibility
-  onCall,
-  onQuickAction,
-  statusColors: propStatusColors,
 }) => {
-  const colors = propStatusColors || DEFAULT_STATUS_COLORS;
-  const followUp = lead?.follow_up_date || lead?.followUpDate || null;
-  const fuLabel = getFollowUpLabel(followUp);
+  const followUp   = lead?.follow_up_date || lead?.followUpDate || null;
+  const fuLabel    = getFollowUpLabel(followUp);
   const latestNote = getLatestNote?.(lead?.notes);
-  const statusStyle = colors[lead?.status] || 'bg-gray-400 text-white';
-  const phone = lead?.phone || '';
+  const status     = lead?.status || 'New';
+  const st         = STATUS_STYLES[status] || STATUS_STYLES.New;
+  const phone      = lead?.phone || '';
 
   const handleCall = (e) => {
     e.stopPropagation();
@@ -72,88 +66,102 @@ const SwipeableLeadCard = ({
   return (
     <div
       onClick={onTap}
-      className="bg-white rounded-2xl shadow-sm active:scale-[0.985] transition-transform touch-manipulation cursor-pointer"
-      style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05)' }}
+      className="bg-white rounded-2xl cursor-pointer active:scale-[0.985] transition-transform touch-manipulation"
+      style={{ boxShadow: '0 1px 3px rgba(15,58,95,0.08), 0 0 0 1px rgba(15,58,95,0.06)', WebkitTapHighlightColor: 'transparent' }}
     >
-      {/* ── Top row: name + status badge ── */}
-      <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-1">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[17px] font-extrabold text-gray-900 leading-snug truncate">
+      {/* status accent bar */}
+      <div style={{ height: 3, borderRadius: '12px 12px 0 0', background: st.dot }} />
+
+      <div className="p-4">
+        {/* Row 1: Name + Status pill */}
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h3 className="text-[15px] font-bold text-gray-900 leading-tight truncate flex-1">
             {lead?.name || 'Unnamed Lead'}
           </h3>
-          {lead?.project && (
-            <p className="text-xs text-gray-400 font-medium mt-0.5 truncate">{lead.project}</p>
+          <span
+            className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: st.bg, color: st.color }}
+          >
+            {status}
+          </span>
+        </div>
+
+        {/* Row 2: Project */}
+        {lead?.project && (
+          <div className="flex items-center gap-1 mb-2">
+            <MapPin size={11} className="text-gray-400 shrink-0" />
+            <p className="text-[12px] text-gray-400 truncate">{lead.project}</p>
+          </div>
+        )}
+
+        {/* Row 3: Phone + copy */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-[14px] font-bold tracking-wide" style={{ color: '#0F3A5F' }}>
+            {formatPhone(phone)}
+          </span>
+          {onCopyPhone && phone && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCopyPhone(phone, lead.id); }}
+              className="p-1 rounded-md active:bg-gray-100 touch-manipulation"
+              aria-label="Copy phone"
+            >
+              {copiedId === lead?.id
+                ? <CheckCircle size={13} className="text-emerald-500" />
+                : <Copy size={13} className="text-gray-300" />}
+            </button>
           )}
         </div>
-        <span className={`shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full leading-none ${statusStyle}`}>
-          {lead?.status || 'New'}
-        </span>
-      </div>
 
-      {/* ── Phone row ── */}
-      <div className="flex items-center gap-2 px-4 py-1">
-        <span className="text-[15px] font-bold text-[#0F3A5F] tracking-wide">
-          {formatPhone(phone)}
-        </span>
-        {onCopyPhone && phone && (
+        {/* Row 4: Follow-up chip + assigned time */}
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {fuLabel ? (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: fuLabel.bg || '#f9fafb', color: fuLabel.color || '#6b7280' }}
+            >
+              <Calendar size={9} />{fuLabel.text}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-300">
+              <Calendar size={9} /> No follow-up
+            </span>
+          )}
+          {formatAssignedTime && (lead?.assignedAt || lead?.assigned_at) && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+              <Clock size={9} />
+              {formatAssignedTime(lead.assignedAt || lead.assigned_at)}
+            </span>
+          )}
+        </div>
+
+        {/* Latest note */}
+        {latestNote && (
+          <div className="flex items-start gap-1.5 bg-gray-50 rounded-xl px-3 py-2 mb-3">
+            <StickyNote size={11} className="mt-0.5 shrink-0 text-gray-300" />
+            <p className="text-[12px] text-gray-500 line-clamp-1 leading-relaxed">{latestNote}</p>
+          </div>
+        )}
+
+        {/* Action row: Quick Log | Call */}
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onCopyPhone(phone, lead.id); }}
-            className="p-1.5 rounded-lg active:bg-gray-100 touch-manipulation"
-            aria-label="Copy phone"
+            onClick={handleQuickLog}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-80"
+            style={{ background: '#0F3A5F', color: '#fff' }}
           >
-            {copiedId === lead?.id
-              ? <CheckCircle size={15} className="text-emerald-500" />
-              : <Copy size={15} className="text-gray-400" />}
+            <PhoneCall size={14} /> Quick Log
           </button>
-        )}
-      </div>
-
-      {/* ── Follow-up + assigned time ── */}
-      <div className="flex items-center gap-2 px-4 pb-2 flex-wrap">
-        {fuLabel ? (
-          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${fuLabel.color}`}>
-            <Calendar size={10} />{fuLabel.text}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 px-2 py-0.5">
-            <Calendar size={10} /> No follow-up
-          </span>
-        )}
-        {formatAssignedTime && (lead?.assignedAt || lead?.assigned_at) && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-            <Clock size={10} />
-            {formatAssignedTime(lead.assignedAt || lead.assigned_at)}
-          </span>
-        )}
-      </div>
-
-      {/* ── Latest note ── */}
-      {latestNote && (
-        <div className="mx-4 mb-2 flex items-start gap-1.5 text-xs text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
-          <StickyNote size={12} className="mt-0.5 shrink-0 text-gray-400" />
-          <p className="line-clamp-2 leading-relaxed">{latestNote}</p>
+          <button
+            type="button"
+            onClick={handleCall}
+            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-80"
+            style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}
+          >
+            <Phone size={14} /> Call
+          </button>
         </div>
-      )}
-
-      {/* ── Action buttons — stacked: Quick Log on top, Call below ── */}
-      <div className="flex flex-col gap-2 px-4 pb-4 pt-1">
-        <button
-          type="button"
-          onClick={handleQuickLog}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0F3A5F] text-white text-sm font-bold active:bg-[#0c2e4a] touch-manipulation"
-        >
-          <PhoneCall size={16} />
-          Quick Log
-        </button>
-        <button
-          type="button"
-          onClick={handleCall}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white text-sm font-bold active:bg-emerald-600 touch-manipulation"
-        >
-          <Phone size={16} />
-          Call
-        </button>
       </div>
     </div>
   );

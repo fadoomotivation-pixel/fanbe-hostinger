@@ -4,6 +4,8 @@
 // ✅ Tomorrow tab added so employees plan ahead
 // ✅ Submitted Leads tab embedded inline (no separate page needed)
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
+// ✅ PERF FIX: MyLeads now fetches ONLY this user's leads directly from Supabase
+//    (was pulling all 2000+ leads from global useCRMData store — caused slow render)
 // ✅ PERF FIX: removed redundant fetchLeads() after handleQuickSave
 // ✅ PERF FIX: pre-filter calls to only this user's calls before building Map
 // ✅ PERF FIX: myCalls computed once via useMemo, not inside myLeads useMemo
@@ -18,7 +20,8 @@ import { useMobile } from '@/lib/useMobile';
 import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
 import SmartDateInput from '@/crm/components/SmartDateInput';
 import { getEmployeeLeads } from '@/lib/crmSupabase';
-import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
+import { supabaseAdmin } from '@/lib/supabase';
+import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays } from 'date-fns';
 
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
@@ -28,11 +31,9 @@ const parseLocalDate = (dateStr) => {
   return new Date(y, m - 1, day);
 };
 import {
-  Search, Phone, MessageCircle, ChevronRight,
-  AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
-  Copy, CheckCircle, Filter, ArrowUpDown, Flame, StickyNote,
-  CalendarDays, Sunrise, AlarmClock, UserCheck,
-  Plus, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp
+  Search, Phone, AlertCircle, Loader2, PhoneCall, X,
+  Filter, ArrowUpDown, CalendarDays, Sunrise, AlarmClock, UserCheck,
+  Plus, Briefcase, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react';
 
 const QUICK_OUTCOMES = [
@@ -83,7 +84,7 @@ const TABS = [
   { id: 'submitted', label: '\uD83D\uDCCB Submitted' },
 ];
 
-const TAB_STORAGE_KEY = 'myLeads_activeTab';
+const TAB_STORAGE_KEY  = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
 const LEADS_BATCH_SIZE = 60;
 const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
@@ -104,19 +105,43 @@ const SL_PURPOSE_LABELS  = { investment: 'Investment', self_use: 'Self Use', bot
 const SL_TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
 const SL_FINANCING_LABELS= { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
 
+const normalizeRow = (row) => ({
+  id:             row.id,
+  name:           row.full_name         || '',
+  phone:          row.phone             || '',
+  email:          row.email             || '',
+  source:         row.source            || 'Manual Import',
+  status:         row.final_status      || row.status || 'FollowUp',
+  budget:         row.budget            || '',
+  interestLevel:  row.interest_level    || 'Cold',
+  notes:          row.notes             || '',
+  project:        row.project           || '',
+  followUpDate:   row.next_followup_date || null,
+  follow_up_date: row.next_followup_date || null,
+  assignedTo:     row.assigned_to       || null,
+  assigned_to:    row.assigned_to       || null,
+  assignedAt:     row.assigned_at       || null,
+  assigned_at:    row.assigned_at       || null,
+  createdAt:      row.created_at,
+  created_at:     row.created_at,
+  updatedAt:      row.updated_at,
+  updated_at:     row.updated_at,
+  isVIP:          row.is_vip            || false,
+});
+
 const formatAssignedTime = (ts) => {
   if (!ts) return null;
   try {
-    const d = new Date(ts);
+    const d   = new Date(ts);
     const now = new Date();
     const mins = Math.floor((now - d) / 60000);
     const hrs  = Math.floor(mins / 60);
     const days = Math.floor(hrs  / 24);
-    if (mins < 1)  return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    if (hrs  < 24) return `${hrs}h ago`;
-    if (days === 1)return `Yesterday ${format(d, 'h:mm a')}`;
-    if (days < 7)  return `${days}d ago`;
+    if (mins < 1)   return 'Just now';
+    if (mins < 60)  return `${mins}m ago`;
+    if (hrs  < 24)  return `${hrs}h ago`;
+    if (days === 1) return `Yesterday ${format(d, 'h:mm a')}`;
+    if (days < 7)   return `${days}d ago`;
     return format(d, 'dd MMM');
   } catch { return null; }
 };
@@ -139,11 +164,17 @@ const getLatestNote = (notes) => {
 
 const MyLeads = () => {
   const { user } = useAuth();
-  const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
+  // ✅ Only use calls, updateLead, addCallLog from global store.
+  //    leads/leadsLoading are now fetched locally per-user — much faster.
+  const { calls, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const location  = useLocation();
   const { toast } = useToast();
   const isMobile  = useMobile();
+
+  // ── Local user-scoped leads state ──────────────────────────────────────────
+  const [myLeadsRaw, setMyLeadsRaw]       = useState([]);
+  const [leadsLoading, setLeadsLoading]   = useState(true);
 
   const [tab, setTab] = useState(() => {
     if (location.state?.tab) {
@@ -166,8 +197,8 @@ const MyLeads = () => {
   const [copiedId, setCopiedId]     = useState(null);
   const [visibleCount, setVisibleCount] = useState(LEADS_BATCH_SIZE);
 
-  const [submittedLeads, setSubmittedLeads]           = useState([]);
-  const [submittedLoading, setSubmittedLoading]       = useState(false);
+  const [submittedLeads, setSubmittedLeads]         = useState([]);
+  const [submittedLoading, setSubmittedLoading]     = useState(false);
   const [submittedExpandedId, setSubmittedExpandedId] = useState(null);
 
   useEffect(() => { sessionStorage.setItem(TAB_STORAGE_KEY, tab); }, [tab]);
@@ -183,6 +214,52 @@ const MyLeads = () => {
 
   const userId = user?.uid || user?.id;
 
+  // ── Fetch only THIS user's leads from Supabase ─────────────────────────────
+  const fetchMyLeads = useCallback(async () => {
+    if (!userId) return;
+    setLeadsLoading(true);
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('leads')
+        .select('*')
+        .eq('assigned_to', userId)
+        .order('created_at', { ascending: false });
+      if (error) { console.error('[MyLeads] fetch error:', error.message); setMyLeadsRaw([]); return; }
+      setMyLeadsRaw((data || []).map(normalizeRow));
+    } catch (err) {
+      console.error('[MyLeads] unexpected error:', err);
+      setMyLeadsRaw([]);
+    } finally {
+      setLeadsLoading(false);
+    }
+  }, [userId]);
+
+  // Initial fetch + Realtime subscription scoped to this user
+  useEffect(() => {
+    if (!userId) return;
+    fetchMyLeads();
+
+    const channel = supabaseAdmin
+      .channel(`realtime:leads:user:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads', filter: `assigned_to=eq.${userId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setMyLeadsRaw(prev => prev.filter(l => l.id !== payload.old.id));
+          } else if (payload.eventType === 'INSERT') {
+            setMyLeadsRaw(prev => [normalizeRow(payload.new), ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setMyLeadsRaw(prev => prev.map(l => l.id === payload.new.id ? normalizeRow(payload.new) : l));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabaseAdmin.removeChannel(channel); };
+  }, [userId, fetchMyLeads]);
+
+  // Submitted leads
   useEffect(() => {
     if (tab !== 'submitted') return;
     setSubmittedLoading(true);
@@ -209,15 +286,14 @@ const MyLeads = () => {
   }, [calls, userId]);
 
   const myLeads = useMemo(() => {
-    return leads
-      .filter(l => l.assignedTo === userId || l.assigned_to === userId)
+    return myLeadsRaw
       .map(lead => { const lc = myCallsMap.get(lead.id) || []; return { ...lead, _callCount: lc.length, _lastCall: lc[0] }; })
       .sort((a, b) => {
         if (sortBy === 'name')   return (a.name || '').localeCompare(b.name || '');
         if (sortBy === 'recent') return new Date(b.updatedAt || b.updated_at || b.createdAt || 0) - new Date(a.updatedAt || a.updated_at || a.createdAt || 0);
         return urgencyScore(b) - urgencyScore(a);
       });
-  }, [leads, myCallsMap, userId, sortBy]);
+  }, [myLeadsRaw, myCallsMap, sortBy]);
 
   const scheduleCounts = useMemo(() => {
     let overdue = 0, yesterdayCount = 0, todayCount = 0, tomorrowCount = 0;
@@ -228,10 +304,10 @@ const MyLeads = () => {
       try {
         const d = parseLocalDate(fu);
         if (!d) return;
-        if (isYesterday(d))                  yesterdayCount++;
-        else if (isPast(d) && !isToday(d))   overdue++;
-        else if (isToday(d))                 todayCount++;
-        else if (isTomorrow(d))              tomorrowCount++;
+        if (isYesterday(d))                yesterdayCount++;
+        else if (isPast(d) && !isToday(d)) overdue++;
+        else if (isToday(d))               todayCount++;
+        else if (isTomorrow(d))            tomorrowCount++;
       } catch { /**/ }
     });
     return { overdue, yesterday: yesterdayCount, today: todayCount, tomorrow: tomorrowCount };
@@ -261,9 +337,9 @@ const MyLeads = () => {
     }
     if (dateFilter) {
       arr = arr.filter(l => {
-        const fu      = l.follow_up_date || l.followUpDate;
-        const created = (l.createdAt || l.created_at || '').split('T')[0];
-        const assigned= (l.assignedAt || l.assigned_at || '').split('T')[0];
+        const fu       = l.follow_up_date || l.followUpDate;
+        const created  = (l.createdAt || l.created_at || '').split('T')[0];
+        const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
         return fu === dateFilter || created === dateFilter || assigned === dateFilter;
       });
     }
@@ -295,6 +371,14 @@ const MyLeads = () => {
         patch.next_followup_date = followDate; patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
+      // Also update local state immediately (don't wait for Realtime)
+      setMyLeadsRaw(prev => prev.map(l => {
+        if (l.id !== quickLead.id) return l;
+        const updated = { ...l, ...patch };
+        if (patch.follow_up_date !== undefined) updated.follow_up_date = patch.follow_up_date;
+        if (patch.status) updated.status = patch.status;
+        return updated;
+      }));
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
@@ -329,6 +413,12 @@ const MyLeads = () => {
                   <AlertCircle size={12} /> {urgentCount}
                 </span>
               )}
+              <button
+                onClick={fetchMyLeads}
+                className="p-2 bg-gray-100 rounded-full text-gray-500 active:bg-gray-200 touch-manipulation"
+                title="Refresh">
+                <RefreshCw size={15} />
+              </button>
               <button
                 onClick={() => setSortBy(s => s === 'urgency' ? 'name' : s === 'name' ? 'recent' : 'urgency')}
                 className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-full text-xs font-semibold text-gray-600 active:bg-gray-200 touch-manipulation">
@@ -542,11 +632,7 @@ const MyLeads = () => {
         </div>
       )}
 
-      {/* ══ Quick Log Sheet ══
-           Layout: fixed overlay, flex-col, inner div splits into
-           scrollable content (flex-1 overflow-y-auto) + sticky footer button.
-           This ensures "Log Call" is ALWAYS visible without scrolling.
-      */}
+      {/* ══ Quick Log Sheet ══ */}
       {quickLead && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setQuickLead(null)}>
           <div className="absolute inset-0 bg-black/40" />
@@ -555,9 +641,7 @@ const MyLeads = () => {
             style={{ maxHeight: '88vh' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* ── Scrollable content ── */}
             <div className="flex-1 overflow-y-auto px-5 pt-5 pb-2">
-              {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg">{quickLead.name}</h3>
@@ -568,7 +652,6 @@ const MyLeads = () => {
                 </button>
               </div>
 
-              {/* Call Outcome */}
               <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome</p>
               <div className="grid grid-cols-4 gap-2 mb-4">
                 {QUICK_OUTCOMES.map(o => (
@@ -581,7 +664,6 @@ const MyLeads = () => {
                 ))}
               </div>
 
-              {/* Update Status */}
               <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status <span className="font-normal text-gray-400">(optional)</span></p>
               <div className="grid grid-cols-4 gap-2 mb-4">
                 {QUICK_STATUSES.map(s => (
@@ -594,7 +676,6 @@ const MyLeads = () => {
                 ))}
               </div>
 
-              {/* Follow-up date */}
               {newStatus === 'FollowUp' && (
                 <div className="mb-4">
                   <p className="text-xs font-bold text-gray-500 uppercase mb-2">Follow-up Date</p>
@@ -606,7 +687,6 @@ const MyLeads = () => {
                 </div>
               )}
 
-              {/* Quick Note */}
               <div className="mb-2">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note <span className="font-normal text-gray-400">(optional)</span></p>
                 <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
@@ -616,7 +696,6 @@ const MyLeads = () => {
               </div>
             </div>
 
-            {/* ── Sticky footer: Log Call always visible ── */}
             <div className="px-5 py-4 border-t border-gray-100 bg-white">
               <button onClick={handleQuickSave} disabled={saving}
                 className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:bg-[#0c2e4a] touch-manipulation disabled:opacity-60">

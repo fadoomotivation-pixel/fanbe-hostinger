@@ -5,19 +5,22 @@ import { useCRMData } from '@/crm/hooks/useCRMData';
 import CRMSidebar from './CRMSidebar';
 import CRMTopNav from './CRMTopNav';
 import { checkDailyDigest } from '@/lib/dailyDigestScheduler';
-import { Menu } from 'lucide-react';
+import { Menu, LogOut } from 'lucide-react';
 import SubAdminFAB from '@/components/SubAdminFAB';
 import EmployeeFAB from '@/crm/components/EmployeeFAB';
 import SubAdminBottomNav from '@/crm/components/SubAdminBottomNav';
 import MobileBottomNav from '@/crm/components/MobileBottomNav';
 import { ROLES } from '@/lib/permissions';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN, ROLES.HR_MANAGER];
 
 const CRMLayout = ({ children }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { leads, employees } = useCRMData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (user?.role === ROLES.SUPER_ADMIN) {
@@ -58,10 +61,21 @@ const CRMLayout = ({ children }) => {
             <span className="font-bold text-base text-[#0F3A5F] tracking-tight">
               {user.role === ROLES.HR_MANAGER ? '🏢 HR Portal' : 'Fanbe CRM'}
             </span>
-            {/* Avatar badge top-right */}
-            <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
-              {user?.name?.charAt(0).toUpperCase()}
-            </div>
+            {/* Logout button for Super Admin / Avatar for others */}
+            {user.role === ROLES.SUPER_ADMIN ? (
+              <button
+                onClick={() => setShowLogoutConfirm(true)}
+                aria-label="Sign out"
+                className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white hover:bg-red-600 active:bg-red-700 transition-colors touch-manipulation"
+                title="Sign Out"
+              >
+                <LogOut size={15} />
+              </button>
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
           </header>
 
           {/* ── Page Content ── */}
@@ -77,6 +91,18 @@ const CRMLayout = ({ children }) => {
             <SubAdminBottomNav onMenuClick={() => setSidebarOpen(true)} />
           )}
         </div>
+
+        {/* Logout Confirm Dialog */}
+        <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Confirm Logout</DialogTitle></DialogHeader>
+            <p className="text-gray-600 text-sm">Are you sure you want to sign out?</p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setShowLogoutConfirm(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={() => logout()}>Sign Out</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

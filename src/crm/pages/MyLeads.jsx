@@ -4,10 +4,11 @@
 // ✅ Tomorrow tab added so employees plan ahead
 // ✅ Submitted Leads tab embedded inline (no separate page needed)
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
-// ✅ PERF FIX: removed redundant fetchLeads() after handleQuickSave (updateLead already does optimistic update)
-// ✅ PERF FIX: pre-filter calls to only this user's calls before building Map (was scanning all employees' calls)
+// ✅ PERF FIX: removed redundant fetchLeads() after handleQuickSave
+// ✅ PERF FIX: pre-filter calls to only this user's calls before building Map
 // ✅ PERF FIX: myCalls computed once via useMemo, not inside myLeads useMemo
-// ✅ PERF FIX: visibleLeads sliced from stable filtered array (no chained useMemo thrash)
+// ✅ PERF FIX: visibleLeads sliced from stable filtered array
+// ✅ UX FIX: Quick Log sheet — scrollable content area + sticky Log Call button at bottom
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
@@ -19,7 +20,6 @@ import SmartDateInput from '@/crm/components/SmartDateInput';
 import { getEmployeeLeads } from '@/lib/crmSupabase';
 import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 
-// ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -35,7 +35,6 @@ import {
   Plus, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-// ── Quick outcome sheet ─────────────────────────────────────────────────
 const QUICK_OUTCOMES = [
   { id: 'Not Answered', label: 'No Answer', emoji: '\uD83D\uDCF5' },
   { id: 'Connected',    label: 'Connected', emoji: '\u2705' },
@@ -72,7 +71,6 @@ const urgencyScore = (lead) => {
   } catch { return 1; }
 };
 
-// ✅ New tab is FIRST so employees see fresh leads immediately
 const TABS = [
   { id: 'new',       label: 'New' },
   { id: 'all',       label: 'All' },
@@ -88,10 +86,8 @@ const TABS = [
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
 const LEADS_BATCH_SIZE = 60;
-
 const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
 
-// ── Submitted Leads constants ────────────────────────────────────────────
 const INTEREST_COLORS_SL = {
   hot:  'bg-red-100 text-red-700',
   warm: 'bg-amber-100 text-amber-700',
@@ -102,16 +98,11 @@ const SL_STATUS_STYLES = {
   converted: 'bg-blue-100 text-blue-700 border border-blue-200',
   rejected:  'bg-red-100 text-red-700 border border-red-200',
 };
-const SL_STATUS_LABELS = { pending: 'Pending', converted: 'Converted \u2713', rejected: 'Rejected' };
+const SL_STATUS_LABELS   = { pending: 'Pending', converted: 'Converted \u2713', rejected: 'Rejected' };
 const SL_PROPERTY_LABELS = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
-const SL_PURPOSE_LABELS = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
+const SL_PURPOSE_LABELS  = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
 const SL_TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
-const SL_FINANCING_LABELS = { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
-
-const timeAgo = (ts) => {
-  if (!ts) return 'Never';
-  try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
-};
+const SL_FINANCING_LABELS= { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
 
 const formatAssignedTime = (ts) => {
   if (!ts) return null;
@@ -119,13 +110,13 @@ const formatAssignedTime = (ts) => {
     const d = new Date(ts);
     const now = new Date();
     const mins = Math.floor((now - d) / 60000);
-    const hrs = Math.floor(mins / 60);
-    const days = Math.floor(hrs / 24);
-    if (mins < 1) return 'Just now';
+    const hrs  = Math.floor(mins / 60);
+    const days = Math.floor(hrs  / 24);
+    if (mins < 1)  return 'Just now';
     if (mins < 60) return `${mins}m ago`;
-    if (hrs < 24) return `${hrs}h ago`;
-    if (days === 1) return `Yesterday ${format(d, 'h:mm a')}`;
-    if (days < 7) return `${days}d ago`;
+    if (hrs  < 24) return `${hrs}h ago`;
+    if (days === 1)return `Yesterday ${format(d, 'h:mm a')}`;
+    if (days < 7)  return `${days}d ago`;
     return format(d, 'dd MMM');
   } catch { return null; }
 };
@@ -134,7 +125,7 @@ const formatPhone = (p) => {
   if (!p) return '';
   const d = p.replace(/\D/g, '');
   if (d.length === 10) return `${d.slice(0,5)}-${d.slice(5)}`;
-  if (d.length > 10) return `+${d.slice(0, d.length-10)}-${d.slice(-10,-5)}-${d.slice(-5)}`;
+  if (d.length > 10)   return `+${d.slice(0, d.length-10)}-${d.slice(-10,-5)}-${d.slice(-5)}`;
   return p;
 };
 
@@ -147,11 +138,7 @@ const getLatestNote = (notes) => {
 };
 
 const MyLeads = () => {
-  const { user }  = useAuth();
-  // ✅ PERF: don't destructure fetchLeads — calling it after handleQuickSave was
-  // triggering a full 2000-lead re-fetch + re-normalize + re-render cascade.
-  // updateLead already does an optimistic local state update synchronously,
-  // so the UI is immediately correct without any refetch.
+  const { user } = useAuth();
   const { leads, leadsLoading, calls, updateLead, addCallLog } = useCRMData();
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -179,88 +166,55 @@ const MyLeads = () => {
   const [copiedId, setCopiedId]     = useState(null);
   const [visibleCount, setVisibleCount] = useState(LEADS_BATCH_SIZE);
 
-  // ── Submitted Leads state ──────────────────────────────────────────────
-  const [submittedLeads, setSubmittedLeads]     = useState([]);
-  const [submittedLoading, setSubmittedLoading] = useState(false);
+  const [submittedLeads, setSubmittedLeads]           = useState([]);
+  const [submittedLoading, setSubmittedLoading]       = useState(false);
   const [submittedExpandedId, setSubmittedExpandedId] = useState(null);
 
-  useEffect(() => {
-    sessionStorage.setItem(TAB_STORAGE_KEY, tab);
-  }, [tab]);
+  useEffect(() => { sessionStorage.setItem(TAB_STORAGE_KEY, tab); }, [tab]);
 
   useEffect(() => {
     const savedScroll = sessionStorage.getItem(SCROLL_STORAGE_KEY);
-    if (savedScroll) {
-      requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
-    }
-    let scrollTimer;
-    const handleScroll = () => {
-      clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(() => {
-        sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY));
-      }, 200);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => { window.removeEventListener('scroll', handleScroll); clearTimeout(scrollTimer); };
+    if (savedScroll) requestAnimationFrame(() => window.scrollTo(0, parseInt(savedScroll, 10)));
+    let t;
+    const h = () => { clearTimeout(t); t = setTimeout(() => sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY)), 200); };
+    window.addEventListener('scroll', h, { passive: true });
+    return () => { window.removeEventListener('scroll', h); clearTimeout(t); };
   }, []);
 
   const userId = user?.uid || user?.id;
-  const today  = new Date().toISOString().split('T')[0];
 
-  // ── Fetch submitted leads when tab is active ──────────────────────────
   useEffect(() => {
     if (tab !== 'submitted') return;
     setSubmittedLoading(true);
     getEmployeeLeads(userId)
       .then(data => setSubmittedLeads(data || []))
-      .catch(err => { console.error('Failed to fetch submitted leads:', err); toast({ title: 'Error', description: 'Failed to load submitted leads.', variant: 'destructive' }); })
+      .catch(err => { console.error(err); toast({ title: 'Error', description: 'Failed to load submitted leads.', variant: 'destructive' }); })
       .finally(() => setSubmittedLoading(false));
   }, [tab, userId]);
 
   const copyPhone = useCallback((phone, leadId) => {
-    navigator.clipboard?.writeText(phone).then(() => {
-      setCopiedId(leadId);
-      setTimeout(() => setCopiedId(null), 1500);
-    });
+    navigator.clipboard?.writeText(phone).then(() => { setCopiedId(leadId); setTimeout(() => setCopiedId(null), 1500); });
   }, []);
 
-  // ✅ PERF FIX 1: Pre-filter calls to only this user BEFORE building the Map.
-  // Previously, myLeads useMemo was iterating ALL employees' calls (could be
-  // thousands) to build a Map. Now we filter first so only this employee's
-  // calls are processed — O(n) drops to O(mine) which is typically <200 rows.
   const myCallsMap = useMemo(() => {
     if (!userId || !calls?.length) return new Map();
     const map = new Map();
     for (const call of calls) {
       if (call.employeeId !== userId) continue;
-      const bucket = map.get(call.leadId);
-      if (!bucket) {
-        map.set(call.leadId, [call]);
-      } else {
-        bucket.push(call);
-      }
+      const b = map.get(call.leadId);
+      if (!b) map.set(call.leadId, [call]); else b.push(call);
     }
-    // Sort each bucket descending by timestamp once, here
-    map.forEach(bucket => bucket.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+    map.forEach(b => b.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
     return map;
   }, [calls, userId]);
 
-  // ✅ PERF FIX 2: myLeads no longer builds the callMap inline.
-  // It only iterates leads assigned to this user and attaches pre-built call data.
   const myLeads = useMemo(() => {
     return leads
       .filter(l => l.assignedTo === userId || l.assigned_to === userId)
-      .map(lead => {
-        const leadCalls = myCallsMap.get(lead.id) || [];
-        return { ...lead, _callCount: leadCalls.length, _lastCall: leadCalls[0] };
-      })
+      .map(lead => { const lc = myCallsMap.get(lead.id) || []; return { ...lead, _callCount: lc.length, _lastCall: lc[0] }; })
       .sort((a, b) => {
         if (sortBy === 'name')   return (a.name || '').localeCompare(b.name || '');
-        if (sortBy === 'recent') {
-          const da = new Date(a.updatedAt || a.updated_at || a.createdAt || 0);
-          const db = new Date(b.updatedAt || b.updated_at || b.createdAt || 0);
-          return db - da;
-        }
+        if (sortBy === 'recent') return new Date(b.updatedAt || b.updated_at || b.createdAt || 0) - new Date(a.updatedAt || a.updated_at || a.createdAt || 0);
         return urgencyScore(b) - urgencyScore(a);
       });
   }, [leads, myCallsMap, userId, sortBy]);
@@ -274,11 +228,11 @@ const MyLeads = () => {
       try {
         const d = parseLocalDate(fu);
         if (!d) return;
-        if (isYesterday(d))             yesterdayCount++;
-        else if (isPast(d) && !isToday(d))  overdue++;
-        else if (isToday(d))            todayCount++;
-        else if (isTomorrow(d))         tomorrowCount++;
-      } catch { /* skip */ }
+        if (isYesterday(d))                  yesterdayCount++;
+        else if (isPast(d) && !isToday(d))   overdue++;
+        else if (isToday(d))                 todayCount++;
+        else if (isTomorrow(d))              tomorrowCount++;
+      } catch { /**/ }
     });
     return { overdue, yesterday: yesterdayCount, today: todayCount, tomorrow: tomorrowCount };
   }, [myLeads]);
@@ -286,104 +240,61 @@ const MyLeads = () => {
   const filtered = useMemo(() => {
     let arr = myLeads;
     if (tab === 'overdue') {
-      arr = arr.filter(l => {
-        if (TERMINAL_STATUSES.includes(l.status)) return false;
-        const fu = l.follow_up_date || l.followUpDate;
-        try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d) && !isYesterday(d); } catch { return false; }
-      });
+      arr = arr.filter(l => { if (TERMINAL_STATUSES.includes(l.status)) return false; const fu = l.follow_up_date || l.followUpDate; try { const d = parseLocalDate(fu); return d && isPast(d) && !isToday(d) && !isYesterday(d); } catch { return false; } });
     } else if (tab === 'yesterday') {
-      arr = arr.filter(l => {
-        if (TERMINAL_STATUSES.includes(l.status)) return false;
-        const fu = l.follow_up_date || l.followUpDate;
-        try { const d = parseLocalDate(fu); return d && isYesterday(d); } catch { return false; }
-      });
+      arr = arr.filter(l => { if (TERMINAL_STATUSES.includes(l.status)) return false; const fu = l.follow_up_date || l.followUpDate; try { const d = parseLocalDate(fu); return d && isYesterday(d); } catch { return false; } });
     } else if (tab === 'today') {
-      arr = arr.filter(l => {
-        if (TERMINAL_STATUSES.includes(l.status)) return false;
-        const fu = l.follow_up_date || l.followUpDate;
-        try { const d = parseLocalDate(fu); return d && isToday(d); } catch { return false; }
-      });
+      arr = arr.filter(l => { if (TERMINAL_STATUSES.includes(l.status)) return false; const fu = l.follow_up_date || l.followUpDate; try { const d = parseLocalDate(fu); return d && isToday(d); } catch { return false; } });
     } else if (tab === 'tomorrow') {
-      arr = arr.filter(l => {
-        if (TERMINAL_STATUSES.includes(l.status)) return false;
-        const fu = l.follow_up_date || l.followUpDate;
-        try { const d = parseLocalDate(fu); return d && isTomorrow(d); } catch { return false; }
-      });
+      arr = arr.filter(l => { if (TERMINAL_STATUSES.includes(l.status)) return false; const fu = l.follow_up_date || l.followUpDate; try { const d = parseLocalDate(fu); return d && isTomorrow(d); } catch { return false; } });
     } else if (tab === 'followup') {
       arr = arr.filter(l => l.status === 'FollowUp' || l.status === 'CallBackLater');
     } else if (tab === 'new') {
       arr = arr.filter(l => l.status === 'New' || l.status === 'Open' || !l.status);
-      arr = [...arr].sort((a, b) => {
-        const aTime = new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0);
-        const bTime = new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0);
-        return bTime - aTime;
-      });
+      arr = [...arr].sort((a, b) => new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0) - new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0));
     } else if (tab === 'booked') {
       arr = arr.filter(l => l.status === 'Booked');
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      arr = arr.filter(l =>
-        l.name?.toLowerCase().includes(q) ||
-        l.phone?.includes(q) ||
-        l.project?.toLowerCase().includes(q)
-      );
+      arr = arr.filter(l => l.name?.toLowerCase().includes(q) || l.phone?.includes(q) || l.project?.toLowerCase().includes(q));
     }
     if (dateFilter) {
       arr = arr.filter(l => {
-        const fu = l.follow_up_date || l.followUpDate;
+        const fu      = l.follow_up_date || l.followUpDate;
         const created = (l.createdAt || l.created_at || '').split('T')[0];
-        const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
+        const assigned= (l.assignedAt || l.assigned_at || '').split('T')[0];
         return fu === dateFilter || created === dateFilter || assigned === dateFilter;
       });
     }
     return arr;
   }, [myLeads, tab, search, dateFilter]);
-  
-  useEffect(() => {
-    setVisibleCount(LEADS_BATCH_SIZE);
-  }, [tab, search, dateFilter, sortBy]);
 
-  const visibleLeads = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount]
-  );
+  useEffect(() => { setVisibleCount(LEADS_BATCH_SIZE); }, [tab, search, dateFilter, sortBy]);
 
-  const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
+  const visibleLeads = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const urgentCount  = scheduleCounts.overdue + scheduleCounts.today;
 
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       await addCallLog({
-        leadId:       quickLead.id,
-        leadName:     quickLead.name,
-        projectName:  quickLead.project || '',
-        employeeId:   userId,
-        employeeName: user?.name || '',
-        type:     'Outgoing',
-        status:   outcome,
-        duration: 0,
-        notes:    quickNote || `Quick log: ${outcome}`,
+        leadId: quickLead.id, leadName: quickLead.name, projectName: quickLead.project || '',
+        employeeId: userId, employeeName: user?.name || '',
+        type: 'Outgoing', status: outcome, duration: 0,
+        notes: quickNote || `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)  patch.status = newStatus;
+      if (newStatus) patch.status = newStatus;
       const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(newStatus);
       if (isTerminal) {
-        patch.follow_up_date = null;
-        patch.followUpDate = null;
+        patch.follow_up_date = null; patch.followUpDate = null;
       } else if (followDate) {
-        patch.follow_up_date = followDate;
-        patch.followUpDate = followDate;
-        patch.next_followup_date = followDate;
-        patch.follow_up_status = 'pending';
+        patch.follow_up_date = followDate; patch.followUpDate = followDate;
+        patch.next_followup_date = followDate; patch.follow_up_status = 'pending';
       }
       await updateLead(quickLead.id, patch);
-      // ✅ PERF FIX 3: fetchLeads() removed here.
-      // updateLead() already does an optimistic setLeads() update synchronously,
-      // so the card reflects the new status/follow-up date instantly without
-      // triggering a full 2000-lead re-fetch + re-normalize + re-render cascade.
-      // The Realtime subscription in useCRMData will sync any server-side changes.
       toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
@@ -427,7 +338,6 @@ const MyLeads = () => {
             </div>
           </div>
 
-          {/* Search + Date Filter — hide on Submitted tab */}
           {tab !== 'submitted' && (
             <>
               <div className="flex gap-2 mb-2">
@@ -443,8 +353,7 @@ const MyLeads = () => {
                   )}
                 </div>
                 <div className="relative shrink-0">
-                  <input type="date" value={dateFilter}
-                    onChange={e => setDateFilter(e.target.value)}
+                  <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
                     className={`w-10 h-10 rounded-xl border-2 text-transparent cursor-pointer focus:outline-none ${
                       dateFilter ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-100'
                     }`} />
@@ -464,16 +373,15 @@ const MyLeads = () => {
             </>
           )}
 
-          {/* Tab filters */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {TABS.map(t => {
               let badge = '';
-              if (t.id === 'overdue'   && scheduleCounts.overdue    > 0) badge = ` (${scheduleCounts.overdue})`;
+              if (t.id === 'overdue'   && scheduleCounts.overdue   > 0) badge = ` (${scheduleCounts.overdue})`;
               if (t.id === 'yesterday' && scheduleCounts.yesterday  > 0) badge = ` (${scheduleCounts.yesterday})`;
               if (t.id === 'today'     && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
               if (t.id === 'tomorrow'  && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
-              if (t.id === 'all') badge = ` (${myLeads.length})`;
-              if (t.id === 'submitted' && submittedLeads.length > 0) badge = ` (${submittedLeads.length})`;
+              if (t.id === 'all')       badge = ` (${myLeads.length})`;
+              if (t.id === 'submitted' && submittedLeads.length > 0)     badge = ` (${submittedLeads.length})`;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all touch-manipulation ${
@@ -487,18 +395,14 @@ const MyLeads = () => {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════ */}
-      {/* ✅ SUBMITTED LEADS TAB CONTENT               */}
-      {/* ══════════════════════════════════════════════ */}
+      {/* ══ SUBMITTED TAB ══ */}
       {tab === 'submitted' ? (
         <div className="px-4 pt-4 pb-20">
-
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
-              { label: 'Total', value: submittedLeads.length, color: 'border-emerald-400' },
-              { label: 'This Month', value: submittedLeads.filter(l => { const d = new Date(l.created_at); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length, color: 'border-blue-400' },
-              { label: 'Pending', value: submittedLeads.filter(l => !l.admin_status || l.admin_status === 'pending').length, color: 'border-yellow-400' },
+              { label: 'Total',      value: submittedLeads.length, color: 'border-emerald-400' },
+              { label: 'This Month', value: submittedLeads.filter(l => { const d = new Date(l.created_at), n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); }).length, color: 'border-blue-400' },
+              { label: 'Pending',    value: submittedLeads.filter(l => !l.admin_status || l.admin_status === 'pending').length, color: 'border-yellow-400' },
             ].map(s => (
               <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.color} p-3 shadow-sm`}>
                 <p className="text-xs text-gray-500 uppercase">{s.label}</p>
@@ -506,28 +410,18 @@ const MyLeads = () => {
               </div>
             ))}
           </div>
-
-          {/* Add Lead button */}
-          <button
-            onClick={() => navigate('/crm/sales/add-lead')}
-            className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation"
-          >
+          <button onClick={() => navigate('/crm/sales/add-lead')}
+            className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation">
             <Plus size={18} /> Add New Submitted Lead
           </button>
-
           {submittedLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <Loader2 size={32} className="animate-spin mb-2" />
-              Loading...
-            </div>
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400"><Loader2 size={32} className="animate-spin mb-2" />Loading...</div>
           ) : submittedLeads.length === 0 ? (
             <div className="text-center py-16">
               <AlertCircle size={48} className="mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 text-lg">No leads submitted yet</p>
-              <button
-                onClick={() => navigate('/crm/sales/add-lead')}
-                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold"
-              >
+              <button onClick={() => navigate('/crm/sales/add-lead')}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold">
                 <Plus size={18} /> Submit Your First Lead
               </button>
             </div>
@@ -539,62 +433,26 @@ const MyLeads = () => {
                 return (
                   <div key={lead.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div className="p-4">
-                      {/* Main row — clickable to expand */}
-                      <div
-                        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 cursor-pointer"
-                        onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}
-                      >
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 cursor-pointer"
+                        onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-bold text-gray-900 text-base">{lead.customer_name}</h3>
-                            {lead.interest_level && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTEREST_COLORS_SL[lead.interest_level] || ''}`}>
-                                {lead.interest_level.toUpperCase()}
-                              </span>
-                            )}
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SL_STATUS_STYLES[status] || SL_STATUS_STYLES.pending}`}>
-                              {SL_STATUS_LABELS[status] || status}
-                            </span>
-                            {lead.site_visit_interest && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
-                                Site Visit
-                              </span>
-                            )}
+                            {lead.interest_level && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTEREST_COLORS_SL[lead.interest_level] || ''}`}>{lead.interest_level.toUpperCase()}</span>}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SL_STATUS_STYLES[status] || SL_STATUS_STYLES.pending}`}>{SL_STATUS_LABELS[status] || status}</span>
+                            {lead.site_visit_interest && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Site Visit</span>}
                           </div>
-
                           <div className="mt-2 text-sm text-gray-600 space-y-1">
-                            {lead.phone && (
-                              <div className="flex items-center gap-1">
-                                <Phone size={13} className="text-gray-400" />
-                                <span>{formatPhone(lead.phone)}</span>
-                              </div>
-                            )}
-                            {lead.project_interested && (
-                              <div className="flex items-center gap-1">
-                                <Briefcase size={13} className="text-gray-400" />
-                                <span>{lead.project_interested}</span>
-                              </div>
-                            )}
-                            {lead.budget_range && (
-                              <div className="flex items-center gap-1">
-                                <span className="text-gray-400 text-xs">Budget:</span>
-                                <span>{lead.budget_range}</span>
-                              </div>
-                            )}
+                            {lead.phone && <div className="flex items-center gap-1"><Phone size={13} className="text-gray-400" /><span>{formatPhone(lead.phone)}</span></div>}
+                            {lead.project_interested && <div className="flex items-center gap-1"><Briefcase size={13} className="text-gray-400" /><span>{lead.project_interested}</span></div>}
+                            {lead.budget_range && <div className="flex items-center gap-1"><span className="text-gray-400 text-xs">Budget:</span><span>{lead.budget_range}</span></div>}
                           </div>
                         </div>
-
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-gray-400">
-                            {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                          </span>
-                          {isExpanded
-                            ? <ChevronUp size={16} className="text-gray-400" />
-                            : <ChevronDown size={16} className="text-gray-400" />}
+                          <span className="text-xs text-gray-400">{new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                          {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                         </div>
                       </div>
-
-                      {/* Expanded details */}
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm text-gray-600">
                           {lead.email && <span><strong>Email:</strong> {lead.email}</span>}
@@ -608,16 +466,8 @@ const MyLeads = () => {
                           {lead.follow_up_date && <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>}
                           {lead.preferred_visit_date && <span><strong>Visit Date:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>}
                           {lead.how_they_know && <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>}
-                          {lead.customer_remarks && (
-                            <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs">
-                              <strong>Customer:</strong> {lead.customer_remarks}
-                            </div>
-                          )}
-                          {lead.employee_remarks && (
-                            <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs">
-                              <strong>My Notes:</strong> {lead.employee_remarks}
-                            </div>
-                          )}
+                          {lead.customer_remarks && <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs"><strong>Customer:</strong> {lead.customer_remarks}</div>}
+                          {lead.employee_remarks && <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs"><strong>My Notes:</strong> {lead.employee_remarks}</div>}
                         </div>
                       )}
                     </div>
@@ -628,52 +478,32 @@ const MyLeads = () => {
           )}
         </div>
       ) : (
-        /* ══════════════════════════════════════════════ */
-        /* NORMAL LEADS TAB CONTENT                      */
-        /* ══════════════════════════════════════════════ */
+        /* ══ NORMAL LEADS TAB ══ */
         <div className="px-4 pt-3 pb-20">
-
-          {/* Schedule banner */}
           {(scheduleCounts.overdue > 0 || scheduleCounts.yesterday > 0 || scheduleCounts.today > 0 || scheduleCounts.tomorrow > 0) && tab === 'new' && (
             <div className="grid grid-cols-2 gap-2 mb-4">
               {scheduleCounts.overdue > 0 && (
-                <button onClick={() => setTab('overdue')}
-                  className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-left active:bg-red-100 touch-manipulation">
+                <button onClick={() => setTab('overdue')} className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-left active:bg-red-100 touch-manipulation">
                   <AlertCircle size={18} className="text-red-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-red-700">{scheduleCounts.overdue} Overdue</p>
-                    <p className="text-xs text-red-500">Needs attention</p>
-                  </div>
+                  <div><p className="text-xs font-bold text-red-700">{scheduleCounts.overdue} Overdue</p><p className="text-xs text-red-500">Needs attention</p></div>
                 </button>
               )}
               {scheduleCounts.yesterday > 0 && (
-                <button onClick={() => setTab('yesterday')}
-                  className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl text-left active:bg-orange-100 touch-manipulation">
+                <button onClick={() => setTab('yesterday')} className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl text-left active:bg-orange-100 touch-manipulation">
                   <AlarmClock size={18} className="text-orange-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-orange-700">{scheduleCounts.yesterday} Yesterday</p>
-                    <p className="text-xs text-orange-500">Follow up now</p>
-                  </div>
+                  <div><p className="text-xs font-bold text-orange-700">{scheduleCounts.yesterday} Yesterday</p><p className="text-xs text-orange-500">Follow up now</p></div>
                 </button>
               )}
               {scheduleCounts.today > 0 && (
-                <button onClick={() => setTab('today')}
-                  className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left active:bg-amber-100 touch-manipulation">
+                <button onClick={() => setTab('today')} className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-left active:bg-amber-100 touch-manipulation">
                   <CalendarDays size={18} className="text-amber-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-amber-700">{scheduleCounts.today} Today</p>
-                    <p className="text-xs text-amber-500">Due today</p>
-                  </div>
+                  <div><p className="text-xs font-bold text-amber-700">{scheduleCounts.today} Today</p><p className="text-xs text-amber-500">Due today</p></div>
                 </button>
               )}
               {scheduleCounts.tomorrow > 0 && (
-                <button onClick={() => setTab('tomorrow')}
-                  className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-left active:bg-blue-100 touch-manipulation">
+                <button onClick={() => setTab('tomorrow')} className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-left active:bg-blue-100 touch-manipulation">
                   <Sunrise size={18} className="text-blue-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-blue-700">{scheduleCounts.tomorrow} Tomorrow</p>
-                    <p className="text-xs text-blue-500">Plan ahead</p>
-                  </div>
+                  <div><p className="text-xs font-bold text-blue-700">{scheduleCounts.tomorrow} Tomorrow</p><p className="text-xs text-blue-500">Plan ahead</p></div>
                 </button>
               )}
             </div>
@@ -683,9 +513,7 @@ const MyLeads = () => {
             <div className="text-center py-16">
               <UserCheck size={48} className="mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 text-lg">No leads in this view</p>
-              <p className="text-gray-400 text-sm mt-1">
-                {tab === 'new' ? 'No new leads assigned yet' : `No leads match the "${tab}" filter`}
-              </p>
+              <p className="text-gray-400 text-sm mt-1">{tab === 'new' ? 'No new leads assigned yet' : `No leads match the "${tab}" filter`}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -703,12 +531,9 @@ const MyLeads = () => {
                   onCopyPhone={copyPhone}
                 />
               ))}
-
               {visibleCount < filtered.length && (
-                <button
-                  onClick={() => setVisibleCount(prev => prev + LEADS_BATCH_SIZE)}
-                  className="w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-[#0F3A5F] hover:bg-gray-50 transition-colors"
-                >
+                <button onClick={() => setVisibleCount(prev => prev + LEADS_BATCH_SIZE)}
+                  className="w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-[#0F3A5F] hover:bg-gray-50 transition-colors">
                   Load more leads ({filtered.length - visibleCount} remaining)
                 </button>
               )}
@@ -717,72 +542,88 @@ const MyLeads = () => {
         </div>
       )}
 
-      {/* ── Quick Log Sheet ── */}
+      {/* ══ Quick Log Sheet ══
+           Layout: fixed overlay, flex-col, inner div splits into
+           scrollable content (flex-1 overflow-y-auto) + sticky footer button.
+           This ensures "Log Call" is ALWAYS visible without scrolling.
+      */}
       {quickLead && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setQuickLead(null)}>
           <div className="absolute inset-0 bg-black/40" />
-          <div className="relative w-full bg-white rounded-t-3xl p-5 pb-10 shadow-2xl max-h-[85vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">{quickLead.name}</h3>
-                <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+          <div
+            className="relative w-full bg-white rounded-t-3xl shadow-2xl flex flex-col"
+            style={{ maxHeight: '88vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* ── Scrollable content ── */}
+            <div className="flex-1 overflow-y-auto px-5 pt-5 pb-2">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg">{quickLead.name}</h3>
+                  <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+                </div>
+                <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
+                  <X size={20} className="text-gray-600" />
+                </button>
               </div>
-              <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
-                <X size={20} className="text-gray-600" />
+
+              {/* Call Outcome */}
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome</p>
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {QUICK_OUTCOMES.map(o => (
+                  <button key={o.id} onClick={() => setOutcome(o.id)}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
+                      outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F]/5 text-[#0F3A5F]' : 'border-gray-100 bg-gray-50 text-gray-600'
+                    }`}>
+                    <span className="text-xl">{o.emoji}</span>{o.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Update Status */}
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status <span className="font-normal text-gray-400">(optional)</span></p>
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {QUICK_STATUSES.map(s => (
+                  <button key={s.id} onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
+                      newStatus === s.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-gray-50 text-gray-600'
+                    }`}>
+                    <span className="text-xl">{s.emoji}</span>{s.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Follow-up date — only when FollowUp selected */}
+              {newStatus === 'FollowUp' && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-gray-500 uppercase mb-2">Follow-up Date</p>
+                  <SmartDateInput
+                    value={followDate}
+                    onChange={setFollowDate}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Quick Note */}
+              <div className="mb-2">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note <span className="font-normal text-gray-400">(optional)</span></p>
+                <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
+                  placeholder="e.g., Called, will call back tomorrow..."
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none resize-none" />
+              </div>
+            </div>
+
+            {/* ── Sticky footer: Log Call always visible ── */}
+            <div className="px-5 py-4 border-t border-gray-100 bg-white">
+              <button onClick={handleQuickSave} disabled={saving}
+                className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:bg-[#0c2e4a] touch-manipulation disabled:opacity-60">
+                {saving ? <Loader2 size={20} className="animate-spin" /> : <PhoneCall size={20} />}
+                {saving ? 'Saving...' : 'Log Call'}
               </button>
             </div>
-
-            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome</p>
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {QUICK_OUTCOMES.map(o => (
-                <button key={o.id} onClick={() => setOutcome(o.id)}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
-                    outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F]/5 text-[#0F3A5F]' : 'border-gray-100 bg-gray-50 text-gray-600'
-                  }`}>
-                  <span className="text-xl">{o.emoji}</span>
-                  {o.label}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status <span className="font-normal text-gray-400">(optional)</span></p>
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {QUICK_STATUSES.map(s => (
-                <button key={s.id} onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 text-xs font-semibold transition-all touch-manipulation ${
-                    newStatus === s.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 bg-gray-50 text-gray-600'
-                  }`}>
-                  <span className="text-xl">{s.emoji}</span>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-
-            {newStatus === 'FollowUp' && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Follow-up Date</p>
-                <SmartDateInput
-                  value={followDate}
-                  onChange={setFollowDate}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none"
-                />
-              </div>
-            )}
-
-            <div className="mb-5">
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note <span className="font-normal text-gray-400">(optional)</span></p>
-              <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
-                placeholder="e.g., Called, will call back tomorrow..."
-                rows={2}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm focus:border-[#0F3A5F] focus:outline-none resize-none" />
-            </div>
-
-            <button onClick={handleQuickSave} disabled={saving}
-              className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:bg-[#0c2e4a] touch-manipulation disabled:opacity-60">
-              {saving ? <Loader2 size={20} className="animate-spin" /> : <PhoneCall size={20} />}
-              {saving ? 'Saving...' : 'Log Call'}
-            </button>
           </div>
         </div>
       )}

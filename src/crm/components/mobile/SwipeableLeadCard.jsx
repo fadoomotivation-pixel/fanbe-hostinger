@@ -1,8 +1,9 @@
 // src/crm/components/mobile/SwipeableLeadCard.jsx
 // ✅ Swipe REMOVED — was causing accidental call/quick-log triggers while scrolling
-// ✅ New design: large text, bold phone, coloured status pill, two big action buttons
+// ✅ New design: large text, bold phone, coloured status pill, two stacked action buttons
+// ✅ Quick Log on top, Call below — so thumb naturally hits Quick Log first
 import React from 'react';
-import { Phone, Calendar, Clock, StickyNote, Copy, CheckCircle, ChevronRight, PhoneCall } from 'lucide-react';
+import { Phone, Calendar, Clock, StickyNote, Copy, CheckCircle, PhoneCall } from 'lucide-react';
 import { isPast, isToday, isTomorrow, isYesterday } from 'date-fns';
 
 const parseLocalDate = (dateStr) => {
@@ -17,16 +18,16 @@ const getFollowUpLabel = (dateStr) => {
   if (!dateStr) return null;
   try {
     const d = parseLocalDate(dateStr);
-    if (!d) return dateStr.split('T')[0];
-    if (isToday(d))     return { text: 'Today', color: 'text-amber-700 bg-amber-100' };
-    if (isTomorrow(d))  return { text: 'Tomorrow', color: 'text-blue-700 bg-blue-100' };
-    if (isYesterday(d)) return { text: 'Yesterday', color: 'text-orange-700 bg-orange-100' };
-    if (isPast(d))      return { text: `Overdue: ${dateStr.split('T')[0]}`, color: 'text-red-700 bg-red-100' };
+    if (!d) return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' };
+    if (isToday(d))             return { text: 'Today',              color: 'text-amber-700 bg-amber-100' };
+    if (isTomorrow(d))          return { text: 'Tomorrow',           color: 'text-blue-700 bg-blue-100' };
+    if (isYesterday(d))         return { text: 'Yesterday',          color: 'text-orange-700 bg-orange-100' };
+    if (isPast(d))              return { text: `Overdue: ${dateStr.split('T')[0]}`, color: 'text-red-700 bg-red-100' };
     return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' };
   } catch { return { text: dateStr.split('T')[0], color: 'text-gray-600 bg-gray-100' }; }
 };
 
-const statusColors = {
+const DEFAULT_STATUS_COLORS = {
   New:           'bg-blue-500 text-white',
   Open:          'bg-sky-500 text-white',
   FollowUp:      'bg-amber-500 text-white',
@@ -46,12 +47,12 @@ const SwipeableLeadCard = ({
   getLatestNote,
   copiedId,
   onCopyPhone,
-  // legacy props — kept for compatibility, not used
+  // legacy props kept for compatibility
   onCall,
   onQuickAction,
   statusColors: propStatusColors,
 }) => {
-  const colors = propStatusColors || statusColors;
+  const colors = propStatusColors || DEFAULT_STATUS_COLORS;
   const followUp = lead?.follow_up_date || lead?.followUpDate || null;
   const fuLabel = getFollowUpLabel(followUp);
   const latestNote = getLatestNote?.(lead?.notes);
@@ -71,8 +72,8 @@ const SwipeableLeadCard = ({
   return (
     <div
       onClick={onTap}
-      className="bg-white rounded-2xl border border-gray-150 shadow-sm active:scale-[0.985] transition-transform touch-manipulation cursor-pointer"
-      style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}
+      className="bg-white rounded-2xl shadow-sm active:scale-[0.985] transition-transform touch-manipulation cursor-pointer"
+      style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.05)' }}
     >
       {/* ── Top row: name + status badge ── */}
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-1">
@@ -108,12 +109,11 @@ const SwipeableLeadCard = ({
         )}
       </div>
 
-      {/* ── Follow-up + assigned time row ── */}
+      {/* ── Follow-up + assigned time ── */}
       <div className="flex items-center gap-2 px-4 pb-2 flex-wrap">
         {fuLabel ? (
           <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${fuLabel.color}`}>
-            <Calendar size={10} />
-            {fuLabel.text}
+            <Calendar size={10} />{fuLabel.text}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 px-2 py-0.5">
@@ -136,22 +136,22 @@ const SwipeableLeadCard = ({
         </div>
       )}
 
-      {/* ── Action buttons ── */}
-      <div className="flex gap-2 px-4 pb-4 pt-1">
+      {/* ── Action buttons — stacked: Quick Log on top, Call below ── */}
+      <div className="flex flex-col gap-2 px-4 pb-4 pt-1">
         <button
           type="button"
           onClick={handleQuickLog}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#0F3A5F] text-white text-sm font-bold active:bg-[#0c2e4a] touch-manipulation"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0F3A5F] text-white text-sm font-bold active:bg-[#0c2e4a] touch-manipulation"
         >
-          <PhoneCall size={15} />
+          <PhoneCall size={16} />
           Quick Log
         </button>
         <button
           type="button"
           onClick={handleCall}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-bold active:bg-emerald-600 touch-manipulation"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white text-sm font-bold active:bg-emerald-600 touch-manipulation"
         >
-          <Phone size={15} />
+          <Phone size={16} />
           Call
         </button>
       </div>

@@ -1,57 +1,68 @@
-// src/crm/components/mobile/SwipeableLeadCard.jsx
-// Premium real estate CRM card — mobile-first, no overflow
+// SwipeableLeadCard.jsx — Premium Real Estate CRM
+// Matches reference mockup: name + badge, phone, project, last activity, 2 action buttons
 import React from 'react';
-import { Phone, Calendar, Clock, StickyNote, Copy, CheckCircle, PhoneCall, MapPin } from 'lucide-react';
-import { isPast, isToday, isTomorrow, isYesterday } from 'date-fns';
+import { Phone, PhoneCall, Clock, MapPin, Activity } from 'lucide-react';
+import { isToday, isTomorrow, isYesterday, isPast, differenceInDays } from 'date-fns';
 
-const parseLocalDate = (dateStr) => {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const d = dateStr.split('T')[0];
-  const [y, m, day] = d.split('-').map(Number);
-  if (!y || !m || !day) return null;
-  return new Date(y, m - 1, day);
+const parseLocalDate = (s) => {
+  if (!s) return null;
+  const p = s.split('T')[0].split('-').map(Number);
+  return p[0] ? new Date(p[0], p[1] - 1, p[2]) : null;
 };
 
-const getFollowUpLabel = (dateStr) => {
-  if (!dateStr) return null;
-  try {
-    const d = parseLocalDate(dateStr);
-    if (!d) return { text: dateStr.split('T')[0], dot: '#9ca3af' };
-    if (isToday(d))     return { text: 'Today',     dot: '#f59e0b', bg: '#fffbeb', color: '#92400e' };
-    if (isTomorrow(d))  return { text: 'Tomorrow',  dot: '#3b82f6', bg: '#eff6ff', color: '#1e40af' };
-    if (isYesterday(d)) return { text: 'Yesterday', dot: '#f97316', bg: '#fff7ed', color: '#9a3412' };
-    if (isPast(d))      return { text: 'Overdue',   dot: '#ef4444', bg: '#fef2f2', color: '#991b1b' };
-    return { text: dateStr.split('T')[0], dot: '#9ca3af', bg: '#f9fafb', color: '#6b7280' };
-  } catch { return { text: dateStr.split('T')[0], dot: '#9ca3af', bg: '#f9fafb', color: '#6b7280' }; }
+const INTEREST_BADGE = {
+  hot:  { label: '🔥 Hot',  bg: '#FFF3EE', color: '#C2390A', border: '#FBBF9A' },
+  warm: { label: '🟡 Warm', bg: '#FFFBEB', color: '#92400E', border: '#FDE68A' },
+  cold: { label: '🔵 Cold', bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE' },
 };
 
-const STATUS_STYLES = {
-  New:           { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6' },
-  Open:          { bg: '#f0f9ff', color: '#0369a1', dot: '#0ea5e9' },
-  FollowUp:      { bg: '#fffbeb', color: '#92400e', dot: '#f59e0b' },
-  SiteVisit:     { bg: '#faf5ff', color: '#7e22ce', dot: '#a855f7' },
-  Booked:        { bg: '#f0fdf4', color: '#166534', dot: '#22c55e' },
-  NotInterested: { bg: '#f9fafb', color: '#6b7280', dot: '#d1d5db' },
-  Lost:          { bg: '#fef2f2', color: '#991b1b', dot: '#ef4444' },
-  CallBackLater: { bg: '#eef2ff', color: '#3730a3', dot: '#6366f1' },
+const STATUS_DOT = {
+  New:           '#3B82F6',
+  Open:          '#0EA5E9',
+  FollowUp:      '#F59E0B',
+  SiteVisit:     '#A855F7',
+  Booked:        '#22C55E',
+  NotInterested: '#D1D5DB',
+  Lost:          '#EF4444',
+  CallBackLater: '#6366F1',
 };
 
-const SwipeableLeadCard = ({
-  lead,
-  onTap,
-  onQuickLog,
-  formatPhone = (v) => v,
-  formatAssignedTime,
-  getLatestNote,
-  copiedId,
-  onCopyPhone,
-}) => {
-  const followUp   = lead?.follow_up_date || lead?.followUpDate || null;
-  const fuLabel    = getFollowUpLabel(followUp);
-  const latestNote = getLatestNote?.(lead?.notes);
+const getFollowUpMeta = (dateStr) => {
+  const d = parseLocalDate(dateStr);
+  if (!d) return null;
+  if (isToday(d))     return { label: 'Today',     color: '#D97706', bg: '#FFFBEB' };
+  if (isTomorrow(d))  return { label: 'Tomorrow',  color: '#2563EB', bg: '#EFF6FF' };
+  if (isYesterday(d)) return { label: 'Yesterday', color: '#EA580C', bg: '#FFF7ED' };
+  if (isPast(d))      return { label: 'Overdue',   color: '#DC2626', bg: '#FEF2F2' };
+  const diff = differenceInDays(d, new Date());
+  return { label: `${diff}d`, color: '#6B7280', bg: '#F3F4F6' };
+};
+
+const getLatestNote = (notes) => {
+  if (!notes) return null;
+  const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  return lines[lines.length - 1].replace(/^\[.*?\]:\s*/, '').trim();
+};
+
+const formatPhone = (p) => {
+  if (!p) return '';
+  const d = p.replace(/\D/g, '');
+  if (d.length === 10) return `+91 ${d.slice(0,5)} ${d.slice(5)}`;
+  if (d.length === 12 && d.startsWith('91')) return `+91 ${d.slice(2,7)} ${d.slice(7)}`;
+  return p;
+};
+
+const SwipeableLeadCard = ({ lead, onTap, onQuickLog }) => {
+  const interest   = (lead?.interest_level || '').toLowerCase();
+  const badge      = INTEREST_BADGE[interest];
   const status     = lead?.status || 'New';
-  const st         = STATUS_STYLES[status] || STATUS_STYLES.New;
+  const dot        = STATUS_DOT[status] || '#9CA3AF';
   const phone      = lead?.phone || '';
+  const fuDate     = lead?.follow_up_date || lead?.followUpDate;
+  const fuMeta     = getFollowUpMeta(fuDate);
+  const latestNote = getLatestNote(lead?.notes);
+  const project    = lead?.project || lead?.project_name || '';
 
   const handleCall = (e) => {
     e.stopPropagation();
@@ -66,98 +77,89 @@ const SwipeableLeadCard = ({
   return (
     <div
       onClick={onTap}
-      className="bg-white rounded-2xl cursor-pointer active:scale-[0.985] transition-transform touch-manipulation"
-      style={{ boxShadow: '0 1px 3px rgba(15,58,95,0.08), 0 0 0 1px rgba(15,58,95,0.06)', WebkitTapHighlightColor: 'transparent' }}
+      className="bg-white rounded-2xl overflow-hidden cursor-pointer active:scale-[0.985] transition-transform touch-manipulation"
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}
     >
-      {/* status accent bar */}
-      <div style={{ height: 3, borderRadius: '12px 12px 0 0', background: st.dot }} />
-
       <div className="p-4">
-        {/* Row 1: Name + Status pill */}
+
+        {/* Row 1: Name + badge */}
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h3 className="text-[15px] font-bold text-gray-900 leading-tight truncate flex-1">
+          <h3 className="text-[16px] font-bold text-gray-900 leading-snug truncate flex-1">
             {lead?.name || 'Unnamed Lead'}
           </h3>
-          <span
-            className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: st.bg, color: st.color }}
-          >
-            {status}
-          </span>
-        </div>
-
-        {/* Row 2: Project */}
-        {lead?.project && (
-          <div className="flex items-center gap-1 mb-2">
-            <MapPin size={11} className="text-gray-400 shrink-0" />
-            <p className="text-[12px] text-gray-400 truncate">{lead.project}</p>
-          </div>
-        )}
-
-        {/* Row 3: Phone + copy */}
-        <div className="flex items-center gap-1.5 mb-3">
-          <span className="text-[14px] font-bold tracking-wide" style={{ color: '#0F3A5F' }}>
-            {formatPhone(phone)}
-          </span>
-          {onCopyPhone && phone && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onCopyPhone(phone, lead.id); }}
-              className="p-1 rounded-md active:bg-gray-100 touch-manipulation"
-              aria-label="Copy phone"
-            >
-              {copiedId === lead?.id
-                ? <CheckCircle size={13} className="text-emerald-500" />
-                : <Copy size={13} className="text-gray-300" />}
-            </button>
-          )}
-        </div>
-
-        {/* Row 4: Follow-up chip + assigned time */}
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          {fuLabel ? (
+          {badge ? (
             <span
-              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: fuLabel.bg || '#f9fafb', color: fuLabel.color || '#6b7280' }}
+              className="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full"
+              style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
             >
-              <Calendar size={9} />{fuLabel.text}
+              {badge.label}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] text-gray-300">
-              <Calendar size={9} /> No follow-up
-            </span>
-          )}
-          {formatAssignedTime && (lead?.assignedAt || lead?.assigned_at) && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
-              <Clock size={9} />
-              {formatAssignedTime(lead.assignedAt || lead.assigned_at)}
+            <span className="flex items-center gap-1 shrink-0">
+              <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
+              <span className="text-[11px] text-gray-400 font-medium">{status}</span>
             </span>
           )}
         </div>
 
-        {/* Latest note */}
-        {latestNote && (
-          <div className="flex items-start gap-1.5 bg-gray-50 rounded-xl px-3 py-2 mb-3">
-            <StickyNote size={11} className="mt-0.5 shrink-0 text-gray-300" />
-            <p className="text-[12px] text-gray-500 line-clamp-1 leading-relaxed">{latestNote}</p>
+        {/* Phone */}
+        <p className="text-[15px] font-semibold mb-2" style={{ color: '#1C3A2F' }}>
+          {formatPhone(phone)}
+        </p>
+
+        {/* Project */}
+        {project && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <MapPin size={11} className="text-gray-400 shrink-0" />
+            <span className="text-[12px] text-gray-500">Project: </span>
+            <span className="text-[12px] font-semibold text-gray-700 truncate">{project}</span>
           </div>
         )}
 
-        {/* Action row: Quick Log | Call */}
+        {/* Last activity / note */}
+        {latestNote && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <Activity size={11} className="text-gray-400 shrink-0" />
+            <span className="text-[12px] text-gray-500">Last Activity: </span>
+            <span className="text-[12px] text-gray-600 truncate">{latestNote}</span>
+          </div>
+        )}
+
+        {/* Follow-up + time meta */}
+        {(fuMeta || lead?.assignedAt || lead?.assigned_at) && (
+          <div className="flex items-center gap-3 mb-3">
+            {fuMeta && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: fuMeta.bg, color: fuMeta.color }}
+              >
+                <Clock size={9} /> {fuMeta.label}
+              </span>
+            )}
+            {lead?._lastCall?.notes && (
+              <span className="text-[11px] text-gray-400 truncate">{lead._lastCall.notes.split(':').pop()?.trim()}</span>
+            )}
+          </div>
+        )}
+
+        {/* Divider */}
+        <div className="h-px mb-3" style={{ background: '#F3F4F6' }} />
+
+        {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={handleQuickLog}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-80"
-            style={{ background: '#0F3A5F', color: '#fff' }}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-70"
+            style={{ border: '1.5px solid #D1D5DB', background: '#fff', color: '#374151' }}
           >
             <PhoneCall size={14} /> Quick Log
           </button>
           <button
             type="button"
             onClick={handleCall}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-80"
-            style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' }}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold touch-manipulation active:opacity-70"
+            style={{ background: '#1C3A2F', color: '#fff' }}
           >
             <Phone size={14} /> Call
           </button>
@@ -167,4 +169,5 @@ const SwipeableLeadCard = ({
   );
 };
 
+export { formatPhone, getLatestNote };
 export default SwipeableLeadCard;

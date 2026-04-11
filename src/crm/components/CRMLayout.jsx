@@ -1,4 +1,6 @@
 // src/crm/components/CRMLayout.jsx
+// ✅ FIX: Employee mobile top bar restored (menu button was missing)
+// ✅ PALETTE: Premium real estate — Navy #0F3A5F, Gold #C9A84C, Forest Green #1C3A2F
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -30,10 +32,10 @@ const CRMLayout = ({ children }) => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F7F5F0' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0F3A5F] mx-auto" />
-          <p className="mt-4 text-gray-500 text-sm">Loading...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 mx-auto" style={{ borderColor: '#C9A84C' }} />
+          <p className="mt-4 text-sm" style={{ color: '#6B7280' }}>Loading...</p>
         </div>
       </div>
     );
@@ -42,42 +44,61 @@ const CRMLayout = ({ children }) => {
   // ── Admin / Sub-Admin / HR-Manager Layout ─────────────────────────────────
   if (ADMIN_ROLES.includes(user.role)) {
     return (
-      <div className="flex min-h-screen bg-gray-100">
-        {/* Sidebar */}
+      <div className="flex min-h-screen" style={{ background: '#F3F0EB' }}>
         <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* Main content */}
         <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
 
-          {/* ── Mobile Top Bar ── */}
-          <header className="lg:hidden bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
+          {/* ── Admin Mobile Top Bar ── */}
+          <header
+            className="lg:hidden h-14 flex items-center justify-between px-4 sticky top-0 z-30"
+            style={{
+              background: '#0F3A5F',
+              boxShadow: '0 2px 8px rgba(15,58,95,0.18)',
+            }}
+          >
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
-              className="p-2 -ml-1 text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-lg touch-manipulation"
+              className="p-2 -ml-1 rounded-lg touch-manipulation active:opacity-70"
+              style={{ color: '#C9A84C' }}
             >
               <Menu size={22} />
             </button>
-            <span className="font-bold text-base text-[#0F3A5F] tracking-tight">
-              {user.role === ROLES.HR_MANAGER ? '🏢 HR Portal' : 'Fanbe CRM'}
-            </span>
+
+            {/* Fanbe wordmark */}
+            <div className="flex items-center gap-2">
+              <span className="font-black text-base tracking-tight" style={{ color: '#FFFFFF' }}>
+                Fanbe
+              </span>
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: '#C9A84C', color: '#0F3A5F' }}
+              >
+                {user.role === ROLES.HR_MANAGER ? 'HR' : 'CRM'}
+              </span>
+            </div>
+
             {user.role === ROLES.SUPER_ADMIN ? (
               <button
                 onClick={() => setShowLogoutConfirm(true)}
                 aria-label="Sign out"
-                className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white hover:bg-red-600 active:bg-red-700 transition-colors touch-manipulation"
+                className="h-8 w-8 rounded-full flex items-center justify-center transition-colors touch-manipulation active:opacity-70"
+                style={{ background: 'rgba(201,168,76,0.18)', color: '#C9A84C' }}
                 title="Sign Out"
               >
                 <LogOut size={15} />
               </button>
             ) : (
-              <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
+              <div
+                className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: '#C9A84C', color: '#0F3A5F' }}
+              >
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
             )}
           </header>
 
-          {/* ── Page Content ── */}
           <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden pb-20 lg:pb-8">
             {children}
           </main>
@@ -103,23 +124,57 @@ const CRMLayout = ({ children }) => {
   }
 
   // ── Sales Executive / Telecaller Layout ──────────────────────────────────
-  // On mobile: no top nav (each page like MyLeads manages its own sticky header)
-  // On desktop (lg+): show CRMTopNav + sidebar + padded main
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen" style={{ background: '#F7F5F0' }}>
       <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
 
-        {/* Desktop-only top nav — hidden on mobile so MyLeads sticky header fills edge-to-edge */}
+        {/*
+          ✅ FIXED: Employee mobile top bar — menu button always visible.
+          Hidden on lg+ where the full CRMTopNav takes over.
+        */}
+        <header
+          className="lg:hidden h-14 flex items-center justify-between px-4 sticky top-0 z-30"
+          style={{
+            background: '#0F3A5F',
+            boxShadow: '0 2px 8px rgba(15,58,95,0.18)',
+          }}
+        >
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+            className="p-2 -ml-1 rounded-lg touch-manipulation active:opacity-70"
+            style={{ color: '#C9A84C' }}
+          >
+            <Menu size={22} />
+          </button>
+
+          {/* Fanbe wordmark */}
+          <div className="flex items-center gap-2">
+            <span className="font-black text-base tracking-tight" style={{ color: '#FFFFFF' }}>
+              Fanbe
+            </span>
+            <span
+              className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: '#C9A84C', color: '#0F3A5F' }}
+            >
+              Sales
+            </span>
+          </div>
+
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: '#C9A84C', color: '#0F3A5F' }}
+          >
+            {user?.name?.charAt(0).toUpperCase()}
+          </div>
+        </header>
+
+        {/* Desktop top nav */}
         <div className="hidden lg:block">
           <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
         </div>
 
-        {/*
-          Mobile: p-0, no max-width, no overflow-x-hidden
-            → pages manage their own padding & sticky headers
-          Desktop (lg+): standard padded container
-        */}
         <main className="flex-1 overflow-y-auto pb-20 lg:pb-6 lg:p-6 lg:max-w-7xl lg:mx-auto lg:w-full">
           {children}
         </main>

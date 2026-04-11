@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
   Search, Phone, ChevronRight, Flame, Wind, Snowflake,
-  AlertCircle, Filter, Users, Plus, PhoneCall, X
+  AlertCircle, Filter, Users, Plus, PhoneCall, X, ClipboardList
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WhatsAppButton from '@/crm/components/WhatsAppButton';
@@ -50,10 +50,8 @@ const MobileLeadList = () => {
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [selectedLeadForCallLog, setSelectedLeadForCallLog] = useState(null);
 
-  // Persist active tab to sessionStorage
   useEffect(() => { sessionStorage.setItem('mobileLeads_activeTab', activeTab); }, [activeTab]);
 
-  // ✅ Restore & persist scroll position across refreshes
   useEffect(() => {
     const savedScroll = sessionStorage.getItem('mobileLeads_scrollPos');
     if (savedScroll) {
@@ -105,7 +103,6 @@ const MobileLeadList = () => {
 
     if (activeTab === 'new') {
       result = result.filter(l => l._status === 'Open' || l._status === 'New' || !l._status);
-      // ✅ Sort by assignment date descending — most recently assigned first
       result = [...result].sort((a, b) => {
         const aTime = new Date(a.assignedAt || a.assigned_at || a.createdAt || a.created_at || 0);
         const bTime = new Date(b.assignedAt || b.assigned_at || b.createdAt || b.created_at || 0);
@@ -253,7 +250,6 @@ const MobileLeadList = () => {
             <span className="text-sm font-bold">{stats.lost}</span>
           </button>
 
-          {/* Temperature Filters */}
           <div className="w-px h-8 bg-gray-200 mx-1" />
           
           <button
@@ -404,72 +400,96 @@ const MobileLeadList = () => {
               const followUpTime = lead.followUpTime || lead.follow_up_time;
               const isOverdue = lead._priority === 1;
               const isToday = lead._priority === 2;
-              const lastUpdated = lead.updatedAt || lead.updated_at;
+              const lastActivity = lead.lastCallNote || lead.last_call_note || lead.notes;
 
               return (
                 <div
                   key={lead.id}
-                  className={`bg-white rounded-xl shadow-sm border active:scale-[0.99] transition-transform cursor-pointer ${
-                    isOverdue ? 'border-red-200 border-l-4 border-l-red-500' :
-                    isToday ? 'border-yellow-200 border-l-4 border-l-yellow-500' :
-                    'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                  className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${
+                    isOverdue ? 'border-red-200' :
+                    isToday  ? 'border-yellow-200' :
+                    'border-gray-100'
                   }`}
-                  onClick={() => navigate(`/crm/lead/${lead.id}`)}
                 >
-                  <div className="px-4 pt-3.5 pb-1.5 flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                  {/* Card body — tappable to open lead detail */}
+                  <div
+                    className="px-4 pt-4 pb-3 cursor-pointer active:bg-gray-50 transition-colors"
+                    onClick={() => navigate(`/crm/lead/${lead.id}`)}
+                  >
+                    {/* Name row */}
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <TemperatureDot level={lead.interestLevel || lead.interest_level} />
                         <h3 className="font-bold text-gray-900 text-base truncate">{lead.name}</h3>
                       </div>
-                      {lead.project && (
-                        <p className="text-xs text-gray-400 mt-0.5 ml-6 truncate">{lead.project}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${getStatusColor(lead.status)}`}>
+                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ml-2 ${getStatusColor(lead.status)}`}>
                         {lead._status === 'FollowUp' ? 'Follow Up' : lead._status}
                       </span>
-                      <ChevronRight size={15} className="text-gray-300" />
                     </div>
-                  </div>
 
-                  {followUpDate && (
-                    <div className="px-4 pb-1.5">
-                      <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
-                    </div>
-                  )}
+                    {/* Overdue / Today badge */}
+                    {(isOverdue || isToday) && (
+                      <div className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md mb-2 ${
+                        isOverdue ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-700'
+                      }`}>
+                        <AlertCircle size={11} />
+                        {isOverdue ? 'Overdue' : 'Due Today'}
+                      </div>
+                    )}
 
-                  <div className="px-4 pb-3 pt-2 flex justify-between items-center border-t border-gray-50 mt-1.5">
-                    <div className="text-xs text-gray-500 truncate">
-                      <span>{lead.phone}</span>
-                      {lead.budget ? <span> · ₹{Number(lead.budget).toLocaleString('en-IN')}</span> : null}
-                      {lastUpdated && (
-                        <span className="hidden sm:inline"> · {new Date(lastUpdated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                      )}
-                    </div>
-                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                    {/* Follow-up badge */}
+                    {followUpDate && (
+                      <div className="mb-2">
+                        <FollowUpBadge followUpDate={followUpDate} followUpTime={followUpTime} size="small" />
+                      </div>
+                    )}
+
+                    {/* Phone row */}
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-sm text-gray-700 font-medium">{lead.phone}</span>
                       <a
                         href={`tel:${lead.phone}`}
-                        className="flex items-center justify-center w-9 h-9 rounded-full bg-green-50 border border-green-200 active:bg-green-100 touch-manipulation"
+                        onClick={e => e.stopPropagation()}
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 active:bg-gray-200 touch-manipulation"
+                        aria-label="Call"
                       >
-                        <Phone size={15} className="text-green-600" />
+                        <Phone size={15} className="text-gray-500" />
                       </a>
-                      <button
-                        onClick={() => setSelectedLeadForCallLog(lead)}
-                        className="h-9 px-3 rounded-full bg-purple-50 border border-purple-200 text-purple-600 text-xs font-semibold active:bg-purple-100 flex items-center gap-1.5 touch-manipulation"
-                        title="Log call outcome - auto-creates follow-up"
-                      >
-                        <PhoneCall size={13} />
-                        Log
-                      </button>
-                      <button
-                        onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-                        className="h-9 px-3 rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-xs font-semibold active:bg-blue-100 touch-manipulation"
-                      >
-                        Update
-                      </button>
                     </div>
+
+                    {/* Last activity */}
+                    {lastActivity && (
+                      <p className="text-xs text-gray-400 mt-2 flex items-center gap-1 truncate">
+                        <span className="shrink-0">↝</span>
+                        <span className="truncate">Last Activity: {lastActivity}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ── Action buttons — full-width, matching the reference image ── */}
+                  <div
+                    className="grid grid-cols-2 gap-2 px-4 pb-4"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {/* Call Lead */}
+                    <a
+                      href={`tel:${lead.phone}`}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a5c3a] active:bg-[#143f28] text-white text-sm font-semibold touch-manipulation transition-colors"
+                      aria-label={`Call ${lead.name}`}
+                    >
+                      <Phone size={16} />
+                      Call Lead
+                    </a>
+
+                    {/* Quick Log */}
+                    <button
+                      onClick={() => setSelectedLeadForCallLog(lead)}
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a5c3a] active:bg-[#143f28] text-white text-sm font-semibold touch-manipulation transition-colors"
+                      aria-label={`Log call for ${lead.name}`}
+                    >
+                      <ClipboardList size={16} />
+                      Quick Log
+                    </button>
                   </div>
                 </div>
               );
@@ -486,10 +506,7 @@ const MobileLeadList = () => {
           lead={selectedLeadForCallLog}
           isOpen={true}
           onClose={() => setSelectedLeadForCallLog(null)}
-          onSuccess={() => {
-            setSelectedLeadForCallLog(null);
-            // Lead list will auto-refresh via useCRMData
-          }}
+          onSuccess={() => setSelectedLeadForCallLog(null)}
         />
       )}
     </div>

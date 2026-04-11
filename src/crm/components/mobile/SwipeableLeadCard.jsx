@@ -145,7 +145,7 @@ const SwipeableLeadCard = ({ lead, onTap, onQuickLog }) => {
         {/* Divider */}
         <div className="h-px mb-3" style={{ background: '#F3F4F6' }} />
 
-        {/* Action buttons */}
+        {/* Action buttons — Quick Log on left, Call on right (stacked below Quick Log) */}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"

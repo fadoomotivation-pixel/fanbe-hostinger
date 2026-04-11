@@ -62,7 +62,7 @@ const MobileLeadDetails = () => {
       navigate(-1);
     } else {
       // Default fallback to my-leads
-      navigate('/crm/my-leads');
+      navigate('/crm/sales/my-leads');
     }
   };
 
@@ -81,7 +81,7 @@ const MobileLeadDetails = () => {
     return (
       <div className="p-8 text-center">
         <p className="text-gray-500">Lead not found</p>
-        <Button onClick={() => navigate('/crm/my-leads')} className="mt-4">
+        <Button onClick={() => navigate('/crm/sales/my-leads')} className="mt-4">
           Back to Leads
         </Button>
       </div>
@@ -153,9 +153,9 @@ const MobileLeadDetails = () => {
   const lastUpdated = lead.updatedAt || lead.updated_at;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-[#F6F7F9] pb-24">
       {/* Header */}
-      <div className="bg-white border-b px-4 py-3 sticky top-0 z-10">
+      <div className="bg-white/95 backdrop-blur border-b px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center gap-3 max-w-5xl mx-auto">
           <button
             onClick={handleBack}
@@ -164,7 +164,7 @@ const MobileLeadDetails = () => {
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-base md:text-xl font-bold text-gray-900 truncate">Lead Details</h1>
+            <h1 className="text-base md:text-xl font-bold text-[#1D222C] truncate">Lead Details</h1>
           </div>
         </div>
       </div>
@@ -176,7 +176,7 @@ const MobileLeadDetails = () => {
           <div className="lg:col-span-2 space-y-3">
 
             {/* Lead Summary Card */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-6">
               <div className="flex items-start justify-between mb-3">
                 {isEditingName ? (
                   <div className="flex gap-2 flex-1">
@@ -252,26 +252,26 @@ const MobileLeadDetails = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Button
                 onClick={() => setIsLogCallModalOpen(true)}
-                className="h-11 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-sm font-semibold rounded-xl"
+                className="h-11 bg-[#155C52] hover:bg-[#11463E] text-sm font-semibold rounded-xl"
               >
                 <PhoneCall size={16} className="mr-1.5" />
                 Log Call
               </Button>
               <Button
                 onClick={() => navigate(`/crm/lead/${lead.id}/update`)}
-                className="h-11 bg-blue-600 hover:bg-blue-700 text-sm font-semibold rounded-xl"
+                className="h-11 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl"
               >
                 Update
               </Button>
               <Button
                 onClick={() => navigate(`/crm/sales/site-visits?leadId=${lead.id}`)}
-                className="h-11 bg-purple-600 hover:bg-purple-700 text-sm font-semibold rounded-xl"
+                className="h-11 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl"
               >
                 <MapPin size={16} className="mr-1.5" />
                 Visit
               </Button>
               <a href={`https://wa.me/91${lead.phone}`} target="_blank" rel="noopener noreferrer" className="block">
-                <Button className="w-full h-11 bg-green-500 hover:bg-green-600 text-sm font-semibold rounded-xl">
+                <Button className="w-full h-11 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl">
                   <MessageSquare size={16} className="mr-1.5" />
                   WhatsApp
                 </Button>
@@ -280,7 +280,7 @@ const MobileLeadDetails = () => {
 
             {/* Additional Info */}
             {(lead.source || lead.notes) && (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Details</h3>
                 {lead.source && (
                   <div className="mb-2">
@@ -302,7 +302,7 @@ const MobileLeadDetails = () => {
           <div className="space-y-3">
 
             {/* Phone Section */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Contact</h3>
 
               {/* Primary Phone */}

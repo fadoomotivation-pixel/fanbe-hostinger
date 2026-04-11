@@ -61,7 +61,6 @@ const CRMLayout = ({ children }) => {
             <span className="font-bold text-base text-[#0F3A5F] tracking-tight">
               {user.role === ROLES.HR_MANAGER ? '🏢 HR Portal' : 'Fanbe CRM'}
             </span>
-            {/* Logout button for Super Admin / Avatar for others */}
             {user.role === ROLES.SUPER_ADMIN ? (
               <button
                 onClick={() => setShowLogoutConfirm(true)}
@@ -83,16 +82,12 @@ const CRMLayout = ({ children }) => {
             {children}
           </main>
 
-          {/* Sub Admin FAB only (for desktop quick actions) */}
           {user.role === ROLES.SUB_ADMIN && <SubAdminFAB />}
-          
-          {/* SubAdmin Mobile Bottom Navigation */}
           {user.role === ROLES.SUB_ADMIN && (
             <SubAdminBottomNav onMenuClick={() => setSidebarOpen(true)} />
           )}
         </div>
 
-        {/* Logout Confirm Dialog */}
         <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
           <DialogContent>
             <DialogHeader><DialogTitle>Confirm Logout</DialogTitle></DialogHeader>
@@ -107,18 +102,29 @@ const CRMLayout = ({ children }) => {
     );
   }
 
-  // ── Sales Executive / Telecaller Layout ─────────────────────────────────
+  // ── Sales Executive / Telecaller Layout ──────────────────────────────────
+  // On mobile: no top nav (each page like MyLeads manages its own sticky header)
+  // On desktop (lg+): show CRMTopNav + sidebar + padded main
   return (
     <div className="flex min-h-screen bg-gray-50">
       <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
-        <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full pb-20 lg:pb-6">
+
+        {/* Desktop-only top nav — hidden on mobile so MyLeads sticky header fills edge-to-edge */}
+        <div className="hidden lg:block">
+          <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
+        </div>
+
+        {/*
+          Mobile: p-0, no max-width, no overflow-x-hidden
+            → pages manage their own padding & sticky headers
+          Desktop (lg+): standard padded container
+        */}
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-6 lg:p-6 lg:max-w-7xl lg:mx-auto lg:w-full">
           {children}
         </main>
+
         <EmployeeFAB />
-        
-        {/* Employee Mobile Bottom Navigation */}
         <MobileBottomNav />
       </div>
     </div>

@@ -106,25 +106,25 @@ const EmployeeAddLead = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-4 md:p-6">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[#F6F7F9] px-3 py-4 md:p-6">
+      <div className="max-w-2xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="outline" size="icon" onClick={() => navigate('/crm/sales/my-leads')} className="rounded-full">
+        <div className="flex items-center gap-3 mb-5">
+          <Button variant="outline" size="icon" onClick={() => navigate('/crm/sales/my-leads')} className="rounded-full h-9 w-9 border-gray-300 bg-white">
             <ArrowLeft size={20} />
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <UserPlus size={28} className="text-emerald-600" />
+            <h1 className="text-[28px] font-bold text-[#1D222C] flex items-center gap-2">
+              <UserPlus size={24} className="text-[#155C52]" />
               Add New Lead
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Submit a new lead and continue in My Leads</p>
+            <p className="text-xs text-gray-500 mt-1">Fill details and save lead.</p>
           </div>
         </div>
 
         {/* Review notice */}
-        <div className="flex items-center gap-3 p-3 mb-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
+        <div className="flex items-center gap-3 p-3 mb-4 bg-[#F5F8FF] border border-[#DEE8FF] rounded-xl text-sm text-[#34528A]">
           <ShieldCheck size={18} className="text-indigo-600 shrink-0" />
           <span>
             Leads you submit are marked <strong>Pending Review</strong> and are visible to superadmin/admin in Employee Submitted Leads.
@@ -134,16 +134,16 @@ const EmployeeAddLead = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Section 1: Customer Basic Info */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b py-3">
+          <Card className="border-gray-200 rounded-2xl shadow-sm">
+            <CardHeader className="bg-white border-b py-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Phone size={18} className="text-emerald-600" /> Customer Information
+                <Phone size={16} className="text-[#155C52]" /> Customer Information
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-6 space-y-4">
               {/* Submitter stamp */}
-              <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800">
-                <User size={16} className="text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-2 p-3 bg-[#ECF7F3] border border-[#CDEBDE] rounded-xl text-sm text-[#1A6D5D]">
+                <User size={16} className="text-[#155C52] shrink-0" />
                 <span>Submitting as <strong>{user?.name || user?.username}</strong> &middot; {new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
               </div>
 
@@ -173,10 +173,10 @@ const EmployeeAddLead = () => {
           </Card>
 
           {/* Section 2: Location */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b py-3">
+          <Card className="border-gray-200 rounded-2xl shadow-sm">
+            <CardHeader className="bg-white border-b py-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <MapPin size={18} className="text-blue-600" /> Location Details
+                <MapPin size={16} className="text-[#155C52]" /> Location Details
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-6 space-y-4">
@@ -198,10 +198,10 @@ const EmployeeAddLead = () => {
           </Card>
 
           {/* Section 3: Lead / Property Interest */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b py-3">
+          <Card className="border-gray-200 rounded-2xl shadow-sm">
+            <CardHeader className="bg-white border-b py-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Briefcase size={18} className="text-amber-600" /> Property Interest
+                <Briefcase size={16} className="text-[#155C52]" /> Property Interest
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-6 space-y-4">
@@ -301,10 +301,10 @@ const EmployeeAddLead = () => {
           </Card>
 
           {/* Section 4: Conversation Details */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b py-3">
+          <Card className="border-gray-200 rounded-2xl shadow-sm">
+            <CardHeader className="bg-white border-b py-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare size={18} className="text-purple-600" /> Conversation Details
+                <MessageSquare size={16} className="text-[#155C52]" /> Conversation Details
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-6 space-y-4">
@@ -324,10 +324,10 @@ const EmployeeAddLead = () => {
           </Card>
 
           {/* Section 5: Site Visit */}
-          <Card className="border-gray-200 shadow-md">
-            <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50 border-b py-3">
+          <Card className="border-gray-200 rounded-2xl shadow-sm">
+            <CardHeader className="bg-white border-b py-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Calendar size={18} className="text-rose-600" /> Site Visit
+                <Calendar size={16} className="text-[#155C52]" /> Site Visit
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 md:p-6 space-y-4">
@@ -351,8 +351,8 @@ const EmployeeAddLead = () => {
           </Card>
 
           {/* Actions */}
-          <div className="flex gap-3 pb-8">
-            <Button type="submit" disabled={loading} className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3">
+          <div className="sticky bottom-3 flex gap-3 pb-2">
+            <Button type="submit" disabled={loading} className="flex-1 bg-[#155C52] hover:bg-[#11463E] text-white py-3 rounded-xl">
               <Save size={18} className="mr-2" />
               {loading ? 'Submitting...' : 'Submit Lead'}
             </Button>

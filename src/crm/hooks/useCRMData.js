@@ -78,7 +78,9 @@ const normalizeRow = (row) => ({
   prevAssignedAt:      row.prev_assigned_at       || null,
 });
 
-export const useCRMDataInternal = () => {
+const EMPLOYEE_ROLES = new Set(['sales_executive', 'telecaller']);
+
+export const useCRMDataInternal = ({ user } = {}) => {
   const [leads, setLeads]                         = useState([]);
   const [leadsLoading, setLeadsLoading]           = useState(true);
   const [employees, setEmployees]                 = useState([]);
@@ -117,13 +119,17 @@ export const useCRMDataInternal = () => {
     setAuditLogs(get(STORAGE_KEYS.AUDIT_LOGS, []));
   }, []);
 
+  const userId = user?.id || user?.uid || null;
+  const isEmployeeUser = EMPLOYEE_ROLES.has(user?.role);
+
   useEffect(() => {
-    fetchLeads();
+    if (!userId) return;
+    fetchLeads({ userId, scopedToEmployee: isEmployeeUser });
     fetchEmployees();
-    fetchCalls();
-    fetchSiteVisits();
-    fetchBookings();
-  }, []);
+    fetchCalls({ userId, scopedToEmployee: isEmployeeUser });
+    fetchSiteVisits({ userId, scopedToEmployee: isEmployeeUser });
+    fetchBookings({ userId, scopedToEmployee: isEmployeeUser });
+  }, [userId, isEmployeeUser]);
 
   // ── REALTIME ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -142,17 +148,23 @@ export const useCRMDataInternal = () => {
 
     const visitsChannel = supabaseAdmin
       .channel('realtime:site_visits')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => fetchSiteVisits())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () =>
+        fetchSiteVisits({ userId, scopedToEmployee: isEmployeeUser })
+      )
       .subscribe();
 
     const callsChannel = supabaseAdmin
       .channel('realtime:calls')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => fetchCalls())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () =>
+        fetchCalls({ userId, scopedToEmployee: isEmployeeUser })
+      )
       .subscribe();
 
     const bookingsChannel = supabaseAdmin
       .channel('realtime:bookings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () =>
+        fetchBookings({ userId, scopedToEmployee: isEmployeeUser })
+      )
       .subscribe();
 
     const handleVisibility = () => {
@@ -160,7 +172,7 @@ export const useCRMDataInternal = () => {
         tabWasHidden.current = true;
       } else if (document.visibilityState === 'visible' && tabWasHidden.current) {
         tabWasHidden.current = false;
-        fetchLeads();
+        fetchLeads({ userId, scopedToEmployee: isEmployeeUser });
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -172,7 +184,7 @@ export const useCRMDataInternal = () => {
       supabaseAdmin.removeChannel(bookingsChannel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [userId, isEmployeeUser]);
 
   useEffect(() => {
     if (callsLoading || siteVisitsLoading || bookingsLoading) return;
@@ -203,7 +215,7 @@ export const useCRMDataInternal = () => {
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
   // ── LEADS ─────────────────────────────────────────────────────────────
-  const fetchLeads = async () => {
+  const fetchLeads = async ({ userId: requestUserId = null, scopedToEmployee = false } = {}) => {
     const thisReq = ++leadsReqId.current;
     try {
       setLeadsLoading(true);
@@ -211,11 +223,13 @@ export const useCRMDataInternal = () => {
       const PAGE_SIZE = 2000;
       let allData = [], from = 0, keepGoing = true;
       while (keepGoing) {
-        const { data, error } = await supabaseAdmin
+        let query = supabaseAdmin
           .from('leads')
           .select(LIST_COLUMNS)
           .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
+        if (scopedToEmployee && requestUserId) query = query.eq('assigned_to', requestUserId);
+        const { data, error } = await query;
         if (error) {
           console.error('[Leads] Fetch error:', error.message);
           if (thisReq === leadsReqId.current) setLeads([]);
@@ -362,17 +376,21 @@ export const useCRMDataInternal = () => {
   };
 
   // ── CALLS ─────────────────────────────────────────────────────────────
-  const fetchCalls = async () => {
+  const fetchCalls = async ({ userId: requestUserId = null, scopedToEmployee = false } = {}) => {
     try {
       setCallsLoading(true);
       const data = await getCalls();
-      setCalls(data.map(row => ({
+      const mapped = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id,
         leadName: row.lead_name, projectName: row.project_name, type: row.call_type,
         status: row.status, duration: row.duration, notes: row.notes,
         employee_name: row.employee_name, created_at: row.created_at,
         timestamp: row.created_at, majorObjection: row.major_objection || null,
-      })));
+      }));
+      const filtered = scopedToEmployee && requestUserId
+        ? mapped.filter(row => row.employeeId === requestUserId)
+        : mapped;
+      setCalls(filtered);
     } catch (err) { console.error('[Calls] Fetch error:', err); setCalls([]); }
     finally { setCallsLoading(false); }
   };
@@ -380,24 +398,31 @@ export const useCRMDataInternal = () => {
   const addCallLog = async (log) => {
     try {
       const result = await addCall(log);
-      if (result.success) { await fetchCalls(); return result.data; }
+      if (result.success) {
+        await fetchCalls({ userId, scopedToEmployee: isEmployeeUser });
+        return result.data;
+      }
       return null;
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
   // ── SITE VISITS ─────────────────────────────────────────────────────
-  const fetchSiteVisits = async () => {
+  const fetchSiteVisits = async ({ userId: requestUserId = null, scopedToEmployee = false } = {}) => {
     try {
       setSiteVisitsLoading(true);
       const data = await getSiteVisits();
-      setSiteVisits(data.map(row => ({
+      const mapped = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id,
         leadName: row.lead_name, projectName: row.project_name,
         visitDate: row.visit_date, visitTime: row.visit_time,
         status: row.status, location: row.location, duration: row.duration,
         notes: row.notes, feedback: row.feedback, interest: row.interest_level || null,
         timestamp: row.created_at,
-      })));
+      }));
+      const filtered = scopedToEmployee && requestUserId
+        ? mapped.filter(row => row.employeeId === requestUserId)
+        : mapped;
+      setSiteVisits(filtered);
     } catch (err) { console.error('[SiteVisits] Fetch error:', err); setSiteVisits([]); }
     finally { setSiteVisitsLoading(false); }
   };
@@ -406,7 +431,7 @@ export const useCRMDataInternal = () => {
     try {
       const result = await addSiteVisit(log);
       if (result.success) {
-        await fetchSiteVisits();
+        await fetchSiteVisits({ userId, scopedToEmployee: isEmployeeUser });
         if (log.leadId) await updateLead(log.leadId, { siteVisitStatus: 'completed', lastActivity: new Date().toISOString() });
         return result.data;
       }
@@ -433,18 +458,22 @@ export const useCRMDataInternal = () => {
   };
 
   // ── BOOKINGS ──────────────────────────────────────────────────────────
-  const fetchBookings = async () => {
+  const fetchBookings = async ({ userId: requestUserId = null, scopedToEmployee = false } = {}) => {
     try {
       setBookingsLoading(true);
       const data = await getBookings();
-      setBookings(data.map(row => ({
+      const mapped = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id, leadName: row.lead_name,
         projectName: row.project_name, unitType: row.unit_type, unitNumber: row.unit_number,
         amount: parseFloat(row.booking_amount), paymentMode: row.payment_mode,
         paymentStatus: row.payment_status, bookingDate: row.booking_date,
         expectedClosureDate: row.expected_closure_date, notes: row.notes,
         timestamp: row.created_at,
-      })));
+      }));
+      const filtered = scopedToEmployee && requestUserId
+        ? mapped.filter(row => row.employeeId === requestUserId)
+        : mapped;
+      setBookings(filtered);
     } catch (err) { console.error('[Bookings] Fetch error:', err); setBookings([]); }
     finally { setBookingsLoading(false); }
   };
@@ -462,7 +491,7 @@ export const useCRMDataInternal = () => {
           if (log.paymentMode    !== undefined) leadUpdate.paymentMode    = log.paymentMode;
           await updateLead(log.leadId, leadUpdate);
         }
-        await fetchBookings();
+        await fetchBookings({ userId, scopedToEmployee: isEmployeeUser });
         return result.data;
       }
       return null;
@@ -490,7 +519,9 @@ export const useCRMDataInternal = () => {
     localStorage.removeItem('crm_work_logs');
     saveData(STORAGE_KEYS.TASKS, []);
     saveData(STORAGE_KEYS.EOD_REPORTS, []);
-    await fetchCalls(); await fetchSiteVisits(); await fetchBookings();
+    await fetchCalls({ userId, scopedToEmployee: isEmployeeUser });
+    await fetchSiteVisits({ userId, scopedToEmployee: isEmployeeUser });
+    await fetchBookings({ userId, scopedToEmployee: isEmployeeUser });
   };
   const getUniqueSources = () => Array.from(new Set(leads.map(l => l.source || 'Manual Import')));
 

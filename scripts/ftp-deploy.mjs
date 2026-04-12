@@ -1,6 +1,6 @@
 import * as ftp from 'basic-ftp';
-import { resolve } from 'node:path';
-import { readFileSync, existsSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 
 // ── Load .env.deploy manually ──────────────────────────────────────────────
 if (existsSync('.env.deploy')) {
@@ -36,14 +36,9 @@ async function connectWithRetry(client, attempt = 1) {
       secure: false,
       timeout: 60000,
     });
-
-    // Hostinger keepAlive — prevents ECONNRESET on large file uploads
     client.ftp.socket.setKeepAlive(true, 10000);
     client.ftp.socket.setTimeout(120000);
-
-    // Force passive mode (Hostinger requires this)
     client.ftp.passive = true;
-
     console.log('✅  Connected!');
   } catch (err) {
     if (attempt < MAX_RETRIES) {
@@ -55,22 +50,24 @@ async function connectWithRetry(client, attempt = 1) {
   }
 }
 
-async function uploadWithRetry(client, attempt = 1) {
-  try {
-    console.log(`\n📁  Uploading dist/ → ${FTP_REMOTE}`);
-    console.log('    This may take 2-5 minutes for large chunks...\n');
-    await client.ensureDir(FTP_REMOTE);
-    await client.clearWorkingDir();
-    await client.uploadFromDir(LOCAL_DIR);
-  } catch (err) {
-    if (attempt < MAX_RETRIES && err.message.includes('ECONNRESET')) {
-      console.warn(`\n⚠️   Upload dropped (ECONNRESET), reconnecting and retrying (${attempt}/${MAX_RETRIES})...`);
-      await new Promise(r => setTimeout(r, 5000));
-      await connectWithRetry(client, 1);
-      return uploadWithRetry(client, attempt + 1);
+// Recursively upload local dir to remote, overwriting files (no clearWorkingDir)
+async function uploadDir(client, localDir, remoteDir) {
+  await client.ensureDir(remoteDir);
+  const entries = readdirSync(localDir);
+  let count = 0;
+  for (const entry of entries) {
+    const localPath  = join(localDir, entry);
+    const remotePath = `${remoteDir}/${entry}`;
+    const stat = statSync(localPath);
+    if (stat.isDirectory()) {
+      await uploadDir(client, localPath, remotePath);
+    } else {
+      process.stdout.write(`   ↑ ${entry}\n`);
+      await client.uploadFrom(localPath, remotePath);
+      count++;
     }
-    throw err;
   }
+  return count;
 }
 
 async function deploy() {
@@ -79,12 +76,22 @@ async function deploy() {
 
   try {
     await connectWithRetry(client);
-    await uploadWithRetry(client);
+
+    console.log(`\n📁  Uploading dist/ → ${FTP_REMOTE}`);
+    console.log('    Overwriting files (skipping server-only files like schema.sql)...');
+    console.log('    This may take 2-5 minutes...\n');
+
+    await uploadDir(client, LOCAL_DIR, FTP_REMOTE);
+
     console.log('\n✅  Deploy complete! Live at https://fanbegroup.com\n');
   } catch (err) {
-    console.error('\n❌  FTP deploy failed:', err.message);
-    console.error('\n💡  If still failing, open FileZilla and upload dist/ manually:');
-    console.error(`    Host: ${FTP_HOST}  User: ${FTP_USER}  Port: 21  Remote: ${FTP_REMOTE}\n`);
+    if (err.message.includes('ECONNRESET') || err.message.includes('timeout')) {
+      console.error('\n❌  Connection dropped during upload:', err.message);
+      console.error('💡  Run the command again — it will pick up where it left off.');
+    } else {
+      console.error('\n❌  FTP deploy failed:', err.message);
+    }
+    console.error(`\n📄  Manual fallback: FileZilla → Host: ${FTP_HOST}  User: ${FTP_USER}  Port: 21  Remote: ${FTP_REMOTE}\n`);
     process.exit(1);
   } finally {
     client.close();

@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import { ROLES } from '@/lib/permissions';
-import { Search, Upload, UserCheck, Users, UserX, RefreshCw, History, ArrowRightLeft, Download, UserPlus, Trash2, X, CheckSquare } from 'lucide-react';
+import { Search, Upload, UserCheck, Users, UserX, RefreshCw, History, ArrowRightLeft, Download, UserPlus, Trash2, X, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import projects from '@/data/projects';
 import ImportLeadsModal from '@/crm/components/ImportLeadsModal';
@@ -18,6 +18,8 @@ import LeadTable from '@/crm/components/LeadTable';
 import AssignmentModal from '@/crm/components/AssignmentModal';
 import BulkDeleteModal from '@/crm/components/BulkDeleteModal';
 import { isVIPLead } from '@/lib/smartAssignmentEngine';
+
+const PAGE_SIZE = 50;
 
 const fmtDate = (d, fmt = 'dd MMM yyyy') => {
   if (!d) return '—';
@@ -29,6 +31,36 @@ const ADMIN_ROLES = [
   'sub_admin',   'subadmin',
   'hr_manager',  'hr',
 ];
+
+// ─ Reusable pagination bar ───────────────────────────────────────────────────
+const Pagination = ({ page, total, pageSize, onChange }) => {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end   = Math.min(page * pageSize, total);
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm text-gray-500">
+      <span>{start}–{end} of {total} leads</span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onChange(page - 1)}
+          disabled={page === 1}
+          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span className="px-2 font-medium text-gray-700">{page} / {totalPages}</span>
+        <button
+          onClick={() => onChange(page + 1)}
+          disabled={page === totalPages}
+          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const LeadManagement = () => {
   const { leads, addLead, updateLead, deleteLead, employees, getUniqueSources } = useCRMData();
@@ -45,6 +77,11 @@ const LeadManagement = () => {
   const [selectedLeadIds,     setSelectedLeadIds]     = useState([]);
   const [selectedLogIds,      setSelectedLogIds]      = useState([]);
 
+  // ─ per-tab page state ────────────────────────────────────────────
+  const [unassignedPage, setUnassignedPage] = useState(1);
+  const [assignedPage,   setAssignedPage]   = useState(1);
+  const [logPage,        setLogPage]        = useState(1);
+
   const [isAssignmentModalOpen,    setIsAssignmentModalOpen]    = useState(false);
   const [isBulkDeleteModalOpen,    setIsBulkDeleteModalOpen]    = useState(false);
   const [isLogAssignModalOpen,     setIsLogAssignModalOpen]     = useState(false);
@@ -59,14 +96,14 @@ const LeadManagement = () => {
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
-  // ─ memoize salesEmployees (employees list rarely changes) ─────────────────
+  // ─ memoize salesEmployees ──────────────────────────────────────
   const salesEmployees = useMemo(() =>
     employees.filter(emp =>
       !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
     ),
   [employees]);
 
-  // ─ memoize base lists ────────────────────────────────────────────
+  // ─ memoize base lists ──────────────────────────────────────────
   const myLeads = useMemo(() =>
     isAdmin ? leads : leads.filter(l => l.assignedTo === user.id),
   [leads, isAdmin, user.id]);
@@ -75,7 +112,6 @@ const LeadManagement = () => {
     myLeads.filter(l => !l.assignedTo),
   [myLeads]);
 
-  // sort once, memoized
   const assignedLeads = useMemo(() =>
     myLeads
       .filter(l => !!l.assignedTo)
@@ -89,7 +125,7 @@ const LeadManagement = () => {
     assignedLeads.filter(l => l.prevAssignedTo).length,
   [assignedLeads]);
 
-  // ─ memoize filtered lists (depend on filter state + base lists) ───────
+  // ─ memoize FULL filtered lists (for counts + export) ──────────
   const filteredUnassigned = useMemo(() => {
     const lc = searchTerm.toLowerCase();
     return unassignedLeads.filter(l => {
@@ -115,7 +151,25 @@ const LeadManagement = () => {
       .filter(l => !showOnlyReassigned || l.prevAssignedTo);
   }, [assignedLeads, filterAssignLog, showOnlyReassigned]);
 
-  // ─ per-employee lead count (memoized map) ───────────────────────
+  // ─ PAGINATED slices (only these go to the DOM) ────────────────
+  const pagedUnassigned = useMemo(() =>
+    filteredUnassigned.slice((unassignedPage - 1) * PAGE_SIZE, unassignedPage * PAGE_SIZE),
+  [filteredUnassigned, unassignedPage]);
+
+  const pagedAssigned = useMemo(() =>
+    filteredAssigned.slice((assignedPage - 1) * PAGE_SIZE, assignedPage * PAGE_SIZE),
+  [filteredAssigned, assignedPage]);
+
+  const pagedLog = useMemo(() =>
+    assignLogLeads.slice((logPage - 1) * PAGE_SIZE, logPage * PAGE_SIZE),
+  [assignLogLeads, logPage]);
+
+  // ─ reset pages when filters change ────────────────────────────
+  useEffect(() => { setUnassignedPage(1); }, [searchTerm, filterSource]);
+  useEffect(() => { setAssignedPage(1);   }, [searchTerm, filterSource, filterEmployee]);
+  useEffect(() => { setLogPage(1);        }, [filterAssignLog, showOnlyReassigned]);
+
+  // ─ per-employee lead count ─────────────────────────────────────
   const employeeLeadCount = useMemo(() => {
     const map = {};
     assignedLeads.forEach(l => {
@@ -128,7 +182,6 @@ const LeadManagement = () => {
                     : activeTab === 'unassigned' ? filteredUnassigned
                     : [];
 
-  // ─ unique sources memoized ───────────────────────────────────
   const uniqueSources = useMemo(() => getUniqueSources(), [leads]);
 
   // ─ Assignment Log selection helpers ───────────────────────────
@@ -373,10 +426,16 @@ const LeadManagement = () => {
           </div>
           <Card>
             <div className="p-0">
-              <LeadTable leads={filteredUnassigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
+              <LeadTable leads={pagedUnassigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
                 selectedIds={selectedLeadIds} onSelectLead={handleSelectLead} onSelectAll={handleSelectAll}
                 type="daily" showSource={true} />
             </div>
+            <Pagination
+              page={unassignedPage}
+              total={filteredUnassigned.length}
+              pageSize={PAGE_SIZE}
+              onChange={setUnassignedPage}
+            />
           </Card>
         </TabsContent>
 
@@ -421,10 +480,16 @@ const LeadManagement = () => {
             )}
             <Card>
               <div className="p-0">
-                <LeadTable leads={filteredAssigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
+                <LeadTable leads={pagedAssigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
                   selectedIds={selectedLeadIds} onSelectLead={handleSelectLead} onSelectAll={handleSelectAll}
                   type="daily" showSource={true} />
               </div>
+              <Pagination
+                page={assignedPage}
+                total={filteredAssigned.length}
+                pageSize={PAGE_SIZE}
+                onChange={setAssignedPage}
+              />
             </Card>
           </TabsContent>
         )}
@@ -547,14 +612,14 @@ const LeadManagement = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {assignLogLeads.length === 0 ? (
+                    {pagedLog.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-16 text-center">
                           <History size={32} className="mx-auto text-gray-200 mb-2" />
                           <p className="text-gray-400 text-sm">No assigned leads yet.</p>
                         </td>
                       </tr>
-                    ) : assignLogLeads.map(lead => (
+                    ) : pagedLog.map(lead => (
                       <tr key={lead.id}
                         className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                           selectedLogIds.includes(lead.id)
@@ -631,6 +696,12 @@ const LeadManagement = () => {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                page={logPage}
+                total={assignLogLeads.length}
+                pageSize={PAGE_SIZE}
+                onChange={setLogPage}
+              />
             </Card>
           </TabsContent>
         )}

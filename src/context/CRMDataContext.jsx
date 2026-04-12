@@ -1,7 +1,8 @@
 // src/context/CRMDataContext.jsx
-// ✅ SINGLETON: All CRM data lives here — one fetch, one state, shared across every page.
-// ✅ NO circular import — directly contains the full hook logic (moved from useCRMData.js)
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+// ✅ SINGLETON — one fetch, one state, shared across every page.
+// ✅ ROLE-SCOPED QUERIES — sales employees only fetch their own data (fast!)
+// ✅ STALE-WHILE-REVALIDATE — cached data shown immediately, refresh in background
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
 import {
@@ -22,6 +23,9 @@ const STORAGE_KEYS = {
   PROMO_MATERIALS: 'crm_promo_materials',
   AUDIT_LOGS:      'crm_audit_logs',
 };
+
+// Cache keys for stale-while-revalidate (per user)
+const cacheKey = (userId, type) => `crm_cache_${userId}_${type}`;
 
 // Lean column list — no heavy text columns in list fetch
 const LIST_COLUMNS = [
@@ -71,17 +75,49 @@ const normalizeRow = (row) => ({
   prevAssignedAt:      row.prev_assigned_at       || null,
 });
 
-const useCRMDataInternal = () => {
-  const [leads, setLeads]                         = useState([]);
-  const [leadsLoading, setLeadsLoading]           = useState(true);
+const ADMIN_ROLES = ['admin', 'super_admin', 'manager', 'team_leader'];
+const isAdminRole = (role) => ADMIN_ROLES.includes(role);
+
+// Read stale cache synchronously (returns [] if missing/expired)
+const readCache = (key) => {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    // Cache expires after 5 minutes — after that we show loading instead
+    if (Date.now() - ts > 5 * 60 * 1000) return null;
+    return data;
+  } catch { return null; }
+};
+
+const writeCache = (key, data) => {
+  try { sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch { /* quota */ }
+};
+
+const useCRMDataInternal = ({ userId, role } = {}) => {
+  const isAdmin = isAdminRole(role);
+
+  // ── Stale cache seeds (synchronous — available before first render) ──────────
+  const cachedLeads       = userId ? (readCache(cacheKey(userId, 'leads'))       || []) : [];
+  const cachedCalls       = userId ? (readCache(cacheKey(userId, 'calls'))       || []) : [];
+  const cachedVisits      = userId ? (readCache(cacheKey(userId, 'visits'))      || []) : [];
+  const cachedBookings    = userId ? (readCache(cacheKey(userId, 'bookings'))    || []) : [];
+
+  const hasLeadsCache   = cachedLeads.length   > 0;
+  const hasCallsCache   = cachedCalls.length   > 0;
+  const hasVisitsCache  = cachedVisits.length  > 0;
+  const hasBookingCache = cachedBookings.length > 0;
+
+  const [leads, setLeads]                         = useState(cachedLeads);
+  const [leadsLoading, setLeadsLoading]           = useState(!hasLeadsCache);
   const [employees, setEmployees]                 = useState([]);
   const [employeesLoading, setEmployeesLoading]   = useState(true);
-  const [calls, setCalls]                         = useState([]);
-  const [callsLoading, setCallsLoading]           = useState(true);
-  const [siteVisits, setSiteVisits]               = useState([]);
-  const [siteVisitsLoading, setSiteVisitsLoading] = useState(true);
-  const [bookings, setBookings]                   = useState([]);
-  const [bookingsLoading, setBookingsLoading]     = useState(true);
+  const [calls, setCalls]                         = useState(cachedCalls);
+  const [callsLoading, setCallsLoading]           = useState(!hasCallsCache);
+  const [siteVisits, setSiteVisits]               = useState(cachedVisits);
+  const [siteVisitsLoading, setSiteVisitsLoading] = useState(!hasVisitsCache);
+  const [bookings, setBookings]                   = useState(cachedBookings);
+  const [bookingsLoading, setBookingsLoading]     = useState(!hasBookingCache);
   const [workLogs, setWorkLogs]                   = useState([]);
 
   const [customers, setCustomers]           = useState([]);
@@ -96,6 +132,11 @@ const useCRMDataInternal = () => {
 
   const leadsReqId   = useRef(0);
   const tabWasHidden = useRef(false);
+  const userIdRef    = useRef(userId);
+  const roleRef      = useRef(role);
+
+  // Keep refs up to date when props change
+  useEffect(() => { userIdRef.current = userId; roleRef.current = role; }, [userId, role]);
 
   useEffect(() => {
     const get = (key, def) => { try { const i = localStorage.getItem(key); return i ? JSON.parse(i) : def; } catch { return def; } };
@@ -110,41 +151,67 @@ const useCRMDataInternal = () => {
     setAuditLogs(get(STORAGE_KEYS.AUDIT_LOGS, []));
   }, []);
 
+  // ── Initial fetches — run only once userId is available ─────────────────────
   useEffect(() => {
+    if (!userId) return; // wait for auth
     fetchLeads();
     fetchEmployees();
     fetchCalls();
     fetchSiteVisits();
     fetchBookings();
-  }, []);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Realtime subscriptions ──────────────────────────────────────────────────
   useEffect(() => {
+    if (!userId) return;
+
+    const leadsFilter = isAdmin
+      ? undefined
+      : `assigned_to=eq.${userId}`;
+
     const leadsChannel = supabaseAdmin
-      .channel('realtime:leads')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, ({ new: row }) => {
+      .channel(`realtime:leads:${userId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'leads',
+        ...(leadsFilter ? { filter: leadsFilter } : {}),
+      }, ({ new: row }) => {
         setLeads(prev => prev.some(l => l.id === row.id) ? prev : [normalizeRow(row), ...prev]);
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, ({ new: row }) => {
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'leads',
+        ...(leadsFilter ? { filter: leadsFilter } : {}),
+      }, ({ new: row }) => {
         setLeads(prev => prev.map(l => l.id === row.id ? { ...normalizeRow(row), notes: l.notes } : l));
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, ({ old: row }) => {
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'leads',
+      }, ({ old: row }) => {
         setLeads(prev => prev.filter(l => l.id !== row.id));
       })
       .subscribe();
 
-    const visitsChannel = supabaseAdmin
-      .channel('realtime:site_visits')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => fetchSiteVisits())
+    const callsChannel = supabaseAdmin
+      .channel(`realtime:calls:${userId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'calls',
+        ...(isAdmin ? {} : { filter: `employee_id=eq.${userId}` }),
+      }, () => fetchCalls())
       .subscribe();
 
-    const callsChannel = supabaseAdmin
-      .channel('realtime:calls')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => fetchCalls())
+    const visitsChannel = supabaseAdmin
+      .channel(`realtime:site_visits:${userId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'site_visits',
+        ...(isAdmin ? {} : { filter: `employee_id=eq.${userId}` }),
+      }, () => fetchSiteVisits())
       .subscribe();
 
     const bookingsChannel = supabaseAdmin
-      .channel('realtime:bookings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
+      .channel(`realtime:bookings:${userId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'bookings',
+        ...(isAdmin ? {} : { filter: `employee_id=eq.${userId}` }),
+      }, () => fetchBookings())
       .subscribe();
 
     const handleVisibility = () => {
@@ -159,13 +226,14 @@ const useCRMDataInternal = () => {
 
     return () => {
       supabaseAdmin.removeChannel(leadsChannel);
-      supabaseAdmin.removeChannel(visitsChannel);
       supabaseAdmin.removeChannel(callsChannel);
+      supabaseAdmin.removeChannel(visitsChannel);
       supabaseAdmin.removeChannel(bookingsChannel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Work logs derived from calls/visits/bookings ────────────────────────────
   useEffect(() => {
     if (callsLoading || siteVisitsLoading || bookingsLoading) return;
     const logsMap = {};
@@ -194,18 +262,30 @@ const useCRMDataInternal = () => {
     setWorkLogs(Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date)));
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
-  const fetchLeads = async () => {
+  // ── FETCH LEADS ─────────────────────────────────────────────────────────────
+  const fetchLeads = useCallback(async () => {
     const thisReq = ++leadsReqId.current;
+    const uid  = userIdRef.current;
+    const rle  = roleRef.current;
+    const admin = isAdminRole(rle);
+
     try {
       setLeadsLoading(true);
-      const PAGE_SIZE = 2000;
+      const PAGE_SIZE = 500; // smaller pages = faster first paint
       let allData = [], from = 0, keepGoing = true;
+
       while (keepGoing) {
-        const { data, error } = await supabaseAdmin
+        let query = supabaseAdmin
           .from('leads')
           .select(LIST_COLUMNS)
           .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
+
+        // 🔑 KEY OPTIMISATION: employees only fetch their own leads
+        if (!admin && uid) query = query.eq('assigned_to', uid);
+
+        const { data, error } = await query;
+
         if (error) {
           console.error('[Leads] Fetch error:', error.message);
           if (thisReq === leadsReqId.current) setLeads([]);
@@ -216,17 +296,19 @@ const useCRMDataInternal = () => {
         if (!data || data.length < PAGE_SIZE) keepGoing = false;
         else from += PAGE_SIZE;
       }
+
       if (thisReq !== leadsReqId.current) return;
       const normalized = allData.map(normalizeRow);
       setLeads(normalized);
-      console.log(`[Leads] req#${thisReq} applied — ${normalized.length} leads`);
+      if (uid) writeCache(cacheKey(uid, 'leads'), normalized);
+      console.log(`[Leads] req#${thisReq} — ${normalized.length} leads (${admin ? 'admin' : 'employee'})`);
     } catch (err) {
       console.error('[Leads] Unexpected error:', err);
       if (thisReq === leadsReqId.current) setLeads([]);
     } finally {
       if (thisReq === leadsReqId.current) setLeadsLoading(false);
     }
-  };
+  }, []); // deps empty — reads from refs
 
   const addLead = async (lead) => {
     try {
@@ -334,6 +416,7 @@ const useCRMDataInternal = () => {
     await updateLead(id, { notes: newNote });
   };
 
+  // ── FETCH EMPLOYEES ──────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -350,20 +433,26 @@ const useCRMDataInternal = () => {
     finally { setEmployeesLoading(false); }
   };
 
-  const fetchCalls = async () => {
+  // ── FETCH CALLS ─────────────────────────────────────────────────────────────
+  const fetchCalls = useCallback(async () => {
+    const uid   = userIdRef.current;
+    const admin = isAdminRole(roleRef.current);
     try {
       setCallsLoading(true);
-      const data = await getCalls();
-      setCalls(data.map(row => ({
+      // Employees only fetch their own calls — much faster
+      const data = await getCalls(admin ? null : uid);
+      const normalized = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id,
         leadName: row.lead_name, projectName: row.project_name, type: row.call_type,
         status: row.status, duration: row.duration, notes: row.notes,
         employee_name: row.employee_name, created_at: row.created_at,
         timestamp: row.created_at, majorObjection: row.major_objection || null,
-      })));
+      }));
+      setCalls(normalized);
+      if (uid) writeCache(cacheKey(uid, 'calls'), normalized);
     } catch (err) { console.error('[Calls] Fetch error:', err); setCalls([]); }
     finally { setCallsLoading(false); }
-  };
+  }, []);
 
   const addCallLog = async (log) => {
     try {
@@ -373,21 +462,26 @@ const useCRMDataInternal = () => {
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
-  const fetchSiteVisits = async () => {
+  // ── FETCH SITE VISITS ───────────────────────────────────────────────────────
+  const fetchSiteVisits = useCallback(async () => {
+    const uid   = userIdRef.current;
+    const admin = isAdminRole(roleRef.current);
     try {
       setSiteVisitsLoading(true);
-      const data = await getSiteVisits();
-      setSiteVisits(data.map(row => ({
+      const data = await getSiteVisits(admin ? null : uid);
+      const normalized = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id,
         leadName: row.lead_name, projectName: row.project_name,
         visitDate: row.visit_date, visitTime: row.visit_time,
         status: row.status, location: row.location, duration: row.duration,
         notes: row.notes, feedback: row.feedback, interest: row.interest_level || null,
         timestamp: row.created_at,
-      })));
+      }));
+      setSiteVisits(normalized);
+      if (uid) writeCache(cacheKey(uid, 'visits'), normalized);
     } catch (err) { console.error('[SiteVisits] Fetch error:', err); setSiteVisits([]); }
     finally { setSiteVisitsLoading(false); }
-  };
+  }, []);
 
   const addSiteVisitLog = async (log) => {
     try {
@@ -425,21 +519,26 @@ const useCRMDataInternal = () => {
     } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
   };
 
-  const fetchBookings = async () => {
+  // ── FETCH BOOKINGS ──────────────────────────────────────────────────────────
+  const fetchBookings = useCallback(async () => {
+    const uid   = userIdRef.current;
+    const admin = isAdminRole(roleRef.current);
     try {
       setBookingsLoading(true);
-      const data = await getBookings();
-      setBookings(data.map(row => ({
+      const data = await getBookings(admin ? null : uid);
+      const normalized = data.map(row => ({
         id: row.id, employeeId: row.employee_id, leadId: row.lead_id, leadName: row.lead_name,
         projectName: row.project_name, unitType: row.unit_type, unitNumber: row.unit_number,
         amount: parseFloat(row.booking_amount), paymentMode: row.payment_mode,
         paymentStatus: row.payment_status, bookingDate: row.booking_date,
         expectedClosureDate: row.expected_closure_date, notes: row.notes,
         timestamp: row.created_at,
-      })));
+      }));
+      setBookings(normalized);
+      if (uid) writeCache(cacheKey(uid, 'bookings'), normalized);
     } catch (err) { console.error('[Bookings] Fetch error:', err); setBookings([]); }
     finally { setBookingsLoading(false); }
-  };
+  }, []);
 
   const addBookingLog = async (log) => {
     try {
@@ -499,9 +598,10 @@ const useCRMDataInternal = () => {
   };
 };
 
-// Provider — wrap your app with this once
-export const CRMDataProvider = ({ children }) => {
-  const value = useCRMDataInternal();
+// ── Provider — wrap your app with this once ──────────────────────────────────
+// Pass userId and role from AuthContext so queries are scoped at the DB level
+export const CRMDataProvider = ({ children, userId, role }) => {
+  const value = useCRMDataInternal({ userId, role });
   return (
     <CRMDataContext.Provider value={value}>
       {children}
@@ -509,7 +609,7 @@ export const CRMDataProvider = ({ children }) => {
   );
 };
 
-// Public hook — ALL components import useCRMData from here (or from the stub below)
+// Public hook
 export const useCRMData = () => {
   const ctx = useContext(CRMDataContext);
   if (!ctx) throw new Error('useCRMData must be used inside <CRMDataProvider>');

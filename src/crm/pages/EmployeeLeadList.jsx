@@ -5,21 +5,20 @@ import { supabase } from '@/lib/supabaseClient';
 import {
   Search, Plus, Phone, Calendar, IndianRupee,
   TrendingUp, Users, CheckCircle2, Clock, X,
-  ChevronRight, Flame
+  ChevronRight, Flame, FileText, ChevronDown
 } from 'lucide-react';
 
-/* ─── Status config ──────────────────────────────────────────────────── */
+/* ─── Status config ─────────────────────────────────────────────────── */
 const STATUS_CFG = {
-  Open:       { dot: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  text: '#1d4ed8', label: 'Open'      },
-  FollowUp:   { dot: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: '#b45309', label: 'Follow Up' },
-  'Follow Up':{ dot: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: '#b45309', label: 'Follow Up' },
-  Booked:     { dot: '#10b981', bg: 'rgba(16,185,129,0.1)', text: '#065f46', label: 'Booked'    },
-  Lost:       { dot: '#ef4444', bg: 'rgba(239,68,68,0.1)',  text: '#991b1b', label: 'Lost'      },
+  Open:         { dot: '#3b82f6', bg: 'rgba(59,130,246,0.12)',  text: '#1d4ed8', label: 'Open'      },
+  FollowUp:     { dot: '#f59e0b', bg: 'rgba(245,158,11,0.12)', text: '#b45309', label: 'Follow Up' },
+  'Follow Up':  { dot: '#f59e0b', bg: 'rgba(245,158,11,0.12)', text: '#b45309', label: 'Follow Up' },
+  Booked:       { dot: '#10b981', bg: 'rgba(16,185,129,0.12)', text: '#065f46', label: 'Booked'    },
+  Lost:         { dot: '#ef4444', bg: 'rgba(239,68,68,0.12)',  text: '#991b1b', label: 'Lost'      },
 };
-
 const getStatus = s => STATUS_CFG[s] || STATUS_CFG.Open;
 
-/* ─── Helpers ────────────────────────────────────────────────────────── */
+/* ─── Helpers ───────────────────────────────────────────────────────── */
 const fmtDate = d => {
   if (!d) return null;
   const dt = new Date(d);
@@ -50,7 +49,6 @@ const isUrgent = lead => {
   return diff >= 0 && diff < 86400000;
 };
 
-/* ─── normalise DB row → UI shape ───────────────────────────────────── */
 const normalise = row => ({
   id:           row.id,
   name:         row.name,
@@ -65,32 +63,229 @@ const normalise = row => ({
   lastNote:     row.last_note,
 });
 
-/* ─── Skeleton ───────────────────────────────────────────────────────── */
-const LeadSkeleton = () => (
-  <div style={styles.card}>
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-      <div style={{ ...styles.skel, width: 40, height: 40, borderRadius: '50%', flexShrink: 0 }} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ ...styles.skel, width: '60%', height: 14 }} />
-        <div style={{ ...styles.skel, width: '40%', height: 11 }} />
-        <div style={{ ...styles.skel, width: '80%', height: 11 }} />
+/* ─── QuickLog Bottom Sheet ─────────────────────────────────────────── */
+const QUICK_STATUSES = [
+  { key: 'Open',       label: 'Open',       color: '#2563eb', bg: 'rgba(59,130,246,0.1)'  },
+  { key: 'FollowUp',   label: 'Follow Up',  color: '#b45309', bg: 'rgba(245,158,11,0.1)'  },
+  { key: 'Booked',     label: 'Booked',     color: '#065f46', bg: 'rgba(16,185,129,0.1)'  },
+  { key: 'Lost',       label: 'Lost',       color: '#991b1b', bg: 'rgba(239,68,68,0.1)'   },
+];
+
+const QuickLogSheet = ({ lead, onClose, onSaved }) => {
+  const [status,     setStatus]     = useState(lead?.status === 'Follow Up' ? 'FollowUp' : (lead?.status || 'Open'));
+  const [note,       setNote]       = useState('');
+  const [followUp,   setFollowUp]   = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [savedOk,    setSavedOk]    = useState(false);
+
+  const handleSave = async () => {
+    if (!lead) return;
+    setSaving(true);
+    try {
+      const dbStatus = status === 'FollowUp' ? 'Follow Up' : status;
+      const updates = { status: dbStatus, updated_at: new Date().toISOString() };
+      if (note.trim())    updates.last_note      = note.trim();
+      if (followUp)       updates.follow_up_date = followUp;
+
+      const { error } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', lead.id);
+
+      if (!error) {
+        onSaved?.({ id: lead.id, ...updates });
+        setSavedOk(true);
+        setTimeout(() => { setSavedOk(false); onClose(); }, 900);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Prevent body scroll while sheet is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          zIndex: 200, backdropFilter: 'blur(2px)',
+        }}
+      />
+
+      {/* Sheet */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
+        background: '#fff',
+        borderRadius: '20px 20px 0 0',
+        padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+        animation: 'slideUp 0.28s cubic-bezier(0.32,0.72,0,1)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}>
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: '#e2e8f0' }} />
+        </div>
+
+        <div style={{ padding: '4px 20px 0' }}>
+          {/* Title row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <p style={{ fontSize: 11, color: '#64748b', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Quick Log</p>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{lead?.name}</h3>
+              {lead?.phone && (
+                <a
+                  href={`tel:${lead.phone}`}
+                  style={{ fontSize: 13, color: '#2563eb', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}
+                >
+                  <Phone size={13} /> {lead.phone}
+                </a>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: 36, height: 36, borderRadius: '50%', border: 'none',
+                background: '#f1f5f9', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <X size={16} color="#64748b" />
+            </button>
+          </div>
+
+          {/* Status chips */}
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Update Status</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+            {QUICK_STATUSES.map(s => (
+              <button
+                key={s.key}
+                onClick={() => setStatus(s.key)}
+                style={{
+                  padding: '12px 8px', borderRadius: 12, border: `2px solid ${status === s.key ? s.color : 'transparent'}`,
+                  background: status === s.key ? s.bg : '#f8fafc',
+                  color: status === s.key ? s.color : '#64748b',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  WebkitTapHighlightColor: 'transparent',
+                  minHeight: 48,
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Note */}
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Call Note</p>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="What did you discuss?"
+            rows={3}
+            style={{
+              width: '100%', borderRadius: 12, border: '1.5px solid #e2e8f0',
+              padding: '12px', fontSize: 15, color: '#0f172a',
+              resize: 'none', outline: 'none', boxSizing: 'border-box',
+              fontFamily: 'inherit', lineHeight: 1.5,
+              background: '#f8fafc',
+            }}
+            onFocus={e => e.target.style.borderColor = '#2563eb'}
+            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+          />
+
+          {/* Follow-up date (only for FollowUp status) */}
+          {status === 'FollowUp' && (
+            <div style={{ marginTop: 14 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Follow-Up Date</p>
+              <input
+                type="date"
+                value={followUp}
+                onChange={e => setFollowUp(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                style={{
+                  width: '100%', borderRadius: 12, border: '1.5px solid #e2e8f0',
+                  padding: '12px', fontSize: 15, color: '#0f172a',
+                  outline: 'none', boxSizing: 'border-box', background: '#f8fafc',
+                }}
+                onFocus={e => e.target.style.borderColor = '#2563eb'}
+                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              />
+            </div>
+          )}
+
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            disabled={saving || savedOk}
+            style={{
+              width: '100%', marginTop: 18,
+              padding: '16px', borderRadius: 14, border: 'none',
+              background: savedOk
+                ? 'linear-gradient(135deg, #10b981, #059669)'
+                : 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+              color: '#fff', fontSize: 16, fontWeight: 800,
+              cursor: saving || savedOk ? 'default' : 'pointer',
+              boxShadow: '0 4px 16px rgba(37,99,235,0.3)',
+              transition: 'all 0.2s',
+              opacity: saving ? 0.75 : 1,
+              minHeight: 52,
+            }}
+          >
+            {savedOk ? '✓ Saved!' : saving ? 'Saving…' : 'Save Log'}
+          </button>
+        </div>
       </div>
-      <div style={{ ...styles.skel, width: 64, height: 22, borderRadius: 99 }} />
+    </>
+  );
+};
+
+/* ─── Skeleton ──────────────────────────────────────────────────────── */
+const LeadSkeleton = () => (
+  <div style={S.card}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{ ...S.skel, width: 42, height: 42, borderRadius: '50%', flexShrink: 0 }} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ ...S.skel, width: '60%', height: 14 }} />
+        <div style={{ ...S.skel, width: '40%', height: 11 }} />
+        <div style={{ ...S.skel, width: '80%', height: 11 }} />
+      </div>
+      <div style={{ ...S.skel, width: 64, height: 22, borderRadius: 99 }} />
     </div>
   </div>
 );
 
-/* ─── Lead Card ──────────────────────────────────────────────────────── */
-const LeadCard = React.memo(({ lead, onClick }) => {
-  const st     = getStatus(lead.status);
-  const urgent = isUrgent(lead);
+/* ─── Lead Card ─────────────────────────────────────────────────────── */
+const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
+  const st      = getStatus(lead.status);
+  const urgent  = isUrgent(lead);
   const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+  const handleCall = e => {
+    e.stopPropagation();
+    if (lead.phone) window.location.href = `tel:${lead.phone}`;
+    // Open QuickLog after a short delay so dialer opens first
+    setTimeout(() => onCallLog(lead), 400);
+  };
+
+  const handleQuickLog = e => {
+    e.stopPropagation();
+    onCallLog(lead);
+  };
 
   return (
     <div
       onClick={onClick}
       style={{
-        ...styles.card,
+        ...S.card,
         borderLeft: urgent ? '3px solid #f59e0b' : '3px solid transparent',
         WebkitTapHighlightColor: 'transparent',
       }}
@@ -109,13 +304,19 @@ const LeadCard = React.memo(({ lead, onClick }) => {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{
+              fontSize: 15, fontWeight: 700, color: '#0f172a',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {lead.name}
             </span>
             {urgent && <Flame size={13} color="#f59e0b" />}
           </div>
           {lead.project && (
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{
+              fontSize: 12, color: '#64748b', marginTop: 2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {lead.project}
             </p>
           )}
@@ -132,43 +333,83 @@ const LeadCard = React.memo(({ lead, onClick }) => {
         </div>
       </div>
 
-      <div style={{ height: 1, background: '#f1f5f9', margin: '10px 0' }} />
-
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {lead.phone && (
-          <div style={styles.infoChip}>
-            <Phone size={12} color="#3b82f6" />
-            <span style={{ fontSize: 12, color: '#334155' }}>{lead.phone}</span>
-          </div>
-        )}
-        {lead.budget && (
-          <div style={styles.infoChip}>
-            <IndianRupee size={12} color="#10b981" />
-            <span style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>
-              ₹{fmtBudget(lead.budget)}
-            </span>
-          </div>
-        )}
-        {lead.followUpDate && (
-          <div style={{
-            ...styles.infoChip,
-            background: urgent ? 'rgba(245,158,11,0.1)' : 'rgba(239,246,255,1)',
-            borderRadius: 6, padding: '3px 8px',
-          }}>
-            <Calendar size={12} color={urgent ? '#f59e0b' : '#3b82f6'} />
-            <span style={{ fontSize: 11, color: urgent ? '#b45309' : '#1d4ed8', fontWeight: 600 }}>
-              {fmtDate(lead.followUpDate)}
-            </span>
-          </div>
-        )}
-      </div>
+      {/* Info row */}
+      {(lead.phone || lead.budget || lead.followUpDate) && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10 }}>
+          {lead.budget && (
+            <div style={S.infoChip}>
+              <IndianRupee size={12} color="#10b981" />
+              <span style={{ fontSize: 12, color: '#334155', fontWeight: 600 }}>₹{fmtBudget(lead.budget)}</span>
+            </div>
+          )}
+          {lead.followUpDate && (
+            <div style={{
+              ...S.infoChip,
+              background: urgent ? 'rgba(245,158,11,0.1)' : 'rgba(239,246,255,1)',
+              borderRadius: 6, padding: '3px 8px',
+            }}>
+              <Calendar size={12} color={urgent ? '#f59e0b' : '#3b82f6'} />
+              <span style={{ fontSize: 11, color: urgent ? '#b45309' : '#1d4ed8', fontWeight: 600 }}>
+                {fmtDate(lead.followUpDate)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {lead.lastNote && (
-        <p style={{ fontSize: 11, color: '#64748b', marginTop: 8, fontStyle: 'italic',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{
+          fontSize: 11, color: '#64748b', marginTop: 8, fontStyle: 'italic',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
           📝 {lead.lastNote}
         </p>
       )}
+
+      {/* ── Action row: Call + Quick Log ── */}
+      <div
+        style={{
+          display: 'flex', gap: 8, marginTop: 12,
+          borderTop: '1px solid #f1f5f9', paddingTop: 10,
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Call button */}
+        <a
+          href={lead.phone ? `tel:${lead.phone}` : undefined}
+          onClick={handleCall}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            minHeight: 44, borderRadius: 10, border: 'none',
+            background: lead.phone ? 'rgba(16,185,129,0.1)' : '#f1f5f9',
+            color: lead.phone ? '#065f46' : '#94a3b8',
+            fontSize: 13, fontWeight: 700, cursor: lead.phone ? 'pointer' : 'default',
+            textDecoration: 'none', boxSizing: 'border-box',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'background 0.15s',
+          }}
+        >
+          <Phone size={15} color={lead.phone ? '#10b981' : '#94a3b8'} />
+          {lead.phone ? lead.phone : 'No number'}
+        </a>
+
+        {/* Quick Log button */}
+        <button
+          onClick={handleQuickLog}
+          style={{
+            flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            padding: '0 16px', minHeight: 44, borderRadius: 10, border: 'none',
+            background: 'rgba(37,99,235,0.1)', color: '#1d4ed8',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'background 0.15s',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <FileText size={14} />
+          Log
+        </button>
+      </div>
 
       {(lead.updatedAt || lead.createdAt) && (
         <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>
@@ -179,19 +420,20 @@ const LeadCard = React.memo(({ lead, onClick }) => {
   );
 });
 
-/* ─── Filter pill ────────────────────────────────────────────────────── */
+/* ─── Filter pill ───────────────────────────────────────────────────── */
 const FilterPill = ({ label, active, onClick, count }) => (
   <button
     onClick={onClick}
     style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '6px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
+      padding: '7px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
       fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
       background: active ? '#1e3a5f' : '#f1f5f9',
       color: active ? '#fff' : '#64748b',
       boxShadow: active ? '0 2px 8px rgba(30,58,95,0.2)' : 'none',
       WebkitTapHighlightColor: 'transparent',
       whiteSpace: 'nowrap',
+      minHeight: 38,
     }}
   >
     {label}
@@ -207,28 +449,28 @@ const FilterPill = ({ label, active, onClick, count }) => (
   </button>
 );
 
-/* ─── Stat card ──────────────────────────────────────────────────────── */
+/* ─── Stat card ─────────────────────────────────────────────────────── */
 const StatCard = ({ label, value, icon: Icon, accent }) => (
   <div style={{
     flex: '1 1 0', minWidth: 0,
     background: '#fff', borderRadius: 14,
-    padding: '14px 16px', border: '1px solid #e2e8f0',
+    padding: '12px 14px', border: '1px solid #e2e8f0',
     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
   }}>
     <div style={{
-      width: 34, height: 34, borderRadius: 10,
+      width: 32, height: 32, borderRadius: 9,
       background: `${accent}18`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8,
     }}>
-      <Icon size={17} color={accent} />
+      <Icon size={16} color={accent} />
     </div>
-    <p style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</p>
+    <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{value}</p>
     <p style={{ fontSize: 11, color: '#64748b', marginTop: 3, fontWeight: 500 }}>{label}</p>
   </div>
 );
 
-/* ─── Inline styles ──────────────────────────────────────────────────── */
-const styles = {
+/* ─── Inline styles ─────────────────────────────────────────────────── */
+const S = {
   card: {
     background: '#fff', borderRadius: 16, padding: '14px 16px',
     border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
@@ -242,32 +484,31 @@ const styles = {
   infoChip: { display: 'flex', alignItems: 'center', gap: 5 },
 };
 
-/* ─── Constants ──────────────────────────────────────────────────────── */
+/* ─── Constants ─────────────────────────────────────────────────────── */
 const FILTERS = ['All', 'Open', 'FollowUp', 'Booked', 'Lost'];
 const FILTER_LABELS = { All: 'All', Open: 'Open', FollowUp: 'Follow Up', Booked: 'Booked', Lost: 'Lost' };
 const PAGE_SIZE = 20;
 
-/* ─── Page ───────────────────────────────────────────────────────────── */
+/* ─── Page ──────────────────────────────────────────────────────────── */
 const EmployeeLeadList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  /* ── Own fetch — completely independent of global useCRMData ── */
-  const [myLeads,  setMyLeads]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState('');
-  const [filter,   setFilter]   = useState('All');
-  const [page,     setPage]     = useState(1);
+  const [myLeads,      setMyLeads]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState('');
+  const [filter,       setFilter]       = useState('All');
+  const [page,         setPage]         = useState(1);
+  const [quickLogLead, setQuickLogLead] = useState(null); // lead object for sheet
   const searchRef = useRef(null);
   const listEnd   = useRef(null);
 
   const userId = user?.uid || user?.id;
 
-  /* ── Initial fetch: only rows assigned to this employee ── */
+  /* ── Fetch ── */
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-
     const load = async () => {
       setLoading(true);
       try {
@@ -276,34 +517,25 @@ const EmployeeLeadList = () => {
           .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
           .eq('assigned_to', userId)
           .order('updated_at', { ascending: false });
-
-        if (!cancelled && !error) {
-          console.log(`[MyLeads] loaded ${data.length} leads for user ${userId}`);
-          setMyLeads(data.map(normalise));
-        }
+        if (!cancelled && !error) setMyLeads(data.map(normalise));
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-
     load();
     return () => { cancelled = true; };
   }, [userId]);
 
-  /* ── Realtime: only listen to rows for this user ── */
+  /* ── Realtime ── */
   useEffect(() => {
     if (!userId) return;
-
     const channel = supabase
       .channel(`my-leads-${userId}`)
-      .on(
-        'postgres_changes',
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'leads', filter: `assigned_to=eq.${userId}` },
         payload => {
           setMyLeads(prev => {
-            if (payload.eventType === 'DELETE') {
-              return prev.filter(l => l.id !== payload.old.id);
-            }
+            if (payload.eventType === 'DELETE') return prev.filter(l => l.id !== payload.old.id);
             const updated = normalise(payload.new);
             const idx = prev.findIndex(l => l.id === updated.id);
             if (idx === -1) return [updated, ...prev];
@@ -316,9 +548,22 @@ const EmployeeLeadList = () => {
         }
       )
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, [userId]);
+
+  /* ── QuickLog local update (optimistic) ── */
+  const handleQuickLogSaved = useCallback(updates => {
+    setMyLeads(prev => prev.map(l => {
+      if (l.id !== updates.id) return l;
+      return {
+        ...l,
+        status:       updates.status === 'Follow Up' ? 'FollowUp' : updates.status,
+        lastNote:     updates.last_note     ?? l.lastNote,
+        followUpDate: updates.follow_up_date ?? l.followUpDate,
+        updatedAt:    updates.updated_at,
+      };
+    }));
+  }, []);
 
   /* ── Stats ── */
   const stats = useMemo(() => ({
@@ -346,9 +591,7 @@ const EmployeeLeadList = () => {
   }, [myLeads, filter, search]);
 
   const visible = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
-
   const handleCardClick = useCallback(id => navigate(`/crm/lead/${id}`), [navigate]);
-
   useEffect(() => { setPage(1); }, [search, filter]);
 
   /* ── Infinite scroll ── */
@@ -361,10 +604,9 @@ const EmployeeLeadList = () => {
     return () => obs.disconnect();
   }, [visible.length, filtered.length]);
 
-  /* ── Today / Tomorrow follow-ups ── */
+  /* ── Follow-up counts ── */
   const todayCount = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
     return myLeads.filter(l => {
       if (!l.followUpDate) return false;
       const d = new Date(l.followUpDate); d.setHours(0,0,0,0);
@@ -386,67 +628,80 @@ const EmployeeLeadList = () => {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(160deg, #f8fafc 0%, #eff6ff 50%, #f8fafc 100%)',
-      paddingBottom: 32,
+      paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
     }}>
       <style>{`
         @keyframes shimmer {
           0%   { background-position: -200% 0 }
           100% { background-position:  200% 0 }
         }
-        .lead-card:active { transform: scale(0.985); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
-        .lead-card:hover  { box-shadow: 0 4px 16px rgba(30,58,95,0.12) !important; }
-        ::-webkit-scrollbar { width: 0; }
+        @keyframes slideUp {
+          from { transform: translateY(100%) }
+          to   { transform: translateY(0) }
+        }
+        .lead-card:active  { transform: scale(0.985); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
+        .lead-card:hover   { box-shadow: 0 4px 16px rgba(30,58,95,0.12) !important; }
+        ::-webkit-scrollbar { width: 0; height: 0; }
+        .call-btn:active   { background: rgba(16,185,129,0.2) !important; }
+        .log-btn:active    { background: rgba(37,99,235,0.18) !important; }
+
+        /* 2×2 stat grid on small screens */
+        @media (max-width: 480px) {
+          .stat-grid { grid-template-columns: 1fr 1fr !important; }
+        }
       `}</style>
 
       {/* ── Header ── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 30,
-        background: 'rgba(248,250,252,0.92)',
+        background: 'rgba(248,250,252,0.95)',
         backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid #e2e8f0',
-        padding: '14px 16px 0',
+        padding: '12px 16px 0',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          {/* Title + Add button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: -0.5 }}>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', letterSpacing: -0.5, lineHeight: 1.2 }}>
                 My Leads
               </h1>
               <p style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>
-                {myLeads.length} leads assigned to you
+                {myLeads.length} assigned
               </p>
             </div>
             <button
               onClick={() => navigate('/crm/lead/new')}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '9px 16px', borderRadius: 99, border: 'none',
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '10px 16px', borderRadius: 99, border: 'none',
                 background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
                 color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 boxShadow: '0 3px 10px rgba(37,99,235,0.35)',
                 WebkitTapHighlightColor: 'transparent',
+                minHeight: 44,
               }}
             >
               <Plus size={15} />
-              Add Lead
+              Add
             </button>
           </div>
 
-          {/* Search */}
+          {/* Search — 16px font prevents iOS auto-zoom */}
           <div style={{ position: 'relative', marginBottom: 10 }}>
-            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             <input
               ref={searchRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search name, phone, project…"
               style={{
-                width: '100%', height: 42, paddingLeft: 38, paddingRight: search ? 36 : 12,
+                width: '100%', height: 44, paddingLeft: 38, paddingRight: search ? 36 : 12,
                 borderRadius: 12, border: '1.5px solid #e2e8f0',
-                background: '#fff', fontSize: 14, color: '#0f172a',
+                background: '#fff', fontSize: 16, color: '#0f172a',
                 outline: 'none', boxSizing: 'border-box',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                transition: 'border-color 0.15s',
               }}
               onFocus={e => e.target.style.borderColor = '#2563eb'}
               onBlur={e => e.target.style.borderColor = '#e2e8f0'}
@@ -454,7 +709,7 @@ const EmployeeLeadList = () => {
             {search && (
               <button
                 onClick={() => setSearch('')}
-                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
               >
                 <X size={15} color="#94a3b8" />
               </button>
@@ -483,7 +738,7 @@ const EmployeeLeadList = () => {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '16px 16px 0' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 16px 0' }}>
 
         {/* Follow-up alerts */}
         {!loading && todayCount > 0 && (
@@ -511,8 +766,11 @@ const EmployeeLeadList = () => {
           </div>
         )}
 
-        {/* Stat cards */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        {/* Stat grid — 4-col desktop, 2×2 mobile via CSS class */}
+        <div
+          className="stat-grid"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}
+        >
           <StatCard label="Total"     value={stats.total}    icon={Users}        accent="#2563eb" />
           <StatCard label="Open"      value={stats.open}     icon={TrendingUp}   accent="#3b82f6" />
           <StatCard label="Follow Up" value={stats.followUp} icon={Clock}        accent="#f59e0b" />
@@ -552,9 +810,9 @@ const EmployeeLeadList = () => {
               <button
                 onClick={() => setSearch('')}
                 style={{
-                  marginTop: 14, padding: '8px 20px', borderRadius: 99,
+                  marginTop: 14, padding: '10px 22px', borderRadius: 99,
                   background: '#1e3a5f', color: '#fff', border: 'none',
-                  fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', minHeight: 44,
                 }}
               >
                 Clear Search
@@ -568,6 +826,7 @@ const EmployeeLeadList = () => {
                 key={lead.id}
                 lead={lead}
                 onClick={() => handleCardClick(lead.id)}
+                onCallLog={setQuickLogLead}
               />
             ))}
             <div ref={listEnd} style={{ height: 10 }} />
@@ -579,6 +838,15 @@ const EmployeeLeadList = () => {
           </div>
         )}
       </div>
+
+      {/* ── QuickLog bottom sheet ── */}
+      {quickLogLead && (
+        <QuickLogSheet
+          lead={quickLogLead}
+          onClose={() => setQuickLogLead(null)}
+          onSaved={handleQuickLogSaved}
+        />
+      )}
     </div>
   );
 };

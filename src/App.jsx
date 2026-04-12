@@ -93,7 +93,7 @@ import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
-// ✅ SINGLETON: CRMDataProvider ensures useCRMData() shares one fetch across all pages
+// ✅ SINGLETON: CRMDataProvider — now receives userId + role for server-side scoped queries
 import { CRMDataProvider } from '@/context/CRMDataContext';
 
 const EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
@@ -229,14 +229,25 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   );
 };
 
+// ── AuthAwareCRMProvider — reads auth user and passes userId + role into CRMDataProvider
+// This component lives inside AuthProvider so useAuth() is available here.
+const AuthAwareCRMProvider = ({ children }) => {
+  const { user } = useAuth();
+  return (
+    <CRMDataProvider userId={user?.id} role={user?.role}>
+      {children}
+    </CRMDataProvider>
+  );
+};
+
 function App() {
   const [isSiteVisitModalOpen, setIsSiteVisitModalOpen] = useState(false);
   const location = useLocation();
   const isCRM = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
 
   return (
-    // ✅ CRMDataProvider wraps the entire app — one shared fetch, one shared state
-    <CRMDataProvider>
+    // ✅ AuthAwareCRMProvider passes userId+role so queries are scoped at DB level
+    <AuthAwareCRMProvider>
       <div className="flex flex-col min-h-screen font-sans bg-gray-50">
         <ScrollToTop />
         {!isCRM && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
@@ -249,7 +260,7 @@ function App() {
         <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
         <Toaster />
       </div>
-    </CRMDataProvider>
+    </AuthAwareCRMProvider>
   );
 }
 

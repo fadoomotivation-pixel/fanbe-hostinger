@@ -86,12 +86,15 @@ import EmployeeAddLead from './crm/pages/EmployeeAddLead';
 import EmployeeSubmittedLeads from './crm/pages/EmployeeSubmittedLeads';
 import AdminEmployeeLeads from './crm/pages/AdminEmployeeLeads';
 
-// ✅ HR Module
+// HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
 import HRDashboard     from './crm/pages/hr/HRDashboard';
 import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
+
+// ✅ SINGLETON: CRMDataProvider ensures useCRMData() shares one fetch across all pages
+import { CRMDataProvider } from '@/context/CRMDataContext';
 
 const EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
 
@@ -101,10 +104,7 @@ const SmartDashboard = () => {
   return <CRMAdminDashboard />;
 };
 
-// ✅ Smart employee landing: always go to Call CRM
-const EmployeeLanding = () => {
-  return <Navigate to="/crm/sales/crm" replace />;
-};
+const EmployeeLanding = () => <Navigate to="/crm/sales/crm" replace />;
 
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location  = useLocation();
@@ -124,18 +124,14 @@ const AppRoutes = ({ onBookSiteVisit }) => {
               {location.pathname === '/crm/developer-console' ? <DeveloperConsole /> : (
                 <CRMLayout>
                   <Routes>
-                    {/* ✅ Employee redirects — all lead to Call CRM */}
                     <Route path="dashboard"        element={<Navigate to="/crm/admin/dashboard" replace />} />
                     <Route path="leads"            element={<Navigate to="/crm/admin/leads" replace />} />
                     <Route path="staff"            element={<Navigate to="/crm/admin/staff-management" replace />} />
                     <Route path="reports"          element={<Navigate to="/crm/admin/staff-performance" replace />} />
                     <Route path="employee-dashboard" element={<Navigate to="/crm/sales/crm" replace />} />
                     <Route path="my-leads"         element={<Navigate to="/crm/sales/my-leads" replace />} />
-
-                    {/* Debug */}
                     <Route path="debug/lead-assignments" element={<LeadsAssignmentDebug />} />
 
-                    {/* ── Admin / Sub-Admin ── */}
                     <Route path="admin/dashboard"           element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><SmartDashboard /></ProtectedRoute>} />
                     <Route path="admin/employees"           element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
                     <Route path="admin/employee-management" element={<ProtectedRoute allowedRoles={['super_admin']}><EmployeeManagement /></ProtectedRoute>} />
@@ -175,7 +171,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/employee-intelligence" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><EmployeeIntelligence /></ProtectedRoute>} />
                     <Route path="admin/employee-leads" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><AdminEmployeeLeads /></ProtectedRoute>} />
 
-                    {/* HR Module */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
                     <Route path="admin/hr/employees"  element={<ProtectedRoute allowedRoles={['super_admin']}><HREmployeeMaster /></ProtectedRoute>} />
                     <Route path="admin/hr/attendance" element={<ProtectedRoute allowedRoles={['super_admin']}><HRAttendance /></ProtectedRoute>} />
@@ -187,7 +182,6 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="hr/payroll"    element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRPayroll /></ProtectedRoute>} />
                     <Route path="hr/documents"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRDocuments /></ProtectedRoute>} />
 
-                    {/* ✅ EMPLOYEE ROUTES — Call CRM is the home */}
                     <Route path="sales/crm"           element={<EmployeeCRMHome />} />
                     <Route path="sales/dashboard"     element={<EmployeeLanding />} />
                     <Route path="sales/my-leads"      element={<MyLeads />} />
@@ -206,12 +200,9 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="sales/performance"   element={<SalesExecutivePerformance />} />
                     <Route path="sales/daily-log"     element={<DailyWorkLog />} />
 
-                    {/* Mobile-specific routes */}
                     <Route path="lead/:leadId"        element={<MobileLeadDetails />} />
                     <Route path="lead/:leadId/update" element={<UpdateLeadStatus />} />
                     <Route path="lead/new"            element={<CreateManualLead />} />
-
-                    {/* Profile (all roles) */}
                     <Route path="profile" element={<CRMProfile />} />
                   </Routes>
                 </CRMLayout>
@@ -244,18 +235,21 @@ function App() {
   const isCRM = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
 
   return (
-    <div className="flex flex-col min-h-screen font-sans bg-gray-50">
-      <ScrollToTop />
-      {!isCRM && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
-      <main className="flex-grow">
-        <AppRoutes onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />
-      </main>
-      {!isCRM && <Footer />}
-      {!isCRM && <FloatingWhatsAppButton />}
-      {!isCRM && <SocialProofToast />}
-      <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
-      <Toaster />
-    </div>
+    // ✅ CRMDataProvider wraps the entire app — one shared fetch, one shared state
+    <CRMDataProvider>
+      <div className="flex flex-col min-h-screen font-sans bg-gray-50">
+        <ScrollToTop />
+        {!isCRM && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
+        <main className="flex-grow">
+          <AppRoutes onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />
+        </main>
+        {!isCRM && <Footer />}
+        {!isCRM && <FloatingWhatsAppButton />}
+        {!isCRM && <SocialProofToast />}
+        <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
+        <Toaster />
+      </div>
+    </CRMDataProvider>
   );
 }
 

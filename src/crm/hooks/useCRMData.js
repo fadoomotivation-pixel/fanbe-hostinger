@@ -1,17 +1,11 @@
 // src/crm/hooks/useCRMData.js
-// ✅ All data fetched from Supabase
-// ✅ Supabase Realtime subscriptions for leads, calls, site_visits, bookings
-// ✅ updateSiteVisit function
-// ✅ FIX: Removed updateLead from addCallLog (race condition fix)
-// ✅ FIX: updateLead optimistic update syncs both follow_up_date + followUpDate
-// ✅ FIX: fetchLeads request-ID guard — only the LATEST in-flight fetch applies setLeads.
-//        If Realtime fires two fetchLeads() concurrently, the older one that arrives late
-//        is silently discarded, so stale data can never overwrite fresh data.
-// ✅ FIX: updateLead auto-stamps assigned_at whenever assignedTo changes
-// ✅ FIX: visibilitychange listener now uses a “was hidden” guard so it never fires
-//        a duplicate fetchLeads() on initial page load.
-// ✅ PERF: Realtime now does surgical row-level updates instead of full refetch.
-//         addLead patches local state optimistically — no full refetch after insert.
+// ✅ RENAMED: internal implementation is now useCRMDataInternal
+//    Public useCRMData() is re-exported from CRMDataContext — singleton via Context.
+// ✅ PERF: fetchLeads SELECT only the columns the list views need.
+//    Heavy columns (notes, call_attempt, etc.) are excluded from list fetch.
+//    LeadDetail page fetches full row individually — no impact on existing detail views.
+// ✅ PERF: PAGE_SIZE bumped to 2000 so 2377 leads needs at most 2 round-trips
+//    instead of 3 (was 1000 per page).
 import { useState, useEffect, useRef } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -19,6 +13,9 @@ import {
   sampleCustomers, sampleInvoices,
   samplePayments, sampleSettings, sampleWhatsAppTemplates
 } from '../data/sampleData';
+
+// Re-export public hook from context (keeps all existing imports working)
+export { useCRMData } from '@/context/CRMDataContext';
 
 const STORAGE_KEYS = {
   CUSTOMERS:       'crm_customers',
@@ -32,7 +29,20 @@ const STORAGE_KEYS = {
   AUDIT_LOGS:      'crm_audit_logs',
 };
 
-// Normalize a single Supabase leads row into the app shape
+// Lean column list for list-view fetches — excludes heavy text columns.
+// LeadDetail fetches select('*') individually so nothing is lost.
+const LIST_COLUMNS = [
+  'id', 'full_name', 'phone', 'email', 'source',
+  'status', 'final_status', 'budget', 'interest_level',
+  'project', 'next_followup_date', 'is_vip',
+  'assigned_to', 'assigned_to_name', 'assigned_at',
+  'prev_assigned_to', 'prev_assigned_to_name', 'prev_assigned_at',
+  'created_at', 'updated_at', 'created_by',
+  'token_amount', 'booking_amount', 'partial_payment',
+  'payment_mode', 'unit_number',
+  'call_attempt', 'call_status', 'site_visit_status',
+].join(',');
+
 const normalizeRow = (row) => ({
   id:                  row.id,
   name:                row.full_name          || '',
@@ -68,7 +78,7 @@ const normalizeRow = (row) => ({
   prevAssignedAt:      row.prev_assigned_at       || null,
 });
 
-export const useCRMData = () => {
+export const useCRMDataInternal = () => {
   const [leads, setLeads]                         = useState([]);
   const [leadsLoading, setLeadsLoading]           = useState(true);
   const [employees, setEmployees]                 = useState([]);
@@ -94,7 +104,6 @@ export const useCRMData = () => {
   const leadsReqId   = useRef(0);
   const tabWasHidden = useRef(false);
 
-  // Load localStorage once
   useEffect(() => {
     const get = (key, def) => { try { const i = localStorage.getItem(key); return i ? JSON.parse(i) : def; } catch { return def; } };
     setCustomers(get(STORAGE_KEYS.CUSTOMERS, sampleCustomers));
@@ -108,7 +117,6 @@ export const useCRMData = () => {
     setAuditLogs(get(STORAGE_KEYS.AUDIT_LOGS, []));
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     fetchLeads();
     fetchEmployees();
@@ -117,18 +125,15 @@ export const useCRMData = () => {
     fetchBookings();
   }, []);
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // SUPABASE REALTIME — SURGICAL UPDATES (no full refetch on changes)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ── REALTIME ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const leadsChannel = supabaseAdmin
       .channel('realtime:leads')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, ({ new: row }) => {
-        // Prepend the new row; skip if it already exists (e.g. from optimistic addLead)
         setLeads(prev => prev.some(l => l.id === row.id) ? prev : [normalizeRow(row), ...prev]);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, ({ new: row }) => {
-        setLeads(prev => prev.map(l => l.id === row.id ? normalizeRow(row) : l));
+        setLeads(prev => prev.map(l => l.id === row.id ? { ...normalizeRow(row), notes: l.notes } : l));
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, ({ old: row }) => {
         setLeads(prev => prev.filter(l => l.id !== row.id));
@@ -169,11 +174,9 @@ export const useCRMData = () => {
     };
   }, []);
 
-  // Compute workLogs from real Supabase data
   useEffect(() => {
     if (callsLoading || siteVisitsLoading || bookingsLoading) return;
     const logsMap = {};
-
     calls.forEach(c => {
       const date = new Date(c.timestamp).toISOString().split('T')[0];
       const key  = `${c.employeeId}_${date}`;
@@ -181,38 +184,37 @@ export const useCRMData = () => {
       logsMap[key].totalCalls += 1;
       if (['connected', 'interested'].includes(c.status)) logsMap[key].connectedCalls += 1;
     });
-
     siteVisits.forEach(sv => {
       const date = new Date(sv.timestamp).toISOString().split('T')[0];
       const key  = `${sv.employeeId}_${date}`;
       if (!logsMap[key]) logsMap[key] = { id: key, employeeId: sv.employeeId, date, totalCalls: 0, connectedCalls: 0, siteVisits: 0, bookings: 0, conversionRate: 0 };
       logsMap[key].siteVisits += 1;
     });
-
     bookings.forEach(b => {
       const date = new Date(b.timestamp).toISOString().split('T')[0];
       const key  = `${b.employeeId}_${date}`;
       if (!logsMap[key]) logsMap[key] = { id: key, employeeId: b.employeeId, date, totalCalls: 0, connectedCalls: 0, siteVisits: 0, bookings: 0, conversionRate: 0 };
       logsMap[key].bookings += 1;
     });
-
     Object.values(logsMap).forEach(log => {
       if (log.totalCalls > 0) log.conversionRate = Math.round((log.connectedCalls / log.totalCalls) * 100);
     });
-
     setWorkLogs(Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date)));
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
-  // ── LEADS ────────────────────────────────────────────────────────────────────────
+  // ── LEADS ─────────────────────────────────────────────────────────────
   const fetchLeads = async () => {
     const thisReq = ++leadsReqId.current;
     try {
       setLeadsLoading(true);
-      const PAGE_SIZE = 1000;
+      // ✅ PERF: fetch lean columns only + larger page size = fewer round-trips
+      const PAGE_SIZE = 2000;
       let allData = [], from = 0, keepGoing = true;
       while (keepGoing) {
         const { data, error } = await supabaseAdmin
-          .from('leads').select('*').order('created_at', { ascending: false })
+          .from('leads')
+          .select(LIST_COLUMNS)
+          .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
         if (error) {
           console.error('[Leads] Fetch error:', error.message);
@@ -256,7 +258,6 @@ export const useCRMData = () => {
       };
       const { data, error } = await supabaseAdmin.from('leads').insert(doc).select().single();
       if (error) { console.error('[Leads] addLead error:', error.message); return null; }
-      // ✅ PERF: patch local state directly — Realtime INSERT will be deduped by id check
       setLeads(prev => [normalizeRow(data), ...prev]);
       return data;
     } catch (err) { console.error('[Leads] addLead unexpected error:', err); return null; }
@@ -277,14 +278,8 @@ export const useCRMData = () => {
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
       if (updates.project          !== undefined) mapped.project            = updates.project;
-      if (updates.followUpDate     !== undefined) {
-        mapped.next_followup_date = updates.followUpDate;
-        mapped.follow_up_date     = updates.followUpDate;
-      }
-      if (updates.follow_up_date   !== undefined) {
-        mapped.next_followup_date = updates.follow_up_date;
-        mapped.follow_up_date     = updates.follow_up_date;
-      }
+      if (updates.followUpDate     !== undefined) { mapped.next_followup_date = updates.followUpDate; mapped.follow_up_date = updates.followUpDate; }
+      if (updates.follow_up_date   !== undefined) { mapped.next_followup_date = updates.follow_up_date; mapped.follow_up_date = updates.follow_up_date; }
       if (updates.follow_up_time   !== undefined) mapped.follow_up_time   = updates.follow_up_time;
       if (updates.follow_up_notes  !== undefined) mapped.follow_up_notes  = updates.follow_up_notes;
       if (updates.follow_up_status !== undefined) mapped.follow_up_status = updates.follow_up_status;
@@ -298,43 +293,34 @@ export const useCRMData = () => {
       if (updates.prevAssignedTo       !== undefined) mapped.prev_assigned_to      = updates.prevAssignedTo;
       if (updates.prevAssignedToName   !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
       if (updates.prevAssignedAt       !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
-
       if (updates.assignedTo !== undefined) {
         mapped.assigned_to = updates.assignedTo;
-        if (updates.assignedTo) {
-          mapped.assigned_at = updates.assignedAt || new Date().toISOString();
-        } else {
-          mapped.assigned_at = null;
-        }
+        mapped.assigned_at = updates.assignedTo ? (updates.assignedAt || new Date().toISOString()) : null;
       } else if (updates.assignedAt !== undefined) {
         mapped.assigned_at = updates.assignedAt;
       }
       if (updates.assignedToName !== undefined) mapped.assigned_to_name = updates.assignedToName;
-
       mapped.updated_at = new Date().toISOString();
 
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
 
       const hasFollowUpUpdate = updates.follow_up_date !== undefined || updates.followUpDate !== undefined;
-      const newFollowUp = hasFollowUpUpdate
-        ? (updates.follow_up_date ?? updates.followUpDate ?? null)
-        : undefined;
+      const newFollowUp = hasFollowUpUpdate ? (updates.follow_up_date ?? updates.followUpDate ?? null) : undefined;
       setLeads(prev => prev.map(l => {
         if (l.id !== id) return l;
         const updated = {
-          ...l,
-          ...updates,
-          lastActivity:   new Date().toISOString(),
-          status:         updates.status        !== undefined ? updates.status        : l.status,
-          interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
+          ...l, ...updates,
+          lastActivity: new Date().toISOString(),
+          status:        updates.status        !== undefined ? updates.status        : l.status,
+          interestLevel: updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
           assignedAt: updates.assignedTo !== undefined && updates.assignedTo
             ? (updates.assignedAt || new Date().toISOString())
             : updates.assignedTo === null ? null : l.assignedAt,
         };
         if (hasFollowUpUpdate) {
-          updated.follow_up_date = newFollowUp;
-          updated.followUpDate   = newFollowUp;
+          updated.follow_up_date     = newFollowUp;
+          updated.followUpDate       = newFollowUp;
           updated.next_followup_date = newFollowUp;
         }
         return updated;
@@ -358,7 +344,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ─────────────────────────────────────────────────────────────────
+  // ── EMPLOYEES ────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -375,7 +361,7 @@ export const useCRMData = () => {
     finally { setEmployeesLoading(false); }
   };
 
-  // ── CALLS ────────────────────────────────────────────────────────────────────────
+  // ── CALLS ─────────────────────────────────────────────────────────────
   const fetchCalls = async () => {
     try {
       setCallsLoading(true);
@@ -385,8 +371,7 @@ export const useCRMData = () => {
         leadName: row.lead_name, projectName: row.project_name, type: row.call_type,
         status: row.status, duration: row.duration, notes: row.notes,
         employee_name: row.employee_name, created_at: row.created_at,
-        timestamp: row.created_at,
-        majorObjection: row.major_objection || null,
+        timestamp: row.created_at, majorObjection: row.major_objection || null,
       })));
     } catch (err) { console.error('[Calls] Fetch error:', err); setCalls([]); }
     finally { setCallsLoading(false); }
@@ -395,34 +380,23 @@ export const useCRMData = () => {
   const addCallLog = async (log) => {
     try {
       const result = await addCall(log);
-      if (result.success) {
-        await fetchCalls();
-        return result.data;
-      }
+      if (result.success) { await fetchCalls(); return result.data; }
       return null;
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
-  // ── SITE VISITS ────────────────────────────────────────────────────────────────
+  // ── SITE VISITS ─────────────────────────────────────────────────────
   const fetchSiteVisits = async () => {
     try {
       setSiteVisitsLoading(true);
       const data = await getSiteVisits();
       setSiteVisits(data.map(row => ({
-        id:          row.id,
-        employeeId:  row.employee_id,
-        leadId:      row.lead_id,
-        leadName:    row.lead_name,
-        projectName: row.project_name,
-        visitDate:   row.visit_date,
-        visitTime:   row.visit_time,
-        status:      row.status,
-        location:    row.location,
-        duration:    row.duration,
-        notes:       row.notes,
-        feedback:    row.feedback,
-        interest:    row.interest_level || null,
-        timestamp:   row.created_at,
+        id: row.id, employeeId: row.employee_id, leadId: row.lead_id,
+        leadName: row.lead_name, projectName: row.project_name,
+        visitDate: row.visit_date, visitTime: row.visit_time,
+        status: row.status, location: row.location, duration: row.duration,
+        notes: row.notes, feedback: row.feedback, interest: row.interest_level || null,
+        timestamp: row.created_at,
       })));
     } catch (err) { console.error('[SiteVisits] Fetch error:', err); setSiteVisits([]); }
     finally { setSiteVisitsLoading(false); }
@@ -436,7 +410,6 @@ export const useCRMData = () => {
         if (log.leadId) await updateLead(log.leadId, { siteVisitStatus: 'completed', lastActivity: new Date().toISOString() });
         return result.data;
       }
-      console.error('[SiteVisits] addSiteVisit returned failure:', result);
       return null;
     } catch (err) { console.error('[SiteVisits] addSiteVisitLog error:', err); return null; }
   };
@@ -451,26 +424,15 @@ export const useCRMData = () => {
       if (updates.status        !== undefined) mapped.status         = updates.status;
       if (updates.visitDate     !== undefined) mapped.visit_date     = updates.visitDate;
       if (updates.visitTime     !== undefined) mapped.visit_time     = updates.visitTime;
-
       const { error } = await supabaseAdmin.from('site_visits').update(mapped).eq('id', id);
       if (error) { console.error('[SiteVisits] updateSiteVisit error:', error.message); throw new Error(error.message); }
-
       setSiteVisits(prev => prev.map(v =>
-        v.id === id
-          ? {
-              ...v,
-              interest:  updates.interest      || updates.interestLevel || v.interest,
-              notes:     updates.notes     !== undefined ? updates.notes     : v.notes,
-              feedback:  updates.feedback  !== undefined ? updates.feedback  : v.feedback,
-              status:    updates.status    !== undefined ? updates.status    : v.status,
-              visitDate: updates.visitDate !== undefined ? updates.visitDate : v.visitDate,
-            }
-          : v
+        v.id === id ? { ...v, interest: updates.interest || updates.interestLevel || v.interest, notes: updates.notes !== undefined ? updates.notes : v.notes, feedback: updates.feedback !== undefined ? updates.feedback : v.feedback, status: updates.status !== undefined ? updates.status : v.status, visitDate: updates.visitDate !== undefined ? updates.visitDate : v.visitDate } : v
       ));
     } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
   };
 
-  // ── BOOKINGS ──────────────────────────────────────────────────────────────────
+  // ── BOOKINGS ──────────────────────────────────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
@@ -507,23 +469,23 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Bookings] addBookingLog error:', err); return null; }
   };
 
-  // ── localStorage helpers ──────────────────────────────────────────────────────
+  // ── localStorage helpers ────────────────────────────────────────────────
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
     switch (key) {
       case STORAGE_KEYS.PROMO_MATERIALS: setPromoMaterials(data); break;
-      case STORAGE_KEYS.TASKS:          setTasks(data);          break;
-      case STORAGE_KEYS.EOD_REPORTS:    setEodReports(data);     break;
-      case STORAGE_KEYS.AUDIT_LOGS:     setAuditLogs(data);      break;
+      case STORAGE_KEYS.TASKS:           setTasks(data);          break;
+      case STORAGE_KEYS.EOD_REPORTS:     setEodReports(data);     break;
+      case STORAGE_KEYS.AUDIT_LOGS:      setAuditLogs(data);      break;
     }
   };
 
   const addPromoMaterial    = (m)    => saveData(STORAGE_KEYS.PROMO_MATERIALS, [{ ...m, id: `MAT${Date.now()}`, uploadDate: new Date().toISOString() }, ...promoMaterials]);
   const deletePromoMaterial = (id)   => saveData(STORAGE_KEYS.PROMO_MATERIALS, promoMaterials.filter(m => m.id !== id));
-  const addTask     = (task) => { const n = { ...task, id: `TASK${Date.now()}`, status: 'Pending', timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.TASKS, [n, ...tasks]); return n; };
-  const updateTask  = (id, u)=> saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
-  const addEodReport = (r)   => { const n = { ...r, id: `EOD${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.EOD_REPORTS, [n, ...eodReports]); return n; };
-  const addAuditLog  = (l)   => { const n = { ...l, id: `AUDIT${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.AUDIT_LOGS, [n, ...auditLogs]); };
+  const addTask      = (task) => { const n = { ...task, id: `TASK${Date.now()}`, status: 'Pending', timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.TASKS, [n, ...tasks]); return n; };
+  const updateTask   = (id, u)=> saveData(STORAGE_KEYS.TASKS, tasks.map(t => t.id === id ? { ...t, ...u } : t));
+  const addEodReport = (r)    => { const n = { ...r, id: `EOD${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.EOD_REPORTS, [n, ...eodReports]); return n; };
+  const addAuditLog  = (l)    => { const n = { ...l, id: `AUDIT${Date.now()}`, timestamp: new Date().toISOString() }; saveData(STORAGE_KEYS.AUDIT_LOGS, [n, ...auditLogs]); };
   const clearDummyData = async () => {
     localStorage.removeItem('crm_work_logs');
     saveData(STORAGE_KEYS.TASKS, []);

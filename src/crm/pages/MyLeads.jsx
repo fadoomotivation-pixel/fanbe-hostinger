@@ -3,22 +3,20 @@
 // ✅ Schedule Banner: Overdue / Today / Tomorrow tappable summary cards
 // ✅ Tomorrow tab added so employees plan ahead
 // ✅ Submitted Leads tab embedded inline (no separate page needed)
+// ✅ MOBILE: Call button added beside Quick Log, full-width touch targets
+// ✅ MOBILE: Quick Log sheet fully redesigned — bigger tap areas, no overflow
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
 // ✅ PERF FIX: useMyLeads hook — fetches ONLY assigned_to=userId from Supabase
-//    (was useCRMData which downloaded ALL 2000+ leads then client-side filtered)
-//    Result: 132 kB×2 → ~30 kB, finish time ~12s → ~2s
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { useMobile } from '@/lib/useMobile';
-import SwipeableLeadCard from '@/crm/components/mobile/SwipeableLeadCard';
 import SmartDateInput from '@/crm/components/SmartDateInput';
 import { getEmployeeLeads } from '@/lib/crmSupabase';
 import { format, isToday, isTomorrow, isYesterday, isPast, differenceInDays, formatDistanceToNow } from 'date-fns';
 
-// ✅ Parse YYYY-MM-DD as LOCAL midnight (not UTC midnight like parseISO).
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -26,6 +24,7 @@ const parseLocalDate = (dateStr) => {
   if (!y || !m || !day) return null;
   return new Date(y, m - 1, day);
 };
+
 import {
   Search, Phone, MessageCircle, ChevronRight,
   AlertCircle, Clock, Calendar, Loader2, PhoneCall, X,
@@ -36,16 +35,16 @@ import {
 
 // ── Quick outcome sheet ─────────────────────────────────────────────────
 const QUICK_OUTCOMES = [
-  { id: 'Not Answered', label: 'No Answer', emoji: '\uD83D\uDCF5' },
-  { id: 'Connected',    label: 'Connected', emoji: '\u2705' },
-  { id: 'Busy',         label: 'Busy',      emoji: '\uD83D\uDD34' },
-  { id: 'Switched Off', label: 'S/Off',     emoji: '\uD83D\uDCF4' },
+  { id: 'Not Answered', label: 'No Answer', emoji: '📵' },
+  { id: 'Connected',    label: 'Connected', emoji: '✅' },
+  { id: 'Busy',         label: 'Busy',      emoji: '🔴' },
+  { id: 'Switched Off', label: 'S/Off',     emoji: '📴' },
 ];
 const QUICK_STATUSES = [
-  { id: 'FollowUp',      emoji: '\uD83D\uDCC5', label: 'Follow Up' },
-  { id: 'SiteVisit',     emoji: '\uD83D\uDCCD', label: 'Site Visit' },
-  { id: 'Booked',        emoji: '\uD83D\uDCB0', label: 'Booked' },
-  { id: 'NotInterested', emoji: '\u274C',        label: 'Not Int.' },
+  { id: 'FollowUp',      emoji: '📅', label: 'Follow Up' },
+  { id: 'SiteVisit',     emoji: '📍', label: 'Site Visit' },
+  { id: 'Booked',        emoji: '💰', label: 'Booked' },
+  { id: 'NotInterested', emoji: '❌', label: 'Not Int.' },
 ];
 
 const statusColors = {
@@ -71,23 +70,21 @@ const urgencyScore = (lead) => {
   } catch { return 1; }
 };
 
-// ✅ New tab is FIRST so employees see fresh leads immediately
 const TABS = [
   { id: 'new',       label: 'New' },
   { id: 'all',       label: 'All' },
-  { id: 'overdue',   label: '\uD83D\uDEA8 Overdue' },
-  { id: 'yesterday', label: '\u23EA Yesterday' },
-  { id: 'today',     label: '\uD83D\uDCC5 Today' },
-  { id: 'tomorrow',  label: '\uD83C\uDF05 Tomorrow' },
+  { id: 'overdue',   label: '🚨 Overdue' },
+  { id: 'yesterday', label: '⏪ Yesterday' },
+  { id: 'today',     label: '📅 Today' },
+  { id: 'tomorrow',  label: '🌅 Tomorrow' },
   { id: 'followup',  label: 'Follow Up' },
   { id: 'booked',    label: 'Booked' },
-  { id: 'submitted', label: '\uD83D\uDCCB Submitted' },
+  { id: 'submitted', label: '📋 Submitted' },
 ];
 
 const TAB_STORAGE_KEY = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
 const LEADS_BATCH_SIZE = 60;
-
 const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
 
 // ── Submitted Leads constants ────────────────────────────────────────────
@@ -101,7 +98,7 @@ const SL_STATUS_STYLES = {
   converted: 'bg-blue-100 text-blue-700 border border-blue-200',
   rejected:  'bg-red-100 text-red-700 border border-red-200',
 };
-const SL_STATUS_LABELS = { pending: 'Pending', converted: 'Converted \u2713', rejected: 'Rejected' };
+const SL_STATUS_LABELS = { pending: 'Pending', converted: 'Converted ✓', rejected: 'Rejected' };
 const SL_PROPERTY_LABELS = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
 const SL_PURPOSE_LABELS = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
 const SL_TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
@@ -148,9 +145,6 @@ const getLatestNote = (notes) => {
 const MyLeads = () => {
   const { user }  = useAuth();
   const userId    = user?.uid || user?.id;
-
-  // ✅ PERF: useMyLeads fetches only assigned_to=userId from Supabase.
-  // Replaces useCRMData which was fetching ALL 2000+ leads globally.
   const { leads, leadsLoading, updateLead, addCallLog, calls } = useMyLeads(userId);
 
   const navigate  = useNavigate();
@@ -184,15 +178,11 @@ const MyLeads = () => {
   const [submittedLoading, setSubmittedLoading] = useState(false);
   const [submittedExpandedId, setSubmittedExpandedId] = useState(null);
 
-  useEffect(() => {
-    sessionStorage.setItem(TAB_STORAGE_KEY, tab);
-  }, [tab]);
+  useEffect(() => { sessionStorage.setItem(TAB_STORAGE_KEY, tab); }, [tab]);
 
   useEffect(() => {
     const savedScroll = sessionStorage.getItem(SCROLL_STORAGE_KEY);
-    if (savedScroll) {
-      requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
-    }
+    if (savedScroll) requestAnimationFrame(() => { window.scrollTo(0, parseInt(savedScroll, 10)); });
     let scrollTimer;
     const handleScroll = () => {
       clearTimeout(scrollTimer);
@@ -204,15 +194,17 @@ const MyLeads = () => {
     return () => { window.removeEventListener('scroll', handleScroll); clearTimeout(scrollTimer); };
   }, []);
 
-  const today  = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
 
-  // ── Fetch submitted leads when tab is active ──────────────────────────
   useEffect(() => {
     if (tab !== 'submitted') return;
     setSubmittedLoading(true);
     getEmployeeLeads(userId)
       .then(data => setSubmittedLeads(data || []))
-      .catch(err => { console.error('Failed to fetch submitted leads:', err); toast({ title: 'Error', description: 'Failed to load submitted leads.', variant: 'destructive' }); })
+      .catch(err => {
+        console.error('Failed to fetch submitted leads:', err);
+        toast({ title: 'Error', description: 'Failed to load submitted leads.', variant: 'destructive' });
+      })
       .finally(() => setSubmittedLoading(false));
   }, [tab, userId]);
 
@@ -223,7 +215,22 @@ const MyLeads = () => {
     });
   }, []);
 
-  // ── myCallsMap: pre-indexed by leadId ────────────────────────────────
+  // Direct call using tel: link (native dialer)
+  const callPhone = useCallback((phone, lead) => {
+    if (!phone) return;
+    const raw = phone.replace(/\D/g, '');
+    const dialNumber = raw.length === 10 ? `+91${raw}` : `+${raw}`;
+    window.location.href = `tel:${dialNumber}`;
+    // Pre-fill quick log for this lead
+    setTimeout(() => {
+      setQuickLead(lead);
+      setOutcome('');
+      setNewStatus('');
+      setFollowDate('');
+      setQuickNote('');
+    }, 600);
+  }, []);
+
   const myCallsMap = useMemo(() => {
     if (!calls?.length) return new Map();
     const map = new Map();
@@ -236,7 +243,6 @@ const MyLeads = () => {
     return map;
   }, [calls]);
 
-  // ── myLeads: all leads (already filtered server-side) + call metadata ─
   const myLeads = useMemo(() => {
     return leads
       .map(lead => {
@@ -263,10 +269,10 @@ const MyLeads = () => {
       try {
         const d = parseLocalDate(fu);
         if (!d) return;
-        if (isYesterday(d))             yesterdayCount++;
-        else if (isPast(d) && !isToday(d))  overdue++;
-        else if (isToday(d))            todayCount++;
-        else if (isTomorrow(d))         tomorrowCount++;
+        if (isYesterday(d))              yesterdayCount++;
+        else if (isPast(d) && !isToday(d)) overdue++;
+        else if (isToday(d))             todayCount++;
+        else if (isTomorrow(d))          tomorrowCount++;
       } catch { /* skip */ }
     });
     return { overdue, yesterday: yesterdayCount, today: todayCount, tomorrow: tomorrowCount };
@@ -321,22 +327,17 @@ const MyLeads = () => {
     if (dateFilter) {
       arr = arr.filter(l => {
         const fu = l.follow_up_date || l.followUpDate;
-        const created = (l.createdAt || l.created_at || '').split('T')[0];
+        const created  = (l.createdAt  || l.created_at  || '').split('T')[0];
         const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
         return fu === dateFilter || created === dateFilter || assigned === dateFilter;
       });
     }
     return arr;
   }, [myLeads, tab, search, dateFilter]);
-  
-  useEffect(() => {
-    setVisibleCount(LEADS_BATCH_SIZE);
-  }, [tab, search, dateFilter, sortBy]);
 
-  const visibleLeads = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount]
-  );
+  useEffect(() => { setVisibleCount(LEADS_BATCH_SIZE); }, [tab, search, dateFilter, sortBy]);
+
+  const visibleLeads = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
 
   const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
 
@@ -356,19 +357,19 @@ const MyLeads = () => {
         notes:    quickNote || `Quick log: ${outcome}`,
       });
       const patch = { last_activity: new Date().toISOString() };
-      if (newStatus)  patch.status = newStatus;
+      if (newStatus) patch.status = newStatus;
       const isTerminal = ['NotInterested', 'Lost', 'Booked'].includes(newStatus);
       if (isTerminal) {
         patch.follow_up_date = null;
-        patch.followUpDate = null;
+        patch.followUpDate   = null;
       } else if (followDate) {
-        patch.follow_up_date = followDate;
-        patch.followUpDate = followDate;
+        patch.follow_up_date     = followDate;
+        patch.followUpDate       = followDate;
         patch.next_followup_date = followDate;
-        patch.follow_up_status = 'pending';
+        patch.follow_up_status   = 'pending';
       }
       await updateLead(quickLead.id, patch);
-      toast({ title: 'Logged!', description: newStatus ? `Status \u2192 ${newStatus}` : 'Call saved' });
+      toast({ title: 'Logged! ✓', description: newStatus ? `Status → ${newStatus}` : 'Call saved' });
       setQuickLead(null); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     } catch (e) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -411,7 +412,7 @@ const MyLeads = () => {
             </div>
           </div>
 
-          {/* Search + Date Filter — hide on Submitted tab */}
+          {/* Search + Date Filter */}
           {tab !== 'submitted' && (
             <>
               <div className="flex gap-2 mb-2">
@@ -452,7 +453,7 @@ const MyLeads = () => {
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {TABS.map(t => {
               let badge = '';
-              if (t.id === 'overdue'   && scheduleCounts.overdue    > 0) badge = ` (${scheduleCounts.overdue})`;
+              if (t.id === 'overdue'   && scheduleCounts.overdue   > 0) badge = ` (${scheduleCounts.overdue})`;
               if (t.id === 'yesterday' && scheduleCounts.yesterday  > 0) badge = ` (${scheduleCounts.yesterday})`;
               if (t.id === 'today'     && scheduleCounts.today      > 0) badge = ` (${scheduleCounts.today})`;
               if (t.id === 'tomorrow'  && scheduleCounts.tomorrow   > 0) badge = ` (${scheduleCounts.tomorrow})`;
@@ -476,12 +477,13 @@ const MyLeads = () => {
       {/* ══════════════════════════════════════════════ */}
       {tab === 'submitted' ? (
         <div className="px-4 pt-4 pb-20">
-
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
               { label: 'Total', value: submittedLeads.length, color: 'border-emerald-400' },
-              { label: 'This Month', value: submittedLeads.filter(l => { const d = new Date(l.created_at); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length, color: 'border-blue-400' },
+              { label: 'This Month', value: submittedLeads.filter(l => {
+                  const d = new Date(l.created_at); const now = new Date();
+                  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                }).length, color: 'border-blue-400' },
               { label: 'Pending', value: submittedLeads.filter(l => !l.admin_status || l.admin_status === 'pending').length, color: 'border-yellow-400' },
             ].map(s => (
               <div key={s.label} className={`bg-white rounded-xl border-l-4 ${s.color} p-3 shadow-sm`}>
@@ -491,18 +493,16 @@ const MyLeads = () => {
             ))}
           </div>
 
-          {/* Add Lead button */}
           <button
             onClick={() => navigate('/crm/sales/add-lead')}
-            className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation"
+            className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation"
           >
             <Plus size={18} /> Add New Submitted Lead
           </button>
 
           {submittedLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <Loader2 size={32} className="animate-spin mb-2" />
-              Loading...
+              <Loader2 size={32} className="animate-spin mb-2" /> Loading...
             </div>
           ) : submittedLeads.length === 0 ? (
             <div className="text-center py-16">
@@ -510,7 +510,7 @@ const MyLeads = () => {
               <p className="text-gray-500 text-lg">No leads submitted yet</p>
               <button
                 onClick={() => navigate('/crm/sales/add-lead')}
-                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold"
+                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold"
               >
                 <Plus size={18} /> Submit Your First Lead
               </button>
@@ -524,7 +524,7 @@ const MyLeads = () => {
                   <div key={lead.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div className="p-4">
                       <div
-                        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 cursor-pointer"
+                        className="flex items-start justify-between gap-2 cursor-pointer"
                         onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}
                       >
                         <div className="flex-1 min-w-0">
@@ -539,9 +539,7 @@ const MyLeads = () => {
                               {SL_STATUS_LABELS[status] || status}
                             </span>
                             {lead.site_visit_interest && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
-                                Site Visit
-                              </span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Site Visit</span>
                             )}
                           </div>
                           <div className="mt-2 text-sm text-gray-600 space-y-1">
@@ -569,39 +567,25 @@ const MyLeads = () => {
                           <span className="text-xs text-gray-400">
                             {new Date(lead.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                           </span>
-                          {isExpanded
-                            ? <ChevronUp size={16} className="text-gray-400" />
-                            : <ChevronDown size={16} className="text-gray-400" />}
+                          {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                         </div>
                       </div>
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm text-gray-600">
-                          {lead.email && <span><strong>Email:</strong> {lead.email}</span>}
-                          {lead.alternate_phone && <span><strong>Alt Phone:</strong> {lead.alternate_phone}</span>}
-                          {lead.occupation && <span><strong>Occupation:</strong> {lead.occupation}</span>}
-                          {lead.city && <span><strong>City:</strong> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
-                          {lead.property_type && <span><strong>Type:</strong> {SL_PROPERTY_LABELS[lead.property_type] || lead.property_type}</span>}
-                          {lead.purpose && <span><strong>Purpose:</strong> {SL_PURPOSE_LABELS[lead.purpose] || lead.purpose}</span>}
+                          {lead.email             && <span><strong>Email:</strong> {lead.email}</span>}
+                          {lead.alternate_phone   && <span><strong>Alt Phone:</strong> {lead.alternate_phone}</span>}
+                          {lead.occupation        && <span><strong>Occupation:</strong> {lead.occupation}</span>}
+                          {lead.city              && <span><strong>City:</strong> {lead.city}{lead.locality ? `, ${lead.locality}` : ''}</span>}
+                          {lead.property_type     && <span><strong>Type:</strong> {SL_PROPERTY_LABELS[lead.property_type] || lead.property_type}</span>}
+                          {lead.purpose           && <span><strong>Purpose:</strong> {SL_PURPOSE_LABELS[lead.purpose] || lead.purpose}</span>}
                           {lead.possession_timeline && <span><strong>Timeline:</strong> {SL_TIMELINE_LABELS[lead.possession_timeline] || lead.possession_timeline}</span>}
-                          {lead.financing && <span><strong>Financing:</strong> {SL_FINANCING_LABELS[lead.financing] || lead.financing}</span>}
-                          {lead.follow_up_date && <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>}
+                          {lead.financing         && <span><strong>Financing:</strong> {SL_FINANCING_LABELS[lead.financing] || lead.financing}</span>}
+                          {lead.follow_up_date    && <span><strong>Follow-up:</strong> {new Date(lead.follow_up_date).toLocaleDateString('en-IN')}</span>}
                           {lead.preferred_visit_date && <span><strong>Visit Date:</strong> {new Date(lead.preferred_visit_date).toLocaleDateString('en-IN')}</span>}
-                          {lead.how_they_know && <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>}
-                          {lead.customer_remarks && (
-                            <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs">
-                              <strong>Customer:</strong> {lead.customer_remarks}
-                            </div>
-                          )}
-                          {lead.employee_remarks && (
-                            <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs">
-                              <strong>Your notes:</strong> {lead.employee_remarks}
-                            </div>
-                          )}
-                          {lead.admin_remarks && (
-                            <div className="col-span-2 p-2 bg-emerald-50 rounded border text-xs">
-                              <strong>Admin:</strong> {lead.admin_remarks}
-                            </div>
-                          )}
+                          {lead.how_they_know     && <span className="col-span-2"><strong>How they know us:</strong> {lead.how_they_know}</span>}
+                          {lead.customer_remarks  && <div className="col-span-2 p-2 bg-gray-50 rounded border text-xs"><strong>Customer:</strong> {lead.customer_remarks}</div>}
+                          {lead.employee_remarks  && <div className="col-span-2 p-2 bg-blue-50 rounded border text-xs"><strong>Your notes:</strong> {lead.employee_remarks}</div>}
+                          {lead.admin_remarks     && <div className="col-span-2 p-2 bg-emerald-50 rounded border text-xs"><strong>Admin:</strong> {lead.admin_remarks}</div>}
                         </div>
                       )}
                     </div>
@@ -698,7 +682,7 @@ const MyLeads = () => {
                           </div>
                         </div>
 
-                        {/* Phone */}
+                        {/* Phone row — copy + project */}
                         <div className="flex items-center gap-2 mb-2">
                           <button
                             onClick={() => copyPhone(lead.phone, lead.id)}
@@ -744,13 +728,31 @@ const MyLeads = () => {
                           </p>
                         )}
 
-                        {/* Action row */}
+                        {/* ✅ Action row — Call + Quick Log + Detail */}
                         <div className="flex gap-2 mt-1">
+                          {/* 📞 Call button — opens dialer directly */}
+                          <a
+                            href={`tel:${lead.phone?.replace(/\D/g, '').length === 10 ? '+91' : '+'}${lead.phone?.replace(/\D/g, '')}`}
+                            onClick={() => {
+                              setTimeout(() => {
+                                setQuickLead(lead);
+                                setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
+                              }, 800);
+                            }}
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:bg-emerald-600 touch-manipulation"
+                            style={{ minWidth: 64, minHeight: 36 }}
+                          >
+                            <Phone size={14} /> Call
+                          </a>
+
+                          {/* 📋 Quick Log */}
                           <button
                             onClick={() => { setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote(''); }}
                             className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#0F3A5F] text-white rounded-xl text-xs font-bold active:bg-[#0c2e4d] touch-manipulation">
                             <PhoneCall size={13} /> Quick Log
                           </button>
+
+                          {/* ➜ Detail */}
                           <button
                             onClick={() => navigate(`/crm/leads/${lead.id}`)}
                             className="flex items-center justify-center w-10 h-9 bg-gray-100 rounded-xl text-gray-600 active:bg-gray-200 touch-manipulation">
@@ -763,7 +765,6 @@ const MyLeads = () => {
                 })}
               </div>
 
-              {/* Load more */}
               {visibleCount < filtered.length && (
                 <div className="flex justify-center mt-4">
                   <button
@@ -778,88 +779,154 @@ const MyLeads = () => {
         </div>
       )}
 
-      {/* ── Quick Log Sheet ── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* ✅ QUICK LOG BOTTOM SHEET — fully mobile-optimised                */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       {quickLead && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setQuickLead(null)}>
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/50" />
           <div
-            className="relative w-full bg-white rounded-t-3xl p-5 pb-10 max-h-[80vh] overflow-y-auto"
+            className="relative w-full bg-white rounded-t-3xl shadow-2xl flex flex-col"
+            style={{ maxHeight: '92vh' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-gray-900">{quickLead.name}</h3>
-                <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+            {/* Drag handle */}
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+
+            {/* Scrollable body */}
+            <div className="overflow-y-auto overscroll-contain px-5 pt-2 pb-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pt-2 pb-3 border-b border-gray-100 -mx-5 px-5">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black text-gray-900 text-base truncate">{quickLead.name}</h3>
+                  <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  {/* ✅ Inline call button in sheet header too */}
+                  <a
+                    href={`tel:${quickLead.phone?.replace(/\D/g, '').length === 10 ? '+91' : '+'}${quickLead.phone?.replace(/\D/g, '')}`}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:bg-emerald-600 touch-manipulation"
+                  >
+                    <Phone size={14} /> Call
+                  </a>
+                  <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100 touch-manipulation">
+                    <X size={18} className="text-gray-600" />
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
-                <X size={18} className="text-gray-600" />
-              </button>
-            </div>
 
-            {/* Outcome selector */}
-            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome</p>
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {QUICK_OUTCOMES.map(o => (
-                <button key={o.id} onClick={() => setOutcome(o.id)}
-                  className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-semibold touch-manipulation transition-all ${
-                    outcome === o.id ? 'border-[#0F3A5F] bg-[#0F3A5F]/5 text-[#0F3A5F]' : 'border-gray-200 text-gray-600'
-                  }`}>
-                  <span className="text-lg">{o.emoji}</span>
-                  {o.label}
-                </button>
-              ))}
-            </div>
+              {/* ── Call Outcome ── */}
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Call Outcome *</p>
+              <div className="grid grid-cols-2 gap-2.5 mb-5">
+                {QUICK_OUTCOMES.map(o => (
+                  <button
+                    key={o.id}
+                    onClick={() => setOutcome(o.id)}
+                    className={`flex items-center gap-2 px-3 py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all active:scale-95 touch-manipulation ${
+                      outcome === o.id
+                        ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white shadow-md'
+                        : 'border-gray-200 bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-lg">{o.emoji}</span>
+                    <span>{o.label}</span>
+                  </button>
+                ))}
+              </div>
 
-            {/* Status selector */}
-            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status (optional)</p>
-            <div className="grid grid-cols-4 gap-2 mb-4">
-              {QUICK_STATUSES.map(s => (
-                <button key={s.id} onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
-                  className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-semibold touch-manipulation transition-all ${
-                    newStatus === s.id ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'
-                  }`}>
-                  <span className="text-lg">{s.emoji}</span>
-                  {s.label}
-                </button>
-              ))}
-            </div>
+              {/* ── Lead Status (optional) ── */}
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Update Status <span className="font-normal normal-case text-gray-400">(optional)</span></p>
+              <div className="grid grid-cols-2 gap-2.5 mb-5">
+                {QUICK_STATUSES.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
+                    className={`flex items-center gap-2 px-3 py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all active:scale-95 touch-manipulation ${
+                      newStatus === s.id
+                        ? 'border-amber-500 bg-amber-50 text-amber-800'
+                        : 'border-gray-200 bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-lg">{s.emoji}</span>
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
 
-            {/* Follow-up date */}
-            {!['NotInterested', 'Lost', 'Booked'].includes(newStatus) && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Follow-up Date (optional)</p>
-                <SmartDateInput
-                  value={followDate}
-                  onChange={setFollowDate}
-                  placeholder="Pick date..."
-                  className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20"
+              {/* ── Follow-up Date (only if non-terminal) ── */}
+              {!['NotInterested', 'Lost', 'Booked'].includes(newStatus) && (
+                <div className="mb-5">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Follow-up Date <span className="font-normal normal-case text-gray-400">(optional)</span></p>
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {[
+                      { label: 'Today',    offset: 0 },
+                      { label: 'Tomorrow', offset: 1 },
+                      { label: '+2 Days',  offset: 2 },
+                    ].map(({ label, offset }) => {
+                      const d = new Date(); d.setDate(d.getDate() + offset);
+                      const val = d.toISOString().split('T')[0];
+                      return (
+                        <button
+                          key={label}
+                          onClick={() => setFollowDate(prev => prev === val ? '' : val)}
+                          className={`py-3 rounded-xl border-2 text-xs font-bold transition-all active:scale-95 touch-manipulation ${
+                            followDate === val
+                              ? 'border-purple-500 bg-purple-500 text-white'
+                              : 'border-gray-200 bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="date"
+                    value={followDate}
+                    min={today}
+                    onChange={e => setFollowDate(e.target.value)}
+                    className="w-full py-3 px-4 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-gray-50 touch-manipulation"
+                  />
+                </div>
+              )}
+
+              {/* ── Quick Note ── */}
+              <div className="mb-6">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Quick Note <span className="font-normal normal-case text-gray-400">(optional)</span></p>
+                <textarea
+                  value={quickNote}
+                  onChange={e => setQuickNote(e.target.value)}
+                  placeholder="What happened on this call? (optional)"
+                  rows={3}
+                  className="w-full py-3 px-4 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0F3A5F]/40 bg-gray-50 resize-none touch-manipulation"
                 />
               </div>
-            )}
 
-            {/* Note */}
-            <div className="mb-5">
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note (optional)</p>
-              <textarea
-                value={quickNote}
-                onChange={e => setQuickNote(e.target.value)}
-                placeholder="What happened on this call..."
-                rows={2}
-                className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20 resize-none"
-              />
-            </div>
+              {/* ── Save button ── */}
+              <button
+                onClick={handleQuickSave}
+                disabled={saving || !outcome}
+                className={`w-full py-4 rounded-2xl text-base font-black transition-all touch-manipulation ${
+                  saving || !outcome
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-[#0F3A5F] text-white active:bg-[#0c2e4d] active:scale-95 shadow-lg'
+                }`}
+              >
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 size={18} className="animate-spin" /> Saving...
+                  </span>
+                ) : (
+                  '✓ Save Call Log'
+                )}
+              </button>
 
-            <button
-              onClick={handleQuickSave}
-              disabled={saving || !outcome}
-              className="w-full py-3.5 bg-[#0F3A5F] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 disabled:opacity-50 active:bg-[#0c2e4d] touch-manipulation">
-              {saving ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
-              {saving ? 'Saving...' : 'Save Log'}
-            </button>
+            </div>{/* end scroll body */}
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -32,7 +32,7 @@ const ADMIN_ROLES = [
   'hr_manager',  'hr',
 ];
 
-// ─ Reusable pagination bar ───────────────────────────────────────────────────
+// Pagination bar for the Assignment Log table
 const Pagination = ({ page, total, pageSize, onChange }) => {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (totalPages <= 1) return null;
@@ -42,19 +42,13 @@ const Pagination = ({ page, total, pageSize, onChange }) => {
     <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm text-gray-500">
       <span>{start}–{end} of {total} leads</span>
       <div className="flex items-center gap-1">
-        <button
-          onClick={() => onChange(page - 1)}
-          disabled={page === 1}
-          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
-        >
+        <button onClick={() => onChange(page - 1)} disabled={page === 1}
+          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors">
           <ChevronLeft size={16} />
         </button>
         <span className="px-2 font-medium text-gray-700">{page} / {totalPages}</span>
-        <button
-          onClick={() => onChange(page + 1)}
-          disabled={page === totalPages}
-          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors"
-        >
+        <button onClick={() => onChange(page + 1)} disabled={page === totalPages}
+          className="p-1.5 rounded hover:bg-gray-200 disabled:opacity-30 transition-colors">
           <ChevronRight size={16} />
         </button>
       </div>
@@ -77,7 +71,6 @@ const LeadManagement = () => {
   const [selectedLeadIds,     setSelectedLeadIds]     = useState([]);
   const [selectedLogIds,      setSelectedLogIds]      = useState([]);
 
-  // ─ per-tab page state ────────────────────────────────────────────
   const [unassignedPage, setUnassignedPage] = useState(1);
   const [assignedPage,   setAssignedPage]   = useState(1);
   const [logPage,        setLogPage]        = useState(1);
@@ -96,21 +89,17 @@ const LeadManagement = () => {
 
   const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
 
-  // ─ memoize salesEmployees ──────────────────────────────────────
   const salesEmployees = useMemo(() =>
     employees.filter(emp =>
       !ADMIN_ROLES.includes((emp.role || '').toLowerCase().replace(/\s+/g, '_'))
     ),
   [employees]);
 
-  // ─ memoize base lists ──────────────────────────────────────────
   const myLeads = useMemo(() =>
     isAdmin ? leads : leads.filter(l => l.assignedTo === user.id),
   [leads, isAdmin, user.id]);
 
-  const unassignedLeads = useMemo(() =>
-    myLeads.filter(l => !l.assignedTo),
-  [myLeads]);
+  const unassignedLeads = useMemo(() => myLeads.filter(l => !l.assignedTo), [myLeads]);
 
   const assignedLeads = useMemo(() =>
     myLeads
@@ -125,7 +114,7 @@ const LeadManagement = () => {
     assignedLeads.filter(l => l.prevAssignedTo).length,
   [assignedLeads]);
 
-  // ─ memoize FULL filtered lists (for counts + export) ──────────
+  // Full filtered lists (for counts + export + modals)
   const filteredUnassigned = useMemo(() => {
     const lc = searchTerm.toLowerCase();
     return unassignedLeads.filter(l => {
@@ -145,13 +134,13 @@ const LeadManagement = () => {
     });
   }, [assignedLeads, searchTerm, filterSource, filterEmployee]);
 
-  const assignLogLeads = useMemo(() => {
-    return assignedLeads
+  const assignLogLeads = useMemo(() =>
+    assignedLeads
       .filter(l => filterAssignLog === 'all' || l.assignedTo === filterAssignLog)
-      .filter(l => !showOnlyReassigned || l.prevAssignedTo);
-  }, [assignedLeads, filterAssignLog, showOnlyReassigned]);
+      .filter(l => !showOnlyReassigned || l.prevAssignedTo),
+  [assignedLeads, filterAssignLog, showOnlyReassigned]);
 
-  // ─ PAGINATED slices (only these go to the DOM) ────────────────
+  // Paginated slices passed to LeadTable
   const pagedUnassigned = useMemo(() =>
     filteredUnassigned.slice((unassignedPage - 1) * PAGE_SIZE, unassignedPage * PAGE_SIZE),
   [filteredUnassigned, unassignedPage]);
@@ -164,17 +153,14 @@ const LeadManagement = () => {
     assignLogLeads.slice((logPage - 1) * PAGE_SIZE, logPage * PAGE_SIZE),
   [assignLogLeads, logPage]);
 
-  // ─ reset pages when filters change ────────────────────────────
+  // Reset pages on filter changes
   useEffect(() => { setUnassignedPage(1); }, [searchTerm, filterSource]);
   useEffect(() => { setAssignedPage(1);   }, [searchTerm, filterSource, filterEmployee]);
   useEffect(() => { setLogPage(1);        }, [filterAssignLog, showOnlyReassigned]);
 
-  // ─ per-employee lead count ─────────────────────────────────────
   const employeeLeadCount = useMemo(() => {
     const map = {};
-    assignedLeads.forEach(l => {
-      if (l.assignedTo) map[l.assignedTo] = (map[l.assignedTo] || 0) + 1;
-    });
+    assignedLeads.forEach(l => { if (l.assignedTo) map[l.assignedTo] = (map[l.assignedTo] || 0) + 1; });
     return map;
   }, [assignedLeads]);
 
@@ -184,7 +170,6 @@ const LeadManagement = () => {
 
   const uniqueSources = useMemo(() => getUniqueSources(), [leads]);
 
-  // ─ Assignment Log selection helpers ───────────────────────────
   const allLogSelected = assignLogLeads.length > 0 && selectedLogIds.length === assignLogLeads.length;
 
   const handleLogSelectAll = useCallback((checked) => {
@@ -234,7 +219,6 @@ const LeadManagement = () => {
     });
   }, [deleteLead]);
 
-  // ─ Existing tab handlers ────────────────────────────────────────
   const handleSubmit = (e) => {
     e.preventDefault();
     const newLead = {
@@ -329,7 +313,6 @@ const LeadManagement = () => {
     a.click(); URL.revokeObjectURL(url);
   }, [assignLogLeads]);
 
-  // ─ modal payloads (memoized) ───────────────────────────────────
   const leadsToAssign    = useMemo(() => currentList.filter(l => selectedLeadIds.includes(l.id)),   [currentList, selectedLeadIds]);
   const leadsToDelete    = useMemo(() => currentList.filter(l => selectedLeadIds.includes(l.id)),   [currentList, selectedLeadIds]);
   const logLeadsToAssign = useMemo(() => assignLogLeads.filter(l => selectedLogIds.includes(l.id)), [assignLogLeads, selectedLogIds]);
@@ -409,7 +392,7 @@ const LeadManagement = () => {
           <TabsTrigger value="upload">Upload Lead</TabsTrigger>
         </TabsList>
 
-        {/* ── UNASSIGNED TAB ── */}
+        {/* UNASSIGNED TAB */}
         <TabsContent value="unassigned" className="space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -424,22 +407,23 @@ const LeadManagement = () => {
               </SelectContent>
             </Select>
           </div>
-          <Card>
-            <div className="p-0">
-              <LeadTable leads={pagedUnassigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
-                selectedIds={selectedLeadIds} onSelectLead={handleSelectLead} onSelectAll={handleSelectAll}
-                type="daily" showSource={true} />
-            </div>
-            <Pagination
-              page={unassignedPage}
-              total={filteredUnassigned.length}
-              pageSize={PAGE_SIZE}
-              onChange={setUnassignedPage}
-            />
-          </Card>
+          <LeadTable
+            leads={pagedUnassigned}
+            onAction={handleLeadAction}
+            onStatusChange={handleStatusChange}
+            selectedIds={selectedLeadIds}
+            onSelectLead={handleSelectLead}
+            onSelectAll={handleSelectAll}
+            type="daily"
+            showSource={true}
+            totalCount={filteredUnassigned.length}
+            page={unassignedPage}
+            pageSize={PAGE_SIZE}
+            onPageChange={setUnassignedPage}
+          />
         </TabsContent>
 
-        {/* ── ASSIGNED TAB ── */}
+        {/* ASSIGNED TAB */}
         {isAdmin && (
           <TabsContent value="assigned" className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4">
@@ -478,23 +462,24 @@ const LeadManagement = () => {
                 ))}
               </div>
             )}
-            <Card>
-              <div className="p-0">
-                <LeadTable leads={pagedAssigned} onAction={handleLeadAction} onStatusChange={handleStatusChange}
-                  selectedIds={selectedLeadIds} onSelectLead={handleSelectLead} onSelectAll={handleSelectAll}
-                  type="daily" showSource={true} />
-              </div>
-              <Pagination
-                page={assignedPage}
-                total={filteredAssigned.length}
-                pageSize={PAGE_SIZE}
-                onChange={setAssignedPage}
-              />
-            </Card>
+            <LeadTable
+              leads={pagedAssigned}
+              onAction={handleLeadAction}
+              onStatusChange={handleStatusChange}
+              selectedIds={selectedLeadIds}
+              onSelectLead={handleSelectLead}
+              onSelectAll={handleSelectAll}
+              type="daily"
+              showSource={true}
+              totalCount={filteredAssigned.length}
+              page={assignedPage}
+              pageSize={PAGE_SIZE}
+              onPageChange={setAssignedPage}
+            />
           </TabsContent>
         )}
 
-        {/* ── ASSIGNMENT LOG TAB ── */}
+        {/* ASSIGNMENT LOG TAB */}
         {isAdmin && (
           <TabsContent value="assignlog" className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -507,15 +492,11 @@ const LeadManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
-
               <button
                 onClick={() => setShowOnlyReassigned(v => !v)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                  showOnlyReassigned
-                    ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-                }`}
-              >
+                  showOnlyReassigned ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+                }`}>
                 <ArrowRightLeft size={12} />
                 {showOnlyReassigned ? 'Showing Reassigned Only' : 'Show Reassigned Only'}
                 {reassignedCount > 0 && (
@@ -524,7 +505,6 @@ const LeadManagement = () => {
                   }`}>{reassignedCount}</span>
                 )}
               </button>
-
               <div className="ml-auto flex items-center gap-3">
                 <span className="text-sm text-gray-400">
                   {assignLogLeads.length} leads
@@ -536,7 +516,6 @@ const LeadManagement = () => {
               </div>
             </div>
 
-            {/* Quick-select toolbar */}
             {assignLogLeads.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 px-1">
                 <span className="text-xs text-gray-400 font-medium mr-1 shrink-0">Quick select:</span>
@@ -564,44 +543,34 @@ const LeadManagement = () => {
               </div>
             )}
 
-            {/* Bulk action bar */}
             {selectedLogIds.length > 0 && (
               <div className="bg-blue-50 border border-blue-100 px-4 py-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700 h-6">
-                    {selectedLogIds.length} Selected
-                  </Badge>
-                  <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-1 rounded transition-colors"
-                    onClick={() => setSelectedLogIds([])}>
+                  <Badge variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700 h-6">{selectedLogIds.length} Selected</Badge>
+                  <button className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-1 rounded transition-colors" onClick={() => setSelectedLogIds([])}>
                     <X size={12} /> Clear
                   </button>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                    onClick={() => setIsLogAssignModalOpen(true)}>
+                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => setIsLogAssignModalOpen(true)}>
                     <UserPlus size={14} className="mr-2" /> Assign
                   </Button>
-                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                    onClick={handleLogBulkStatus}>
+                  <Button size="sm" variant="outline" className="bg-white border-blue-200 text-blue-700 hover:bg-blue-50" onClick={handleLogBulkStatus}>
                     <RefreshCw size={14} className="mr-2" /> Status
                   </Button>
-                  <Button size="sm" variant="destructive"
-                    onClick={() => setIsLogBulkDeleteModalOpen(true)}>
+                  <Button size="sm" variant="destructive" onClick={() => setIsLogBulkDeleteModalOpen(true)}>
                     <Trash2 size={14} className="mr-2" /> Delete
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Assignment Log table */}
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-4 py-3 w-10">
-                        <Checkbox checked={allLogSelected} onCheckedChange={handleLogSelectAll} />
-                      </th>
+                      <th className="px-4 py-3 w-10"><Checkbox checked={allLogSelected} onCheckedChange={handleLogSelectAll} /></th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Lead</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide hidden md:table-cell">Project</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wide">Assigned To</th>
@@ -613,32 +582,24 @@ const LeadManagement = () => {
                   </thead>
                   <tbody className="divide-y">
                     {pagedLog.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-16 text-center">
-                          <History size={32} className="mx-auto text-gray-200 mb-2" />
-                          <p className="text-gray-400 text-sm">No assigned leads yet.</p>
-                        </td>
-                      </tr>
+                      <tr><td colSpan={8} className="px-4 py-16 text-center">
+                        <History size={32} className="mx-auto text-gray-200 mb-2" />
+                        <p className="text-gray-400 text-sm">No assigned leads yet.</p>
+                      </td></tr>
                     ) : pagedLog.map(lead => (
                       <tr key={lead.id}
                         className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                          selectedLogIds.includes(lead.id)
-                            ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
-                            : lead.prevAssignedTo ? 'bg-amber-50/50' : ''
+                          selectedLogIds.includes(lead.id) ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
+                          : lead.prevAssignedTo ? 'bg-amber-50/50' : ''
                         }`}
                         onClick={() => handleLogSelectOne(lead.id, !selectedLogIds.includes(lead.id))}
                       >
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selectedLogIds.includes(lead.id)}
-                            onCheckedChange={(c) => handleLogSelectOne(lead.id, c)}
-                          />
+                          <Checkbox checked={selectedLogIds.includes(lead.id)} onCheckedChange={(c) => handleLogSelectOne(lead.id, c)} />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            {lead.prevAssignedTo && (
-                              <span title="Reassigned" className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                            )}
+                            {lead.prevAssignedTo && <span title="Reassigned" className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />}
                             <div>
                               <p className="font-semibold text-gray-900">{lead.name}</p>
                               <p className="text-xs text-gray-400">{lead.phone}</p>
@@ -696,17 +657,12 @@ const LeadManagement = () => {
                   </tbody>
                 </table>
               </div>
-              <Pagination
-                page={logPage}
-                total={assignLogLeads.length}
-                pageSize={PAGE_SIZE}
-                onChange={setLogPage}
-              />
+              <Pagination page={logPage} total={assignLogLeads.length} pageSize={PAGE_SIZE} onChange={setLogPage} />
             </Card>
           </TabsContent>
         )}
 
-        {/* ── UPLOAD TAB ── */}
+        {/* UPLOAD TAB */}
         <TabsContent value="upload">
           <Card>
             <CardHeader><CardTitle>Upload New Lead</CardTitle></CardHeader>
@@ -771,7 +727,6 @@ const LeadManagement = () => {
         leads={leadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleAssignment} />
       <BulkDeleteModal isOpen={isBulkDeleteModalOpen} onClose={() => setIsBulkDeleteModalOpen(false)}
         leads={leadsToDelete} onDelete={handleBulkDelete} />
-
       <AssignmentModal isOpen={isLogAssignModalOpen} onClose={() => setIsLogAssignModalOpen(false)}
         leads={logLeadsToAssign} allLeads={leads} employees={salesEmployees} onAssign={handleLogAssignment} />
       <BulkDeleteModal isOpen={isLogBulkDeleteModalOpen} onClose={() => setIsLogBulkDeleteModalOpen(false)}

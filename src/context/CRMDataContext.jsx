@@ -5,11 +5,13 @@
 //    independent fetch, causing 2377 leads to load 2-3x on every page load.
 import React, { createContext, useContext } from 'react';
 import { useCRMDataInternal } from '@/crm/hooks/useCRMData';
+import { useAuth } from '@/context/AuthContext';
 
 const CRMDataContext = createContext(null);
 
 export const CRMDataProvider = ({ children }) => {
-  const value = useCRMDataInternal();
+  const { user } = useAuth();
+  const value = useCRMDataInternal({ user });
   return (
     <CRMDataContext.Provider value={value}>
       {children}

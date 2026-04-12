@@ -144,6 +144,21 @@ const EmployeeCRMHome = () => {
     [calls, userId]
   );
 
+  const callsByLead = useMemo(() => {
+    const map = new Map();
+    for (const call of myCalls) {
+      const leadId = call.leadId || call.lead_id;
+      if (!leadId) continue;
+      const bucket = map.get(leadId);
+      if (!bucket) map.set(leadId, [call]);
+      else bucket.push(call);
+    }
+    map.forEach((bucket) => {
+      bucket.sort((a, b) => new Date(b.timestamp || b.call_time) - new Date(a.timestamp || a.call_time));
+    });
+    return map;
+  }, [myCalls]);
+
   const today = new Date().toISOString().split('T')[0];
   const todayStats = useMemo(() => {
     const todayCalls = myCalls.filter(c => c.timestamp?.startsWith(today));
@@ -163,10 +178,8 @@ const EmployeeCRMHome = () => {
     const todayMidnight = getLocalMidnightToday();
 
     return myLeads.map(lead => {
-      const leadCalls = myCalls.filter(c => c.leadId === lead.id || c.lead_id === lead.id);
-      const lastCall = leadCalls.sort((a, b) =>
-        new Date(b.timestamp || b.call_time) - new Date(a.timestamp || a.call_time)
-      )[0];
+      const leadCalls = callsByLead.get(lead.id) || [];
+      const lastCall = leadCalls[0];
 
       let callStatus = 'never_called';
       let hoursSinceCall = Infinity;
@@ -226,7 +239,7 @@ const EmployeeCRMHome = () => {
         _assignedAt: assignedAt,
       };
     });
-  }, [myLeads, myCalls]);
+  }, [myLeads, callsByLead]);
 
   const callNowLeads = useMemo(() =>
     analyzedLeads

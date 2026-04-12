@@ -1,6 +1,7 @@
 // src/crm/pages/EmployeeCRMHome.jsx
 // Employee daily command center — mobile-first, 1-thumb operation
 // Design: Deep navy #0F3A5F, Gold #D4AF37 accent, emerald success
+// ✅ PERF: updateLead() patches local state optimistically — no fetchLeads() after mutations
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -20,7 +21,6 @@ import {
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
 import { differenceInHours, differenceInCalendarDays, differenceInMinutes, format, formatDistanceToNow, isYesterday } from 'date-fns';
 
-// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -29,13 +29,11 @@ const parseLocalDate = (dateStr) => {
   return new Date(y, m - 1, day);
 };
 
-// ✅ FIX: get local midnight of today for accurate calendar-day comparisons
 const getLocalMidnightToday = () => {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 };
 
-// ─── Format assignment time ─────────────────────────
 const formatAssignedTime = (ts) => {
   if (!ts) return null;
   try {
@@ -44,7 +42,6 @@ const formatAssignedTime = (ts) => {
     const mins = differenceInMinutes(now, d);
     const hrs = differenceInHours(now, d);
     const days = differenceInCalendarDays(now, d);
-
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     if (hrs < 24) return `${hrs}h ago`;
@@ -54,20 +51,17 @@ const formatAssignedTime = (ts) => {
   } catch { return null; }
 };
 
-// Returns full date-time string for tooltip
 const fullAssignedTime = (ts) => {
   if (!ts) return '';
   try { return format(new Date(ts), "dd MMM yyyy 'at' h:mm a"); } catch { return ''; }
 };
 
-// ─── TAB IDs ───────────────────────────────────────────
 const TABS = {
   CALL_NOW: 'call_now',
   FOLLOW_UP: 'follow_up',
   ALL_LEADS: 'all_leads',
 };
 
-// ─── QUICK CALL STATUSES (1-tap) ──────────────────────
 const QUICK_STATUSES = [
   { id: 'not_answered', label: 'No Answer', icon: PhoneMissed, color: 'bg-red-50 text-red-700 border-red-200', dbValue: 'Not Answered' },
   { id: 'busy', label: 'Busy', icon: PhoneOff, color: 'bg-orange-50 text-orange-700 border-orange-200', dbValue: 'Busy' },
@@ -75,7 +69,6 @@ const QUICK_STATUSES = [
   { id: 'switched_off', label: 'Off', icon: PhoneOff, color: 'bg-gray-100 text-gray-600 border-gray-200', dbValue: 'Switched Off' },
 ];
 
-// ─── LEAD OUTCOME ACTIONS (after connected call) ──────
 const LEAD_OUTCOMES = [
   { id: 'follow_up', label: 'Follow Up', color: 'bg-yellow-500 text-white' },
   { id: 'site_visit', label: 'Site Visit', color: 'bg-purple-500 text-white' },
@@ -83,7 +76,6 @@ const LEAD_OUTCOMES = [
   { id: 'not_interested', label: 'Not Interested', color: 'bg-gray-500 text-white' },
 ];
 
-// ─── Relative time formatter ───────────────────────────
 const timeAgo = (ts) => {
   if (!ts) return '';
   try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
@@ -97,7 +89,6 @@ const formatPhone = (p) => {
   return p;
 };
 
-// Extract latest note line for quick preview
 const getLatestNote = (notes) => {
   if (!notes || typeof notes !== 'string') return null;
   const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
@@ -123,7 +114,6 @@ const EmployeeCRMHome = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
-  // Action modal state
   const [actionLead, setActionLead] = useState(null);
   const [actionStep, setActionStep] = useState(null);
   const [callNote, setCallNote] = useState('');
@@ -173,8 +163,6 @@ const EmployeeCRMHome = () => {
 
   const analyzedLeads = useMemo(() => {
     const now = new Date();
-    // ✅ FIX: Use local midnight for calendar-day diff so timezone doesn't
-    // push a future date into "today" or "overdue" bucket incorrectly.
     const todayMidnight = getLocalMidnightToday();
 
     return myLeads.map(lead => {
@@ -198,14 +186,11 @@ const EmployeeCRMHome = () => {
         try {
           const fuParsed = parseLocalDate(fuDate);
           if (fuParsed) {
-            // ✅ FIX: Use differenceInCalendarDays against LOCAL midnight today
-            // so "tomorrow" (2026-03-14 00:00) - "today" (2026-03-13 00:00) = 1
-            // instead of subtracting current clock time which could give 0 or -1
             daysUntilFollowUp = differenceInCalendarDays(fuParsed, todayMidnight);
-            if (daysUntilFollowUp < 0)      followUpPriority = 1; // overdue
-            else if (daysUntilFollowUp === 0) followUpPriority = 2; // today
-            else if (daysUntilFollowUp === 1) followUpPriority = 3; // tomorrow
-            else if (daysUntilFollowUp <= 7)  followUpPriority = 4; // this week
+            if (daysUntilFollowUp < 0)       followUpPriority = 1;
+            else if (daysUntilFollowUp === 0) followUpPriority = 2;
+            else if (daysUntilFollowUp === 1) followUpPriority = 3;
+            else if (daysUntilFollowUp <= 7)  followUpPriority = 4;
           }
         } catch { /* ignore */ }
       }
@@ -217,13 +202,9 @@ const EmployeeCRMHome = () => {
       const fuScore = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
 
       const assignedAt =
-        lead.assignmentDate ||
-        lead.assignment_date ||
-        lead.assignedAt ||
-        lead.assigned_at ||
-        lead.createdAt ||
-        lead.created_at ||
-        null;
+        lead.assignmentDate || lead.assignment_date ||
+        lead.assignedAt    || lead.assigned_at     ||
+        lead.createdAt     || lead.created_at      || null;
 
       return {
         ...lead,
@@ -362,6 +343,9 @@ const EmployeeCRMHome = () => {
     } finally { setSaving(false); }
   }, [actionLead, saving, addCallLog, userId, user?.name, callNote, toast]);
 
+  // ✅ PERF FIX: updateLead() already patches local state optimistically.
+  //    fetchLeads() after every mutation was causing 3–5 extra network requests per action.
+  //    Realtime subscription handles background sync automatically.
   const handleOutcome = useCallback(async (outcome) => {
     if (!actionLead || saving) return;
     setSaving(true);
@@ -373,10 +357,9 @@ const EmployeeCRMHome = () => {
         setSaving(false);
         return;
       } else if (outcome.id === 'site_visit') {
-        updates.status = 'FollowUp'; updates.siteVisitStatus = 'planned';
+        updates.status = 'FollowUp';
+        updates.siteVisitStatus = 'planned';
         await updateLead(actionLead.id, updates);
-        // ✅ FIX: force fresh fetch so Follow Up tab reflects new status immediately
-        fetchLeads();
         toast({ title: 'Site Visit Planned', description: `Marked for ${actionLead.name}` });
         closeAction();
       } else if (outcome.id === 'booked') {
@@ -384,23 +367,23 @@ const EmployeeCRMHome = () => {
         updates.follow_up_date = null;
         updates.followUpDate = null;
         await updateLead(actionLead.id, updates);
-        fetchLeads();
-        toast({ title: 'Booked!', description: `${actionLead.name} marked as Booked` });
+        toast({ title: 'Booked! 🎉', description: `${actionLead.name} marked as Booked` });
         closeAction();
       } else if (outcome.id === 'not_interested') {
         updates.status = 'Lost';
         updates.follow_up_date = null;
         updates.followUpDate = null;
         await updateLead(actionLead.id, updates);
-        fetchLeads();
         toast({ title: 'Marked Lost', description: `${actionLead.name} not interested` });
         closeAction();
       }
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
-  }, [actionLead, saving, updateLead, fetchLeads, toast, closeAction]);
+  }, [actionLead, saving, updateLead, toast, closeAction]);
 
+  // ✅ PERF FIX: updateLead() patches local state (status + followUpDate) instantly.
+  //    The Follow Up tabs recompute automatically via useMemo — no fetch needed.
   const handleSaveFollowUp = useCallback(async () => {
     if (!actionLead || saving) return;
     setSaving(true);
@@ -413,14 +396,12 @@ const EmployeeCRMHome = () => {
       }
       if (callNote) updates.notes = `${actionLead.notes || ''}\n[${new Date().toLocaleString('en-IN')}] ${callNote}`.trim();
       await updateLead(actionLead.id, updates);
-      // ✅ FIX: force fresh fetch so Today/Tomorrow/Overdue tabs update immediately
-      fetchLeads();
       toast({ title: 'Follow-up Set', description: followUpDate && parseLocalDate(followUpDate) ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
       closeAction();
     } catch (err) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally { setSaving(false); }
-  }, [actionLead, saving, followUpDate, callNote, updateLead, fetchLeads, toast, closeAction]);
+  }, [actionLead, saving, followUpDate, callNote, updateLead, toast, closeAction]);
 
   const setQuickDate = (days) => {
     const d = new Date();
@@ -904,7 +885,6 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
 });
 LeadCallCard.displayName = 'LeadCallCard';
 
-// ─── FOLLOW UP SECTION ───────────────────────────────
 const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNavigate }) => (
   <div className={`rounded-2xl border ${color} overflow-hidden`}>
     <div className="flex items-center gap-2 px-3 py-2">
@@ -962,7 +942,6 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
 ));
 FollowUpSection.displayName = 'FollowUpSection';
 
-// ─── EMPTY STATE ─────────────────────────────────────
 const EmptyState = ({ message, icon: Icon = Check }) => (
   <div className="text-center py-12">
     <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">

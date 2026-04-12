@@ -8,10 +8,10 @@
 //        If Realtime fires two fetchLeads() concurrently, the older one that arrives late
 //        is silently discarded, so stale data can never overwrite fresh data.
 // ✅ FIX: updateLead auto-stamps assigned_at whenever assignedTo changes
-// ✅ FIX: visibilitychange listener now uses a "was hidden" guard so it never fires
-//        a duplicate fetchLeads() on initial page load (Chromium fires the event
-//        immediately when the page first becomes visible, which previously caused
-//        req#1 and req#2 to both apply 2084 leads and trigger a 300ms forced reflow).
+// ✅ FIX: visibilitychange listener now uses a “was hidden” guard so it never fires
+//        a duplicate fetchLeads() on initial page load.
+// ✅ PERF: Realtime now does surgical row-level updates instead of full refetch.
+//         addLead patches local state optimistically — no full refetch after insert.
 import { useState, useEffect, useRef } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
@@ -31,6 +31,42 @@ const STORAGE_KEYS = {
   PROMO_MATERIALS: 'crm_promo_materials',
   AUDIT_LOGS:      'crm_audit_logs',
 };
+
+// Normalize a single Supabase leads row into the app shape
+const normalizeRow = (row) => ({
+  id:                  row.id,
+  name:                row.full_name          || '',
+  phone:               row.phone              || '',
+  email:               row.email              || '',
+  source:              row.source             || 'Manual Import',
+  status:              row.final_status       || row.status || 'FollowUp',
+  budget:              row.budget             || '',
+  interestLevel:       row.interest_level     || 'Cold',
+  notes:               row.notes              || '',
+  callAttempt:         row.call_attempt       || '',
+  callStatus:          row.call_status        || '',
+  siteVisitStatus:     row.site_visit_status  || '',
+  finalStatus:         row.final_status       || 'FollowUp',
+  assignedTo:          row.assigned_to        || null,
+  assignedToName:      row.assigned_to_name   || null,
+  createdBy:           row.created_by         || null,
+  createdAt:           row.created_at,
+  lastActivity:        row.updated_at,
+  activityLog:         [],
+  project:             row.project            || '',
+  followUpDate:        row.next_followup_date || null,
+  follow_up_date:      row.next_followup_date || null,
+  tokenAmount:         row.token_amount       || 0,
+  bookingAmount:       row.booking_amount     || 0,
+  partialPayment:      row.partial_payment    || 0,
+  paymentMode:         row.payment_mode       || 'Cash',
+  unitNumber:          row.unit_number        || '',
+  isVIP:               row.is_vip             || false,
+  assignedAt:          row.assigned_at            || null,
+  prevAssignedTo:      row.prev_assigned_to       || null,
+  prevAssignedToName:  row.prev_assigned_to_name  || null,
+  prevAssignedAt:      row.prev_assigned_at       || null,
+});
 
 export const useCRMData = () => {
   const [leads, setLeads]                         = useState([]);
@@ -55,16 +91,7 @@ export const useCRMData = () => {
   const [eodReports, setEodReports]         = useState([]);
   const [auditLogs, setAuditLogs]           = useState([]);
 
-  // ✅ Request-ID counter: incremented on every fetchLeads() call.
-  // Each call captures its own ID. Only the call whose ID matches the
-  // current counter at finish-time is allowed to call setLeads().
-  // This kills the "last-write-wins" race condition between concurrent fetches.
-  const leadsReqId = useRef(0);
-
-  // ✅ Guard for visibilitychange: only refetch when the tab was previously
-  // hidden. Chromium fires visibilitychange with state='visible' on the
-  // initial page load before the tab has ever been hidden, which previously
-  // triggered a duplicate fetchLeads() right after the initial fetch.
+  const leadsReqId   = useRef(0);
   const tabWasHidden = useRef(false);
 
   // Load localStorage once
@@ -91,12 +118,21 @@ export const useCRMData = () => {
   }, []);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // ✅ SUPABASE REALTIME SUBSCRIPTIONS
+  // SUPABASE REALTIME — SURGICAL UPDATES (no full refetch on changes)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   useEffect(() => {
     const leadsChannel = supabaseAdmin
       .channel('realtime:leads')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, ({ new: row }) => {
+        // Prepend the new row; skip if it already exists (e.g. from optimistic addLead)
+        setLeads(prev => prev.some(l => l.id === row.id) ? prev : [normalizeRow(row), ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, ({ new: row }) => {
+        setLeads(prev => prev.map(l => l.id === row.id ? normalizeRow(row) : l));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, ({ old: row }) => {
+        setLeads(prev => prev.filter(l => l.id !== row.id));
+      })
       .subscribe();
 
     const visitsChannel = supabaseAdmin
@@ -114,12 +150,6 @@ export const useCRMData = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
       .subscribe();
 
-    // ✅ FIX: Only refetch when the tab returns from being hidden.
-    // Previously, Chromium fired visibilitychange='visible' on the initial
-    // page load (before the tab was ever hidden), causing fetchLeads() to
-    // run twice immediately — once from the initial useEffect above and once
-    // here — resulting in req#1 and req#2 both applying 2084 leads and
-    // triggering two 300ms+ forced reflows in the leads list renderer.
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         tabWasHidden.current = true;
@@ -173,11 +203,8 @@ export const useCRMData = () => {
     setWorkLogs(Object.values(logsMap).sort((a, b) => b.date.localeCompare(a.date)));
   }, [calls, siteVisits, bookings, callsLoading, siteVisitsLoading, bookingsLoading]);
 
-  // ── LEADS ───────────────────────────────────────────────────────────────────
+  // ── LEADS ────────────────────────────────────────────────────────────────────────
   const fetchLeads = async () => {
-    // ✅ Capture this request's ID. If a newer fetchLeads() starts before this
-    // one finishes, thisReq will be < leadsReqId.current, so we bail out
-    // instead of overwriting the newer (correct) data.
     const thisReq = ++leadsReqId.current;
     try {
       setLeadsLoading(true);
@@ -192,48 +219,13 @@ export const useCRMData = () => {
           if (thisReq === leadsReqId.current) setLeads([]);
           return;
         }
-        // Bail out early if a newer request has already started
         if (thisReq !== leadsReqId.current) return;
         allData = allData.concat(data || []);
         if (!data || data.length < PAGE_SIZE) keepGoing = false;
         else from += PAGE_SIZE;
       }
-      // Final guard before applying results
       if (thisReq !== leadsReqId.current) return;
-      const normalized = allData.map(row => ({
-        id:                  row.id,
-        name:                row.full_name          || '',
-        phone:               row.phone              || '',
-        email:               row.email              || '',
-        source:              row.source             || 'Manual Import',
-        status:              row.final_status       || row.status || 'FollowUp',
-        budget:              row.budget             || '',
-        interestLevel:       row.interest_level     || 'Cold',
-        notes:               row.notes              || '',
-        callAttempt:         row.call_attempt       || '',
-        callStatus:          row.call_status        || '',
-        siteVisitStatus:     row.site_visit_status  || '',
-        finalStatus:         row.final_status       || 'FollowUp',
-        assignedTo:          row.assigned_to        || null,
-        assignedToName:      row.assigned_to_name   || null,
-        createdBy:           row.created_by         || null,
-        createdAt:           row.created_at,
-        lastActivity:        row.updated_at,
-        activityLog:         [],
-        project:             row.project            || '',
-        followUpDate:        row.next_followup_date || null,
-        follow_up_date:      row.next_followup_date || null,
-        tokenAmount:         row.token_amount       || 0,
-        bookingAmount:       row.booking_amount     || 0,
-        partialPayment:      row.partial_payment    || 0,
-        paymentMode:         row.payment_mode       || 'Cash',
-        unitNumber:          row.unit_number        || '',
-        isVIP:               row.is_vip             || false,
-        assignedAt:          row.assigned_at            || null,
-        prevAssignedTo:      row.prev_assigned_to       || null,
-        prevAssignedToName:  row.prev_assigned_to_name  || null,
-        prevAssignedAt:      row.prev_assigned_at       || null,
-      }));
+      const normalized = allData.map(normalizeRow);
       setLeads(normalized);
       console.log(`[Leads] req#${thisReq} applied — ${normalized.length} leads`);
     } catch (err) {
@@ -264,7 +256,8 @@ export const useCRMData = () => {
       };
       const { data, error } = await supabaseAdmin.from('leads').insert(doc).select().single();
       if (error) { console.error('[Leads] addLead error:', error.message); return null; }
-      await fetchLeads();
+      // ✅ PERF: patch local state directly — Realtime INSERT will be deduped by id check
+      setLeads(prev => [normalizeRow(data), ...prev]);
       return data;
     } catch (err) { console.error('[Leads] addLead unexpected error:', err); return null; }
   };
@@ -284,10 +277,6 @@ export const useCRMData = () => {
       if (updates.callStatus       !== undefined) mapped.call_status        = updates.callStatus;
       if (updates.siteVisitStatus  !== undefined) mapped.site_visit_status  = updates.siteVisitStatus;
       if (updates.project          !== undefined) mapped.project            = updates.project;
-      // ✅ FIX: Update BOTH next_followup_date AND follow_up_date columns.
-      // The DB trigger calculate_followup_priority() uses follow_up_date,
-      // so if only next_followup_date is updated, the priority stays stale
-      // and the lead keeps showing as overdue even after rescheduling.
       if (updates.followUpDate     !== undefined) {
         mapped.next_followup_date = updates.followUpDate;
         mapped.follow_up_date     = updates.followUpDate;
@@ -310,18 +299,14 @@ export const useCRMData = () => {
       if (updates.prevAssignedToName   !== undefined) mapped.prev_assigned_to_name = updates.prevAssignedToName;
       if (updates.prevAssignedAt       !== undefined) mapped.prev_assigned_at      = updates.prevAssignedAt;
 
-      // ✅ FIX: When assignedTo changes, always update both assigned_to_name AND
-      // stamp assigned_at with current time so employees see accurate assignment time.
       if (updates.assignedTo !== undefined) {
         mapped.assigned_to = updates.assignedTo;
-        // Only stamp a new timestamp if actually assigning to someone
         if (updates.assignedTo) {
           mapped.assigned_at = updates.assignedAt || new Date().toISOString();
         } else {
           mapped.assigned_at = null;
         }
       } else if (updates.assignedAt !== undefined) {
-        // Allow explicit override if caller provides it
         mapped.assigned_at = updates.assignedAt;
       }
       if (updates.assignedToName !== undefined) mapped.assigned_to_name = updates.assignedToName;
@@ -331,12 +316,10 @@ export const useCRMData = () => {
       const { error } = await supabaseAdmin.from('leads').update(mapped).eq('id', id);
       if (error) { console.error('[Leads] updateLead error:', error.message); return; }
 
-      // ✅ Optimistic local update — sync BOTH follow_up_date AND followUpDate
-      // Determine the new follow-up date: explicit value from either field, or keep existing
       const hasFollowUpUpdate = updates.follow_up_date !== undefined || updates.followUpDate !== undefined;
       const newFollowUp = hasFollowUpUpdate
         ? (updates.follow_up_date ?? updates.followUpDate ?? null)
-        : undefined; // undefined = no change
+        : undefined;
       setLeads(prev => prev.map(l => {
         if (l.id !== id) return l;
         const updated = {
@@ -345,12 +328,10 @@ export const useCRMData = () => {
           lastActivity:   new Date().toISOString(),
           status:         updates.status        !== undefined ? updates.status        : l.status,
           interestLevel:  updates.interestLevel !== undefined ? updates.interestLevel : l.interestLevel,
-          // ✅ Sync assignedAt in local state when assignedTo changes
           assignedAt: updates.assignedTo !== undefined && updates.assignedTo
             ? (updates.assignedAt || new Date().toISOString())
             : updates.assignedTo === null ? null : l.assignedAt,
         };
-        // Only override follow-up dates if explicitly changed in this update
         if (hasFollowUpUpdate) {
           updated.follow_up_date = newFollowUp;
           updated.followUpDate   = newFollowUp;
@@ -377,7 +358,7 @@ export const useCRMData = () => {
     await updateLead(id, { notes: newNote });
   };
 
-  // ── EMPLOYEES ────────────────────────────────────────────────────────────
+  // ── EMPLOYEES ─────────────────────────────────────────────────────────────────
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
@@ -394,7 +375,7 @@ export const useCRMData = () => {
     finally { setEmployeesLoading(false); }
   };
 
-  // ── CALLS ───────────────────────────────────────────────────────────────────
+  // ── CALLS ────────────────────────────────────────────────────────────────────────
   const fetchCalls = async () => {
     try {
       setCallsLoading(true);
@@ -411,7 +392,6 @@ export const useCRMData = () => {
     finally { setCallsLoading(false); }
   };
 
-  // ✅ No updateLead inside addCallLog — prevents the Realtime race condition.
   const addCallLog = async (log) => {
     try {
       const result = await addCall(log);
@@ -423,7 +403,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Calls] addCallLog error:', err); return null; }
   };
 
-  // ── SITE VISITS ────────────────────────────────────────────────────────────
+  // ── SITE VISITS ────────────────────────────────────────────────────────────────
   const fetchSiteVisits = async () => {
     try {
       setSiteVisitsLoading(true);
@@ -490,7 +470,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[SiteVisits] updateSiteVisit unexpected error:', err); throw err; }
   };
 
-  // ── BOOKINGS ────────────────────────────────────────────────────────────
+  // ── BOOKINGS ──────────────────────────────────────────────────────────────────
   const fetchBookings = async () => {
     try {
       setBookingsLoading(true);
@@ -507,8 +487,6 @@ export const useCRMData = () => {
     finally { setBookingsLoading(false); }
   };
 
-  // ✅ FIX: addBookingLog now clears follow_up_date when marking Booked,
-  // and calls updateLead BEFORE fetchBookings to avoid Realtime race condition.
   const addBookingLog = async (log) => {
     try {
       const result = await addBooking(log);
@@ -529,7 +507,7 @@ export const useCRMData = () => {
     } catch (err) { console.error('[Bookings] addBookingLog error:', err); return null; }
   };
 
-  // ── localStorage helpers ────────────────────────────────────────────────────────
+  // ── localStorage helpers ──────────────────────────────────────────────────────
   const saveData = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
     switch (key) {

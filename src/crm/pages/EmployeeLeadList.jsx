@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import {
   Search, Plus, Phone, Calendar, IndianRupee,
   TrendingUp, Users, CheckCircle2, Clock, X,
-  ChevronRight, Flame, FileText, ChevronDown
+  ChevronRight, Flame, FileText, ChevronDown, Loader2
 } from 'lucide-react';
 
 /* ─── Status config ─────────────────────────────────────────────────── */
@@ -102,7 +102,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
     }
   };
 
-  // Prevent body scroll while sheet is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -110,7 +109,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -118,8 +116,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
           zIndex: 200, backdropFilter: 'blur(2px)',
         }}
       />
-
-      {/* Sheet */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
         background: '#fff',
@@ -130,13 +126,11 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
         maxHeight: '90vh',
         overflowY: 'auto',
       }}>
-        {/* Drag handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
           <div style={{ width: 36, height: 4, borderRadius: 99, background: '#e2e8f0' }} />
         </div>
 
         <div style={{ padding: '4px 20px 0' }}>
-          {/* Title row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <p style={{ fontSize: 11, color: '#64748b', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Quick Log</p>
@@ -162,7 +156,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
             </button>
           </div>
 
-          {/* Status chips */}
           <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Update Status</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
             {QUICK_STATUSES.map(s => (
@@ -184,7 +177,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
             ))}
           </div>
 
-          {/* Note */}
           <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Call Note</p>
           <textarea
             value={note}
@@ -202,7 +194,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
             onBlur={e => e.target.style.borderColor = '#e2e8f0'}
           />
 
-          {/* Follow-up date (only for FollowUp status) */}
           {status === 'FollowUp' && (
             <div style={{ marginTop: 14 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Follow-Up Date</p>
@@ -222,7 +213,6 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
             </div>
           )}
 
-          {/* Save button */}
           <button
             onClick={handleSave}
             disabled={saving || savedOk}
@@ -272,7 +262,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
   const handleCall = e => {
     e.stopPropagation();
     if (lead.phone) window.location.href = `tel:${lead.phone}`;
-    // Open QuickLog after a short delay so dialer opens first
     setTimeout(() => onCallLog(lead), 400);
   };
 
@@ -366,7 +355,7 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
         </p>
       )}
 
-      {/* ── Action row: Call + Quick Log ── */}
+      {/* Action row */}
       <div
         style={{
           display: 'flex', gap: 8, marginTop: 12,
@@ -374,7 +363,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Call button */}
         <a
           href={lead.phone ? `tel:${lead.phone}` : undefined}
           onClick={handleCall}
@@ -393,7 +381,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
           {lead.phone ? lead.phone : 'No number'}
         </a>
 
-        {/* Quick Log button */}
         <button
           onClick={handleQuickLog}
           style={{
@@ -489,44 +476,176 @@ const FILTERS = ['All', 'Open', 'FollowUp', 'Booked', 'Lost'];
 const FILTER_LABELS = { All: 'All', Open: 'Open', FollowUp: 'Follow Up', Booked: 'Booked', Lost: 'Lost' };
 const PAGE_SIZE = 20;
 
+/* ─── DB status helpers ─────────────────────────────────────────────── */
+const filterToDbStatus = f => {
+  if (f === 'FollowUp') return ['Follow Up', 'FollowUp'];
+  if (f === 'All') return null;
+  return [f];
+};
+
 /* ─── Page ──────────────────────────────────────────────────────────── */
 const EmployeeLeadList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Server-side paginated leads
   const [myLeads,      setMyLeads]      = useState([]);
   const [loading,      setLoading]      = useState(true);
+  const [loadingMore,  setLoadingMore]  = useState(false);
+  const [hasMore,      setHasMore]      = useState(true);
+  const [page,         setPage]         = useState(0);          // 0-based page index
+
+  // Stats fetched separately (fast count query)
+  const [stats,        setStats]        = useState({ total: 0, open: 0, followUp: 0, booked: 0 });
+  const [todayCount,   setTodayCount]   = useState(0);
+  const [tomorrowCount,setTomorrowCount]= useState(0);
+
   const [search,       setSearch]       = useState('');
   const [filter,       setFilter]       = useState('All');
-  const [page,         setPage]         = useState(1);
-  const [quickLogLead, setQuickLogLead] = useState(null); // lead object for sheet
-  const searchRef = useRef(null);
-  const listEnd   = useRef(null);
+  const [quickLogLead, setQuickLogLead] = useState(null);
 
-  const userId = user?.uid || user?.id;
+  const searchRef   = useRef(null);
+  const listEnd     = useRef(null);
+  const debounceRef = useRef(null);
+  const userId      = user?.uid || user?.id;
 
-  /* ── Fetch ── */
-  useEffect(() => {
+  /* ── Build Supabase query for current filter/search ── */
+  const buildQuery = useCallback((fromIndex = 0, currentFilter = filter, currentSearch = search) => {
+    let q = supabase
+      .from('leads')
+      .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+      .eq('assigned_to', userId)
+      .order('updated_at', { ascending: false })
+      .range(fromIndex, fromIndex + PAGE_SIZE - 1);
+
+    const dbStatuses = filterToDbStatus(currentFilter);
+    if (dbStatuses) q = q.in('status', dbStatuses);
+
+    if (currentSearch.trim()) {
+      const t = currentSearch.trim();
+      q = q.or(`name.ilike.%${t}%,phone.ilike.%${t}%,project.ilike.%${t}%`);
+    }
+    return q;
+  }, [userId, filter, search]);
+
+  /* ── Fetch stats (counts only) — runs once on mount & filter change ── */
+  const fetchStats = useCallback(async () => {
     if (!userId) return;
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
-          .eq('assigned_to', userId)
-          .order('updated_at', { ascending: false });
-        if (!cancelled && !error) setMyLeads(data.map(normalise));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
+    try {
+      const today    = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+      const todayStr    = today.toISOString().split('T')[0];
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const [allRes, openRes, fuRes, bookedRes, todayRes, tmrRes] = await Promise.all([
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).eq('status', 'Open'),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).in('status', ['Follow Up', 'FollowUp']),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).eq('status', 'Booked'),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).gte('follow_up_date', todayStr).lt('follow_up_date', tomorrowStr),
+        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).gte('follow_up_date', tomorrowStr).lt('follow_up_date', new Date(tomorrow.getTime() + 86400000).toISOString().split('T')[0]),
+      ]);
+
+      setStats({
+        total:    allRes.count    ?? 0,
+        open:     openRes.count   ?? 0,
+        followUp: fuRes.count     ?? 0,
+        booked:   bookedRes.count ?? 0,
+      });
+      setTodayCount(todayRes.count ?? 0);
+      setTomorrowCount(tmrRes.count ?? 0);
+    } catch (_) {}
   }, [userId]);
 
-  /* ── Realtime ── */
+  /* ── Initial page load (first 20) ── */
+  const fetchFirstPage = useCallback(async (currentFilter, currentSearch) => {
+    if (!userId) return;
+    setLoading(true);
+    setMyLeads([]);
+    setPage(0);
+    setHasMore(true);
+    try {
+      let q = supabase
+        .from('leads')
+        .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+        .eq('assigned_to', userId)
+        .order('updated_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      const dbStatuses = filterToDbStatus(currentFilter);
+      if (dbStatuses) q = q.in('status', dbStatuses);
+      if (currentSearch.trim()) {
+        const t = currentSearch.trim();
+        q = q.or(`name.ilike.%${t}%,phone.ilike.%${t}%,project.ilike.%${t}%`);
+      }
+
+      const { data, error } = await q;
+      if (!error) {
+        const rows = (data || []).map(normalise);
+        setMyLeads(rows);
+        setHasMore(rows.length === PAGE_SIZE);
+        setPage(1);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  /* ── Load more (next page) ── */
+  const fetchNextPage = useCallback(async () => {
+    if (!userId || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const fromIndex = page * PAGE_SIZE;
+      let q = supabase
+        .from('leads')
+        .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+        .eq('assigned_to', userId)
+        .order('updated_at', { ascending: false })
+        .range(fromIndex, fromIndex + PAGE_SIZE - 1);
+
+      const dbStatuses = filterToDbStatus(filter);
+      if (dbStatuses) q = q.in('status', dbStatuses);
+      if (search.trim()) {
+        const t = search.trim();
+        q = q.or(`name.ilike.%${t}%,phone.ilike.%${t}%,project.ilike.%${t}%`);
+      }
+
+      const { data, error } = await q;
+      if (!error && data?.length) {
+        setMyLeads(prev => [...prev, ...data.map(normalise)]);
+        setHasMore(data.length === PAGE_SIZE);
+        setPage(p => p + 1);
+      } else {
+        setHasMore(false);
+      }
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [userId, page, filter, search, loadingMore, hasMore]);
+
+  /* ── Mount: fetch first page + stats ── */
+  useEffect(() => {
+    fetchFirstPage('All', '');
+    fetchStats();
+  }, [userId]); // eslint-disable-line
+
+  /* ── Filter change: refetch from page 0 ── */
+  useEffect(() => {
+    if (!userId) return;
+    fetchFirstPage(filter, search);
+  }, [filter]); // eslint-disable-line
+
+  /* ── Search: debounce 350ms then refetch ── */
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchFirstPage(filter, search);
+    }, 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]); // eslint-disable-line
+
+  /* ── Realtime: patch individual leads in state ── */
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
@@ -541,17 +660,17 @@ const EmployeeLeadList = () => {
             if (idx === -1) return [updated, ...prev];
             const next = [...prev];
             next[idx] = updated;
-            return next.sort((a, b) =>
-              new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)
-            );
+            return next;
           });
+          // Refresh stats silently
+          fetchStats();
         }
       )
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, [userId]);
+  }, [userId, fetchStats]);
 
-  /* ── QuickLog local update (optimistic) ── */
+  /* ── QuickLog optimistic update ── */
   const handleQuickLogSaved = useCallback(updates => {
     setMyLeads(prev => prev.map(l => {
       if (l.id !== updates.id) return l;
@@ -563,66 +682,22 @@ const EmployeeLeadList = () => {
         updatedAt:    updates.updated_at,
       };
     }));
-  }, []);
+    fetchStats();
+  }, [fetchStats]);
 
-  /* ── Stats ── */
-  const stats = useMemo(() => ({
-    total:    myLeads.length,
-    open:     myLeads.filter(l => l.status === 'Open').length,
-    followUp: myLeads.filter(l => l.status === 'FollowUp' || l.status === 'Follow Up').length,
-    booked:   myLeads.filter(l => l.status === 'Booked').length,
-  }), [myLeads]);
-
-  /* ── Filter + Search ── */
-  const filtered = useMemo(() => {
-    let list = myLeads;
-    if (filter !== 'All') list = list.filter(l =>
-      l.status === filter || (filter === 'FollowUp' && l.status === 'Follow Up')
-    );
-    if (search) {
-      const t = search.toLowerCase();
-      list = list.filter(l =>
-        l.name?.toLowerCase().includes(t) ||
-        l.phone?.includes(t) ||
-        l.project?.toLowerCase().includes(t)
-      );
-    }
-    return list;
-  }, [myLeads, filter, search]);
-
-  const visible = useMemo(() => filtered.slice(0, page * PAGE_SIZE), [filtered, page]);
-  const handleCardClick = useCallback(id => navigate(`/crm/lead/${id}`), [navigate]);
-  useEffect(() => { setPage(1); }, [search, filter]);
-
-  /* ── Infinite scroll ── */
+  /* ── Infinite scroll sentinel ── */
   useEffect(() => {
     if (!listEnd.current) return;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && visible.length < filtered.length) setPage(p => p + 1);
+      if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        fetchNextPage();
+      }
     }, { threshold: 0.1 });
     obs.observe(listEnd.current);
     return () => obs.disconnect();
-  }, [visible.length, filtered.length]);
+  }, [hasMore, loadingMore, loading, fetchNextPage]);
 
-  /* ── Follow-up counts ── */
-  const todayCount = useMemo(() => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    return myLeads.filter(l => {
-      if (!l.followUpDate) return false;
-      const d = new Date(l.followUpDate); d.setHours(0,0,0,0);
-      return d.getTime() === today.getTime();
-    }).length;
-  }, [myLeads]);
-
-  const tomorrowCount = useMemo(() => {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-    return myLeads.filter(l => {
-      if (!l.followUpDate) return false;
-      const d = new Date(l.followUpDate); d.setHours(0,0,0,0);
-      return d.getTime() === tomorrow.getTime();
-    }).length;
-  }, [myLeads]);
+  const handleCardClick = useCallback(id => navigate(`/crm/lead/${id}`), [navigate]);
 
   return (
     <div style={{
@@ -639,13 +714,16 @@ const EmployeeLeadList = () => {
           from { transform: translateY(100%) }
           to   { transform: translateY(0) }
         }
+        @keyframes spin {
+          from { transform: rotate(0deg) }
+          to   { transform: rotate(360deg) }
+        }
         .lead-card:active  { transform: scale(0.985); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
         .lead-card:hover   { box-shadow: 0 4px 16px rgba(30,58,95,0.12) !important; }
         ::-webkit-scrollbar { width: 0; height: 0; }
         .call-btn:active   { background: rgba(16,185,129,0.2) !important; }
         .log-btn:active    { background: rgba(37,99,235,0.18) !important; }
-
-        /* 2×2 stat grid on small screens */
+        .load-more-spinner { animation: spin 0.8s linear infinite; }
         @media (max-width: 480px) {
           .stat-grid { grid-template-columns: 1fr 1fr !important; }
         }
@@ -661,14 +739,13 @@ const EmployeeLeadList = () => {
         paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          {/* Title + Add button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
               <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', letterSpacing: -0.5, lineHeight: 1.2 }}>
                 My Leads
               </h1>
               <p style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>
-                {myLeads.length} assigned
+                {stats.total} assigned
               </p>
             </div>
             <button
@@ -688,7 +765,7 @@ const EmployeeLeadList = () => {
             </button>
           </div>
 
-          {/* Search — 16px font prevents iOS auto-zoom */}
+          {/* Search */}
           <div style={{ position: 'relative', marginBottom: 10 }}>
             <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             <input
@@ -725,11 +802,11 @@ const EmployeeLeadList = () => {
                 active={filter === f}
                 onClick={() => setFilter(f)}
                 count={
-                  f === 'All'      ? myLeads.length :
+                  f === 'All'      ? stats.total :
                   f === 'Open'     ? stats.open :
                   f === 'FollowUp' ? stats.followUp :
                   f === 'Booked'   ? stats.booked :
-                  myLeads.filter(l => l.status === f).length
+                  undefined
                 }
               />
             ))}
@@ -766,7 +843,7 @@ const EmployeeLeadList = () => {
           </div>
         )}
 
-        {/* Stat grid — 4-col desktop, 2×2 mobile via CSS class */}
+        {/* Stat grid */}
         <div
           className="stat-grid"
           style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}
@@ -778,9 +855,9 @@ const EmployeeLeadList = () => {
         </div>
 
         {/* Results label */}
-        {(search || filter !== 'All') && (
+        {(search || filter !== 'All') && !loading && (
           <p style={{ fontSize: 12, color: '#64748b', marginBottom: 10, fontWeight: 500 }}>
-            {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+            {myLeads.length}{hasMore ? '+' : ''} result{myLeads.length !== 1 ? 's' : ''}
             {search ? ` for "${search}"` : ''}
             {filter !== 'All' ? ` · ${FILTER_LABELS[filter]}` : ''}
           </p>
@@ -791,7 +868,7 @@ const EmployeeLeadList = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...Array(6)].map((_, i) => <LeadSkeleton key={i} />)}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : myLeads.length === 0 ? (
           <div style={{
             textAlign: 'center', padding: '60px 24px',
             background: '#fff', borderRadius: 20, border: '1px solid #e2e8f0',
@@ -821,7 +898,7 @@ const EmployeeLeadList = () => {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {visible.map(lead => (
+            {myLeads.map(lead => (
               <LeadCard
                 key={lead.id}
                 lead={lead}
@@ -829,17 +906,31 @@ const EmployeeLeadList = () => {
                 onCallLog={setQuickLogLead}
               />
             ))}
-            <div ref={listEnd} style={{ height: 10 }} />
-            {visible.length < filtered.length && (
-              <p style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>
-                Loading more…
-              </p>
+
+            {/* Infinite scroll sentinel */}
+            <div ref={listEnd} style={{ height: 1 }} />
+
+            {/* Loading more spinner */}
+            {loadingMore && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', gap: 8, alignItems: 'center' }}>
+                <Loader2 size={18} color="#2563eb" className="load-more-spinner" />
+                <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>Loading more…</span>
+              </div>
+            )}
+
+            {/* End of list */}
+            {!hasMore && myLeads.length > 0 && (
+              <div style={{ textAlign: 'center', padding: '14px 0 4px' }}>
+                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
+                  All {myLeads.length} leads loaded
+                </span>
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* ── QuickLog bottom sheet ── */}
+      {/* QuickLog Sheet */}
       {quickLogLead && (
         <QuickLogSheet
           lead={quickLogLead}

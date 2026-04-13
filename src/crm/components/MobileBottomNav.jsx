@@ -1,17 +1,18 @@
 // src/crm/components/MobileBottomNav.jsx
 // Unified bottom nav — works same on mobile and tablet
-// 4 tabs: Call CRM | Leads | Bookings | Profile
+// 5 tabs: Call CRM | Leads | Search | Site Visits | Bookings | Profile
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Phone, Users, MapPin, Trophy, User } from 'lucide-react';
+import { Phone, Users, Search, MapPin, Trophy, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const NAV_ITEMS = [
-  { id: 'crm',      label: 'Call CRM',    icon: Phone,   path: '/crm/sales/crm',            activeColor: 'text-green-600',   activeBg: 'bg-green-50' },
-  { id: 'leads',    label: 'Leads',       icon: Users,   path: '/crm/sales/my-leads',        activeColor: 'text-blue-600',    activeBg: 'bg-blue-50' },
-  { id: 'visits',   label: 'Site Visits', icon: MapPin,  path: '/crm/sales/site-visits',     activeColor: 'text-purple-600',  activeBg: 'bg-purple-50' },
-  { id: 'bookings', label: 'Booked',      icon: Trophy,  path: '/crm/sales/bookings',        activeColor: 'text-yellow-600',  activeBg: 'bg-yellow-50' },
-  { id: 'profile',  label: 'Profile',     icon: User,    path: '/crm/profile',               activeColor: 'text-gray-600',    activeBg: 'bg-gray-100' },
+  { id: 'crm',      label: 'Call CRM',    icon: Phone,   path: '/crm/sales/crm',             activeColor: 'text-green-600',   activeBg: 'bg-green-50' },
+  { id: 'leads',    label: 'Leads',       icon: Users,   path: '/crm/sales/my-leads',         activeColor: 'text-blue-600',    activeBg: 'bg-blue-50' },
+  { id: 'search',   label: 'Search',      icon: Search,  path: '/crm/sales/lead-search',      activeColor: 'text-indigo-600',  activeBg: 'bg-indigo-50' },
+  { id: 'visits',   label: 'Site Visits', icon: MapPin,  path: '/crm/sales/site-visits',      activeColor: 'text-purple-600',  activeBg: 'bg-purple-50' },
+  { id: 'bookings', label: 'Booked',      icon: Trophy,  path: '/crm/sales/bookings',         activeColor: 'text-yellow-600',  activeBg: 'bg-yellow-50' },
+  { id: 'profile',  label: 'Profile',     icon: User,    path: '/crm/profile',                activeColor: 'text-gray-600',    activeBg: 'bg-gray-100' },
 ];
 
 const MobileBottomNav = () => {

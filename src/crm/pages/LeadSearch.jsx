@@ -11,9 +11,8 @@ import FollowUpBadge from '@/crm/components/FollowUpBadge';
 
 const LeadSearch = () => {
   const { user } = useAuth();
-  // ⚡ useMyLeads: server-filtered query (only this user's leads)
-  // instead of pulling 2000+ leads and filtering in the browser
-  const { leads: myLeads, loading } = useMyLeads(user?.id);
+  // ✅ Fixed: was destructuring `loading` but hook exports `leadsLoading`
+  const { leads: myLeads, leadsLoading: loading } = useMyLeads(user?.id);
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 

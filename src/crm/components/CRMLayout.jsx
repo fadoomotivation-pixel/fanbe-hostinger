@@ -1,4 +1,6 @@
 // src/crm/components/CRMLayout.jsx
+// ✅ FIX: mobile overflow — overflow-x:hidden on root, min-w-0 on flex children,
+//         employee <main> has p-0 so full-width pages (MyLeads) own their padding
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCRMData } from '@/crm/hooks/useCRMData';
@@ -39,15 +41,15 @@ const CRMLayout = ({ children }) => {
   // ── Admin / Sub-Admin / HR-Manager Layout ─────────────────────────────────
   if (ADMIN_ROLES.includes(user.role)) {
     return (
-      <div className="flex min-h-screen bg-gray-100">
-        {/* Sidebar */}
+      // KEY FIX: overflow-x-hidden on root stops any child blowing past 100vw
+      <div className="flex min-h-screen bg-gray-100 overflow-x-hidden">
         <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
+        {/* KEY FIX: min-w-0 prevents flex child from growing beyond parent */}
+        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300 min-w-0 overflow-x-hidden">
 
           {/* ── Mobile Top Bar ── */}
-          <header className="lg:hidden bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm">
+          <header className="lg:hidden bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-30 shadow-sm w-full">
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
@@ -55,24 +57,21 @@ const CRMLayout = ({ children }) => {
             >
               <Menu size={22} />
             </button>
-            <span className="font-bold text-base text-[#0F3A5F] tracking-tight">
+            <span className="font-bold text-base text-[#0F3A5F] tracking-tight truncate mx-2">
               {user.role === ROLES.HR_MANAGER ? '🏢 HR Portal' : 'Fanbe CRM'}
             </span>
-            {/* Avatar badge top-right */}
             <div className="h-8 w-8 rounded-full bg-[#0F3A5F] flex items-center justify-center text-white text-xs font-bold shrink-0">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
           </header>
 
           {/* ── Page Content ── */}
-          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden pb-20 lg:pb-8">
+          {/* overflow-x-hidden here clips anything the child pages might overflow */}
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-y-auto overflow-x-hidden pb-20 lg:pb-8 w-full min-w-0">
             {children}
           </main>
 
-          {/* Sub Admin FAB only (for desktop quick actions) */}
           {user.role === ROLES.SUB_ADMIN && <SubAdminFAB />}
-          
-          {/* SubAdmin Mobile Bottom Navigation */}
           {user.role === ROLES.SUB_ADMIN && (
             <SubAdminBottomNav onMenuClick={() => setSidebarOpen(true)} />
           )}
@@ -82,17 +81,19 @@ const CRMLayout = ({ children }) => {
   }
 
   // ── Sales Executive / Telecaller Layout ─────────────────────────────────
+  // KEY FIX: p-0 on <main> — employee pages like MyLeads manage their own
+  //          padding internally. Adding layout-level padding caused double-padding
+  //          and made content appear wider than the screen on 360px devices.
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 overflow-x-hidden">
       <CRMSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300">
+      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen transition-all duration-300 min-w-0 overflow-x-hidden">
         <CRMTopNav onMobileMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden max-w-7xl mx-auto w-full pb-20 lg:pb-6">
+        {/* p-0 here: full-bleed pages (MyLeads, LeadDetail) handle their own padding */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0 pb-20 lg:pb-6" style={{ padding: 0 }}>
           {children}
         </main>
         <EmployeeFAB />
-        
-        {/* Employee Mobile Bottom Navigation */}
         <MobileBottomNav />
       </div>
     </div>

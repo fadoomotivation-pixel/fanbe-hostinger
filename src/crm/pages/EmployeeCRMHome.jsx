@@ -1,7 +1,7 @@
 // src/crm/pages/EmployeeCRMHome.jsx
 // Employee daily command center — mobile-first, 1-thumb operation
 // Design: Deep navy #0F3A5F, Gold #D4AF37 accent, emerald success
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,6 @@ import {
 import { normalizeLeadStatus, normalizeInterestLevel, LEAD_STATUS } from '@/crm/utils/statusUtils';
 import { differenceInHours, differenceInCalendarDays, differenceInMinutes, format, formatDistanceToNow, isYesterday } from 'date-fns';
 
-// Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone drift
 const parseLocalDate = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') return null;
   const d = dateStr.split('T')[0];
@@ -29,13 +28,11 @@ const parseLocalDate = (dateStr) => {
   return new Date(y, m - 1, day);
 };
 
-// ✅ FIX: get local midnight of today for accurate calendar-day comparisons
 const getLocalMidnightToday = () => {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 };
 
-// ─── Format assignment time ─────────────────────────
 const formatAssignedTime = (ts) => {
   if (!ts) return null;
   try {
@@ -44,7 +41,6 @@ const formatAssignedTime = (ts) => {
     const mins = differenceInMinutes(now, d);
     const hrs = differenceInHours(now, d);
     const days = differenceInCalendarDays(now, d);
-
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     if (hrs < 24) return `${hrs}h ago`;
@@ -54,20 +50,17 @@ const formatAssignedTime = (ts) => {
   } catch { return null; }
 };
 
-// Returns full date-time string for tooltip
 const fullAssignedTime = (ts) => {
   if (!ts) return '';
   try { return format(new Date(ts), "dd MMM yyyy 'at' h:mm a"); } catch { return ''; }
 };
 
-// ─── TAB IDs ───────────────────────────────────────────
 const TABS = {
   CALL_NOW: 'call_now',
   FOLLOW_UP: 'follow_up',
   ALL_LEADS: 'all_leads',
 };
 
-// ─── QUICK CALL STATUSES (1-tap) ──────────────────────
 const QUICK_STATUSES = [
   { id: 'not_answered', label: 'No Answer', icon: PhoneMissed, color: 'bg-red-50 text-red-700 border-red-200', dbValue: 'Not Answered' },
   { id: 'busy', label: 'Busy', icon: PhoneOff, color: 'bg-orange-50 text-orange-700 border-orange-200', dbValue: 'Busy' },
@@ -75,7 +68,6 @@ const QUICK_STATUSES = [
   { id: 'switched_off', label: 'Off', icon: PhoneOff, color: 'bg-gray-100 text-gray-600 border-gray-200', dbValue: 'Switched Off' },
 ];
 
-// ─── LEAD OUTCOME ACTIONS (after connected call) ──────
 const LEAD_OUTCOMES = [
   { id: 'follow_up', label: 'Follow Up', color: 'bg-yellow-500 text-white' },
   { id: 'site_visit', label: 'Site Visit', color: 'bg-purple-500 text-white' },
@@ -83,7 +75,6 @@ const LEAD_OUTCOMES = [
   { id: 'not_interested', label: 'Not Interested', color: 'bg-gray-500 text-white' },
 ];
 
-// ─── Relative time formatter ───────────────────────────
 const timeAgo = (ts) => {
   if (!ts) return '';
   try { return formatDistanceToNow(new Date(ts), { addSuffix: true }); } catch { return ''; }
@@ -97,7 +88,6 @@ const formatPhone = (p) => {
   return p;
 };
 
-// Extract latest note line for quick preview
 const getLatestNote = (notes) => {
   if (!notes || typeof notes !== 'string') return null;
   const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
@@ -105,6 +95,147 @@ const getLatestNote = (notes) => {
   const last = lines[lines.length - 1];
   const clean = last.replace(/^\[.*?\]\s*[^:]*:\s*/, '').trim();
   return clean.length > 0 ? clean : null;
+};
+
+// ─── GLOBAL SEARCH OVERLAY ────────────────────────────────────────────
+const GlobalSearchOverlay = ({ leads, onClose, onNavigate }) => {
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return leads
+      .filter(l =>
+        l.name?.toLowerCase().includes(q) ||
+        l.phone?.includes(q) ||
+        l.project?.toLowerCase().includes(q)
+      )
+      .slice(0, 12);
+  }, [query, leads]);
+
+  const getStatusStyle = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'booked')   return 'bg-emerald-100 text-emerald-700';
+    if (s === 'followup' || s === 'follow up' || s === 'follow_up') return 'bg-yellow-100 text-yellow-700';
+    if (s === 'lost')     return 'bg-gray-100 text-gray-500';
+    return 'bg-blue-100 text-blue-700';
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 999,
+        background: 'rgba(15,58,95,0.55)', backdropFilter: 'blur(2px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          background: '#fff',
+          borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          maxHeight: '85vh', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Search Input Row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 10px' }}>
+          <Search size={18} color="#0F3A5F" style={{ flexShrink: 0 }} />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by name, phone or project…"
+            style={{
+              flex: 1, fontSize: 16, fontWeight: 500,
+              border: 'none', outline: 'none',
+              color: '#0f172a', background: 'transparent',
+            }}
+          />
+          {query ? (
+            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer' }}>
+              <X size={18} color="#94a3b8" />
+            </button>
+          ) : (
+            <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+              Cancel
+            </button>
+          )}
+        </div>
+
+        <div style={{ height: 1, background: '#e2e8f0', flexShrink: 0 }} />
+
+        {/* Results */}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+          {!query.trim() ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <Search size={28} color="#cbd5e1" style={{ margin: '0 auto 8px' }} />
+              <p style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>Type to search your leads</p>
+            </div>
+          ) : results.length === 0 ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <p style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>No leads found for "{query}"</p>
+            </div>
+          ) : (
+            <>
+              <div style={{ padding: '8px 16px 6px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {results.length} result{results.length !== 1 ? 's' : ''}
+              </div>
+              {results.map(lead => {
+                const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                return (
+                  <div
+                    key={lead.id}
+                    onClick={() => { onNavigate(lead.id); onClose(); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '11px 16px', cursor: 'pointer',
+                      borderBottom: '1px solid #f1f5f9',
+                      transition: 'background 0.12s',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                      background: 'linear-gradient(135deg,#0F3A5F 0%,#1a5a8f 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, fontWeight: 700, color: '#fff',
+                    }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lead.name}
+                      </p>
+                      <p style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lead.phone}{lead.project ? ` · ${lead.project}` : ''}
+                      </p>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, padding: '3px 10px',
+                      borderRadius: 99, whiteSpace: 'nowrap', flexShrink: 0,
+                    }} className={getStatusStyle(lead.status)}>
+                      {lead.status || 'Open'}
+                    </span>
+                    <ChevronRight size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const EmployeeCRMHome = () => {
@@ -120,8 +251,8 @@ const EmployeeCRMHome = () => {
   const [dateFilter, setDateFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
 
-  // Action modal state
   const [actionLead, setActionLead] = useState(null);
   const [actionStep, setActionStep] = useState(null);
   const [callNote, setCallNote] = useState('');
@@ -146,16 +277,12 @@ const EmployeeCRMHome = () => {
 
   const analyzedLeads = useMemo(() => {
     const now = new Date();
-    // ✅ FIX: Use local midnight for calendar-day diff so timezone doesn't
-    // push a future date into "today" or "overdue" bucket incorrectly.
     const todayMidnight = getLocalMidnightToday();
-
     return myLeads.map(lead => {
       const leadCalls = myCalls.filter(c => c.leadId === lead.id || c.lead_id === lead.id);
       const lastCall = leadCalls.sort((a, b) =>
         new Date(b.timestamp || b.call_time) - new Date(a.timestamp || a.call_time)
       )[0];
-
       let callStatus = 'never_called';
       let hoursSinceCall = Infinity;
       if (leadCalls.length > 0 && lastCall) {
@@ -165,7 +292,6 @@ const EmployeeCRMHome = () => {
         else if (!isConnected) callStatus = 'recently_unanswered';
         else callStatus = 'connected';
       }
-
       const fuDate = lead.followUpDate || lead.follow_up_date || lead.next_followup_date;
       let followUpPriority = 5;
       let daysUntilFollowUp = null;
@@ -173,33 +299,20 @@ const EmployeeCRMHome = () => {
         try {
           const fuParsed = parseLocalDate(fuDate);
           if (fuParsed) {
-            // ✅ FIX: Use differenceInCalendarDays against LOCAL midnight today
-            // so "tomorrow" (2026-03-14 00:00) - "today" (2026-03-13 00:00) = 1
-            // instead of subtracting current clock time which could give 0 or -1
             daysUntilFollowUp = differenceInCalendarDays(fuParsed, todayMidnight);
-            if (daysUntilFollowUp < 0)      followUpPriority = 1; // overdue
-            else if (daysUntilFollowUp === 0) followUpPriority = 2; // today
-            else if (daysUntilFollowUp === 1) followUpPriority = 3; // tomorrow
-            else if (daysUntilFollowUp <= 7)  followUpPriority = 4; // this week
+            if (daysUntilFollowUp < 0)       followUpPriority = 1;
+            else if (daysUntilFollowUp === 0) followUpPriority = 2;
+            else if (daysUntilFollowUp === 1) followUpPriority = 3;
+            else if (daysUntilFollowUp <= 7)  followUpPriority = 4;
           }
         } catch { /* ignore */ }
       }
-
-      const status = normalizeLeadStatus(lead.status);
+      const status   = normalizeLeadStatus(lead.status);
       const interest = normalizeInterestLevel(lead.interestLevel || lead.interest_level);
-      const tempScore = interest === 'Hot' ? 30 : interest === 'Warm' ? 20 : 10;
-      const callScore = callStatus === 'never_called' ? 100 : callStatus === 'needs_retry' ? 80 : callStatus === 'recently_unanswered' ? 40 : 10;
-      const fuScore = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
-
-      const assignedAt =
-        lead.assignmentDate ||
-        lead.assignment_date ||
-        lead.assignedAt ||
-        lead.assigned_at ||
-        lead.createdAt ||
-        lead.created_at ||
-        null;
-
+      const tempScore  = interest === 'Hot' ? 30 : interest === 'Warm' ? 20 : 10;
+      const callScore  = callStatus === 'never_called' ? 100 : callStatus === 'needs_retry' ? 80 : callStatus === 'recently_unanswered' ? 40 : 10;
+      const fuScore    = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
+      const assignedAt = lead.assignmentDate || lead.assignment_date || lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at || null;
       return {
         ...lead,
         _callStatus: callStatus,
@@ -232,8 +345,7 @@ const EmployeeCRMHome = () => {
         const parsed = fuDate ? parseLocalDate(fuDate) : null;
         if (parsed && isYesterday(parsed)) grouped.yesterday.push(l);
         else grouped.overdue.push(l);
-      }
-      else if (l._followUpPriority === 2) grouped.today.push(l);
+      } else if (l._followUpPriority === 2) grouped.today.push(l);
       else if (l._followUpPriority === 3) grouped.tomorrow.push(l);
       else if (l._followUpPriority === 4) grouped.thisWeek.push(l);
       else if (l._normalizedStatus === LEAD_STATUS.FOLLOW_UP) grouped.noDate.push(l);
@@ -350,7 +462,6 @@ const EmployeeCRMHome = () => {
       } else if (outcome.id === 'site_visit') {
         updates.status = 'FollowUp'; updates.siteVisitStatus = 'planned';
         await updateLead(actionLead.id, updates);
-        // ✅ FIX: force fresh fetch so Follow Up tab reflects new status immediately
         fetchLeads();
         toast({ title: 'Site Visit Planned', description: `Marked for ${actionLead.name}` });
         closeAction();
@@ -388,7 +499,6 @@ const EmployeeCRMHome = () => {
       }
       if (callNote) updates.notes = `${actionLead.notes || ''}\n[${new Date().toLocaleString('en-IN')}] ${callNote}`.trim();
       await updateLead(actionLead.id, updates);
-      // ✅ FIX: force fresh fetch so Today/Tomorrow/Overdue tabs update immediately
       fetchLeads();
       toast({ title: 'Follow-up Set', description: followUpDate && parseLocalDate(followUpDate) ? `Reminder for ${format(parseLocalDate(followUpDate), 'MMM dd')}` : 'Status updated' });
       closeAction();
@@ -428,9 +538,20 @@ const EmployeeCRMHome = () => {
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             </div>
-            <button onClick={handleRefresh} className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition">
-              <RefreshCw size={16} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* ── GLOBAL SEARCH TRIGGER ── */}
+              <button
+                onClick={() => setGlobalSearchOpen(true)}
+                className="flex items-center gap-2 h-9 px-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 text-sm hover:border-[#0F3A5F]/30 hover:bg-[#0F3A5F]/5 transition-all active:scale-95"
+                style={{ minWidth: 120 }}
+              >
+                <Search size={14} />
+                <span className="text-[12px]">Search leads…</span>
+              </button>
+              <button onClick={handleRefresh} className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition">
+                <RefreshCw size={16} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
           {(followUpCounts.overdue + followUpCounts.today > 0) && (
             <div className="mt-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 border border-[#D4AF37]/20 rounded-xl px-3 py-2">
@@ -444,10 +565,10 @@ const EmployeeCRMHome = () => {
 
         <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
           {[
-            { label: 'Overdue', count: followUpCounts.overdue, color: 'bg-red-50 border-red-200 text-red-700', icon: AlertCircle, dot: 'bg-red-500' },
-            { label: 'Due Today', count: followUpCounts.today, color: 'bg-amber-50 border-amber-200 text-amber-700', icon: Clock, dot: 'bg-amber-500' },
-            { label: 'New Leads', count: callNowLeads.filter(l => l._callStatus === 'never_called').length, color: 'bg-blue-50 border-blue-200 text-blue-700', icon: Zap, dot: 'bg-blue-500' },
-            { label: 'Hot Leads', count: analyzedLeads.filter(l => l._interest === 'Hot' && l._normalizedStatus !== 'Booked' && l._normalizedStatus !== 'Lost').length, color: 'bg-orange-50 border-orange-200 text-orange-700', icon: Flame, dot: 'bg-orange-500' },
+            { label: 'Overdue', count: followUpCounts.overdue, color: 'bg-red-50 border-red-200 text-red-700', dot: 'bg-red-500' },
+            { label: 'Due Today', count: followUpCounts.today, color: 'bg-amber-50 border-amber-200 text-amber-700', dot: 'bg-amber-500' },
+            { label: 'New Leads', count: callNowLeads.filter(l => l._callStatus === 'never_called').length, color: 'bg-blue-50 border-blue-200 text-blue-700', dot: 'bg-blue-500' },
+            { label: 'Hot Leads', count: analyzedLeads.filter(l => l._interest === 'Hot' && l._normalizedStatus !== 'Booked' && l._normalizedStatus !== 'Lost').length, color: 'bg-orange-50 border-orange-200 text-orange-700', dot: 'bg-orange-500' },
           ].map(item => (
             <div key={item.label} className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border ${item.color} transition-all`}>
               <div className={`w-2 h-2 rounded-full ${item.dot}`} />
@@ -459,10 +580,10 @@ const EmployeeCRMHome = () => {
 
         <div className="grid grid-cols-2 min-[420px]:grid-cols-4 border-t border-gray-100">
           {[
-            { label: 'Leads', value: todayStats.totalLeads, color: 'text-[#0F3A5F]' },
-            { label: 'Calls', value: todayStats.calls, color: 'text-blue-600' },
-            { label: 'Connected', value: todayStats.connected, color: 'text-emerald-600' },
-            { label: 'Bookings', value: todayStats.bookings, color: 'text-[#D4AF37]' },
+            { label: 'Leads',     value: todayStats.totalLeads, color: 'text-[#0F3A5F]' },
+            { label: 'Calls',     value: todayStats.calls,      color: 'text-blue-600' },
+            { label: 'Connected', value: todayStats.connected,  color: 'text-emerald-600' },
+            { label: 'Bookings',  value: todayStats.bookings,   color: 'text-[#D4AF37]' },
           ].map(s => (
             <div key={s.label} className="text-center py-2">
               <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
@@ -473,9 +594,9 @@ const EmployeeCRMHome = () => {
 
         <div className="flex border-t border-gray-100">
           {[
-            { id: TABS.CALL_NOW, label: 'Call Now', count: callNowLeads.length },
-            { id: TABS.FOLLOW_UP, label: 'Follow Up', count: followUpCounts.overdue + followUpCounts.yesterday + followUpCounts.today, urgent: followUpCounts.overdue > 0 || followUpCounts.yesterday > 0 },
-            { id: TABS.ALL_LEADS, label: 'All', count: myLeads.length },
+            { id: TABS.CALL_NOW,  label: 'Call Now',   count: callNowLeads.length },
+            { id: TABS.FOLLOW_UP, label: 'Follow Up',  count: followUpCounts.overdue + followUpCounts.yesterday + followUpCounts.today, urgent: followUpCounts.overdue > 0 || followUpCounts.yesterday > 0 },
+            { id: TABS.ALL_LEADS, label: 'All',        count: myLeads.length },
           ].map(tab => (
             <button
               key={tab.id}
@@ -593,11 +714,11 @@ const EmployeeCRMHome = () => {
             )}
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
               {[
-                { id: 'all', label: 'All', count: statusCounts.total, color: 'bg-gray-100 text-gray-700' },
-                { id: 'Open', label: 'Open', count: statusCounts.Open, color: 'bg-blue-100 text-blue-700' },
+                { id: 'all',      label: 'All',       count: statusCounts.total,    color: 'bg-gray-100 text-gray-700' },
+                { id: 'Open',     label: 'Open',      count: statusCounts.Open,     color: 'bg-blue-100 text-blue-700' },
                 { id: 'FollowUp', label: 'Follow Up', count: statusCounts.FollowUp, color: 'bg-yellow-100 text-yellow-700' },
-                { id: 'Booked', label: 'Booked', count: statusCounts.Booked, color: 'bg-emerald-100 text-emerald-700' },
-                { id: 'Lost', label: 'Lost', count: statusCounts.Lost, color: 'bg-gray-100 text-gray-500' },
+                { id: 'Booked',   label: 'Booked',    count: statusCounts.Booked,   color: 'bg-emerald-100 text-emerald-700' },
+                { id: 'Lost',     label: 'Lost',      count: statusCounts.Lost,     color: 'bg-gray-100 text-gray-500' },
               ].map(chip => (
                 <button key={chip.id} onClick={() => setStatusFilter(chip.id)}
                   className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
@@ -638,6 +759,15 @@ const EmployeeCRMHome = () => {
           </div>
         )}
       </div>
+
+      {/* ─── GLOBAL SEARCH OVERLAY ─────────────────── */}
+      {globalSearchOpen && (
+        <GlobalSearchOverlay
+          leads={myLeads}
+          onClose={() => setGlobalSearchOpen(false)}
+          onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)}
+        />
+      )}
 
       {/* ─── ACTION MODAL ─────────────────────────── */}
       <Dialog open={!!actionLead} onOpenChange={() => closeAction()}>
@@ -798,32 +928,32 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
 
   const getCallBadge = () => {
     switch (lead._callStatus) {
-      case 'never_called': return <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>;
-      case 'needs_retry': return <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">RETRY</span>;
+      case 'never_called':        return <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">NEW</span>;
+      case 'needs_retry':         return <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold">RETRY</span>;
       case 'recently_unanswered': return <span className="text-[9px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold">WAIT</span>;
-      default: return <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">OK</span>;
+      default:                    return <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">OK</span>;
     }
   };
   const getInterestDot = () => {
-    if (lead._interest === 'Hot') return <Flame size={12} className="text-red-500" />;
-    if (lead._interest === 'Warm') return <Wind size={12} className="text-amber-500" />;
+    if (lead._interest === 'Hot')  return <Flame size={12} className="text-red-500" />;
+    if (lead._interest === 'Warm') return <Wind  size={12} className="text-amber-500" />;
     return <Snowflake size={12} className="text-blue-400" />;
   };
   const getStatusBadge = () => {
     switch (lead._normalizedStatus) {
-      case 'Open': return <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">Open</span>;
+      case 'Open':     return <span className="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">Open</span>;
       case 'FollowUp': return <span className="text-[9px] bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded font-medium">Follow Up</span>;
-      case 'Booked': return <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Booked</span>;
-      case 'Lost': return <span className="text-[9px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded font-medium">Lost</span>;
-      default: return null;
+      case 'Booked':   return <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Booked</span>;
+      case 'Lost':     return <span className="text-[9px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded font-medium">Lost</span>;
+      default:         return null;
     }
   };
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border p-3 active:bg-gray-50 transition-all duration-200 ${
-      lead._callStatus === 'never_called' ? 'border-l-4 border-l-red-400' :
-      lead._callStatus === 'needs_retry' ? 'border-l-4 border-l-orange-400' :
-      lead._followUpPriority <= 2 ? 'border-l-4 border-l-amber-400' : 'border-gray-100'
+      lead._callStatus === 'never_called'        ? 'border-l-4 border-l-red-400' :
+      lead._callStatus === 'needs_retry'         ? 'border-l-4 border-l-orange-400' :
+      lead._followUpPriority <= 2                ? 'border-l-4 border-l-amber-400' : 'border-gray-100'
     }`}>
       <div className="flex items-center gap-2">
         {rank && (

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useCRMData } from '@/crm/hooks/useCRMData';
+import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,16 +11,15 @@ import FollowUpBadge from '@/crm/components/FollowUpBadge';
 
 const LeadSearch = () => {
   const { user } = useAuth();
-  const { leads } = useCRMData();
+  // ⚡ useMyLeads: server-filtered query (only this user's leads)
+  // instead of pulling 2000+ leads and filtering in the browser
+  const { leads: myLeads, loading } = useMyLeads(user?.id);
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-
-  const myLeads = leads.filter(l => l.assignedTo === user?.id || l.assigned_to === user?.id);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-
     return myLeads.filter(lead => {
       const name = (lead.name || '').toLowerCase();
       const phone = (lead.phone || '');
@@ -58,11 +57,12 @@ const LeadSearch = () => {
           <div className="relative">
             <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
             <Input
-              placeholder="Type name or phone number..."
+              placeholder={loading ? 'Loading your leads...' : 'Type name or phone number...'}
               className="pl-12 pr-10 h-12 text-lg"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
+              disabled={loading}
             />
             {query && (
               <button
@@ -81,17 +81,26 @@ const LeadSearch = () => {
         </CardContent>
       </Card>
 
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="h-20 rounded-lg bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+      )}
+
       {/* Results */}
-      {!query.trim() ? (
+      {!loading && !query.trim() ? (
         <div className="text-center py-16">
           <Search className="h-16 w-16 text-gray-200 mx-auto mb-4" />
           <p className="text-gray-400 text-lg">Start typing a name or phone number to search</p>
           <p className="text-gray-300 text-sm mt-1">You have {myLeads.length} leads assigned to you</p>
         </div>
-      ) : results.length === 0 ? (
+      ) : !loading && results.length === 0 && query.trim() ? (
         <div className="text-center py-16">
           <User className="h-16 w-16 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">No leads matching "{query}"</p>
+          <p className="text-gray-400 text-lg">No leads matching &quot;{query}&quot;</p>
           <p className="text-gray-300 text-sm mt-1">Try a different name or phone number</p>
         </div>
       ) : (
@@ -126,7 +135,6 @@ const LeadSearch = () => {
                         <span className="text-gray-400">| {lead.source}</span>
                       )}
                     </div>
-                    {/* Follow-up badge */}
                     <div className="mt-2">
                       <FollowUpBadge
                         followUpDate={lead.follow_up_date}
@@ -134,7 +142,6 @@ const LeadSearch = () => {
                         size="small"
                       />
                     </div>
-                    {/* Last note preview */}
                     {lead.notes && (
                       <p className="text-xs text-gray-400 mt-2 truncate max-w-lg">
                         Last note: {lead.notes.split('\n').pop()}
@@ -142,7 +149,6 @@ const LeadSearch = () => {
                     )}
                   </div>
 
-                  {/* Action buttons */}
                   <div className="flex items-center gap-1 shrink-0">
                     <Button
                       variant="ghost"

@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format, formatDistanceToNow } from 'date-fns';
 import FollowUpReminders from '@/crm/components/FollowUpReminders';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabase';
 
 /* ── Status badge helper ── */
 const STATUS_CFG = {
@@ -101,7 +101,6 @@ const LeadSearchBar = ({ userId }) => {
     return () => clearTimeout(debRef.current);
   }, [query, runSearch]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = e => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
@@ -116,7 +115,6 @@ const LeadSearchBar = ({ userId }) => {
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', width: '100%', maxWidth: 560 }}>
-      {/* Input */}
       <div style={{ position: 'relative' }}>
         <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         <input
@@ -144,7 +142,6 @@ const LeadSearchBar = ({ userId }) => {
         )}
       </div>
 
-      {/* Dropdown */}
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
@@ -197,35 +194,31 @@ const SalesExecutiveDashboard = () => {
   const navigate = useNavigate();
   const userId = user?.uid || user?.id;
 
-  // Filter Data for "My" Metrics
   const myLeads    = leads.filter(l => l.assignedTo === user?.id);
   const myCalls    = calls.filter(c => c.employeeId === user?.id);
   const myVisits   = siteVisits.filter(v => v.employeeId === user?.id);
   const myBookings = bookings.filter(b => b.employeeId === user?.id);
   const myTasks    = tasks.filter(t => t.employeeId === user?.id);
 
-  // Daily Metrics
   const today = new Date().toISOString().split('T')[0];
-  const callsToday           = myCalls.filter(c => c.timestamp?.startsWith(today));
-  const visitsToday          = myVisits.filter(v => v.timestamp?.startsWith(today));
-  const bookingsToday        = myBookings.filter(b => b.timestamp?.startsWith(today));
-  const connectedCallsToday  = callsToday.filter(c => c.status === 'Connected');
-  const totalRevenue         = myBookings.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
+  const callsToday          = myCalls.filter(c => c.timestamp?.startsWith(today));
+  const visitsToday         = myVisits.filter(v => v.timestamp?.startsWith(today));
+  const bookingsToday       = myBookings.filter(b => b.timestamp?.startsWith(today));
+  const connectedCallsToday = callsToday.filter(c => c.status === 'Connected');
+  const totalRevenue        = myBookings.reduce((sum, b) => sum + parseFloat(b.amount || 0), 0);
 
-  // Tasks
   const pendingTasks = myTasks.filter(t => t.status === 'Pending');
   const tasksToday   = pendingTasks.filter(t => t.deadline?.startsWith(today));
 
-  // Recent Activity
   const recentActivity = [
-    ...myCalls.map(c   => ({ ...c, type: 'call',    label: 'Call Logged' })),
-    ...myVisits.map(v  => ({ ...v, type: 'visit',   label: 'Site Visit'  })),
-    ...myBookings.map(b=> ({ ...b, type: 'booking', label: 'Booking'     })),
+    ...myCalls.map(c    => ({ ...c, type: 'call',    label: 'Call Logged' })),
+    ...myVisits.map(v   => ({ ...v, type: 'visit',   label: 'Site Visit'  })),
+    ...myBookings.map(b => ({ ...b, type: 'booking', label: 'Booking'     })),
   ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 5);
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ── Header + Search ── */}
+      {/* Header + Search */}
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <div>
@@ -236,8 +229,6 @@ const SalesExecutiveDashboard = () => {
             <p className="text-sm font-medium text-gray-900">{format(new Date(), 'EEEE, MMMM do, yyyy')}</p>
           </div>
         </div>
-
-        {/* ── SEARCH BAR ── */}
         <LeadSearchBar userId={userId} />
       </div>
 
@@ -288,8 +279,6 @@ const SalesExecutiveDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Column */}
         <div className="md:col-span-2 space-y-6">
-
-          {/* Quick Actions */}
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -324,7 +313,6 @@ const SalesExecutiveDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* My Leads Summary */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg">My Leads Overview</CardTitle>
@@ -374,11 +362,10 @@ const SalesExecutiveDashboard = () => {
           </Card>
         </div>
 
-        {/* Sidebar Column */}
+        {/* Sidebar */}
         <div className="space-y-6">
           <FollowUpReminders />
 
-          {/* Targets */}
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-lg">Performance vs Target</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -403,7 +390,6 @@ const SalesExecutiveDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-lg">Recent Activity</CardTitle></CardHeader>
             <CardContent>

@@ -8,7 +8,7 @@ import {
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy,
+  Search, Zap, Award, Trophy, Clock,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -22,7 +22,7 @@ const IconMap = {
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
   CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy,
+  Search, Zap, Award, Trophy, Clock,
 };
 
 // Group header visual config
@@ -35,6 +35,7 @@ const GROUP_CONFIG = {
 
 // Roles considered "employee" (sales/telecaller)
 const EMPLOYEE_ROLES = [ROLES.SALES_EXECUTIVE, ROLES.TELECALLER];
+const ADMIN_ROLES    = [ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN, ROLES.MANAGER];
 
 const CRMSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
@@ -78,6 +79,25 @@ const CRMSidebar = ({ isOpen, onClose }) => {
     [ROLES.SALES_EXECUTIVE]: 'bg-blue-500',
     [ROLES.TELECALLER]:  'bg-pink-500',
   }[role] || 'bg-blue-500');
+
+  // Reusable nav link renderer
+  const NavLink = ({ to, icon: Icon, label }) => (
+    <Link
+      to={to}
+      onClick={() => { if (window.innerWidth < 1024) onClose(); }}
+      className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
+        ${ isActive(to)
+            ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
+            : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
+        }`}
+    >
+      <Icon
+        size={19}
+        className={`shrink-0 ${ isActive(to) ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white' }`}
+      />
+      <span className="text-sm font-medium">{label}</span>
+    </Link>
+  );
 
   const renderMenu = () => {
     let lastGroup = null;
@@ -169,62 +189,23 @@ const CRMSidebar = ({ isOpen, onClose }) => {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 overscroll-contain">
           {renderMenu()}
 
-          {/* Site Visits link for employee roles */}
+          {/* ── EMPLOYEE-ONLY LINKS ── */}
           {user && EMPLOYEE_ROLES.includes(user.role) && (
-            <Link
-              to="/crm/sales/site-visits"
-              onClick={() => { if (window.innerWidth < 1024) onClose(); }}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
-                ${ isActive('/crm/sales/site-visits')
-                    ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
-                    : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
-                }`}
-            >
-              <MapPin
-                size={19}
-                className={`shrink-0 ${
-                  isActive('/crm/sales/site-visits') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
-                }`}
-              />
-              <span className="text-sm font-medium">Site Visits</span>
-            </Link>
+            <>
+              <NavLink to="/crm/sales/site-visits"  icon={MapPin}  label="Site Visits" />
+              <NavLink to="/crm/sales/bookings"     icon={Trophy}  label="Booked" />
+              <NavLink to="/crm/sales/attendance"   icon={Clock}   label="Attendance" />
+            </>
           )}
 
-          {/* Booked link for employee roles */}
-          {user && EMPLOYEE_ROLES.includes(user.role) && (
-            <Link
-              to="/crm/sales/bookings"
-              onClick={() => { if (window.innerWidth < 1024) onClose(); }}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
-                ${ isActive('/crm/sales/bookings')
-                    ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold shadow-md'
-                    : 'text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20'
-                }`}
-            >
-              <Trophy
-                size={19}
-                className={`shrink-0 ${
-                  isActive('/crm/sales/bookings') ? 'text-[#0F3A5F]' : 'text-gray-400 group-hover:text-white'
-                }`}
-              />
-              <span className="text-sm font-medium">Booked</span>
-            </Link>
+          {/* ── ADMIN ATTENDANCE LINK ── */}
+          {user && ADMIN_ROLES.includes(user.role) && (
+            <NavLink to="/crm/admin/attendance" icon={Clock} label="Attendance" />
           )}
 
           {/* Promo Materials for super admin */}
           {user?.role === ROLES.SUPER_ADMIN && (
-            <Link
-              to="/crm/admin/cms/promotion-materials"
-              onClick={() => { if (window.innerWidth < 1024) onClose(); }}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all group min-h-[48px] touch-manipulation
-                ${ isActive('/crm/admin/cms/promotion-materials')
-                    ? 'bg-[#D4AF37] text-[#0F3A5F] font-bold'
-                    : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                }`}
-            >
-              <FileText size={19} className="shrink-0" />
-              <span className="text-sm font-medium">Promo Materials</span>
-            </Link>
+            <NavLink to="/crm/admin/cms/promotion-materials" icon={FileText} label="Promo Materials" />
           )}
         </nav>
 

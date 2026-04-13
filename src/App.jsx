@@ -93,6 +93,10 @@ import HRAttendance   from './crm/pages/hr/HRAttendance';
 import HRPayroll      from './crm/pages/hr/HRPayroll';
 import HRDocuments    from './crm/pages/hr/HRDocuments';
 
+// ✅ Attendance Module
+import Attendance      from './crm/pages/Attendance';
+import AttendanceAdmin from './crm/pages/AttendanceAdmin';
+
 const EMPLOYEE_ROLES = ['sales_executive', 'telecaller', 'manager'];
 
 const SmartDashboard = () => {
@@ -186,6 +190,14 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="hr/attendance" element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRAttendance /></ProtectedRoute>} />
                     <Route path="hr/payroll"    element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRPayroll /></ProtectedRoute>} />
                     <Route path="hr/documents"  element={<ProtectedRoute allowedRoles={['hr_manager','super_admin']}><HRDocuments /></ProtectedRoute>} />
+
+                    {/* ✅ ATTENDANCE MODULE */}
+                    <Route path="sales/attendance" element={<Attendance />} />
+                    <Route path="admin/attendance" element={
+                      <ProtectedRoute allowedRoles={['super_admin','sub_admin','hr_manager']}>
+                        <AttendanceAdmin />
+                      </ProtectedRoute>
+                    } />
 
                     {/* ✅ EMPLOYEE ROUTES — Call CRM is the home */}
                     <Route path="sales/crm"           element={<EmployeeCRMHome />} />

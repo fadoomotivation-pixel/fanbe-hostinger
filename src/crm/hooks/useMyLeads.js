@@ -213,5 +213,5 @@ export const useMyLeads = (userId) => {
     };
   }, [userId, fetchLeads, fetchCalls]);
 
-  return { leads, leadsLoading, fetchLeads, updateLead, addCallLog, calls };
+  return { leads, leadsLoading, fetchLeads, fetchCalls, updateLead, addCallLog, calls };
 };

@@ -387,7 +387,7 @@ const MyLeads = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-[calc(7rem+env(safe-area-inset-bottom))]">
 
       {/* ── Sticky Header ── */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
@@ -450,7 +450,7 @@ const MyLeads = () => {
           )}
 
           {/* Tab filters */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
             {TABS.map(t => {
               let badge = '';
               if (t.id === 'overdue'   && scheduleCounts.overdue   > 0) badge = ` (${scheduleCounts.overdue})`;
@@ -461,7 +461,7 @@ const MyLeads = () => {
               if (t.id === 'submitted' && submittedLeads.length > 0) badge = ` (${submittedLeads.length})`;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold transition-all touch-manipulation ${
+                  className={`shrink-0 snap-start px-3.5 py-2 rounded-full text-xs font-semibold transition-all touch-manipulation ${
                     tab === t.id ? 'bg-[#0F3A5F] text-white shadow-sm' : 'bg-gray-100 text-gray-600'
                   }`}>
                   {t.label}{badge}
@@ -477,7 +477,7 @@ const MyLeads = () => {
       {/* ══════════════════════════════════════════════ */}
       {tab === 'submitted' ? (
         <div className="px-4 pt-4 pb-20">
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-3 mb-4">
             {[
               { label: 'Total', value: submittedLeads.length, color: 'border-emerald-400' },
               { label: 'This Month', value: submittedLeads.filter(l => {

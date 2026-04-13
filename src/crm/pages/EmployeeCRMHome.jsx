@@ -3,7 +3,7 @@
 // Design: Deep navy #0F3A5F, Gold #D4AF37 accent, emerald success
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useCRMData } from '@/crm/hooks/useCRMData';
+import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -109,10 +109,8 @@ const getLatestNote = (notes) => {
 
 const EmployeeCRMHome = () => {
   const { user } = useAuth();
-  const {
-    leads, leadsLoading, calls, addCallLog, updateLead, fetchLeads,
-    siteVisits, bookings
-  } = useCRMData();
+  const userId = user?.uid || user?.id;
+  const { leads, leadsLoading, calls, addCallLog, updateLead, fetchLeads, fetchCalls } = useMyLeads(userId);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -132,17 +130,8 @@ const EmployeeCRMHome = () => {
 
   useEffect(() => { sessionStorage.setItem('crmHome_activeTab', activeTab); }, [activeTab]);
 
-  const userId = user?.uid || user?.id;
-
-  const myLeads = useMemo(() =>
-    leads.filter(l => l.assignedTo === userId || l.assigned_to === userId),
-    [leads, userId]
-  );
-
-  const myCalls = useMemo(() =>
-    calls?.filter(c => c.employeeId === userId || c.employee_id === userId) || [],
-    [calls, userId]
-  );
+  const myLeads = leads;
+  const myCalls = calls || [];
 
   const today = new Date().toISOString().split('T')[0];
   const todayStats = useMemo(() => {
@@ -151,10 +140,9 @@ const EmployeeCRMHome = () => {
       totalLeads: myLeads.length,
       calls: todayCalls.length,
       connected: todayCalls.filter(c => ['Connected','connected','interested'].includes(c.status)).length,
-      visits: siteVisits?.filter(v => (v.employeeId === userId) && v.timestamp?.startsWith(today)).length || 0,
-      bookings: bookings?.filter(b => (b.employeeId === userId)).length || 0,
+      bookings: myLeads.filter(l => normalizeLeadStatus(l.status) === LEAD_STATUS.BOOKED).length,
     };
-  }, [myCalls, siteVisits, bookings, today, userId, myLeads.length]);
+  }, [myCalls, today, myLeads]);
 
   const analyzedLeads = useMemo(() => {
     const now = new Date();
@@ -300,10 +288,10 @@ const EmployeeCRMHome = () => {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchLeads();
+    await Promise.all([fetchLeads(), fetchCalls()]);
     setRefreshing(false);
     toast({ title: 'Refreshed', description: 'Lead data updated' });
-  }, [fetchLeads, toast]);
+  }, [fetchLeads, fetchCalls, toast]);
 
   const copyPhone = useCallback((phone, leadId) => {
     navigator.clipboard?.writeText(phone).then(() => {
@@ -428,7 +416,7 @@ const EmployeeCRMHome = () => {
   }
 
   return (
-    <div className="pb-24 bg-gray-50 min-h-screen">
+    <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] bg-gray-50 min-h-screen">
 
       {/* ─── HEADER ─────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-white border-b shadow-sm">
@@ -469,7 +457,7 @@ const EmployeeCRMHome = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-4 border-t border-gray-100">
+        <div className="grid grid-cols-2 min-[420px]:grid-cols-4 border-t border-gray-100">
           {[
             { label: 'Leads', value: todayStats.totalLeads, color: 'text-[#0F3A5F]' },
             { label: 'Calls', value: todayStats.calls, color: 'text-blue-600' },

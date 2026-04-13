@@ -1,4 +1,5 @@
 // src/lib/authUtilsSupabase.js
+// ✅ PERF FIX: getUserDetails now selects only 6 needed columns (was select('*'))
 // Supabase auth & user management — all admin writes use supabaseAdmin (service_role)
 import { supabase, supabaseAdmin } from './supabase';
 
@@ -8,8 +9,6 @@ import { supabase, supabaseAdmin } from './supabase';
 
 export const login = async (usernameOrEmail, password) => {
   try {
-    console.log(`[Auth] Attempting login for: ${usernameOrEmail}`);
-
     let email = usernameOrEmail;
 
     if (!usernameOrEmail.includes('@')) {
@@ -42,7 +41,7 @@ export const login = async (usernameOrEmail, password) => {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select('id,username,name,email,role,permissions,status,last_login')
       .eq('id', authData.user.id)
       .single();
 
@@ -56,12 +55,12 @@ export const login = async (usernameOrEmail, password) => {
       return { success: false, message: 'Account is suspended. Contact admin.' };
     }
 
-    await supabaseAdmin
+    // Fire-and-forget: don't await last_login update — not critical path
+    supabaseAdmin
       .from('profiles')
       .update({ last_login: new Date().toISOString() })
-      .eq('id', authData.user.id);
-
-    console.log(`[Auth] Login successful for ${profile.name} (${profile.role})`);
+      .eq('id', authData.user.id)
+      .then(() => {});
 
     return {
       success: true,
@@ -91,11 +90,12 @@ export const logout = async () => {
   }
 };
 
+// ✅ FIX: select only 6 columns (was select('*') fetching entire profile row)
 export const getUserDetails = async (userId) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select('id,username,name,email,role,permissions,last_login')
       .eq('id', userId)
       .single();
     if (error || !data) return null;
@@ -119,8 +119,6 @@ export const isAuthenticated = async () => {
 
 export const addUser = async (userData) => {
   try {
-    console.log('[Supabase] Creating user:', userData.username);
-
     const { data: existingUsername } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -152,15 +150,12 @@ export const addUser = async (userData) => {
     });
 
     if (createError) {
-      console.error('[Supabase] auth.admin.createUser error:', createError);
       return { success: false, message: createError.message };
     }
 
     if (!authData?.user?.id) {
       return { success: false, message: 'Auth user creation returned no ID' };
     }
-
-    console.log('[Supabase] Auth user created with ID:', authData.user.id);
 
     const profileDoc = {
       id: authData.user.id,
@@ -181,12 +176,9 @@ export const addUser = async (userData) => {
       .insert(profileDoc);
 
     if (profileError) {
-      console.error('[Supabase] Profile insert error:', profileError);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return { success: false, message: `Profile creation failed: ${profileError.message}` };
     }
-
-    console.log('[Supabase] Profile inserted successfully for:', userData.username);
 
     return {
       success: true,
@@ -195,7 +187,6 @@ export const addUser = async (userData) => {
       plainPassword: userData.password,
     };
   } catch (error) {
-    console.error('[Supabase] addUser unexpected error:', error);
     return { success: false, message: error.message || 'Failed to create user' };
   }
 };
@@ -206,18 +197,13 @@ export const getAllUsers = async () => {
       .from('profiles')
       .select('*')
       .order('joining_date', { ascending: false });
-    if (error) {
-      console.error('[Supabase] getAllUsers error:', error);
-      return [];
-    }
+    if (error) return [];
     return data || [];
   } catch (error) {
-    console.error('[Supabase] getAllUsers error:', error);
     return [];
   }
 };
 
-// Get users by specific role
 export const getUsersByRole = async (role) => {
   try {
     const { data, error } = await supabaseAdmin
@@ -295,10 +281,6 @@ export const generateRandomPassword = () => {
   }
   return password;
 };
-
-// ==========================================
-// HELPERS
-// ==========================================
 
 const getDefaultPermissions = (role) => {
   const permissions = {

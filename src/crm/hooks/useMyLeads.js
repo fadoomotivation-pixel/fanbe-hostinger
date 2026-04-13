@@ -1,37 +1,18 @@
 // src/crm/hooks/useMyLeads.js
-// ✅ PERF FIX v2 (Senior Tester Analysis — Apr 2026):
-// ROOT CAUSES of 18s load found in Network tab screenshot:
-//   1. select('*') was fetching 50+ columns × 793 rows = ~1.4MB payload
-//   2. getCalls() called WITHOUT userId → downloaded entire calls table (all employees)
-//   3. Realtime calls channel had NO filter → woke up on every employee's call log
-// FIXES:
-//   1. select() now lists only the 18 columns MyLeads actually renders
-//   2. fetchCalls(userId) passed → Supabase server-side filters employee_id
-//   3. Realtime calls channel: filter=`employee_id=eq.${userId}`
+// ✅ PERF v3: Deferred background fetch + instant first render
+// Strategy:
+//   - Fetch first 100 leads immediately → show UI fast
+//   - Background: fetch remaining pages silently (no loading spinner)
+//   - Calls fetched 400ms AFTER leads render (non-blocking)
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls } from '@/lib/crmSupabase';
 
-// ── Only the columns MyLeads actually renders ──────────────────────────
 const LEAD_COLUMNS = [
-  'id',
-  'full_name',
-  'phone',
-  'source',
-  'final_status',
-  'status',
-  'interest_level',
-  'notes',
-  'assigned_to',
-  'assigned_to_name',
-  'created_at',
-  'updated_at',
-  'project',
-  'next_followup_date',
-  'assigned_at',
-  'prev_assigned_to',
-  'prev_assigned_to_name',
-  'prev_assigned_at',
+  'id', 'full_name', 'phone', 'source', 'final_status', 'status',
+  'interest_level', 'notes', 'assigned_to', 'assigned_to_name',
+  'created_at', 'updated_at', 'project', 'next_followup_date',
+  'assigned_at', 'prev_assigned_to', 'prev_assigned_to_name', 'prev_assigned_at',
 ].join(',');
 
 const normalize = (row) => ({
@@ -62,50 +43,63 @@ export const useMyLeads = (userId) => {
   const [leads, setLeads]               = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [calls, setCalls]               = useState([]);
-  const reqId = useRef(0);
+  const reqId       = useRef(0);
   const tabWasHidden = useRef(false);
 
-  // ── FIX 1: select only needed columns (was select('*') = 50+ cols) ────
   const fetchLeads = useCallback(async () => {
     if (!userId) return;
     const thisReq = ++reqId.current;
+    const FIRST_PAGE = 100;   // show UI fast with first 100
+    const REST_SIZE  = 500;   // background pages
     try {
       setLeadsLoading(true);
-      const PAGE_SIZE = 500;
-      let allData = [], from = 0, keepGoing = true;
+
+      // ── Page 1: show immediately ──
+      const { data: firstPage, error: e1 } = await supabaseAdmin
+        .from('leads')
+        .select(LEAD_COLUMNS)
+        .eq('assigned_to', userId)
+        .order('created_at', { ascending: false })
+        .range(0, FIRST_PAGE - 1);
+
+      if (e1) { console.error('[MyLeads] Fetch error:', e1.message); if (thisReq === reqId.current) setLeads([]); return; }
+      if (thisReq !== reqId.current) return;
+
+      setLeads((firstPage || []).map(normalize));
+      setLeadsLoading(false);   // ← UI visible NOW after first page
+
+      // ── Background: remaining pages ──
+      if (!firstPage || firstPage.length < FIRST_PAGE) return; // no more rows
+
+      let allData = [...firstPage];
+      let from = FIRST_PAGE;
+      let keepGoing = true;
       while (keepGoing) {
+        if (thisReq !== reqId.current) return;
         const { data, error } = await supabaseAdmin
           .from('leads')
-          .select(LEAD_COLUMNS)          // ← was select('*') — now only 18 columns
+          .select(LEAD_COLUMNS)
           .eq('assigned_to', userId)
           .order('created_at', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
-        if (error) {
-          console.error('[MyLeads] Fetch error:', error.message);
-          if (thisReq === reqId.current) setLeads([]);
-          return;
-        }
-        if (thisReq !== reqId.current) return;
-        allData = allData.concat(data || []);
-        if (!data || data.length < PAGE_SIZE) keepGoing = false;
-        else from += PAGE_SIZE;
+          .range(from, from + REST_SIZE - 1);
+        if (error) { console.error('[MyLeads] bg fetch error:', error.message); break; }
+        if (!data || data.length === 0) break;
+        allData = allData.concat(data);
+        if (thisReq === reqId.current) setLeads(allData.map(normalize));
+        if (data.length < REST_SIZE) keepGoing = false;
+        else from += REST_SIZE;
       }
-      if (thisReq !== reqId.current) return;
-      setLeads(allData.map(normalize));
-      console.log(`[MyLeads] req#${thisReq} — ${allData.length} leads loaded`);
+      console.log(`[MyLeads] req#${thisReq} — ${allData.length} leads total`);
     } catch (err) {
       console.error('[MyLeads] Unexpected error:', err);
-      if (thisReq === reqId.current) setLeads([]);
-    } finally {
-      if (thisReq === reqId.current) setLeadsLoading(false);
+      if (thisReq === reqId.current) { setLeads([]); setLeadsLoading(false); }
     }
   }, [userId]);
 
-  // ── FIX 2: pass userId so server filters (was: no arg → full table dump) ─
   const fetchCalls = useCallback(async () => {
     if (!userId) return;
     try {
-      const data = await getCalls(userId);           // ← was getCalls() — no filter!
+      const data = await getCalls(userId);
       const myCalls = (data || []).map(row => ({
         id:             row.id,
         employeeId:     row.employee_id,
@@ -127,7 +121,6 @@ export const useMyLeads = (userId) => {
     }
   }, [userId]);
 
-  // ── optimistic updateLead ─────────────────────────────────────────────
   const updateLead = useCallback(async (id, updates) => {
     try {
       const mapped = {};
@@ -173,52 +166,34 @@ export const useMyLeads = (userId) => {
   const addCallLog = useCallback(async (log) => {
     try {
       const result = await addCall(log);
-      if (result.success) {
-        await fetchCalls();
-        return result.data;
-      }
+      if (result.success) { await fetchCalls(); return result.data; }
       return null;
     } catch (err) { console.error('[MyLeads] addCallLog error:', err); return null; }
   }, [fetchCalls]);
 
-  // ── Initial load ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetchLeads();
-    fetchCalls();
+    // ─ calls deferred 400ms so leads render first ─
+    const t = setTimeout(() => fetchCalls(), 400);
+    return () => clearTimeout(t);
   }, [userId, fetchLeads, fetchCalls]);
 
-  // ── FIX 3: Realtime calls channel now filtered by employee_id ─────────
   useEffect(() => {
     if (!userId) return;
-
     const leadsChannel = supabaseAdmin
       .channel(`realtime:leads:${userId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'leads',
-        filter: `assigned_to=eq.${userId}`,
-      }, () => fetchLeads())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads', filter: `assigned_to=eq.${userId}` }, () => fetchLeads())
       .subscribe();
-
-    // ← FIX: was filter-less (fired on ALL employees' call logs)
     const callsChannel = supabaseAdmin
       .channel(`realtime:calls:${userId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'calls',
-        filter: `employee_id=eq.${userId}`,
-      }, () => fetchCalls())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls', filter: `employee_id=eq.${userId}` }, () => fetchCalls())
       .subscribe();
-
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        tabWasHidden.current = true;
-      } else if (document.visibilityState === 'visible' && tabWasHidden.current) {
-        tabWasHidden.current = false;
-        fetchLeads();
-      }
+      if (document.visibilityState === 'hidden') { tabWasHidden.current = true; }
+      else if (document.visibilityState === 'visible' && tabWasHidden.current) { tabWasHidden.current = false; fetchLeads(); }
     };
     document.addEventListener('visibilitychange', handleVisibility);
-
     return () => {
       supabaseAdmin.removeChannel(leadsChannel);
       supabaseAdmin.removeChannel(callsChannel);

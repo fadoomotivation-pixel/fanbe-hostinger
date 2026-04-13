@@ -6,7 +6,8 @@
 // ✅ MOBILE: Call button added beside Quick Log, full-width touch targets
 // ✅ MOBILE: Quick Log sheet fully redesigned — bigger tap areas, no overflow
 // Design: #0F3A5F primary, #D4AF37 gold accent, emerald success
-// ✅ PERF FIX: useMyLeads hook — fetches ONLY assigned_to=userId from Supabase
+// ✅ PERF v3: Infinite scroll — renders 20 at a time via IntersectionObserver
+//             DOM stays small regardless of how many leads exist
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useAuth } from '@/context/AuthContext';
@@ -33,7 +34,6 @@ import {
   Plus, RefreshCw, MapPin, Briefcase, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-// ── Quick outcome sheet ─────────────────────────────────────────────────
 const QUICK_OUTCOMES = [
   { id: 'Not Answered', label: 'No Answer', emoji: '📵' },
   { id: 'Connected',    label: 'Connected', emoji: '✅' },
@@ -82,12 +82,11 @@ const TABS = [
   { id: 'submitted', label: '📋 Submitted' },
 ];
 
-const TAB_STORAGE_KEY = 'myLeads_activeTab';
+const TAB_STORAGE_KEY    = 'myLeads_activeTab';
 const SCROLL_STORAGE_KEY = 'myLeads_scrollPos';
-const LEADS_BATCH_SIZE = 60;
-const TERMINAL_STATUSES = ['NotInterested', 'Lost', 'Booked'];
+const PAGE_SIZE          = 20;   // ← render 20 at a time
+const TERMINAL_STATUSES  = ['NotInterested', 'Lost', 'Booked'];
 
-// ── Submitted Leads constants ────────────────────────────────────────────
 const INTEREST_COLORS_SL = {
   hot:  'bg-red-100 text-red-700',
   warm: 'bg-amber-100 text-amber-700',
@@ -98,10 +97,10 @@ const SL_STATUS_STYLES = {
   converted: 'bg-blue-100 text-blue-700 border border-blue-200',
   rejected:  'bg-red-100 text-red-700 border border-red-200',
 };
-const SL_STATUS_LABELS = { pending: 'Pending', converted: 'Converted ✓', rejected: 'Rejected' };
-const SL_PROPERTY_LABELS = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
-const SL_PURPOSE_LABELS = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
-const SL_TIMELINE_LABELS = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
+const SL_STATUS_LABELS    = { pending: 'Pending', converted: 'Converted ✓', rejected: 'Rejected' };
+const SL_PROPERTY_LABELS  = { plot: 'Plot', flat: 'Flat/Apartment', villa: 'Villa', commercial: 'Commercial', other: 'Other' };
+const SL_PURPOSE_LABELS   = { investment: 'Investment', self_use: 'Self Use', both: 'Both' };
+const SL_TIMELINE_LABELS  = { immediate: 'Immediate', '3_months': 'Within 3 Months', '6_months': 'Within 6 Months', '1_year': 'Within 1 Year', flexible: 'Flexible' };
 const SL_FINANCING_LABELS = { cash: 'Cash / Self-Funded', loan: 'Bank Loan', both: 'Both' };
 
 const timeAgo = (ts) => {
@@ -171,11 +170,14 @@ const MyLeads = () => {
   const [quickNote, setQuickNote]   = useState('');
   const [saving, setSaving]         = useState(false);
   const [copiedId, setCopiedId]     = useState(null);
-  const [visibleCount, setVisibleCount] = useState(LEADS_BATCH_SIZE);
 
-  // ── Submitted Leads state ──────────────────────────────────────────────
-  const [submittedLeads, setSubmittedLeads]     = useState([]);
-  const [submittedLoading, setSubmittedLoading] = useState(false);
+  // ── Infinite scroll state ───────────────────────────────────────────
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef(null);   // bottom sentinel for IntersectionObserver
+
+  // ── Submitted Leads state ─────────────────────────────────────────
+  const [submittedLeads, setSubmittedLeads]         = useState([]);
+  const [submittedLoading, setSubmittedLoading]     = useState(false);
   const [submittedExpandedId, setSubmittedExpandedId] = useState(null);
 
   useEffect(() => { sessionStorage.setItem(TAB_STORAGE_KEY, tab); }, [tab]);
@@ -215,19 +217,14 @@ const MyLeads = () => {
     });
   }, []);
 
-  // Direct call using tel: link (native dialer)
   const callPhone = useCallback((phone, lead) => {
     if (!phone) return;
     const raw = phone.replace(/\D/g, '');
     const dialNumber = raw.length === 10 ? `+91${raw}` : `+${raw}`;
     window.location.href = `tel:${dialNumber}`;
-    // Pre-fill quick log for this lead
     setTimeout(() => {
       setQuickLead(lead);
-      setOutcome('');
-      setNewStatus('');
-      setFollowDate('');
-      setQuickNote('');
+      setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
     }, 600);
   }, []);
 
@@ -269,10 +266,10 @@ const MyLeads = () => {
       try {
         const d = parseLocalDate(fu);
         if (!d) return;
-        if (isYesterday(d))              yesterdayCount++;
+        if (isYesterday(d))               yesterdayCount++;
         else if (isPast(d) && !isToday(d)) overdue++;
-        else if (isToday(d))             todayCount++;
-        else if (isTomorrow(d))          tomorrowCount++;
+        else if (isToday(d))              todayCount++;
+        else if (isTomorrow(d))           tomorrowCount++;
       } catch { /* skip */ }
     });
     return { overdue, yesterday: yesterdayCount, today: todayCount, tomorrow: tomorrowCount };
@@ -326,7 +323,7 @@ const MyLeads = () => {
     }
     if (dateFilter) {
       arr = arr.filter(l => {
-        const fu = l.follow_up_date || l.followUpDate;
+        const fu      = l.follow_up_date || l.followUpDate;
         const created  = (l.createdAt  || l.created_at  || '').split('T')[0];
         const assigned = (l.assignedAt || l.assigned_at || '').split('T')[0];
         return fu === dateFilter || created === dateFilter || assigned === dateFilter;
@@ -335,11 +332,28 @@ const MyLeads = () => {
     return arr;
   }, [myLeads, tab, search, dateFilter]);
 
-  useEffect(() => { setVisibleCount(LEADS_BATCH_SIZE); }, [tab, search, dateFilter, sortBy]);
+  // ── Reset visible count when filter changes ─────────────────────────
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [tab, search, dateFilter, sortBy]);
+
+  // ── IntersectionObserver: load next 20 when sentinel enters viewport ───
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && visibleCount < filtered.length) {
+          setVisibleCount(prev => Math.min(prev + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: '200px' }   // start loading 200px before bottom
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleCount, filtered.length]);
 
   const visibleLeads = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-
-  const urgentCount = scheduleCounts.overdue + scheduleCounts.today;
+  const hasMore      = visibleCount < filtered.length;
+  const urgentCount  = scheduleCounts.overdue + scheduleCounts.today;
 
   const handleQuickSave = async () => {
     if (!outcome) { toast({ title: 'Select outcome first', variant: 'destructive' }); return; }
@@ -412,7 +426,6 @@ const MyLeads = () => {
             </div>
           </div>
 
-          {/* Search + Date Filter */}
           {tab !== 'submitted' && (
             <>
               <div className="flex gap-2 mb-2">
@@ -449,7 +462,6 @@ const MyLeads = () => {
             </>
           )}
 
-          {/* Tab filters */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
             {TABS.map(t => {
               let badge = '';
@@ -473,7 +485,7 @@ const MyLeads = () => {
       </div>
 
       {/* ══════════════════════════════════════════════ */}
-      {/* ✅ SUBMITTED LEADS TAB CONTENT               */}
+      {/* SUBMITTED TAB                                     */}
       {/* ══════════════════════════════════════════════ */}
       {tab === 'submitted' ? (
         <div className="px-4 pt-4 pb-20">
@@ -492,14 +504,12 @@ const MyLeads = () => {
               </div>
             ))}
           </div>
-
           <button
             onClick={() => navigate('/crm/sales/add-lead')}
             className="w-full mb-4 flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold shadow-sm active:scale-95 transition-all touch-manipulation"
           >
             <Plus size={18} /> Add New Submitted Lead
           </button>
-
           {submittedLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Loader2 size={32} className="animate-spin mb-2" /> Loading...
@@ -508,10 +518,8 @@ const MyLeads = () => {
             <div className="text-center py-16">
               <AlertCircle size={48} className="mx-auto mb-3 text-gray-300" />
               <p className="text-gray-500 text-lg">No leads submitted yet</p>
-              <button
-                onClick={() => navigate('/crm/sales/add-lead')}
-                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold"
-              >
+              <button onClick={() => navigate('/crm/sales/add-lead')}
+                className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold">
                 <Plus size={18} /> Submit Your First Lead
               </button>
             </div>
@@ -523,10 +531,8 @@ const MyLeads = () => {
                 return (
                   <div key={lead.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                     <div className="p-4">
-                      <div
-                        className="flex items-start justify-between gap-2 cursor-pointer"
-                        onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}
-                      >
+                      <div className="flex items-start justify-between gap-2 cursor-pointer"
+                        onClick={() => setSubmittedExpandedId(isExpanded ? null : lead.id)}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-bold text-gray-900 text-base">{lead.customer_name}</h3>
@@ -598,7 +604,7 @@ const MyLeads = () => {
 
       ) : (
         /* ══════════════════════════════════════════════ */
-        /* MAIN LEADS LIST                              */
+        /* MAIN LEADS LIST + INFINITE SCROLL                */
         /* ══════════════════════════════════════════════ */
         <div className="px-3 pt-3 pb-20">
 
@@ -607,326 +613,261 @@ const MyLeads = () => {
             <div className="grid grid-cols-2 gap-2 mb-3">
               {scheduleCounts.overdue > 0 && (
                 <button onClick={() => setTab('overdue')}
-                  className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-3 py-2.5 text-left active:bg-red-100 touch-manipulation">
-                  <AlertCircle size={18} className="text-red-500 shrink-0" />
-                  <div><p className="text-xs font-bold text-red-700">{scheduleCounts.overdue} Overdue</p><p className="text-xs text-red-500">Needs attention</p></div>
+                  className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3 text-left touch-manipulation active:scale-95 transition-transform">
+                  <span className="text-xl">🚨</span>
+                  <div>
+                    <div className="text-xs font-black text-red-700">{scheduleCounts.overdue} Overdue</div>
+                    <div className="text-xs text-red-500">Call now</div>
+                  </div>
                 </button>
               )}
               {scheduleCounts.today > 0 && (
                 <button onClick={() => setTab('today')}
-                  className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2.5 text-left active:bg-amber-100 touch-manipulation">
-                  <AlarmClock size={18} className="text-amber-500 shrink-0" />
-                  <div><p className="text-xs font-bold text-amber-700">{scheduleCounts.today} Today</p><p className="text-xs text-amber-500">Follow up now</p></div>
+                  className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-left touch-manipulation active:scale-95 transition-transform">
+                  <span className="text-xl">⏰</span>
+                  <div>
+                    <div className="text-xs font-black text-amber-700">{scheduleCounts.today} Today</div>
+                    <div className="text-xs text-amber-500">Follow up now</div>
+                  </div>
                 </button>
               )}
               {scheduleCounts.yesterday > 0 && (
                 <button onClick={() => setTab('yesterday')}
-                  className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-2xl px-3 py-2.5 text-left active:bg-orange-100 touch-manipulation">
-                  <Clock size={18} className="text-orange-500 shrink-0" />
-                  <div><p className="text-xs font-bold text-orange-700">{scheduleCounts.yesterday} Yesterday</p><p className="text-xs text-orange-500">Missed follow-ups</p></div>
+                  className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl p-3 text-left touch-manipulation active:scale-95 transition-transform">
+                  <span className="text-xl">⏪</span>
+                  <div>
+                    <div className="text-xs font-black text-orange-700">{scheduleCounts.yesterday} Yesterday</div>
+                    <div className="text-xs text-orange-500">Missed follow-up</div>
+                  </div>
                 </button>
               )}
               {scheduleCounts.tomorrow > 0 && (
                 <button onClick={() => setTab('tomorrow')}
-                  className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-2xl px-3 py-2.5 text-left active:bg-blue-100 touch-manipulation">
-                  <Sunrise size={18} className="text-blue-500 shrink-0" />
-                  <div><p className="text-xs font-bold text-blue-700">{scheduleCounts.tomorrow} Tomorrow</p><p className="text-xs text-blue-500">Plan ahead</p></div>
+                  className="flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-xl p-3 text-left touch-manipulation active:scale-95 transition-transform">
+                  <span className="text-xl">🌅</span>
+                  <div>
+                    <div className="text-xs font-black text-sky-700">{scheduleCounts.tomorrow} Tomorrow</div>
+                    <div className="text-xs text-sky-500">Plan ahead</div>
+                  </div>
                 </button>
               )}
             </div>
           )}
 
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <UserCheck size={48} className="mb-3 opacity-40" />
-              <p className="text-base font-semibold">No leads here</p>
-              <p className="text-sm mt-1">Try a different tab or search</p>
+          {/* Result count */}
+          {filtered.length > 0 && (
+            <p className="text-xs text-gray-400 mb-2 px-1">
+              Showing {Math.min(visibleCount, filtered.length)} of {filtered.length} leads
+            </p>
+          )}
+
+          {/* Lead cards */}
+          {visibleLeads.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <AlertCircle size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-base font-medium">No leads found</p>
+              <p className="text-xs mt-1">{search ? 'Try a different search' : 'Switch to another tab'}</p>
             </div>
           ) : (
-            <>
-              <div className="space-y-2.5">
-                {visibleLeads.map(lead => {
-                  const fu = lead.follow_up_date || lead.followUpDate;
-                  let fuDate = null;
-                  try { fuDate = fu ? parseLocalDate(fu) : null; } catch {}
-                  const isOverdue = fuDate && isPast(fuDate) && !isToday(fuDate);
-                  const isFollowToday = fuDate && isToday(fuDate);
-                  const latestNote = getLatestNote(lead.notes);
-                  const assignedTimeLabel = formatAssignedTime(lead.assignedAt || lead.assigned_at);
+            <div className="space-y-2">
+              {visibleLeads.map((lead) => {
+                const fu = lead.follow_up_date || lead.followUpDate;
+                const fuDate = fu ? parseLocalDate(fu) : null;
+                const isOverdue   = fuDate && isPast(fuDate) && !isToday(fuDate);
+                const isFollowToday = fuDate && isToday(fuDate);
+                const assignedAgo = formatAssignedTime(lead.assignedAt || lead.assigned_at);
+                const latestNote  = getLatestNote(lead.notes);
+                const callCount   = lead._callCount || 0;
+                const lastCall    = lead._lastCall;
 
-                  return (
-                    <div key={lead.id}
-                      className={`bg-white rounded-2xl shadow-sm border ${
-                        isOverdue ? 'border-red-200' : isFollowToday ? 'border-amber-200' : 'border-gray-100'
-                      } overflow-hidden`}
+                let borderColor = 'border-gray-100';
+                if (isOverdue) borderColor = 'border-red-300';
+                else if (isFollowToday) borderColor = 'border-amber-300';
+                else if (lead.status === 'Booked') borderColor = 'border-emerald-300';
+
+                return (
+                  <div key={lead.id}
+                    className={`bg-white rounded-2xl border-2 ${borderColor} shadow-sm overflow-hidden`}>
+
+                    {/* ─ Lead header: tap to open detail ─ */}
+                    <div className="p-3 pb-0"
+                      onClick={() => navigate(`/crm/sales/lead/${lead.id}`)}
                     >
-                      <div className="p-3.5">
-                        {/* Top row: name + status */}
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h3
-                              className="font-bold text-gray-900 text-sm leading-tight cursor-pointer hover:text-[#0F3A5F] truncate"
-                              onClick={() => navigate(`/crm/leads/${lead.id}`)}
-                            >
-                              {lead.name || 'Unknown'}
-                            </h3>
-                            {assignedTimeLabel && (
-                              <p className="text-xs text-gray-400 mt-0.5">Assigned {assignedTimeLabel}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-gray-900 text-[15px] leading-tight">{lead.name || 'Unknown'}</h3>
+                            {lead.status && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusColors[lead.status] || 'bg-gray-100 text-gray-600'}`}>
+                                {lead.status}
+                              </span>
+                            )}
+                            {isOverdue && (
+                              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">🚨 Overdue</span>
+                            )}
+                            {isFollowToday && !isOverdue && (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">⏰ Today</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {lead.isVIP && <span className="text-xs">⭐</span>}
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                              statusColors[lead.status] || 'bg-gray-100 text-gray-600'
-                            }`}>{lead.status || 'New'}</span>
-                          </div>
-                        </div>
 
-                        {/* Phone row — copy + project */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <button
-                            onClick={() => copyPhone(lead.phone, lead.id)}
-                            className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 active:text-[#0F3A5F] touch-manipulation">
-                            {copiedId === lead.id
-                              ? <CheckCircle size={14} className="text-emerald-500" />
-                              : <Copy size={14} className="text-gray-400" />}
-                            {formatPhone(lead.phone)}
-                          </button>
                           {lead.project && (
-                            <span className="text-xs text-gray-400 truncate">· {lead.project}</span>
+                            <p className="text-xs text-gray-500 mt-0.5">🏢 {lead.project}</p>
+                          )}
+
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {lead.phone && (
+                              <span className="text-xs text-gray-600 font-mono">{formatPhone(lead.phone)}</span>
+                            )}
+                            {fuDate && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                isOverdue ? 'bg-red-50 text-red-600' :
+                                isFollowToday ? 'bg-amber-50 text-amber-700' :
+                                'bg-gray-50 text-gray-500'
+                              }`}>
+                                📅 {format(fuDate, 'dd MMM')}
+                              </span>
+                            )}
+                            {assignedAgo && (
+                              <span className="text-[10px] text-gray-400">⏱ {assignedAgo}</span>
+                            )}
+                          </div>
+
+                          {latestNote && (
+                            <p className="text-[11px] text-gray-400 mt-1 leading-tight line-clamp-1">📝 {latestNote}</p>
                           )}
                         </div>
 
-                        {/* Follow-up date */}
-                        {fuDate && (
-                          <div className={`flex items-center gap-1 text-xs mb-2 font-semibold ${
-                            isOverdue ? 'text-red-600' : isFollowToday ? 'text-amber-600' : 'text-gray-500'
-                          }`}>
-                            <Clock size={12} />
-                            {isOverdue
-                              ? `Overdue: ${format(fuDate, 'dd MMM')}`
-                              : isFollowToday ? 'Follow up today'
-                              : isTomorrow(fuDate) ? 'Tomorrow'
-                              : format(fuDate, 'dd MMM yyyy')}
-                          </div>
-                        )}
-
-                        {/* Latest note */}
-                        {latestNote && (
-                          <p className="text-xs text-gray-500 line-clamp-1 mb-2">
-                            <StickyNote size={11} className="inline mr-1 opacity-60" />
-                            {latestNote}
-                          </p>
-                        )}
-
-                        {/* Call count */}
-                        {lead._callCount > 0 && (
-                          <p className="text-xs text-gray-400 mb-2">
-                            <PhoneCall size={11} className="inline mr-1" />
-                            {lead._callCount} call{lead._callCount !== 1 ? 's' : ''}
-                            {lead._lastCall ? ` · Last: ${timeAgo(lead._lastCall.timestamp)}` : ''}
-                          </p>
-                        )}
-
-                        {/* ✅ Action row — Call + Quick Log + Detail */}
-                        <div className="flex gap-2 mt-1">
-                          {/* 📞 Call button — opens dialer directly */}
-                          <a
-                            href={`tel:${lead.phone?.replace(/\D/g, '').length === 10 ? '+91' : '+'}${lead.phone?.replace(/\D/g, '')}`}
-                            onClick={() => {
-                              setTimeout(() => {
-                                setQuickLead(lead);
-                                setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote('');
-                              }, 800);
-                            }}
-                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:bg-emerald-600 touch-manipulation"
-                            style={{ minWidth: 64, minHeight: 36 }}
-                          >
-                            <Phone size={14} /> Call
-                          </a>
-
-                          {/* 📋 Quick Log */}
-                          <button
-                            onClick={() => { setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote(''); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#0F3A5F] text-white rounded-xl text-xs font-bold active:bg-[#0c2e4d] touch-manipulation">
-                            <PhoneCall size={13} /> Quick Log
-                          </button>
-
-                          {/* ➜ Detail */}
-                          <button
-                            onClick={() => navigate(`/crm/leads/${lead.id}`)}
-                            className="flex items-center justify-center w-10 h-9 bg-gray-100 rounded-xl text-gray-600 active:bg-gray-200 touch-manipulation">
-                            <ChevronRight size={16} />
-                          </button>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {callCount > 0 && (
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">
+                              📞 {callCount}
+                            </span>
+                          )}
+                          <ChevronRight size={16} className="text-gray-300 mt-1" />
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
 
-              {visibleCount < filtered.length && (
-                <div className="flex justify-center mt-4">
-                  <button
-                    onClick={() => setVisibleCount(c => c + LEADS_BATCH_SIZE)}
-                    className="px-6 py-2.5 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-600 shadow-sm active:bg-gray-50 touch-manipulation">
-                    Load more ({filtered.length - visibleCount} remaining)
-                  </button>
-                </div>
-              )}
-            </>
+                    {/* ─ Action row ─ */}
+                    <div className="px-3 pt-2 pb-3 flex gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); callPhone(lead.phone, lead); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#0F3A5F] text-white rounded-xl text-xs font-bold active:scale-95 transition-transform touch-manipulation">
+                        <Phone size={13} /> Call
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setQuickLead(lead); setOutcome(''); setNewStatus(''); setFollowDate(''); setQuickNote(''); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold active:scale-95 transition-transform touch-manipulation">
+                        <StickyNote size={13} /> Quick Log
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); copyPhone(lead.phone, lead.id); }}
+                        className="flex items-center justify-center w-10 py-2.5 bg-gray-100 text-gray-600 rounded-xl active:scale-95 transition-transform touch-manipulation">
+                        {copiedId === lead.id ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Infinite scroll sentinel + Load More fallback ── */}
+          <div ref={sentinelRef} className="h-4" />
+          {hasMore && (
+            <div className="flex flex-col items-center gap-2 py-4">
+              <p className="text-xs text-gray-400">
+                {Math.min(visibleCount, filtered.length)} of {filtered.length} shown
+              </p>
+              <button
+                onClick={() => setVisibleCount(prev => Math.min(prev + PAGE_SIZE, filtered.length))}
+                className="px-6 py-2.5 bg-[#0F3A5F] text-white text-sm font-semibold rounded-full active:scale-95 transition-transform touch-manipulation shadow-sm">
+                Load {Math.min(PAGE_SIZE, filtered.length - visibleCount)} more
+              </button>
+            </div>
+          )}
+
+          {/* All loaded indicator */}
+          {!hasMore && filtered.length > PAGE_SIZE && (
+            <p className="text-center text-xs text-gray-300 py-4">✓ All {filtered.length} leads shown</p>
           )}
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* ✅ QUICK LOG BOTTOM SHEET — fully mobile-optimised                */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* ── Quick Log Sheet ── */}
       {quickLead && (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setQuickLead(null)}>
-          <div className="absolute inset-0 bg-black/50" />
-          <div
-            className="relative w-full bg-white rounded-t-3xl shadow-2xl flex flex-col"
-            style={{ maxHeight: '92vh' }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Drag handle */}
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setQuickLead(null)} />
+          <div className="relative w-full bg-white rounded-t-3xl pt-4 pb-[env(safe-area-inset-bottom)] shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
 
-            {/* Scrollable body */}
-            <div className="overflow-y-auto overscroll-contain px-5 pt-2 pb-6" style={{ WebkitOverflowScrolling: 'touch' }}>
-
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pt-2 pb-3 border-b border-gray-100 -mx-5 px-5">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-gray-900 text-base truncate">{quickLead.name}</h3>
-                  <p className="text-sm text-gray-500">{formatPhone(quickLead.phone)}</p>
+            <div className="px-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-black text-[#0F3A5F] text-base">{quickLead.name}</h2>
+                  <p className="text-xs text-gray-400">{quickLead.project || 'No project'}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  {/* ✅ Inline call button in sheet header too */}
-                  <a
-                    href={`tel:${quickLead.phone?.replace(/\D/g, '').length === 10 ? '+91' : '+'}${quickLead.phone?.replace(/\D/g, '')}`}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold active:bg-emerald-600 touch-manipulation"
-                  >
-                    <Phone size={14} /> Call
-                  </a>
-                  <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100 touch-manipulation">
-                    <X size={18} className="text-gray-600" />
-                  </button>
-                </div>
+                <button onClick={() => setQuickLead(null)} className="p-2 rounded-full bg-gray-100">
+                  <X size={18} className="text-gray-500" />
+                </button>
               </div>
 
-              {/* ── Call Outcome ── */}
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Call Outcome *</p>
-              <div className="grid grid-cols-2 gap-2.5 mb-5">
+              {/* Outcome */}
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Call Outcome *</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 {QUICK_OUTCOMES.map(o => (
-                  <button
-                    key={o.id}
-                    onClick={() => setOutcome(o.id)}
-                    className={`flex items-center gap-2 px-3 py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all active:scale-95 touch-manipulation ${
-                      outcome === o.id
-                        ? 'border-[#0F3A5F] bg-[#0F3A5F] text-white shadow-md'
-                        : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">{o.emoji}</span>
-                    <span>{o.label}</span>
+                  <button key={o.id} onClick={() => setOutcome(o.id)}
+                    className={`py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all touch-manipulation ${
+                      outcome === o.id ? 'bg-[#0F3A5F] text-white shadow-md scale-[1.02]' : 'bg-gray-100 text-gray-700 active:scale-95'
+                    }`}>
+                    {o.emoji} {o.label}
                   </button>
                 ))}
               </div>
 
-              {/* ── Lead Status (optional) ── */}
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Update Status <span className="font-normal normal-case text-gray-400">(optional)</span></p>
-              <div className="grid grid-cols-2 gap-2.5 mb-5">
+              {/* Status update */}
+              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Update Status</p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 {QUICK_STATUSES.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
-                    className={`flex items-center gap-2 px-3 py-3.5 rounded-2xl border-2 font-semibold text-sm transition-all active:scale-95 touch-manipulation ${
-                      newStatus === s.id
-                        ? 'border-amber-500 bg-amber-50 text-amber-800'
-                        : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">{s.emoji}</span>
-                    <span>{s.label}</span>
+                  <button key={s.id} onClick={() => setNewStatus(prev => prev === s.id ? '' : s.id)}
+                    className={`py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all touch-manipulation ${
+                      newStatus === s.id ? 'bg-emerald-600 text-white shadow-md scale-[1.02]' : 'bg-gray-100 text-gray-700 active:scale-95'
+                    }`}>
+                    {s.emoji} {s.label}
                   </button>
                 ))}
               </div>
 
-              {/* ── Follow-up Date (only if non-terminal) ── */}
-              {!['NotInterested', 'Lost', 'Booked'].includes(newStatus) && (
-                <div className="mb-5">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Follow-up Date <span className="font-normal normal-case text-gray-400">(optional)</span></p>
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    {[
-                      { label: 'Today',    offset: 0 },
-                      { label: 'Tomorrow', offset: 1 },
-                      { label: '+2 Days',  offset: 2 },
-                    ].map(({ label, offset }) => {
-                      const d = new Date(); d.setDate(d.getDate() + offset);
-                      const val = d.toISOString().split('T')[0];
-                      return (
-                        <button
-                          key={label}
-                          onClick={() => setFollowDate(prev => prev === val ? '' : val)}
-                          className={`py-3 rounded-xl border-2 text-xs font-bold transition-all active:scale-95 touch-manipulation ${
-                            followDate === val
-                              ? 'border-purple-500 bg-purple-500 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-700'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    type="date"
+              {/* Follow-up date */}
+              {newStatus && !['NotInterested', 'Lost', 'Booked'].includes(newStatus) && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-gray-500 uppercase mb-2">Next Follow-up Date</p>
+                  <SmartDateInput
                     value={followDate}
-                    min={today}
-                    onChange={e => setFollowDate(e.target.value)}
-                    className="w-full py-3 px-4 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-purple-400 bg-gray-50 touch-manipulation"
+                    onChange={setFollowDate}
+                    placeholder="Pick date"
+                    className="w-full px-4 py-3 bg-gray-100 rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20"
                   />
                 </div>
               )}
 
-              {/* ── Quick Note ── */}
-              <div className="mb-6">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Quick Note <span className="font-normal normal-case text-gray-400">(optional)</span></p>
-                <textarea
-                  value={quickNote}
-                  onChange={e => setQuickNote(e.target.value)}
-                  placeholder="What happened on this call? (optional)"
-                  rows={3}
-                  className="w-full py-3 px-4 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0F3A5F]/40 bg-gray-50 resize-none touch-manipulation"
-                />
+              {/* Note */}
+              <div className="mb-4">
+                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Quick Note</p>
+                <textarea value={quickNote} onChange={e => setQuickNote(e.target.value)}
+                  placeholder="Optional note..."
+                  rows={2}
+                  className="w-full px-4 py-3 bg-gray-100 rounded-xl text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/20 resize-none" />
               </div>
 
-              {/* ── Save button ── */}
-              <button
-                onClick={handleQuickSave}
-                disabled={saving || !outcome}
-                className={`w-full py-4 rounded-2xl text-base font-black transition-all touch-manipulation ${
-                  saving || !outcome
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#0F3A5F] text-white active:bg-[#0c2e4d] active:scale-95 shadow-lg'
-                }`}
-              >
-                {saving ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 size={18} className="animate-spin" /> Saving...
-                  </span>
-                ) : (
-                  '✓ Save Call Log'
-                )}
+              <button onClick={handleQuickSave} disabled={saving}
+                className="w-full py-4 bg-[#0F3A5F] text-white rounded-2xl font-black text-base mb-4 active:scale-95 transition-transform touch-manipulation disabled:opacity-60 flex items-center justify-center gap-2">
+                {saving ? <><Loader2 size={18} className="animate-spin" /> Saving...</> : '✓ Save Call Log'}
               </button>
-
-            </div>{/* end scroll body */}
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

@@ -107,16 +107,25 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Admin Portal Section */}
+          {/* Admin & Broker Portal Section */}
           <div className="space-y-4 flex flex-col items-start md:items-end">
-            <span className="text-lg font-semibold text-[#0066A1]">Admin Access</span>
-            <Link 
-              to="/crm/login"
-              className="bg-[#0F3A5F] text-[#D4AF37] px-6 py-3 rounded-xl font-bold text-base shadow-md transition-all duration-300 
-                         hover:bg-[#D4AF37] hover:text-[#0F3A5F] hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center justify-center"
-            >
-              Admin Portal
-            </Link>
+            <span className="text-lg font-semibold text-[#0066A1]">Portal Access</span>
+            <div className="flex flex-wrap justify-start md:justify-end gap-3">
+              <Link 
+                to="/crm/login"
+                className="bg-[#0F3A5F] text-[#D4AF37] px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-300 
+                           hover:bg-[#D4AF37] hover:text-[#0F3A5F] hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center justify-center"
+              >
+                Admin Portal
+              </Link>
+              <Link 
+                to="/broker/login"
+                className="bg-[#D4AF37] text-[#0F3A5F] px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-300 
+                           hover:bg-white hover:text-[#0F3A5F] hover:shadow-xl transform hover:-translate-y-1 inline-flex items-center justify-center"
+              >
+                Broker Payout Login
+              </Link>
+            </div>
           </div>
         </div>
 

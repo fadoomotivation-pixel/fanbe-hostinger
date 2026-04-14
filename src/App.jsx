@@ -15,9 +15,12 @@ import ProjectsListingPage from './pages/ProjectsListingPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import WhyInvestPage from './pages/WhyInvestPage';
 import ContactPage from './pages/ContactPage';
+import BrokerLoginPage from './pages/BrokerLoginPage';
+import BrokerPayoutPortalPage from './pages/BrokerPayoutPortalPage';
 
 // CRM Imports
 import ProtectedRoute from './components/ProtectedRoute';
+import BrokerProtectedRoute from './components/BrokerProtectedRoute';
 import CRMLayout from './crm/components/CRMLayout';
 import CRMLogin from './crm/pages/CRMLogin';
 import ForgotPassword from './crm/pages/ForgotPassword';
@@ -245,6 +248,15 @@ const AppRoutes = ({ onBookSiteVisit }) => {
         <Route path="/projects/:slug" element={<ProjectDetailPage />} />
         <Route path="/why-invest" element={<WhyInvestPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/broker/login" element={<BrokerLoginPage />} />
+        <Route
+          path="/broker/payout"
+          element={
+            <BrokerProtectedRoute>
+              <BrokerPayoutPortalPage />
+            </BrokerProtectedRoute>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );

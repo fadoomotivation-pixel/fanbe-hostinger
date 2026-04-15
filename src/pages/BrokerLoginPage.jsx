@@ -1,4 +1,4 @@
-// src/pages/BrokerLoginPage.jsx — Dynamic login via Supabase
+// src/pages/BrokerLoginPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { brokerLogin, isBrokerAuthenticated } from '@/lib/brokerSupabase';
@@ -42,14 +42,6 @@ const BrokerLoginPage = () => {
         <div className="bg-white rounded-3xl shadow-2xl p-8">
           <h2 className="text-xl font-bold text-[#0F3A5F] mb-1">Welcome back</h2>
           <p className="text-sm text-gray-500 mb-6">Sign in with your registered email</p>
-
-          <div className="mb-5 rounded-2xl bg-[#0F3A5F]/5 border border-[#0F3A5F]/10 px-4 py-3">
-            <p className="text-xs font-bold text-[#0F3A5F]">Dynamic Payout Network Enabled</p>
-            <p className="text-xs text-gray-600 mt-1">
-              Every broker gets a unique referral ID. New brokers can sign up through your referral link,
-              and level commission is auto-calculated for upline brokers.
-            </p>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

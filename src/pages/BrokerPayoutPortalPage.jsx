@@ -1,6 +1,6 @@
 // src/pages/BrokerPayoutPortalPage.jsx — Dynamic broker dashboard
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   getBrokerSession, brokerLogout,
   fetchBroker, fetchBrokerSales, fetchBrokerPayouts, fetchDownline,
@@ -8,8 +8,8 @@ import {
 } from '@/lib/brokerSupabase';
 import {
   LogOut, Copy, CheckCheck, TrendingUp, Users, Wallet,
-  Clock, BadgeCheck, ChevronRight, Loader2, RefreshCw,
-  Share2, IndianRupee, Building2
+  Clock, BadgeCheck, RefreshCw,
+  Share2, IndianRupee, Building2, Loader2
 } from 'lucide-react';
 
 const fmt  = (n) => Number(n || 0).toLocaleString('en-IN');
@@ -42,14 +42,14 @@ const BrokerPayoutPortalPage = () => {
   const navigate  = useNavigate();
   const session   = getBrokerSession();
 
-  const [broker,   setBroker]   = useState(session);
-  const [sales,    setSales]    = useState([]);
-  const [payouts,  setPayouts]  = useState([]);
-  const [downline, setDownline] = useState([]);
-  const [tab,      setTab]      = useState('overview');
+  const [broker,    setBroker]    = useState(session);
+  const [sales,     setSales]     = useState([]);
+  const [payouts,   setPayouts]   = useState([]);
+  const [downline,  setDownline]  = useState([]);
+  const [tab,       setTab]       = useState('overview');
   const [rankRules, setRankRules] = useState(RANKS);
-  const [loading,  setLoading]  = useState(true);
-  const [copied,   setCopied]   = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [copied,    setCopied]    = useState(false);
 
   const load = async () => {
     if (!session) return;
@@ -71,7 +71,8 @@ const BrokerPayoutPortalPage = () => {
 
   const totals = useMemo(() => calcTotals(sales, payouts), [sales, payouts]);
 
-  const referralLink = `${window.location.origin}/broker/register?ref=${broker?.referral_code || ''}`;
+  // Referral link uses broker_id (e.g. FNB-05000) as the ref param
+  const referralLink = `${window.location.origin}/broker/register?ref=${broker?.broker_id || ''}`;
 
   const copyLink = () => {
     navigator.clipboard.writeText(referralLink);
@@ -91,29 +92,43 @@ const BrokerPayoutPortalPage = () => {
 
   return (
     <section className="min-h-screen bg-[#f5f6fa] pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#0F3A5F] to-[#1a5480] px-4 pt-10 pb-6">
+
+      {/* ── Portal Header — standalone, no main site nav ── */}
+      <header className="bg-[#0F3A5F] px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-md">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center">
+            <Building2 size={16} className="text-[#D4AF37]" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-white leading-none">Fanbe Group</p>
+            <p className="text-[10px] text-white/50 leading-none mt-0.5">Broker Payout Portal</p>
+          </div>
+        </div>
+        <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition px-3 py-1.5 rounded-lg hover:bg-white/10">
+          <LogOut size={13}/> Logout
+        </button>
+      </header>
+
+      {/* ── Broker identity card ── */}
+      <div className="bg-gradient-to-r from-[#0F3A5F] to-[#1a5480] px-4 pt-5 pb-6">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Building2 size={16} className="text-[#D4AF37]" />
-                <span className="text-xs text-white/60 font-semibold uppercase tracking-wide">Fanbe Broker Portal</span>
-              </div>
-              <h1 className="text-2xl font-black text-white">{broker?.name}</h1>
+              <h1 className="text-xl font-black text-white">{broker?.name}</h1>
               <p className="text-sm text-white/60 mt-0.5">{broker?.broker_id} · {broker?.email}</p>
               <div className="mt-2"><RankBadge rank={broker?.rank} rules={rankRules} /></div>
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition">
-              <LogOut size={14}/> Logout
-            </button>
           </div>
 
-          {/* Referral share box */}
-          <div className="mt-5 bg-white/10 backdrop-blur rounded-2xl p-4">
-            <p className="text-xs font-bold text-[#D4AF37] mb-1 flex items-center gap-1"><Share2 size={11}/>Your Referral Link — share to earn level commission</p>
+          {/* Referral share box — shows broker_id as referral code */}
+          <div className="mt-4 bg-white/10 backdrop-blur rounded-2xl p-4">
+            <p className="text-xs font-bold text-[#D4AF37] mb-1 flex items-center gap-1">
+              <Share2 size={11}/> Your Referral ID — share to earn level commission
+            </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-[11px] text-white/80 truncate bg-white/5 rounded-lg px-3 py-2">{referralLink}</code>
+              <code className="flex-1 text-[11px] text-white/80 truncate bg-white/5 rounded-lg px-3 py-2">
+                {referralLink}
+              </code>
               <button onClick={copyLink} className="shrink-0 w-9 h-9 rounded-xl bg-[#D4AF37] flex items-center justify-center active:scale-90 transition">
                 {copied ? <CheckCheck size={15} className="text-white"/> : <Copy size={15} className="text-white"/>}
               </button>
@@ -122,8 +137,8 @@ const BrokerPayoutPortalPage = () => {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 shadow-sm">
+      {/* ── Tab bar ── */}
+      <div className="sticky top-[52px] z-10 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-3xl mx-auto flex overflow-x-auto scrollbar-hide">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
@@ -154,8 +169,6 @@ const BrokerPayoutPortalPage = () => {
               <Stat label="Sales Count" value={sales.filter(s=>s.status==='confirmed').length} icon={BadgeCheck} />
               <Stat label="Team Members" value={downline.length} sub="Direct recruits" icon={Users} />
             </div>
-
-            {/* Quick actions */}
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setTab('team')}
                 className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-left active:scale-[0.98] transition">
@@ -235,14 +248,14 @@ const BrokerPayoutPortalPage = () => {
         {tab === 'team' && (
           <div className="space-y-3">
             <div className="bg-[#0F3A5F]/5 rounded-2xl p-4 border border-[#0F3A5F]/10">
-              <p className="text-xs font-bold text-[#0F3A5F] mb-1">Your Referral Code</p>
+              <p className="text-xs font-bold text-[#0F3A5F] mb-1">Your Referral ID</p>
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-black text-[#D4AF37] tracking-widest">{broker?.referral_code}</span>
+                <span className="text-2xl font-black text-[#D4AF37] tracking-widest">{broker?.broker_id}</span>
                 <button onClick={copyLink} className="flex items-center gap-1.5 text-xs text-[#0F3A5F] font-semibold bg-white border border-[#0F3A5F]/20 px-3 py-1.5 rounded-full">
                   {copied ? <><CheckCheck size={11}/>Copied!</> : <><Copy size={11}/>Copy Link</>}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-2">When someone registers with your code, you earn level commission on all their sales.</p>
+              <p className="text-xs text-gray-500 mt-2">When someone registers with your ID, you earn level commission on all their sales.</p>
             </div>
 
             <h2 className="text-sm font-bold text-gray-700">Direct Team ({downline.length})</h2>

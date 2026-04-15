@@ -6,7 +6,7 @@ const URL  = import.meta.env.VITE_SUPABASE_URL;
 const KEY  = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const brokerDb = createClient(URL, KEY);
 
-// ─── Rank config (mirrors static data) ──────────────────────────────────────
+// ─── Rank config (fallback static data; can be overridden by DB rules) ─────
 export const RANKS = [
   { rank:'RANK.1',  title:'EX',               commission:5,    directMin:100,  teamQual:'100 SQYD (min 1 direct)' },
   { rank:'RANK.2',  title:'SR. EX',            commission:5.5,  directMin:0,    teamQual:'750 SQYD' },
@@ -25,17 +25,54 @@ export const RANKS = [
   { rank:'RANK.15', title:'President',          commission:12,   directMin:0,    teamQual:'3 Vice President' },
 ];
 
-export const getRankConfig = (rankStr) =>
-  RANKS.find(r => r.rank === rankStr) || RANKS[0];
+let rankRulesCache = null;
+let rankRulesCacheTime = 0;
+const RANK_RULES_CACHE_MS = 5 * 60 * 1000;
 
-// Level commission differential — parent earns difference
-// e.g. RANK.2 parent (5.5%) on RANK.1 sale (5%) earns 0.5% differential
-export const getLevelCommission = (parentRank, childRank, saleAmount) => {
-  const pr = getRankConfig(parentRank);
-  const cr = getRankConfig(childRank);
-  const diff = Math.max(0, pr.commission - cr.commission);
-  return (diff / 100) * saleAmount;
-};
+function mapRankRowsToConfig(rows = []) {
+  return rows.map(r => ({
+    rank: r.rank,
+    title: r.title,
+    commission: Number(r.commission_percent || 0),
+    directMin: Number(r.direct_min_sqyd || 0),
+    teamQual: r.team_qualification || '-',
+    levelDepth: Number(r.level_depth || 20),
+  }));
+}
+
+export async function fetchRankConfigs() {
+  const now = Date.now();
+  if (rankRulesCache && now - rankRulesCacheTime < RANK_RULES_CACHE_MS) return rankRulesCache;
+
+  const { data, error } = await brokerDb.from('broker_rank_rules')
+    .select('rank,title,commission_percent,direct_min_sqyd,team_qualification,level_depth')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+
+  if (error || !data?.length) {
+    rankRulesCache = RANKS;
+    rankRulesCacheTime = now;
+    return rankRulesCache;
+  }
+
+  rankRulesCache = mapRankRowsToConfig(data);
+  rankRulesCacheTime = now;
+  return rankRulesCache;
+}
+
+export async function getRankConfig(rankStr) {
+  const rules = await fetchRankConfigs();
+  return rules.find(r => r.rank === rankStr) || rules[0] || RANKS[0];
+}
+
+export async function getLevelCommission(parentRank, childRank, saleAmount) {
+  const [pr, cr] = await Promise.all([
+    getRankConfig(parentRank),
+    getRankConfig(childRank),
+  ]);
+  const diff = Math.max(0, Number(pr.commission || 0) - Number(cr.commission || 0));
+  return (diff / 100) * Number(saleAmount || 0);
+}
 
 // ─── Auth ─────────────────────────────────────────────────────────────────
 const SESSION_KEY = 'broker_session_v2';
@@ -59,8 +96,11 @@ async function sha256(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-// Generate unique broker ID: FNB-XXXXX
+// Generate unique broker ID from DB function if available
 async function generateBrokerId() {
+  const { data, error } = await brokerDb.rpc('next_broker_code');
+  if (!error && data) return data;
+
   const { count } = await brokerDb.from('brokers').select('*', { count: 'exact', head: true });
   const num = String((count || 0) + 1).padStart(5, '0');
   return `FNB-${num}`;
@@ -68,9 +108,18 @@ async function generateBrokerId() {
 
 // Generate 8-char referral code
 function generateReferralCode(name) {
-  const base = name.replace(/\s+/g,'').toUpperCase().slice(0,4);
+  const base = name.replace(/\s+/g,'').toUpperCase().slice(0,4) || 'FNBR';
   const rand = Math.random().toString(36).substring(2,6).toUpperCase();
   return `${base}${rand}`;
+}
+
+async function generateUniqueReferralCode(name) {
+  for (let i = 0; i < 5; i++) {
+    const code = generateReferralCode(name);
+    const { data } = await brokerDb.from('brokers').select('id').eq('referral_code', code).maybeSingle();
+    if (!data) return code;
+  }
+  return `${(name || 'FNBR').replace(/\s+/g,'').toUpperCase().slice(0,4)}${Date.now().toString(36).slice(-4).toUpperCase()}`;
 }
 
 // ─── Register ──────────────────────────────────────────────────────────────
@@ -90,7 +139,7 @@ export async function brokerRegister({ name, email, phone, password, referralCod
 
   const hash      = await sha256(password);
   const brokerId  = await generateBrokerId();
-  const myCode    = generateReferralCode(name);
+  const myCode    = await generateUniqueReferralCode(name);
 
   const { data, error } = await brokerDb.from('brokers').insert({
     broker_id: brokerId,
@@ -170,7 +219,7 @@ export async function fetchAllSales() {
   return data || [];
 }
 
-// ─── Admin: add sale + auto-compute payouts ─────────────────────────────────
+// ─── Admin: add sale + auto-compute payouts (dynamic depth) ────────────────
 export async function adminAddSale({ broker_id, project, sqyd, sale_amount, booking_date, notes }) {
   // 1. Insert sale
   const { data: sale, error } = await brokerDb.from('broker_sales').insert({
@@ -184,36 +233,40 @@ export async function adminAddSale({ broker_id, project, sqyd, sale_amount, book
 
   // 2. Direct commission for the broker
   const { data: broker } = await brokerDb.from('brokers').select('rank, parent_id').eq('id', broker_id).single();
-  const rankCfg = getRankConfig(broker.rank);
-  const directAmt = (rankCfg.commission / 100) * Number(sale_amount);
+  const rankCfg = await getRankConfig(broker.rank);
+  const directAmt = (Number(rankCfg.commission || 0) / 100) * Number(sale_amount);
 
   await brokerDb.from('broker_payouts').insert({
     broker_id, sale_id: sale.id,
     amount: directAmt,
     payout_type: 'direct_commission',
     level: 0, status: 'pending',
+    notes: `Direct ${rankCfg.commission}%`,
   });
 
-  // 3. Level (upline) differential commission — walk up 3 levels
+  // 3. Level (upline) differential commission — dynamic depth from rank rule
   let childRank = broker.rank;
   let parentId  = broker.parent_id;
   let level     = 1;
+  const maxDepth = Math.max(1, Number(rankCfg.levelDepth || 20));
 
-  while (parentId && level <= 3) {
+  while (parentId && level <= maxDepth) {
     const { data: parent } = await brokerDb.from('brokers')
-      .select('rank, parent_id').eq('id', parentId).single();
+      .select('id, rank, parent_id').eq('id', parentId).single();
     if (!parent) break;
 
-    const levelAmt = getLevelCommission(parent.rank, childRank, Number(sale_amount));
+    const levelAmt = await getLevelCommission(parent.rank, childRank, Number(sale_amount));
     if (levelAmt > 0) {
       await brokerDb.from('broker_payouts').insert({
-        broker_id: parentId, sale_id: sale.id,
+        broker_id: parent.id,
+        sale_id: sale.id,
         amount: levelAmt,
         payout_type: 'level_commission',
         level, status: 'pending',
         notes: `L${level} differential from ${broker_id}`,
       });
     }
+
     childRank = parent.rank;
     parentId  = parent.parent_id;
     level++;

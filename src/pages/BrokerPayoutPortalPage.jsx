@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   getBrokerSession, brokerLogout,
   fetchBroker, fetchBrokerSales, fetchBrokerPayouts, fetchDownline,
-  calcTotals, RANKS, getRankConfig
+  calcTotals, RANKS, fetchRankConfigs
 } from '@/lib/brokerSupabase';
 import {
   LogOut, Copy, CheckCheck, TrendingUp, Users, Wallet,
@@ -29,8 +29,8 @@ const Stat = ({ label, value, sub, icon: Icon, accent }) => (
 );
 
 // ── Rank badge ──────────────────────────────────────────────────────────────
-const RankBadge = ({ rank }) => {
-  const cfg = getRankConfig(rank);
+const RankBadge = ({ rank, rules }) => {
+  const cfg = (rules || []).find(r => r.rank === rank) || rules?.[0] || RANKS[0];
   return (
     <span className="inline-flex items-center gap-1.5 bg-[#D4AF37]/10 text-[#9a7720] text-xs font-bold px-3 py-1 rounded-full">
       <BadgeCheck size={11}/>{cfg.rank} · {cfg.title} · {cfg.commission}%
@@ -47,20 +47,23 @@ const BrokerPayoutPortalPage = () => {
   const [payouts,  setPayouts]  = useState([]);
   const [downline, setDownline] = useState([]);
   const [tab,      setTab]      = useState('overview');
+  const [rankRules, setRankRules] = useState(RANKS);
   const [loading,  setLoading]  = useState(true);
   const [copied,   setCopied]   = useState(false);
 
   const load = async () => {
     if (!session) return;
     setLoading(true);
-    const [b, s, p, d] = await Promise.all([
+    const [b, s, p, d, rr] = await Promise.all([
       fetchBroker(session.id),
       fetchBrokerSales(session.id),
       fetchBrokerPayouts(session.id),
       fetchDownline(session.id),
+      fetchRankConfigs(),
     ]);
     if (b) setBroker(b);
     setSales(s); setPayouts(p); setDownline(d);
+    if (rr?.length) setRankRules(rr);
     setLoading(false);
   };
 
@@ -99,7 +102,7 @@ const BrokerPayoutPortalPage = () => {
               </div>
               <h1 className="text-2xl font-black text-white">{broker?.name}</h1>
               <p className="text-sm text-white/60 mt-0.5">{broker?.broker_id} · {broker?.email}</p>
-              <div className="mt-2"><RankBadge rank={broker?.rank} /></div>
+              <div className="mt-2"><RankBadge rank={broker?.rank} rules={rankRules} /></div>
             </div>
             <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition">
               <LogOut size={14}/> Logout
@@ -273,7 +276,7 @@ const BrokerPayoutPortalPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {RANKS.map((r,i) => (
+                  {rankRules.map((r,i) => (
                     <tr key={r.rank} className={`border-t ${ broker?.rank === r.rank ? 'bg-[#D4AF37]/10' : i%2===0?'bg-white':'bg-gray-50/50' }`}>
                       <td className="px-3 py-2.5 font-bold text-[#0F3A5F]">{r.rank}</td>
                       <td className="px-3 py-2.5">{r.title}</td>

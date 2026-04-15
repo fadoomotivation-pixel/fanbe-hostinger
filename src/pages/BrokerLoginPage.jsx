@@ -43,6 +43,14 @@ const BrokerLoginPage = () => {
           <h2 className="text-xl font-bold text-[#0F3A5F] mb-1">Welcome back</h2>
           <p className="text-sm text-gray-500 mb-6">Sign in with your registered email</p>
 
+          <div className="mb-5 rounded-2xl bg-[#0F3A5F]/5 border border-[#0F3A5F]/10 px-4 py-3">
+            <p className="text-xs font-bold text-[#0F3A5F]">Dynamic Payout Network Enabled</p>
+            <p className="text-xs text-gray-600 mt-1">
+              Every broker gets a unique referral ID. New brokers can sign up through your referral link,
+              and level commission is auto-calculated for upline brokers.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email address</label>

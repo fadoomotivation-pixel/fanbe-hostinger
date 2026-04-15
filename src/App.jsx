@@ -16,6 +16,7 @@ import ProjectDetailPage from './pages/ProjectDetailPage';
 import WhyInvestPage from './pages/WhyInvestPage';
 import ContactPage from './pages/ContactPage';
 import BrokerLoginPage from './pages/BrokerLoginPage';
+import BrokerRegisterPage from './pages/BrokerRegisterPage';
 import BrokerPayoutPortalPage from './pages/BrokerPayoutPortalPage';
 
 // CRM Imports
@@ -249,6 +250,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
         <Route path="/why-invest" element={<WhyInvestPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/broker/login" element={<BrokerLoginPage />} />
+        <Route path="/broker/register" element={<BrokerRegisterPage />} />
         <Route
           path="/broker/payout"
           element={
@@ -265,19 +267,25 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 function App() {
   const [isSiteVisitModalOpen, setIsSiteVisitModalOpen] = useState(false);
   const location = useLocation();
-  const isCRM = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+
+  // Hide main site chrome (header, footer, popups, chat) on ALL broker pages
+  const isCRM    = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const isBroker = location.pathname.startsWith('/broker');
+  const hideChrome = isCRM || isBroker;
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-gray-50">
       <ScrollToTop />
-      {!isCRM && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
+      {!hideChrome && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
       <main className="flex-grow">
         <AppRoutes onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />
       </main>
-      {!isCRM && <Footer />}
-      {!isCRM && <FloatingWhatsAppButton />}
-      {!isCRM && <SocialProofToast />}
-      <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
+      {!hideChrome && <Footer />}
+      {!hideChrome && <FloatingWhatsAppButton />}
+      {!hideChrome && <SocialProofToast />}
+      {!hideChrome && (
+        <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
+      )}
       <Toaster />
     </div>
   );

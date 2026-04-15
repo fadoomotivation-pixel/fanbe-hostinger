@@ -74,7 +74,7 @@ export async function getLevelCommission(parentRank, childRank, saleAmount) {
   return (diff / 100) * Number(saleAmount || 0);
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────────
 const SESSION_KEY = 'broker_session_v2';
 
 export const getBrokerSession = () => {
@@ -122,19 +122,30 @@ async function generateUniqueReferralCode(name) {
   return `${(name || 'FNBR').replace(/\s+/g,'').toUpperCase().slice(0,4)}${Date.now().toString(36).slice(-4).toUpperCase()}`;
 }
 
-// ─── Register ──────────────────────────────────────────────────────────────
-export async function brokerRegister({ name, email, phone, password, referralCode }) {
+// ─── Register ─────────────────────────────────────────────────────────────
+export async function brokerRegister({ name, email, phone, password, referralBrokerId, referralCode }) {
   // Check email unique
-  const { data: existing } = await brokerDb.from('brokers').select('id').eq('email', email).maybeSingle();
+  const { data: existing } = await brokerDb.from('brokers').select('id').eq('email', email.toLowerCase().trim()).maybeSingle();
   if (existing) return { success: false, message: 'Email already registered.' };
 
-  // Find parent by referral code
+  // Find parent — first try by broker_id (FNB-05001), then by referral_code (legacy)
   let parentId = null;
-  if (referralCode) {
-    const { data: parent } = await brokerDb.from('brokers')
-      .select('id').eq('referral_code', referralCode.toUpperCase()).maybeSingle();
-    if (!parent) return { success: false, message: 'Invalid referral code.' };
-    parentId = parent.id;
+  const refId = (referralBrokerId || referralCode || '').trim().toUpperCase();
+
+  if (refId) {
+    // Try broker_id first (format used in referral links: ?ref=FNB-05000)
+    if (refId.startsWith('FNB-')) {
+      const { data: parent } = await brokerDb.from('brokers')
+        .select('id').eq('broker_id', refId).maybeSingle();
+      if (!parent) return { success: false, message: `Referral ID “${refId}” not found.` };
+      parentId = parent.id;
+    } else {
+      // fallback: look up by referral_code
+      const { data: parent } = await brokerDb.from('brokers')
+        .select('id').eq('referral_code', refId).maybeSingle();
+      if (!parent) return { success: false, message: `Referral code “${refId}” not found.` };
+      parentId = parent.id;
+    }
   }
 
   const hash      = await sha256(password);
@@ -143,7 +154,9 @@ export async function brokerRegister({ name, email, phone, password, referralCod
 
   const { data, error } = await brokerDb.from('brokers').insert({
     broker_id: brokerId,
-    name, email, phone,
+    name: name.trim(),
+    email: email.toLowerCase().trim(),
+    phone: phone.trim(),
     password_hash: hash,
     parent_id: parentId,
     referral_code: myCode,
@@ -156,8 +169,8 @@ export async function brokerRegister({ name, email, phone, password, referralCod
   return { success: true, broker: data };
 }
 
-// ─── Login ─────────────────────────────────────────────────────────────────
-export async function brokerLogin(email, password) {
+// ─── Login ─────────────────────────────────────────────────────────────────────
+const brokerLogin_orig = async (email, password) => {
   const hash = await sha256(password);
   const { data, error } = await brokerDb.from('brokers')
     .select('*')
@@ -170,31 +183,33 @@ export async function brokerLogin(email, password) {
 
   setBrokerSession(data);
   return { success: true, broker: data };
-}
+};
+export const brokerLogin = brokerLogin_orig;
 
 export const brokerLogout = () => clearBrokerSession();
 
-// ─── Fetch broker's own data (fresh) ────────────────────────────────────────
+// ─── Fetch broker's own data (fresh) ──────────────────────────────────────────────
 export async function fetchBroker(id) {
   const { data } = await brokerDb.from('brokers').select('*').eq('id', id).single();
   return data;
 }
 
-// ─── Fetch broker's sales ───────────────────────────────────────────────────
+// ─── Fetch broker's sales ─────────────────────────────────────────────────────────────────────
 export async function fetchBrokerSales(brokerId) {
   const { data } = await brokerDb.from('broker_sales')
     .select('*').eq('broker_id', brokerId).order('booking_date', { ascending: false });
   return data || [];
 }
 
-// ─── Fetch broker's payouts ─────────────────────────────────────────────────
-export async function fetchBrokerPayouts(brokerId) {
+// ─── Fetch broker's payouts ───────────────────────────────────────────────────────────────────
+const fetchBrokerPayouts_fn = async (brokerId) => {
   const { data } = await brokerDb.from('broker_payouts')
     .select('*').eq('broker_id', brokerId).order('created_at', { ascending: false });
   return data || [];
-}
+};
+export const fetchBrokerPayouts = fetchBrokerPayouts_fn;
 
-// ─── Fetch downline (direct children) ───────────────────────────────────────
+// ─── Fetch downline (direct children) ───────────────────────────────────────────────────
 export async function fetchDownline(parentId) {
   const { data } = await brokerDb.from('brokers')
     .select('id, broker_id, name, email, phone, rank, created_at, status')
@@ -203,7 +218,7 @@ export async function fetchDownline(parentId) {
   return data || [];
 }
 
-// ─── Admin: all brokers ─────────────────────────────────────────────────────
+// ─── Admin: all brokers ──────────────────────────────────────────────────────────────────────
 export async function fetchAllBrokers() {
   const { data } = await brokerDb.from('brokers')
     .select('id, broker_id, name, email, phone, rank, status, referral_code, parent_id, created_at')
@@ -211,7 +226,7 @@ export async function fetchAllBrokers() {
   return data || [];
 }
 
-// ─── Admin: all sales ───────────────────────────────────────────────────────
+// ─── Admin: all sales ─────────────────────────────────────────────────────────────────────────
 export async function fetchAllSales() {
   const { data } = await brokerDb.from('broker_sales')
     .select('*, brokers(name, broker_id, rank)')
@@ -219,7 +234,7 @@ export async function fetchAllSales() {
   return data || [];
 }
 
-// ─── Admin: add sale + auto-compute payouts (dynamic depth) ────────────────
+// ─── Admin: add sale + auto-compute payouts (dynamic depth) ────────────────────────
 export async function adminAddSale({ broker_id, project, sqyd, sale_amount, booking_date, notes }) {
   // 1. Insert sale
   const { data: sale, error } = await brokerDb.from('broker_sales').insert({
@@ -275,7 +290,7 @@ export async function adminAddSale({ broker_id, project, sqyd, sale_amount, book
   return { success: true, sale };
 }
 
-// ─── Admin: mark payout paid ────────────────────────────────────────────────
+// ─── Admin: mark payout paid ────────────────────────────────────────────────────────────────
 export async function markPayoutPaid(payoutId) {
   const { error } = await brokerDb.from('broker_payouts')
     .update({ status: 'paid', paid_at: new Date().toISOString() })
@@ -283,13 +298,13 @@ export async function markPayoutPaid(payoutId) {
   return !error;
 }
 
-// ─── Admin: update broker rank/status ───────────────────────────────────────
+// ─── Admin: update broker rank/status ──────────────────────────────────────────────────────────
 export async function updateBroker(id, updates) {
   const { error } = await brokerDb.from('brokers').update(updates).eq('id', id);
   return !error;
 }
 
-// ─── Totals helper ──────────────────────────────────────────────────────────
+// ─── Totals helper ───────────────────────────────────────────────────────────────────────────
 export function calcTotals(sales, payouts) {
   const totalSqyd     = sales.filter(s => s.status === 'confirmed').reduce((a,s) => a + Number(s.sqyd || 0), 0);
   const totalSaleAmt  = sales.filter(s => s.status === 'confirmed').reduce((a,s) => a + Number(s.sale_amount || 0), 0);

@@ -1,23 +1,13 @@
 // src/crm/hooks/useMyLeads.js
-// ⚡ WIRED v2 — exposes the full contract both MyLeads.jsx & EmployeeCRMHome.jsx expect:
+// ⚡ WIRED v3 — slim column select (no SELECT *) for faster wire payload
 //   { leads, leadsLoading, calls, addCallLog, updateLead, fetchLeads, fetchCalls, refetch }
-//
-// ROOT CAUSE that was fixed:
-//   Old hook only exported { leads, loading, refetch }
-//   Both pages destructured leadsLoading, calls, addCallLog, updateLead, fetchLeads, fetchCalls
-//   → all were undefined → blank screens, broken saves, 0 call counts
-//
-// CACHE STRATEGY:
-//   leads → sessionStorage `my_leads_<userId>`  3-min TTL
-//   calls → sessionStorage `my_calls_<userId>`  2-min TTL
-//   Background revalidation on both — instant render, then silently freshen
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // ─── Cache helpers ───────────────────────────────────────────────────────────
-const LEADS_TTL = 3 * 60 * 1000; // 3 min
-const CALLS_TTL = 2 * 60 * 1000; // 2 min
+const LEADS_TTL = 3 * 60 * 1000;
+const CALLS_TTL = 2 * 60 * 1000;
 
 const readCache = (key, ttl) => {
   try {
@@ -34,7 +24,7 @@ const burstCache = (key) => {
   try { sessionStorage.removeItem(key); } catch { /* ignore */ }
 };
 
-// ─── Lead row normaliser (keeps snake_case AND camelCase so both pages work) ─
+// ─── Lead row normaliser ─────────────────────────────────────────────────────
 const normalizeRow = (row) => ({
   id:                  row.id,
   name:                row.full_name          || '',
@@ -58,7 +48,6 @@ const normalizeRow = (row) => ({
   created_at:          row.created_at,
   lastActivity:        row.updated_at,
   project:             row.project            || '',
-  // follow-up date exposed under BOTH naming conventions
   followUpDate:        row.next_followup_date || null,
   follow_up_date:      row.next_followup_date || null,
   next_followup_date:  row.next_followup_date || null,
@@ -71,7 +60,6 @@ const normalizeRow = (row) => ({
   paymentMode:         row.payment_mode       || 'Cash',
   unitNumber:          row.unit_number        || '',
   isVIP:               row.is_vip             || false,
-  // assignment timestamp — used by EmployeeCRMHome to show "Assigned X ago"
   assignedAt:          row.assigned_at        || null,
   assigned_at:         row.assigned_at        || null,
   assignmentDate:      row.assigned_at        || null,
@@ -99,6 +87,18 @@ const normalizeCall = (row) => ({
   projectName: row.project_name || '',
 });
 
+// ─── Slim column list (FIX: avoids SELECT * — smaller wire payload) ──────────
+const LEAD_COLUMNS = [
+  'id', 'full_name', 'phone', 'email', 'source', 'status', 'final_status',
+  'budget', 'interest_level', 'notes', 'call_attempt', 'call_status',
+  'site_visit_status', 'assigned_to', 'assigned_to_name', 'created_by',
+  'created_at', 'updated_at', 'project', 'next_followup_date',
+  'follow_up_time', 'follow_up_notes', 'follow_up_status',
+  'token_amount', 'booking_amount', 'partial_payment', 'payment_mode',
+  'unit_number', 'is_vip', 'assigned_at', 'prev_assigned_to',
+  'prev_assigned_to_name', 'prev_assigned_at',
+].join(',');
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // HOOK
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -106,24 +106,25 @@ export const useMyLeads = (userId) => {
   const leadsKey = userId ? `my_leads_${userId}` : null;
   const callsKey = userId ? `my_calls_${userId}` : null;
 
-  const [leads, setLeads]         = useState(() => (userId ? readCache(`my_leads_${userId}`, LEADS_TTL) || [] : []));
+  const [leads, setLeads]               = useState(() => (userId ? readCache(`my_leads_${userId}`, LEADS_TTL) || [] : []));
   const [leadsLoading, setLeadsLoading] = useState(() => !(userId && readCache(`my_leads_${userId}`, LEADS_TTL)));
-  const [calls, setCalls]         = useState(() => (userId ? readCache(`my_calls_${userId}`, CALLS_TTL) || [] : []));
+  const [calls, setCalls]               = useState(() => (userId ? readCache(`my_calls_${userId}`, CALLS_TTL) || [] : []));
 
-  const leadsReqId = useRef(0);
-  const callsReqId = useRef(0);
+  const leadsReqId  = useRef(0);
+  const callsReqId  = useRef(0);
   const tabWasHidden = useRef(false);
 
-  // ─── fetchLeads ────────────────────────────────────────────────────────────
+  // ─── fetchLeads — slim columns, no SELECT * ────────────────────────────────
   const fetchLeads = useCallback(async (background = false) => {
     if (!userId) return;
     const thisReq = ++leadsReqId.current;
     if (!background) setLeadsLoading(true);
 
     try {
+      // ⚡ FIX: explicit column list instead of SELECT * — reduces wire payload
       const { data, error } = await supabaseAdmin
         .from('leads')
-        .select('*')
+        .select(LEAD_COLUMNS)
         .eq('assigned_to', userId)
         .order('created_at', { ascending: false });
 
@@ -140,7 +141,7 @@ export const useMyLeads = (userId) => {
     }
   }, [userId, leadsKey]);
 
-  // ─── fetchCalls ────────────────────────────────────────────────────────────
+  // ─── fetchCalls — slim columns ─────────────────────────────────────────────
   const fetchCalls = useCallback(async (background = false) => {
     if (!userId) return;
     const thisReq = ++callsReqId.current;
@@ -148,10 +149,10 @@ export const useMyLeads = (userId) => {
     try {
       const { data, error } = await supabaseAdmin
         .from('calls')
-        .select('*')
+        .select('id,lead_id,lead_name,employee_id,status,call_type,duration,notes,created_at,project_name')
         .eq('employee_id', userId)
         .order('created_at', { ascending: false })
-        .limit(500); // keep payload sane
+        .limit(500);
 
       if (error) { console.error('[useMyLeads] calls fetch error:', error.message); return; }
       if (thisReq !== callsReqId.current) return;
@@ -178,7 +179,7 @@ export const useMyLeads = (userId) => {
     else { fetchCalls(false); }
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Realtime subscription (targeted to this user's leads only) ────────────
+  // ─── Realtime subscription ─────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
 
@@ -209,33 +210,29 @@ export const useMyLeads = (userId) => {
   const updateLead = useCallback(async (leadId, updates) => {
     if (!leadId) return;
 
-    // Map camelCase keys from callers → snake_case columns in DB
     const dbUpdates = {};
-    if (updates.status          != null) dbUpdates.final_status      = updates.status;
-    if (updates.followUpDate    != null) dbUpdates.next_followup_date = updates.followUpDate;
-    if (updates.follow_up_date  != null) dbUpdates.next_followup_date = updates.follow_up_date;
-    if (updates.follow_up_status != null) dbUpdates.follow_up_status  = updates.follow_up_status;
-    if (updates.notes           != null) dbUpdates.notes              = updates.notes;
-    if (updates.interestLevel   != null) dbUpdates.interest_level     = updates.interestLevel;
-    if (updates.siteVisitStatus != null) dbUpdates.site_visit_status  = updates.siteVisitStatus;
-    // pass-through null clears (e.g. clearing follow_up_date on Booked)
+    if (updates.status           != null) dbUpdates.final_status       = updates.status;
+    if (updates.followUpDate     != null) dbUpdates.next_followup_date  = updates.followUpDate;
+    if (updates.follow_up_date   != null) dbUpdates.next_followup_date  = updates.follow_up_date;
+    if (updates.follow_up_status != null) dbUpdates.follow_up_status    = updates.follow_up_status;
+    if (updates.notes            != null) dbUpdates.notes               = updates.notes;
+    if (updates.interestLevel    != null) dbUpdates.interest_level      = updates.interestLevel;
+    if (updates.siteVisitStatus  != null) dbUpdates.site_visit_status   = updates.siteVisitStatus;
     if ('follow_up_date' in updates && updates.follow_up_date === null) dbUpdates.next_followup_date = null;
     if ('followUpDate'   in updates && updates.followUpDate   === null) dbUpdates.next_followup_date = null;
 
-    // Optimistic update — UI reflects change immediately
     setLeads(prev => prev.map(l => {
       if (l.id !== leadId) return l;
       return {
         ...l,
-        ...(dbUpdates.final_status      != null ? { status: dbUpdates.final_status, finalStatus: dbUpdates.final_status } : {}),
+        ...(dbUpdates.final_status       != null ? { status: dbUpdates.final_status, finalStatus: dbUpdates.final_status } : {}),
         ...(dbUpdates.next_followup_date != null ? { followUpDate: dbUpdates.next_followup_date, follow_up_date: dbUpdates.next_followup_date } : {}),
         ...(dbUpdates.next_followup_date === null ? { followUpDate: null, follow_up_date: null } : {}),
-        ...(dbUpdates.notes             != null ? { notes: dbUpdates.notes } : {}),
-        ...(dbUpdates.interest_level    != null ? { interestLevel: dbUpdates.interest_level } : {}),
-        ...(dbUpdates.site_visit_status != null ? { siteVisitStatus: dbUpdates.site_visit_status } : {}),
+        ...(dbUpdates.notes              != null ? { notes: dbUpdates.notes } : {}),
+        ...(dbUpdates.interest_level     != null ? { interestLevel: dbUpdates.interest_level } : {}),
+        ...(dbUpdates.site_visit_status  != null ? { siteVisitStatus: dbUpdates.site_visit_status } : {}),
       };
     }));
-    // Burst cache so next tab-switch gets fresh data
     burstCache(leadsKey);
 
     const { error } = await supabaseAdmin
@@ -245,24 +242,23 @@ export const useMyLeads = (userId) => {
 
     if (error) {
       console.error('[useMyLeads] updateLead error:', error.message);
-      // Roll back optimistic update on failure
       fetchLeads(true);
       throw error;
     }
   }, [leadsKey, fetchLeads]);
 
-  // ─── addCallLog — insert into calls table ─────────────────────────────────
+  // ─── addCallLog ────────────────────────────────────────────────────────────
   const addCallLog = useCallback(async (callData) => {
     const row = {
-      employee_id:   callData.employeeId   || callData.employee_id   || userId,
-      employee_name: callData.employeeName || callData.employee_name || null,
-      lead_id:       callData.leadId       || callData.lead_id       || null,
-      lead_name:     callData.leadName     || callData.lead_name     || null,
-      project_name:  callData.projectName  || callData.project_name  || '',
-      call_type:     callData.type         || callData.call_type     || 'Outgoing',
-      status:        callData.status       || '',
-      duration:      parseInt(callData.duration) || 0,
-      notes:         callData.notes        || '',
+      employee_id:     callData.employeeId   || callData.employee_id   || userId,
+      employee_name:   callData.employeeName || callData.employee_name || null,
+      lead_id:         callData.leadId       || callData.lead_id       || null,
+      lead_name:       callData.leadName     || callData.lead_name     || null,
+      project_name:    callData.projectName  || callData.project_name  || '',
+      call_type:       callData.type         || callData.call_type     || 'Outgoing',
+      status:          callData.status       || '',
+      duration:        parseInt(callData.duration) || 0,
+      notes:           callData.notes        || '',
       major_objection: callData.majorObjection || callData.major_objection || null,
     };
 
@@ -277,7 +273,6 @@ export const useMyLeads = (userId) => {
       throw error;
     }
 
-    // Optimistic prepend to calls list
     const normalized = normalizeCall(data);
     setCalls(prev => [normalized, ...prev]);
     burstCache(callsKey);
@@ -287,17 +282,13 @@ export const useMyLeads = (userId) => {
 
   // ─── Public API ────────────────────────────────────────────────────────────
   return {
-    // State
     leads,
-    leadsLoading,         // ← was missing (pages used this, hook only had `loading`)
-    calls,                // ← was missing entirely
-    // Mutations
-    updateLead,           // ← was missing
-    addCallLog,           // ← was missing
-    // Refresh triggers (used by EmployeeCRMHome refresh button)
+    leadsLoading,
+    calls,
+    updateLead,
+    addCallLog,
     fetchLeads:  () => fetchLeads(false),
     fetchCalls:  () => fetchCalls(false),
-    // Alias for backward-compat (MyLeads uses refetch for pull-to-refresh scenarios)
     refetch:     () => fetchLeads(false),
   };
 };

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabase';
 import {
   Search, Plus, Phone, Calendar, IndianRupee,
   TrendingUp, Users, CheckCircle2, Clock, X,
@@ -72,11 +73,11 @@ const QUICK_STATUSES = [
 ];
 
 const QuickLogSheet = ({ lead, onClose, onSaved }) => {
-  const [status,     setStatus]     = useState(lead?.status === 'Follow Up' ? 'FollowUp' : (lead?.status || 'Open'));
-  const [note,       setNote]       = useState('');
-  const [followUp,   setFollowUp]   = useState('');
-  const [saving,     setSaving]     = useState(false);
-  const [savedOk,    setSavedOk]    = useState(false);
+  const [status,  setStatus]  = useState(lead?.status === 'Follow Up' ? 'FollowUp' : (lead?.status || 'Open'));
+  const [note,    setNote]    = useState('');
+  const [followUp,setFollowUp]= useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [savedOk, setSavedOk] = useState(false);
 
   const handleSave = async () => {
     if (!lead) return;
@@ -84,8 +85,8 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
     try {
       const dbStatus = status === 'FollowUp' ? 'Follow Up' : status;
       const updates = { status: dbStatus, updated_at: new Date().toISOString() };
-      if (note.trim())    updates.last_note      = note.trim();
-      if (followUp)       updates.follow_up_date = followUp;
+      if (note.trim()) updates.last_note      = note.trim();
+      if (followUp)    updates.follow_up_date = followUp;
 
       const { error } = await supabase
         .from('leads')
@@ -280,7 +281,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
       }}
       className="lead-card"
     >
-      {/* Top row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{
           width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
@@ -322,7 +322,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
         </div>
       </div>
 
-      {/* Info row */}
       {(lead.phone || lead.budget || lead.followUpDate) && (
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10 }}>
           {lead.budget && (
@@ -355,7 +354,6 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
         </p>
       )}
 
-      {/* Action row */}
       <div
         style={{
           display: 'flex', gap: 8, marginTop: 12,
@@ -472,9 +470,10 @@ const S = {
 };
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
-const FILTERS = ['All', 'Open', 'FollowUp', 'Booked', 'Lost'];
+const FILTERS    = ['All', 'Open', 'FollowUp', 'Booked', 'Lost'];
 const FILTER_LABELS = { All: 'All', Open: 'Open', FollowUp: 'Follow Up', Booked: 'Booked', Lost: 'Lost' };
-const PAGE_SIZE = 20;
+const PAGE_SIZE  = 20;
+const STATS_TTL  = 60 * 1000; // ⚡ FIX: 1-min cache — back-nav skips refetch
 
 /* ─── DB status helpers ─────────────────────────────────────────────── */
 const filterToDbStatus = f => {
@@ -488,28 +487,26 @@ const EmployeeLeadList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Server-side paginated leads
-  const [myLeads,      setMyLeads]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [loadingMore,  setLoadingMore]  = useState(false);
-  const [hasMore,      setHasMore]      = useState(true);
-  const [page,         setPage]         = useState(0);          // 0-based page index
+  const [myLeads,       setMyLeads]       = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [loadingMore,   setLoadingMore]   = useState(false);
+  const [hasMore,       setHasMore]       = useState(true);
+  const [page,          setPage]          = useState(0);
 
-  // Stats fetched separately (fast count query)
-  const [stats,        setStats]        = useState({ total: 0, open: 0, followUp: 0, booked: 0 });
-  const [todayCount,   setTodayCount]   = useState(0);
-  const [tomorrowCount,setTomorrowCount]= useState(0);
+  // ⚡ FIX: single stats object (fed by RPC), plus in-memory cache ref
+  const [stats,         setStats]         = useState({ total: 0, open: 0, followUp: 0, booked: 0, today: 0, tomorrow: 0 });
+  const statsCacheRef   = useRef({ data: null, ts: 0 }); // ⚡ back-nav cache
 
-  const [search,       setSearch]       = useState('');
-  const [filter,       setFilter]       = useState('All');
-  const [quickLogLead, setQuickLogLead] = useState(null);
+  const [search,        setSearch]        = useState('');
+  const [filter,        setFilter]        = useState('All');
+  const [quickLogLead,  setQuickLogLead]  = useState(null);
 
   const searchRef   = useRef(null);
   const listEnd     = useRef(null);
   const debounceRef = useRef(null);
   const userId      = user?.uid || user?.id;
 
-  /* ── Build Supabase query for current filter/search ── */
+  /* ── Build query ── */
   const buildQuery = useCallback((fromIndex = 0, currentFilter = filter, currentSearch = search) => {
     let q = supabase
       .from('leads')
@@ -520,7 +517,6 @@ const EmployeeLeadList = () => {
 
     const dbStatuses = filterToDbStatus(currentFilter);
     if (dbStatuses) q = q.in('status', dbStatuses);
-
     if (currentSearch.trim()) {
       const t = currentSearch.trim();
       q = q.or(`name.ilike.%${t}%,phone.ilike.%${t}%,project.ilike.%${t}%`);
@@ -528,36 +524,41 @@ const EmployeeLeadList = () => {
     return q;
   }, [userId, filter, search]);
 
-  /* ── Fetch stats (counts only) — runs once on mount & filter change ── */
-  const fetchStats = useCallback(async () => {
+  /* ──────────────────────────────────────────────────────────────────────────
+   * ⚡ FIX: fetchStats — single RPC call replaces 6 serial COUNT queries
+   *         + 1-min in-memory cache so back-nav is instant
+   * ──────────────────────────────────────────────────────────────────────── */
+  const fetchStats = useCallback(async (force = false) => {
     if (!userId) return;
+
+    // Return cached stats if still fresh and not forced
+    if (!force && statsCacheRef.current.data && Date.now() - statsCacheRef.current.ts < STATS_TTL) {
+      setStats(statsCacheRef.current.data);
+      return;
+    }
+
     try {
-      const today    = new Date(); today.setHours(0,0,0,0);
-      const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-      const todayStr    = today.toISOString().split('T')[0];
-      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const { data, error } = await supabaseAdmin
+        .rpc('get_lead_stats', { p_user_id: userId });
 
-      const [allRes, openRes, fuRes, bookedRes, todayRes, tmrRes] = await Promise.all([
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).eq('status', 'Open'),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).in('status', ['Follow Up', 'FollowUp']),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).eq('status', 'Booked'),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).gte('follow_up_date', todayStr).lt('follow_up_date', tomorrowStr),
-        supabase.from('leads').select('id', { count: 'exact', head: true }).eq('assigned_to', userId).gte('follow_up_date', tomorrowStr).lt('follow_up_date', new Date(tomorrow.getTime() + 86400000).toISOString().split('T')[0]),
-      ]);
+      if (error) throw error;
 
-      setStats({
-        total:    allRes.count    ?? 0,
-        open:     openRes.count   ?? 0,
-        followUp: fuRes.count     ?? 0,
-        booked:   bookedRes.count ?? 0,
-      });
-      setTodayCount(todayRes.count ?? 0);
-      setTomorrowCount(tmrRes.count ?? 0);
-    } catch (_) {}
+      const s = {
+        total:    data.total    ?? 0,
+        open:     data.open     ?? 0,
+        followUp: data.followUp ?? 0,
+        booked:   data.booked   ?? 0,
+        today:    data.today    ?? 0,
+        tomorrow: data.tomorrow ?? 0,
+      };
+      statsCacheRef.current = { data: s, ts: Date.now() };
+      setStats(s);
+    } catch (err) {
+      console.error('[fetchStats] RPC error:', err.message);
+    }
   }, [userId]);
 
-  /* ── Initial page load (first 20) ── */
+  /* ── First page ── */
   const fetchFirstPage = useCallback(async (currentFilter, currentSearch) => {
     if (!userId) return;
     setLoading(true);
@@ -591,7 +592,7 @@ const EmployeeLeadList = () => {
     }
   }, [userId]);
 
-  /* ── Load more (next page) ── */
+  /* ── Next page ── */
   const fetchNextPage = useCallback(async () => {
     if (!userId || loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -624,28 +625,26 @@ const EmployeeLeadList = () => {
     }
   }, [userId, page, filter, search, loadingMore, hasMore]);
 
-  /* ── Mount: fetch first page + stats ── */
+  /* ── Mount ── */
   useEffect(() => {
     fetchFirstPage('All', '');
     fetchStats();
   }, [userId]); // eslint-disable-line
 
-  /* ── Filter change: refetch from page 0 ── */
+  /* ── Filter change ── */
   useEffect(() => {
     if (!userId) return;
     fetchFirstPage(filter, search);
   }, [filter]); // eslint-disable-line
 
-  /* ── Search: debounce 350ms then refetch ── */
+  /* ── Search debounce ── */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchFirstPage(filter, search);
-    }, 350);
+    debounceRef.current = setTimeout(() => fetchFirstPage(filter, search), 350);
     return () => clearTimeout(debounceRef.current);
   }, [search]); // eslint-disable-line
 
-  /* ── Realtime: patch individual leads in state ── */
+  /* ── Realtime ── */
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
@@ -658,12 +657,9 @@ const EmployeeLeadList = () => {
             const updated = normalise(payload.new);
             const idx = prev.findIndex(l => l.id === updated.id);
             if (idx === -1) return [updated, ...prev];
-            const next = [...prev];
-            next[idx] = updated;
-            return next;
+            const next = [...prev]; next[idx] = updated; return next;
           });
-          // Refresh stats silently
-          fetchStats();
+          fetchStats(true); // force-refresh stats on realtime change
         }
       )
       .subscribe();
@@ -682,22 +678,24 @@ const EmployeeLeadList = () => {
         updatedAt:    updates.updated_at,
       };
     }));
-    fetchStats();
+    fetchStats(true);
   }, [fetchStats]);
 
-  /* ── Infinite scroll sentinel ── */
+  /* ── Infinite scroll ── */
   useEffect(() => {
     if (!listEnd.current) return;
     const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-        fetchNextPage();
-      }
+      if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) fetchNextPage();
     }, { threshold: 0.1 });
     obs.observe(listEnd.current);
     return () => obs.disconnect();
   }, [hasMore, loadingMore, loading, fetchNextPage]);
 
   const handleCardClick = useCallback(id => navigate(`/crm/lead/${id}`), [navigate]);
+
+  // convenience aliases from unified stats
+  const todayCount    = stats.today;
+  const tomorrowCount = stats.tomorrow;
 
   return (
     <div style={{
@@ -706,30 +704,17 @@ const EmployeeLeadList = () => {
       paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
     }}>
       <style>{`
-        @keyframes shimmer {
-          0%   { background-position: -200% 0 }
-          100% { background-position:  200% 0 }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(100%) }
-          to   { transform: translateY(0) }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg) }
-          to   { transform: rotate(360deg) }
-        }
+        @keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+        @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+        @keyframes spin    { from { transform: rotate(0deg) }     to { transform: rotate(360deg) } }
         .lead-card:active  { transform: scale(0.985); box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important; }
         .lead-card:hover   { box-shadow: 0 4px 16px rgba(30,58,95,0.12) !important; }
         ::-webkit-scrollbar { width: 0; height: 0; }
-        .call-btn:active   { background: rgba(16,185,129,0.2) !important; }
-        .log-btn:active    { background: rgba(37,99,235,0.18) !important; }
         .load-more-spinner { animation: spin 0.8s linear infinite; }
-        @media (max-width: 480px) {
-          .stat-grid { grid-template-columns: 1fr 1fr !important; }
-        }
+        @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr 1fr !important; } }
       `}</style>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 30,
         background: 'rgba(248,250,252,0.95)',
@@ -741,12 +726,8 @@ const EmployeeLeadList = () => {
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', letterSpacing: -0.5, lineHeight: 1.2 }}>
-                My Leads
-              </h1>
-              <p style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>
-                {stats.total} assigned
-              </p>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', letterSpacing: -0.5, lineHeight: 1.2 }}>My Leads</h1>
+              <p style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{stats.total} assigned</p>
             </div>
             <button
               onClick={() => navigate('/crm/lead/new')}
@@ -756,12 +737,10 @@ const EmployeeLeadList = () => {
                 background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
                 color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 boxShadow: '0 3px 10px rgba(37,99,235,0.35)',
-                WebkitTapHighlightColor: 'transparent',
-                minHeight: 44,
+                WebkitTapHighlightColor: 'transparent', minHeight: 44,
               }}
             >
-              <Plus size={15} />
-              Add
+              <Plus size={15} /> Add
             </button>
           </div>
 
@@ -802,10 +781,10 @@ const EmployeeLeadList = () => {
                 active={filter === f}
                 onClick={() => setFilter(f)}
                 count={
-                  f === 'All'      ? stats.total :
-                  f === 'Open'     ? stats.open :
+                  f === 'All'      ? stats.total    :
+                  f === 'Open'     ? stats.open     :
                   f === 'FollowUp' ? stats.followUp :
-                  f === 'Booked'   ? stats.booked :
+                  f === 'Booked'   ? stats.booked   :
                   undefined
                 }
               />
@@ -814,10 +793,9 @@ const EmployeeLeadList = () => {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '14px 16px 0' }}>
 
-        {/* Follow-up alerts */}
         {!loading && todayCount > 0 && (
           <div style={{
             background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
@@ -843,7 +821,6 @@ const EmployeeLeadList = () => {
           </div>
         )}
 
-        {/* Stat grid */}
         <div
           className="stat-grid"
           style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}
@@ -854,7 +831,6 @@ const EmployeeLeadList = () => {
           <StatCard label="Booked"    value={stats.booked}   icon={CheckCircle2} accent="#10b981" />
         </div>
 
-        {/* Results label */}
         {(search || filter !== 'All') && !loading && (
           <p style={{ fontSize: 12, color: '#64748b', marginBottom: 10, fontWeight: 500 }}>
             {myLeads.length}{hasMore ? '+' : ''} result{myLeads.length !== 1 ? 's' : ''}
@@ -863,7 +839,6 @@ const EmployeeLeadList = () => {
           </p>
         )}
 
-        {/* Lead list */}
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...Array(6)].map((_, i) => <LeadSkeleton key={i} />)}
@@ -907,10 +882,8 @@ const EmployeeLeadList = () => {
               />
             ))}
 
-            {/* Infinite scroll sentinel */}
             <div ref={listEnd} style={{ height: 1 }} />
 
-            {/* Loading more spinner */}
             {loadingMore && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', gap: 8, alignItems: 'center' }}>
                 <Loader2 size={18} color="#2563eb" className="load-more-spinner" />
@@ -918,19 +891,15 @@ const EmployeeLeadList = () => {
               </div>
             )}
 
-            {/* End of list */}
             {!hasMore && myLeads.length > 0 && (
               <div style={{ textAlign: 'center', padding: '14px 0 4px' }}>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
-                  All {myLeads.length} leads loaded
-                </span>
+                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>All {myLeads.length} leads loaded</span>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* QuickLog Sheet */}
       {quickLogLead && (
         <QuickLogSheet
           lead={quickLogLead}

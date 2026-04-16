@@ -512,6 +512,7 @@ const EmployeeLeadList = () => {
       .from('leads')
       .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
       .eq('assigned_to', userId)
+      .eq('is_archived', false)
       .order('updated_at', { ascending: false })
       .range(fromIndex, fromIndex + PAGE_SIZE - 1);
 
@@ -570,6 +571,7 @@ const EmployeeLeadList = () => {
         .from('leads')
         .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
         .eq('assigned_to', userId)
+        .eq('is_archived', false)
         .order('updated_at', { ascending: false })
         .range(0, PAGE_SIZE - 1);
 
@@ -602,6 +604,7 @@ const EmployeeLeadList = () => {
         .from('leads')
         .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
         .eq('assigned_to', userId)
+        .eq('is_archived', false)
         .order('updated_at', { ascending: false })
         .range(fromIndex, fromIndex + PAGE_SIZE - 1);
 

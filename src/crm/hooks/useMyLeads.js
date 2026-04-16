@@ -126,6 +126,7 @@ export const useMyLeads = (userId) => {
         .from('leads')
         .select(LEAD_COLUMNS)
         .eq('assigned_to', userId)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false });
 
       if (error) { console.error('[useMyLeads] leads fetch error:', error.message); return; }

@@ -35,7 +35,13 @@ const LeadManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [activeTab,           setActiveTab]           = useState(() => sessionStorage.getItem('leadMgmt_activeTab') || 'unassigned');
+  const [activeTab,           setActiveTab]           = useState(() => {
+    try {
+      return sessionStorage.getItem('leadMgmt_activeTab') || 'unassigned';
+    } catch {
+      return 'unassigned';
+    }
+  });
   const [searchTerm,          setSearchTerm]          = useState('');
   const [filterSource,        setFilterSource]        = useState('all');
   const [filterEmployee,      setFilterEmployee]      = useState('all');
@@ -55,9 +61,17 @@ const LeadManagement = () => {
     source: 'Website', budget: '', status: 'Open', notes: ''
   });
 
-  useEffect(() => { sessionStorage.setItem('leadMgmt_activeTab', activeTab); }, [activeTab]);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('leadMgmt_activeTab', activeTab);
+    } catch {
+      // Ignore storage errors (private mode / blocked storage).
+    }
+  }, [activeTab]);
 
-  const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SUB_ADMIN;
+  const userRole = user?.role || '';
+  const userId = user?.id || null;
+  const isAdmin = userRole === ROLES.SUPER_ADMIN || userRole === ROLES.SUB_ADMIN;
 
   // ─ memoize salesEmployees (employees list rarely changes) ─────────────────
   const salesEmployees = useMemo(() =>
@@ -68,8 +82,8 @@ const LeadManagement = () => {
 
   // ─ memoize base lists ────────────────────────────────────────────
   const myLeads = useMemo(() =>
-    isAdmin ? leads : leads.filter(l => l.assignedTo === user.id),
-  [leads, isAdmin, user.id]);
+    isAdmin ? leads : leads.filter(l => l.assignedTo === userId),
+  [leads, isAdmin, userId]);
 
   const unassignedLeads = useMemo(() =>
     myLeads.filter(l => !l.assignedTo),
@@ -94,7 +108,9 @@ const LeadManagement = () => {
     const lc = searchTerm.toLowerCase();
     return unassignedLeads.filter(l => {
       if (filterSource !== 'all' && l.source !== filterSource) return false;
-      if (lc && !l.name.toLowerCase().includes(lc) && !l.phone.includes(searchTerm)) return false;
+      const leadName = (l.name || '').toLowerCase();
+      const leadPhone = String(l.phone || '');
+      if (lc && !leadName.includes(lc) && !leadPhone.includes(searchTerm)) return false;
       return true;
     });
   }, [unassignedLeads, searchTerm, filterSource]);
@@ -104,7 +120,9 @@ const LeadManagement = () => {
     return assignedLeads.filter(l => {
       if (filterEmployee !== 'all' && l.assignedTo !== filterEmployee) return false;
       if (filterSource   !== 'all' && l.source     !== filterSource)   return false;
-      if (lc && !l.name.toLowerCase().includes(lc) && !l.phone.includes(searchTerm)) return false;
+      const leadName = (l.name || '').toLowerCase();
+      const leadPhone = String(l.phone || '');
+      if (lc && !leadName.includes(lc) && !leadPhone.includes(searchTerm)) return false;
       return true;
     });
   }, [assignedLeads, searchTerm, filterSource, filterEmployee]);
@@ -186,9 +204,9 @@ const LeadManagement = () => {
     e.preventDefault();
     const newLead = {
       ...formData,
-      assignedTo:     user.role === ROLES.EMPLOYEE ? user.id   : null,
-      assignedToName: user.role === ROLES.EMPLOYEE ? user.name : null,
-      assignedAt:     user.role === ROLES.EMPLOYEE ? new Date().toISOString() : null,
+      assignedTo:     userRole === ROLES.EMPLOYEE ? userId : null,
+      assignedToName: userRole === ROLES.EMPLOYEE ? user?.name || null : null,
+      assignedAt:     userRole === ROLES.EMPLOYEE ? new Date().toISOString() : null,
       isVIP: isVIPLead(formData)
     };
     addLead(newLead);

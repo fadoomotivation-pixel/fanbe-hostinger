@@ -124,26 +124,22 @@ async function generateUniqueReferralCode(name) {
 
 // ─── Register ─────────────────────────────────────────────────────────────
 export async function brokerRegister({ name, email, phone, password, referralBrokerId, referralCode }) {
-  // Check email unique
   const { data: existing } = await brokerDb.from('brokers').select('id').eq('email', email.toLowerCase().trim()).maybeSingle();
   if (existing) return { success: false, message: 'Email already registered.' };
 
-  // Find parent — first try by broker_id (FNB-05001), then by referral_code (legacy)
   let parentId = null;
   const refId = (referralBrokerId || referralCode || '').trim().toUpperCase();
 
   if (refId) {
-    // Try broker_id first (format used in referral links: ?ref=FNB-05000)
     if (refId.startsWith('FNB-')) {
       const { data: parent } = await brokerDb.from('brokers')
         .select('id').eq('broker_id', refId).maybeSingle();
-      if (!parent) return { success: false, message: `Referral ID “${refId}” not found.` };
+      if (!parent) return { success: false, message: `Referral ID "${refId}" not found.` };
       parentId = parent.id;
     } else {
-      // fallback: look up by referral_code
       const { data: parent } = await brokerDb.from('brokers')
         .select('id').eq('referral_code', refId).maybeSingle();
-      if (!parent) return { success: false, message: `Referral code “${refId}” not found.` };
+      if (!parent) return { success: false, message: `Referral code "${refId}" not found.` };
       parentId = parent.id;
     }
   }
@@ -218,6 +214,31 @@ export async function fetchDownline(parentId) {
   return data || [];
 }
 
+// ─── Fetch income plan content from DB ────────────────────────────────────────────
+export async function fetchBonanzaDirect() {
+  const { data } = await brokerDb.from('broker_bonanza_direct')
+    .select('sqyd_target, reward')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  return data || [];
+}
+
+export async function fetchBonanzaTeam() {
+  const { data } = await brokerDb.from('broker_bonanza_team')
+    .select('unit_target, reward')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  return data || [];
+}
+
+export async function fetchBrokerTerms() {
+  const { data } = await brokerDb.from('broker_terms')
+    .select('content')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  return data || [];
+}
+
 // ─── Admin: all brokers ──────────────────────────────────────────────────────────────────────
 export async function fetchAllBrokers() {
   const { data } = await brokerDb.from('brokers')
@@ -236,7 +257,6 @@ export async function fetchAllSales() {
 
 // ─── Admin: add sale + auto-compute payouts (dynamic depth) ────────────────────────
 export async function adminAddSale({ broker_id, project, sqyd, sale_amount, booking_date, notes }) {
-  // 1. Insert sale
   const { data: sale, error } = await brokerDb.from('broker_sales').insert({
     broker_id, project, sqyd: Number(sqyd),
     sale_amount: Number(sale_amount),
@@ -246,7 +266,6 @@ export async function adminAddSale({ broker_id, project, sqyd, sale_amount, book
 
   if (error) return { success: false, message: error.message };
 
-  // 2. Direct commission for the broker
   const { data: broker } = await brokerDb.from('brokers').select('rank, parent_id').eq('id', broker_id).single();
   const rankCfg = await getRankConfig(broker.rank);
   const directAmt = (Number(rankCfg.commission || 0) / 100) * Number(sale_amount);
@@ -259,7 +278,6 @@ export async function adminAddSale({ broker_id, project, sqyd, sale_amount, book
     notes: `Direct ${rankCfg.commission}%`,
   });
 
-  // 3. Level (upline) differential commission — dynamic depth from rank rule
   let childRank = broker.rank;
   let parentId  = broker.parent_id;
   let level     = 1;

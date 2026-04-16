@@ -1,10 +1,11 @@
-// src/pages/BrokerPayoutPortalPage.jsx — Dynamic broker dashboard
+// src/pages/BrokerPayoutPortalPage.jsx — Fully Dynamic broker dashboard
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getBrokerSession, brokerLogout,
   fetchBroker, fetchBrokerSales, fetchBrokerPayouts, fetchDownline,
-  calcTotals, RANKS, fetchRankConfigs
+  calcTotals, RANKS, fetchRankConfigs,
+  fetchBonanzaDirect, fetchBonanzaTeam, fetchBrokerTerms
 } from '@/lib/brokerSupabase';
 import {
   LogOut, Copy, CheckCheck, TrendingUp, Users, Wallet,
@@ -42,28 +43,37 @@ const BrokerPayoutPortalPage = () => {
   const navigate  = useNavigate();
   const session   = getBrokerSession();
 
-  const [broker,    setBroker]    = useState(session);
-  const [sales,     setSales]     = useState([]);
-  const [payouts,   setPayouts]   = useState([]);
-  const [downline,  setDownline]  = useState([]);
-  const [tab,       setTab]       = useState('overview');
-  const [rankRules, setRankRules] = useState(RANKS);
-  const [loading,   setLoading]   = useState(true);
-  const [copied,    setCopied]    = useState(false);
+  const [broker,        setBroker]        = useState(session);
+  const [sales,         setSales]         = useState([]);
+  const [payouts,       setPayouts]       = useState([]);
+  const [downline,      setDownline]      = useState([]);
+  const [tab,           setTab]           = useState('overview');
+  const [rankRules,     setRankRules]     = useState(RANKS);
+  const [bonanzaDirect, setBonanzaDirect] = useState([]);
+  const [bonanzaTeam,   setBonanzaTeam]   = useState([]);
+  const [terms,         setTerms]         = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [copied,        setCopied]        = useState(false);
 
   const load = async () => {
     if (!session) return;
     setLoading(true);
-    const [b, s, p, d, rr] = await Promise.all([
+    const [b, s, p, d, rr, bd, bt, tr] = await Promise.all([
       fetchBroker(session.id),
       fetchBrokerSales(session.id),
       fetchBrokerPayouts(session.id),
       fetchDownline(session.id),
       fetchRankConfigs(),
+      fetchBonanzaDirect(),
+      fetchBonanzaTeam(),
+      fetchBrokerTerms(),
     ]);
     if (b) setBroker(b);
     setSales(s); setPayouts(p); setDownline(d);
     if (rr?.length) setRankRules(rr);
+    if (bd?.length) setBonanzaDirect(bd);
+    if (bt?.length) setBonanzaTeam(bt);
+    if (tr?.length) setTerms(tr);
     setLoading(false);
   };
 
@@ -71,7 +81,6 @@ const BrokerPayoutPortalPage = () => {
 
   const totals = useMemo(() => calcTotals(sales, payouts), [sales, payouts]);
 
-  // Referral link uses broker_id (e.g. FNB-05000) as the ref param
   const referralLink = `${window.location.origin}/broker/register?ref=${broker?.broker_id || ''}`;
 
   const copyLink = () => {
@@ -93,7 +102,7 @@ const BrokerPayoutPortalPage = () => {
   return (
     <section className="min-h-screen bg-[#f5f6fa] pb-20">
 
-      {/* ── Portal Header — standalone, no main site nav ── */}
+      {/* ── Portal Header ── */}
       <header className="bg-[#0F3A5F] px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[#D4AF37]/20 flex items-center justify-center">
@@ -120,7 +129,6 @@ const BrokerPayoutPortalPage = () => {
             </div>
           </div>
 
-          {/* Referral share box — shows broker_id as referral code */}
           <div className="mt-4 bg-white/10 backdrop-blur rounded-2xl p-4">
             <p className="text-xs font-bold text-[#D4AF37] mb-1 flex items-center gap-1">
               <Share2 size={11}/> Your Referral ID — share to earn level commission
@@ -275,9 +283,11 @@ const BrokerPayoutPortalPage = () => {
           </div>
         )}
 
-        {/* ── INCOME PLAN ── */}
+        {/* ── INCOME PLAN ── fully dynamic from DB ── */}
         {tab === 'plan' && (
           <div className="space-y-4">
+
+            {/* Rank table */}
             <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
               <table className="w-full text-xs bg-white">
                 <thead className="bg-[#0F3A5F] text-white">
@@ -301,28 +311,44 @@ const BrokerPayoutPortalPage = () => {
               </table>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-bold text-red-600 mb-3">Direct Bonanza</h3>
-              {[['500 SQYD','Bike (Ex-Showroom)'],['Next 1100 SQYD','Alto (Ex-Showroom)'],['Next 2100 SQYD','Breeza (Ex-Showroom)'],['Next 5100 SQYD','Scorpio (Ex-Showroom)']]
-                .map(([t,r])=>(<div key={t} className="flex justify-between py-2 border-b border-gray-50 text-sm"><span className="font-semibold text-[#0F3A5F]">{t}</span><span className="text-gray-600">{r}</span></div>))}
-            </div>
+            {/* Direct Bonanza — from DB */}
+            {bonanzaDirect.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-bold text-red-600 mb-3">Direct Bonanza</h3>
+                {bonanzaDirect.map(({ sqyd_target, reward }) => (
+                  <div key={sqyd_target} className="flex justify-between py-2 border-b border-gray-50 text-sm last:border-0">
+                    <span className="font-semibold text-[#0F3A5F]">{sqyd_target}</span>
+                    <span className="text-gray-600">{reward}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-bold text-red-600 mb-3">Team Reward</h3>
-              {[['50 Unit','Laptop Mini'],['Next 110 Unit','L.E.D (55")'],['Next 210 Unit','Bullet'],['Next 410 Unit','Alto'],['Next 810 Unit','Breeza'],['Next 5000 Unit','Farm House (35L)'],['Next 12000 Unit','Farm House (1 Cr)']]
-                .map(([t,r])=>(<div key={t} className="flex justify-between py-2 border-b border-gray-50 text-sm"><span className="font-semibold text-[#0F3A5F]">{t}</span><span className="text-gray-600">{r}</span></div>))}
-            </div>
+            {/* Team Reward — from DB */}
+            {bonanzaTeam.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-bold text-red-600 mb-3">Team Reward</h3>
+                {bonanzaTeam.map(({ unit_target, reward }) => (
+                  <div key={unit_target} className="flex justify-between py-2 border-b border-gray-50 text-sm last:border-0">
+                    <span className="font-semibold text-[#0F3A5F]">{unit_target}</span>
+                    <span className="text-gray-600">{reward}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-bold text-red-600 mb-3">Terms & Conditions</h3>
-              <ul className="space-y-2 text-xs text-gray-600 list-disc pl-4">
-                <li>Payout is calculated on differential basis.</li>
-                <li>Payout closing done daily, distributed monthly.</li>
-                <li>No payout on equal rank or super-seeded team.</li>
-                <li>Sales counted only when booking amount is deposited.</li>
-                <li>Grace period for installment is 90 days.</li>
-              </ul>
-            </div>
+            {/* Terms & Conditions — from DB */}
+            {terms.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-bold text-red-600 mb-3">Terms & Conditions</h3>
+                <ul className="space-y-2 text-xs text-gray-600 list-disc pl-4">
+                  {terms.map(({ content }, i) => (
+                    <li key={i}>{content}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
           </div>
         )}
       </div>

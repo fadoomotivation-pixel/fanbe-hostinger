@@ -1,26 +1,31 @@
 // src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
-// ⚠️  NEVER hardcode keys here.
 // Set these in Hostinger → Advanced → Environment Variables:
 //   VITE_SUPABASE_URL
 //   VITE_SUPABASE_ANON_KEY
 //   VITE_SUPABASE_SERVICE_ROLE_KEY
 const supabaseUrl            = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey        = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    '[Supabase] Missing environment variables. ' +
-    'Set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, ' +
-    'VITE_SUPABASE_SERVICE_ROLE_KEY in Hostinger env settings.'
+    '[Supabase] CRITICAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+    'Set them in Hostinger env settings.'
   );
 }
 
-console.log('[Supabase] Using URL:', supabaseUrl);
+if (!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    '[Supabase] WARNING: VITE_SUPABASE_SERVICE_ROLE_KEY not set. ' +
+    'Falling back to anon key for admin client — some admin operations may be restricted by RLS.'
+  );
+}
 
-// Singleton pattern - prevents multiple GoTrueClient instances warning
+console.log('[Supabase] URL:', supabaseUrl);
+
+// Singleton pattern — prevents multiple GoTrueClient instances warning
 let _supabase      = null;
 let _supabaseAdmin = null;
 

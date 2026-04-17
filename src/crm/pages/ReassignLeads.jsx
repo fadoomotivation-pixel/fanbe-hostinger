@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import {
   RefreshCw, UserCheck, Search, CheckSquare, Square,
-  ChevronDown, X, Loader2, Users, ArrowLeftRight,
+  ChevronDown, X, Loader2, Users, ArrowLeftRight, Filter,
 } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -13,6 +13,7 @@ const STATUS_COLORS = {
   contacted:      'bg-yellow-100 text-yellow-700',
   interested:     'bg-green-100 text-green-700',
   not_interested: 'bg-red-100 text-red-700',
+  no_answer:      'bg-slate-100 text-slate-600',
   callback:       'bg-purple-100 text-purple-700',
   converted:      'bg-emerald-100 text-emerald-700',
   lost:           'bg-gray-100 text-gray-600',
@@ -20,8 +21,22 @@ const STATUS_COLORS = {
   Booked:         'bg-teal-100 text-teal-700',
 };
 
-const ADMIN_ROLES = ['super_admin', 'sub_admin', 'manager'];
-const STATUSES    = ['new','contacted','interested','not_interested','callback','converted','lost','FollowUp','Booked'];
+const ADMIN_ROLES    = ['super_admin', 'sub_admin', 'manager'];
+const EMPLOYEE_ROLES = ['sales_executive', 'telecaller'];
+
+// All statuses available in the dropdown
+const STATUSES = [
+  'new', 'contacted', 'interested', 'not_interested',
+  'no_answer', 'callback', 'converted', 'lost', 'FollowUp', 'Booked',
+];
+
+// Quick-filter pills shown above the table
+const QUICK_FILTERS = [
+  { value: 'not_interested', label: 'Not Interested', color: 'bg-red-100 text-red-700 border-red-200'    },
+  { value: 'no_answer',      label: 'No Answer',      color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  { value: 'callback',       label: 'Callback',       color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { value: 'new',            label: 'New',            color: 'bg-blue-100 text-blue-700 border-blue-200'  },
+];
 
 export default function ReassignLeads() {
   const { user } = useAuth();
@@ -42,9 +57,6 @@ export default function ReassignLeads() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [assigning, setAssigning]       = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
-
-  const statusFilterRef = useRef(statusFilter);
-  useEffect(() => { statusFilterRef.current = statusFilter; }, [statusFilter]);
 
   // ── Auto-set fromEmployee for employees ────────────────────────
   useEffect(() => {
@@ -68,13 +80,18 @@ export default function ReassignLeads() {
   }, []);
 
   // ── Build "To" options ─────────────────────────────────────────
+  // Employees can only reassign to other employees (sales_executive / telecaller)
+  // Admins can reassign to anyone
   useEffect(() => {
-    setToOptions(allEmployees.filter(e => e.id !== fromEmployee));
+    const candidates = allEmployees.filter(e => e.id !== fromEmployee);
+    const filtered   = isEmployee
+      ? candidates.filter(e => EMPLOYEE_ROLES.includes(e.role))
+      : candidates;
+    setToOptions(filtered);
     setToEmployee('');
-  }, [allEmployees, fromEmployee]);
+  }, [allEmployees, fromEmployee, isEmployee]);
 
   // ── Fetch leads for fromEmployee ───────────────────────────────
-  // Only select columns that actually exist: final_status & status
   const fetchLeads = useCallback(async () => {
     if (!fromEmployee) { setLeads([]); setSelectedIds([]); return; }
     setLoadingLeads(true);
@@ -94,7 +111,6 @@ export default function ReassignLeads() {
         (data || []).map(l => ({
           ...l,
           name:             l.full_name || '—',
-          // prefer final_status, fall back to status
           status:           l.final_status || l.status || '—',
           project_interest: l.project || '—',
         }))
@@ -109,13 +125,11 @@ export default function ReassignLeads() {
   const filteredLeads = leads.filter(l => {
     const matchStatus = !statusFilter ||
       l.status?.toLowerCase() === statusFilter.toLowerCase();
-
     const q = search.trim().toLowerCase();
     const matchSearch = !q ||
       l.name?.toLowerCase().includes(q) ||
       l.phone?.includes(q) ||
       l.project_interest?.toLowerCase().includes(q);
-
     return matchStatus && matchSearch;
   });
 
@@ -170,12 +184,17 @@ export default function ReassignLeads() {
   };
 
   // ── Derived ────────────────────────────────────────────────────
-  const fromEmpName = isEmployee
+  const fromEmpName  = isEmployee
     ? (user?.name || 'Me')
     : (allEmployees.find(e => e.id === fromEmployee)?.name || '');
-  const toEmpName   = allEmployees.find(e => e.id === toEmployee)?.name || '';
-  const allSelected = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
+  const toEmpName    = allEmployees.find(e => e.id === toEmployee)?.name || '';
+  const allSelected  = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
+
+  // count per quick-filter for badges
+  const countFor = val => leads.filter(l =>
+    l.status?.toLowerCase() === val.toLowerCase()
+  ).length;
 
   // ── Render ─────────────────────────────────────────────────────
   return (
@@ -236,7 +255,7 @@ export default function ReassignLeads() {
             </div>
           )}
 
-          {/* TO */}
+          {/* TO — employees only see other employees */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               To Employee <span className="text-red-500">*</span>
@@ -258,7 +277,7 @@ export default function ReassignLeads() {
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
             {toOptions.length === 0 && allEmployees.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">No other employees found in your team.</p>
+              <p className="text-xs text-amber-600 mt-1">No other team members available.</p>
             )}
           </div>
         </div>
@@ -270,10 +289,45 @@ export default function ReassignLeads() {
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
               Step 2 — Select Leads to Reassign
-              <span className="ml-2 normal-case font-normal text-gray-400">
-                ({leads.length} total)
-              </span>
+              <span className="ml-2 normal-case font-normal text-gray-400">({leads.length} total)</span>
             </p>
+
+            {/* Quick filter pills */}
+            {leads.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="flex items-center gap-1 text-xs text-gray-400 mr-1">
+                  <Filter size={12} /> Quick:
+                </span>
+                <button
+                  onClick={() => { setStatusFilter(''); setSelectedIds([]); }}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                    statusFilter === ''
+                      ? 'bg-[#0F3A5F] text-white border-[#0F3A5F]'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  All ({leads.length})
+                </button>
+                {QUICK_FILTERS.map(qf => {
+                  const cnt = countFor(qf.value);
+                  if (cnt === 0) return null;
+                  const active = statusFilter === qf.value;
+                  return (
+                    <button
+                      key={qf.value}
+                      onClick={() => { setStatusFilter(active ? '' : qf.value); setSelectedIds([]); }}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                        active
+                          ? 'bg-[#0F3A5F] text-white border-[#0F3A5F]'
+                          : `${qf.color} hover:opacity-80`
+                      }`}
+                    >
+                      {qf.label} ({cnt})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3">
               {/* Search */}
@@ -293,7 +347,7 @@ export default function ReassignLeads() {
                 )}
               </div>
 
-              {/* Status filter */}
+              {/* Status dropdown */}
               <div className="relative">
                 <select
                   value={statusFilter}
@@ -313,44 +367,38 @@ export default function ReassignLeads() {
                 onClick={fetchLeads}
                 className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-600 transition-colors"
               >
-                <RefreshCw size={14} />
-                Refresh
+                <RefreshCw size={14} /> Refresh
               </button>
             </div>
 
-            {/* Active filter pills */}
-            {(search || statusFilter) && (
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
-                {statusFilter && (
-                  <span className="flex items-center gap-1 bg-[#0F3A5F]/10 text-[#0F3A5F] text-xs px-2.5 py-1 rounded-full font-medium">
-                    Status: {statusFilter}
-                    <button onClick={() => setStatusFilter('')} className="hover:text-red-500 ml-0.5">
-                      <X size={11} />
-                    </button>
-                  </span>
-                )}
-                {search && (
-                  <span className="flex items-center gap-1 bg-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium">
-                    "{search}"
-                    <button onClick={() => setSearch('')} className="hover:text-red-500 ml-0.5">
-                      <X size={11} />
-                    </button>
-                  </span>
-                )}
-                <span className="text-xs text-gray-400">{filteredLeads.length} result{filteredLeads.length !== 1 ? 's' : ''}</span>
-              </div>
-            )}
-
-            {selectedIds.length > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-sm">
-                <span className="font-semibold text-[#0F3A5F]">
-                  {selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''} selected
+            {/* Active filter + selection info */}
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {statusFilter && (
+                <span className="flex items-center gap-1 bg-[#0F3A5F]/10 text-[#0F3A5F] text-xs px-2.5 py-1 rounded-full font-medium">
+                  Status: {statusFilter.replace(/_/g, ' ')}
+                  <button onClick={() => { setStatusFilter(''); setSelectedIds([]); }} className="hover:text-red-500 ml-0.5">
+                    <X size={11} />
+                  </button>
                 </span>
-                <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-red-500 transition-colors">
-                  <X size={14} />
-                </button>
-              </div>
-            )}
+              )}
+              {search && (
+                <span className="flex items-center gap-1 bg-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium">
+                  "{search}"
+                  <button onClick={() => setSearch('')} className="hover:text-red-500 ml-0.5"><X size={11} /></button>
+                </span>
+              )}
+              {(search || statusFilter) && (
+                <span className="text-xs text-gray-400">{filteredLeads.length} result{filteredLeads.length !== 1 ? 's' : ''}</span>
+              )}
+              {selectedIds.length > 0 && (
+                <span className="flex items-center gap-1 font-semibold text-[#0F3A5F] text-xs">
+                  • {selectedIds.length} selected
+                  <button onClick={() => setSelectedIds([])} className="text-gray-400 hover:text-red-500">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Table */}
@@ -363,9 +411,7 @@ export default function ReassignLeads() {
               <Users size={40} className="mb-3 text-gray-300" />
               <p className="text-sm font-medium">No leads found</p>
               <p className="text-xs mt-1">
-                {leads.length > 0
-                  ? 'Try clearing the filter.'
-                  : 'This employee has no assigned leads.'}
+                {leads.length > 0 ? 'Try clearing the filter.' : 'This employee has no assigned leads.'}
               </p>
             </div>
           ) : (
@@ -460,8 +506,7 @@ export default function ReassignLeads() {
               onClick={() => setShowConfirm(true)}
               className="flex items-center gap-2 px-6 py-2.5 bg-[#0F3A5F] hover:bg-[#0a2d4a] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
             >
-              <UserCheck size={16} />
-              Reassign Now
+              <UserCheck size={16} /> Reassign Now
             </button>
           </div>
         </div>

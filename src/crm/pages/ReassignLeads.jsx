@@ -31,11 +31,11 @@ export default function ReassignLeads() {
   const isEmployee = !isAdmin;
 
   // ── State ──────────────────────────────────────────────────────
-  const [allEmployees, setAllEmployees] = useState([]);   // all profiles
-  const [toOptions, setToOptions]       = useState([]);   // "To" dropdown options
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [toOptions, setToOptions]       = useState([]);
   const [fromEmployee, setFromEmployee] = useState('');
   const [toEmployee, setToEmployee]     = useState('');
-  const [leads, setLeads]               = useState([]);   // ALL leads for fromEmployee
+  const [leads, setLeads]               = useState([]);
   const [selectedIds, setSelectedIds]   = useState([]);
   const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -43,7 +43,6 @@ export default function ReassignLeads() {
   const [assigning, setAssigning]       = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
 
-  // keep latest statusFilter in a ref so fetchLeads closure always reads fresh value
   const statusFilterRef = useRef(statusFilter);
   useEffect(() => { statusFilterRef.current = statusFilter; }, [statusFilter]);
 
@@ -53,8 +52,6 @@ export default function ReassignLeads() {
   }, [isEmployee, user?.id]);
 
   // ── Load profiles ──────────────────────────────────────────────
-  // Fetches ALL profiles; no role filter so RLS decides what the
-  // current user can see. The "To" list excludes self.
   useEffect(() => {
     const load = async () => {
       const { data, error } = await supabaseAdmin
@@ -70,17 +67,14 @@ export default function ReassignLeads() {
     load();
   }, []);
 
-  // ── Build "To" options whenever allEmployees or fromEmployee changes ─
+  // ── Build "To" options ─────────────────────────────────────────
   useEffect(() => {
-    // exclude the person we are reassigning FROM
     setToOptions(allEmployees.filter(e => e.id !== fromEmployee));
     setToEmployee('');
   }, [allEmployees, fromEmployee]);
 
-  // ── Fetch ALL leads for fromEmployee (no server-side status filter) ─
-  // We filter status CLIENT-SIDE so changing the dropdown is instant
-  // and doesn't need a round-trip. This also avoids the status-field
-  // mismatch issue (final_status vs status vs lead_status).
+  // ── Fetch leads for fromEmployee ───────────────────────────────
+  // Only select columns that actually exist: final_status & status
   const fetchLeads = useCallback(async () => {
     if (!fromEmployee) { setLeads([]); setSelectedIds([]); return; }
     setLoadingLeads(true);
@@ -88,7 +82,7 @@ export default function ReassignLeads() {
 
     const { data, error } = await supabaseAdmin
       .from('leads')
-      .select('id, full_name, phone, final_status, status, lead_status, project, created_at')
+      .select('id, full_name, phone, final_status, status, project, created_at')
       .eq('assigned_to', fromEmployee)
       .order('created_at', { ascending: false });
 
@@ -100,8 +94,8 @@ export default function ReassignLeads() {
         (data || []).map(l => ({
           ...l,
           name:             l.full_name || '—',
-          // try all three status column names so it works regardless of schema
-          status:           l.final_status || l.status || l.lead_status || '—',
+          // prefer final_status, fall back to status
+          status:           l.final_status || l.status || '—',
           project_interest: l.project || '—',
         }))
       );
@@ -111,7 +105,7 @@ export default function ReassignLeads() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  // ── Client-side filter (search + status) ──────────────────────
+  // ── Client-side filter ─────────────────────────────────────────
   const filteredLeads = leads.filter(l => {
     const matchStatus = !statusFilter ||
       l.status?.toLowerCase() === statusFilter.toLowerCase();
@@ -299,7 +293,7 @@ export default function ReassignLeads() {
                 )}
               </div>
 
-              {/* Status filter — client-side, instant */}
+              {/* Status filter */}
               <div className="relative">
                 <select
                   value={statusFilter}

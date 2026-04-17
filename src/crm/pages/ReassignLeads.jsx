@@ -1,18 +1,19 @@
 // src/crm/pages/ReassignLeads.jsx
+// ✅ FIX: replaced non-existent 'crm_users' table with 'profiles' (matches useCRMData.js)
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { RefreshCw, UserCheck, Search, CheckSquare, Square, ChevronDown, X, Loader2, Users } from 'lucide-react';
 
 const STATUS_COLORS = {
-  new:          'bg-blue-100 text-blue-700',
-  contacted:    'bg-yellow-100 text-yellow-700',
-  interested:   'bg-green-100 text-green-700',
+  new:           'bg-blue-100 text-blue-700',
+  contacted:     'bg-yellow-100 text-yellow-700',
+  interested:    'bg-green-100 text-green-700',
   not_interested:'bg-red-100 text-red-700',
-  callback:     'bg-purple-100 text-purple-700',
-  converted:    'bg-emerald-100 text-emerald-700',
-  lost:         'bg-gray-100 text-gray-600',
+  callback:      'bg-purple-100 text-purple-700',
+  converted:     'bg-emerald-100 text-emerald-700',
+  lost:          'bg-gray-100 text-gray-600',
 };
 
 export default function ReassignLeads() {
@@ -31,16 +32,16 @@ export default function ReassignLeads() {
   const [assigning, setAssigning]         = useState(false);
   const [showConfirm, setShowConfirm]     = useState(false);
 
-  // ── Load employees ────────────────────────────────────
+  // ── Load employees from 'profiles' table ─────────────
   useEffect(() => {
     const fetchEmployees = async () => {
-      const { data, error } = await supabase
-        .from('crm_users')
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
         .select('id, name, role, email')
-        .in('role', ['sales_executive', 'telecaller', 'manager'])
-        .eq('is_active', true)
+        .in('role', ['sales_executive', 'telecaller', 'manager', 'admin'])
         .order('name');
       if (!error) setEmployees(data || []);
+      else console.error('[ReassignLeads] fetchEmployees error:', error.message);
     };
     fetchEmployees();
   }, []);
@@ -50,14 +51,24 @@ export default function ReassignLeads() {
     if (!fromEmployee) { setLeads([]); setSelectedIds([]); return; }
     setLoadingLeads(true);
     setSelectedIds([]);
-    let query = supabase
+    let query = supabaseAdmin
       .from('leads')
-      .select('id, name, phone, status, project_interest, created_at')
+      .select('id, full_name, phone, final_status, project, created_at')
       .eq('assigned_to', fromEmployee)
       .order('created_at', { ascending: false });
-    if (statusFilter) query = query.eq('status', statusFilter);
+    if (statusFilter) query = query.eq('final_status', statusFilter);
     const { data, error } = await query;
-    if (!error) setLeads(data || []);
+    if (!error) {
+      // normalise column names for the table below
+      setLeads((data || []).map(l => ({
+        ...l,
+        name:             l.full_name   || '—',
+        status:           l.final_status || '—',
+        project_interest: l.project      || '—',
+      })));
+    } else {
+      console.error('[ReassignLeads] fetchLeads error:', error.message);
+    }
     setLoadingLeads(false);
   }, [fromEmployee, statusFilter]);
 
@@ -91,13 +102,21 @@ export default function ReassignLeads() {
   const handleReassign = async () => {
     if (!toEmployee || selectedIds.length === 0) return;
     setAssigning(true);
-    const toEmp = employees.find(e => e.id === toEmployee);
-    const { error } = await supabase
+    const toEmp   = employees.find(e => e.id === toEmployee);
+    const fromEmp = employees.find(e => e.id === fromEmployee);
+
+    const { error } = await supabaseAdmin
       .from('leads')
       .update({
-        assigned_to: toEmployee,
-        reassigned_by: user?.id,
-        reassigned_at: new Date().toISOString(),
+        assigned_to:          toEmployee,
+        assigned_to_name:     toEmp?.name  || null,
+        prev_assigned_to:     fromEmployee || null,
+        prev_assigned_to_name: fromEmp?.name || null,
+        prev_assigned_at:     new Date().toISOString(),
+        assigned_at:          new Date().toISOString(),
+        reassigned_by:        user?.id,
+        reassigned_at:        new Date().toISOString(),
+        updated_at:           new Date().toISOString(),
       })
       .in('id', selectedIds);
 
@@ -117,12 +136,12 @@ export default function ReassignLeads() {
     }
   };
 
-  const fromEmpName = employees.find(e => e.id === fromEmployee)?.name || '';
-  const toEmpName   = employees.find(e => e.id === toEmployee)?.name   || '';
-  const allSelected = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
+  const fromEmpName  = employees.find(e => e.id === fromEmployee)?.name || '';
+  const toEmpName    = employees.find(e => e.id === toEmployee)?.name   || '';
+  const allSelected  = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
 
-  const STATUSES = ['new','contacted','interested','not_interested','callback','converted','lost'];
+  const STATUSES = ['new','contacted','interested','not_interested','callback','converted','lost','FollowUp','Booked'];
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -155,7 +174,7 @@ export default function ReassignLeads() {
               >
                 <option value="">— Select employee —</option>
                 {employees.map(e => (
-                  <option key={e.id} value={e.id}>{e.name} ({e.role.replace('_',' ')})</option>
+                  <option key={e.id} value={e.id}>{e.name} ({(e.role || '').replace('_',' ')})</option>
                 ))}
               </select>
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -179,7 +198,7 @@ export default function ReassignLeads() {
                 {employees
                   .filter(e => e.id !== fromEmployee)
                   .map(e => (
-                    <option key={e.id} value={e.id}>{e.name} ({e.role.replace('_',' ')})</option>
+                    <option key={e.id} value={e.id}>{e.name} ({(e.role || '').replace('_',' ')})</option>
                   ))}
               </select>
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -282,7 +301,7 @@ export default function ReassignLeads() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Phone</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Project Interest</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Project</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600">Added On</th>
                   </tr>
                 </thead>

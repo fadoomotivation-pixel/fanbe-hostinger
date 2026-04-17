@@ -184,12 +184,15 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/employee-intelligence" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><EmployeeIntelligence /></ProtectedRoute>} />
                     <Route path="admin/employee-leads" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><AdminEmployeeLeads /></ProtectedRoute>} />
 
-                    {/* ✅ RE-ASSIGN LEADS */}
+                    {/* ✅ RE-ASSIGN LEADS — Admin path */}
                     <Route path="admin/reassign-leads" element={
                       <ProtectedRoute allowedRoles={['super_admin','sub_admin','manager']}>
                         <ReassignLeads />
                       </ProtectedRoute>
                     } />
+
+                    {/* ✅ RE-ASSIGN LEADS — Employee/Sales path (sidebar link) */}
+                    <Route path="sales/reassign-leads" element={<ReassignLeads />} />
 
                     {/* HR Module */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
@@ -259,42 +262,31 @@ const AppRoutes = ({ onBookSiteVisit }) => {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/broker/login" element={<BrokerLoginPage />} />
         <Route path="/broker/register" element={<BrokerRegisterPage />} />
-        <Route
-          path="/broker/payout"
-          element={
-            <BrokerProtectedRoute>
-              <BrokerPayoutPortalPage />
-            </BrokerProtectedRoute>
-          }
-        />
+        <Route path="/broker/portal" element={
+          <BrokerProtectedRoute>
+            <BrokerPayoutPortalPage />
+          </BrokerProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   );
 };
 
 function App() {
-  const [isSiteVisitModalOpen, setIsSiteVisitModalOpen] = useState(false);
-  const location = useLocation();
-
-  const isCRM    = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
-  const isBroker = location.pathname.startsWith('/broker');
-  const hideChrome = isCRM || isBroker;
-
+  const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
   return (
-    <div className="flex flex-col min-h-screen font-sans bg-gray-50">
+    <>
       <ScrollToTop />
-      {!hideChrome && <Header onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />}
-      <main className="flex-grow">
-        <AppRoutes onBookSiteVisit={() => setIsSiteVisitModalOpen(true)} />
-      </main>
-      {!hideChrome && <Footer />}
-      {!hideChrome && <FloatingWhatsAppButton />}
-      {!hideChrome && <SocialProofToast />}
-      {!hideChrome && (
-        <SiteVisitModal isOpen={isSiteVisitModalOpen} onClose={() => setIsSiteVisitModalOpen(false)} />
-      )}
+      <AppRoutes onBookSiteVisit={() => setShowSiteVisitModal(true)} />
+      <SiteVisitModal
+        isOpen={showSiteVisitModal}
+        onClose={() => setShowSiteVisitModal(false)}
+      />
+      <FloatingWhatsAppButton />
+      <SocialProofToast />
       <Toaster />
-    </div>
+    </>
   );
 }
 

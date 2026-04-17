@@ -8,7 +8,7 @@ import {
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy, Clock,
+  Search, Zap, Award, Trophy, Clock, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -22,7 +22,7 @@ const IconMap = {
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
   CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy, Clock,
+  Search, Zap, Award, Trophy, Clock, RefreshCw,
 };
 
 // Group header visual config

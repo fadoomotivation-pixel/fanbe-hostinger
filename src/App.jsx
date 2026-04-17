@@ -89,6 +89,7 @@ import LeadsAssignmentDebug from './crm/pages/LeadsAssignmentDebug';
 import EmployeeAddLead from './crm/pages/EmployeeAddLead';
 import EmployeeSubmittedLeads from './crm/pages/EmployeeSubmittedLeads';
 import AdminEmployeeLeads from './crm/pages/AdminEmployeeLeads';
+import ReassignLeads from './crm/pages/ReassignLeads';
 
 // ✅ HR Module
 import HREmployeeMaster from './crm/pages/hr/HREmployeeMaster';
@@ -183,6 +184,13 @@ const AppRoutes = ({ onBookSiteVisit }) => {
                     <Route path="admin/employee-intelligence" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><EmployeeIntelligence /></ProtectedRoute>} />
                     <Route path="admin/employee-leads" element={<ProtectedRoute allowedRoles={['sub_admin','super_admin']}><AdminEmployeeLeads /></ProtectedRoute>} />
 
+                    {/* ✅ RE-ASSIGN LEADS */}
+                    <Route path="admin/reassign-leads" element={
+                      <ProtectedRoute allowedRoles={['super_admin','sub_admin','manager']}>
+                        <ReassignLeads />
+                      </ProtectedRoute>
+                    } />
+
                     {/* HR Module */}
                     <Route path="admin/hr/dashboard"  element={<ProtectedRoute allowedRoles={['super_admin','sub_admin']}><HRDashboard /></ProtectedRoute>} />
                     <Route path="admin/hr/employees"  element={<ProtectedRoute allowedRoles={['super_admin']}><HREmployeeMaster /></ProtectedRoute>} />
@@ -268,7 +276,6 @@ function App() {
   const [isSiteVisitModalOpen, setIsSiteVisitModalOpen] = useState(false);
   const location = useLocation();
 
-  // Hide main site chrome (header, footer, popups, chat) on ALL broker pages
   const isCRM    = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
   const isBroker = location.pathname.startsWith('/broker');
   const hideChrome = isCRM || isBroker;

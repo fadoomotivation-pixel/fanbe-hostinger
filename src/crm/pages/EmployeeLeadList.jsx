@@ -6,7 +6,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import {
   Search, Plus, Phone, Calendar, IndianRupee,
   TrendingUp, Users, CheckCircle2, Clock, X,
-  ChevronRight, Flame, FileText, ChevronDown, Loader2
+  ChevronRight, Flame, FileText, ChevronDown, Loader2,
+  UserCheck
 } from 'lucide-react';
 
 /* ─── Status config ─────────────────────────────────────────────────── */
@@ -58,6 +59,7 @@ const normalise = row => ({
   status:       row.status,
   budget:       row.budget,
   assignedTo:   row.assigned_to,
+  assignedToName: row.assigned_to_name,
   followUpDate: row.follow_up_date,
   updatedAt:    row.updated_at,
   createdAt:    row.created_at,
@@ -239,6 +241,244 @@ const QuickLogSheet = ({ lead, onClose, onSaved }) => {
   );
 };
 
+/* ─── Reassign Bottom Sheet ─────────────────────────────────────────── */
+const ReassignSheet = ({ lead, currentUserId, onClose, onReassigned }) => {
+  const [employees,   setEmployees]   = useState([]);
+  const [loadingEmps, setLoadingEmps] = useState(true);
+  const [selected,    setSelected]    = useState(null);
+  const [saving,      setSaving]      = useState(false);
+  const [savedOk,     setSavedOk]     = useState(false);
+  const [search,      setSearch]      = useState('');
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      setLoadingEmps(true);
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('employees')
+          .select('id, name, email, role')
+          .in('role', ['employee', 'sales_executive', 'sub_admin'])
+          .eq('is_active', true)
+          .order('name');
+        if (!error) {
+          setEmployees((data || []).filter(e => e.id !== currentUserId));
+        }
+      } finally {
+        setLoadingEmps(false);
+      }
+    };
+    fetchEmployees();
+  }, [currentUserId]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return employees;
+    const t = search.toLowerCase();
+    return employees.filter(e =>
+      e.name?.toLowerCase().includes(t) || e.email?.toLowerCase().includes(t)
+    );
+  }, [employees, search]);
+
+  const handleReassign = async () => {
+    if (!selected || !lead) return;
+    setSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const updates = {
+        assigned_to:          selected.id,
+        assigned_to_name:     selected.name,
+        assigned_at:          now,
+        prev_assigned_to:     currentUserId,
+        prev_assigned_to_name: lead.assignedToName || null,
+        prev_assigned_at:     lead.updatedAt || now,
+        updated_at:           now,
+      };
+      const { error } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', lead.id);
+
+      if (!error) {
+        onReassigned?.(lead.id);
+        setSavedOk(true);
+        setTimeout(() => { setSavedOk(false); onClose(); }, 1000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 200, backdropFilter: 'blur(2px)',
+        }}
+      />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201,
+        background: '#fff',
+        borderRadius: '20px 20px 0 0',
+        padding: '0 0 calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+        animation: 'slideUp 0.28s cubic-bezier(0.32,0.72,0,1)',
+        maxHeight: '85vh',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Drag handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px', flexShrink: 0 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: '#e2e8f0' }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ padding: '4px 20px 12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Reassign Lead</p>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginTop: 2 }}>{lead?.name}</h3>
+              {lead?.project && (
+                <p style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{lead.project}</p>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: 36, height: 36, borderRadius: '50%', border: 'none',
+                background: '#f1f5f9', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <X size={16} color="#64748b" />
+            </button>
+          </div>
+
+          {/* Search employees */}
+          <div style={{ position: 'relative', marginTop: 14 }}>
+            <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search employee…"
+              style={{
+                width: '100%', height: 42, paddingLeft: 34, paddingRight: 12,
+                borderRadius: 10, border: '1.5px solid #e2e8f0',
+                background: '#f8fafc', fontSize: 14, color: '#0f172a',
+                outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => e.target.style.borderColor = '#7c3aed'}
+              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+            />
+          </div>
+        </div>
+
+        {/* Employee list */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 20px' }}>
+          {loadingEmps ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} style={{
+                  height: 60, borderRadius: 12,
+                  background: 'linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%)',
+                  backgroundSize: '200% 100%', animation: 'shimmer 1.4s ease-in-out infinite',
+                }} />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#64748b', fontSize: 14 }}>
+              No employees found
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filtered.map(emp => {
+                const isSelected = selected?.id === emp.id;
+                const initials = (emp.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                return (
+                  <button
+                    key={emp.id}
+                    onClick={() => setSelected(isSelected ? null : emp)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px', borderRadius: 12, border: 'none',
+                      background: isSelected ? 'rgba(124,58,237,0.08)' : '#f8fafc',
+                      outline: isSelected ? '2px solid #7c3aed' : '2px solid transparent',
+                      cursor: 'pointer', textAlign: 'left',
+                      transition: 'all 0.15s',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                      background: isSelected
+                        ? 'linear-gradient(135deg, #7c3aed, #6d28d9)'
+                        : 'linear-gradient(135deg, #1e3a5f, #2563eb)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 13, fontWeight: 700, color: '#fff',
+                    }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0 }}>{emp.name}</p>
+                      {emp.email && (
+                        <p style={{ fontSize: 11, color: '#64748b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.email}</p>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: '#7c3aed', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <CheckCircle2 size={14} color="#fff" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Confirm button */}
+        <div style={{ padding: '14px 20px 0', flexShrink: 0 }}>
+          <button
+            onClick={handleReassign}
+            disabled={!selected || saving || savedOk}
+            style={{
+              width: '100%', padding: '16px', borderRadius: 14, border: 'none',
+              background: savedOk
+                ? 'linear-gradient(135deg, #10b981, #059669)'
+                : selected
+                  ? 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)'
+                  : '#e2e8f0',
+              color: selected || savedOk ? '#fff' : '#94a3b8',
+              fontSize: 16, fontWeight: 800,
+              cursor: !selected || saving || savedOk ? 'default' : 'pointer',
+              boxShadow: selected && !savedOk ? '0 4px 16px rgba(124,58,237,0.3)' : 'none',
+              transition: 'all 0.2s',
+              opacity: saving ? 0.75 : 1,
+              minHeight: 52,
+            }}
+          >
+            {savedOk
+              ? '✓ Reassigned!'
+              : saving
+                ? 'Reassigning…'
+                : selected
+                  ? `Reassign to ${selected.name}`
+                  : 'Select an Employee'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
 /* ─── Skeleton ──────────────────────────────────────────────────────── */
 const LeadSkeleton = () => (
   <div style={S.card}>
@@ -255,7 +495,7 @@ const LeadSkeleton = () => (
 );
 
 /* ─── Lead Card ─────────────────────────────────────────────────────── */
-const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
+const LeadCard = React.memo(({ lead, onClick, onCallLog, onReassign }) => {
   const st      = getStatus(lead.status);
   const urgent  = isUrgent(lead);
   const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -269,6 +509,11 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
   const handleQuickLog = e => {
     e.stopPropagation();
     onCallLog(lead);
+  };
+
+  const handleReassign = e => {
+    e.stopPropagation();
+    onReassign(lead);
   };
 
   return (
@@ -383,7 +628,7 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
           onClick={handleQuickLog}
           style={{
             flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            padding: '0 16px', minHeight: 44, borderRadius: 10, border: 'none',
+            padding: '0 14px', minHeight: 44, borderRadius: 10, border: 'none',
             background: 'rgba(37,99,235,0.1)', color: '#1d4ed8',
             fontSize: 13, fontWeight: 700, cursor: 'pointer',
             WebkitTapHighlightColor: 'transparent',
@@ -393,6 +638,22 @@ const LeadCard = React.memo(({ lead, onClick, onCallLog }) => {
         >
           <FileText size={14} />
           Log
+        </button>
+
+        <button
+          onClick={handleReassign}
+          style={{
+            flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            padding: '0 14px', minHeight: 44, borderRadius: 10, border: 'none',
+            background: 'rgba(124,58,237,0.1)', color: '#7c3aed',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'background 0.15s',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <UserCheck size={14} />
+          Reassign
         </button>
       </div>
 
@@ -473,7 +734,7 @@ const S = {
 const FILTERS    = ['All', 'Open', 'FollowUp', 'Booked', 'Lost'];
 const FILTER_LABELS = { All: 'All', Open: 'Open', FollowUp: 'Follow Up', Booked: 'Booked', Lost: 'Lost' };
 const PAGE_SIZE  = 20;
-const STATS_TTL  = 60 * 1000; // ⚡ FIX: 1-min cache — back-nav skips refetch
+const STATS_TTL  = 60 * 1000;
 
 /* ─── DB status helpers ─────────────────────────────────────────────── */
 const filterToDbStatus = f => {
@@ -493,13 +754,13 @@ const EmployeeLeadList = () => {
   const [hasMore,       setHasMore]       = useState(true);
   const [page,          setPage]          = useState(0);
 
-  // ⚡ FIX: single stats object (fed by RPC), plus in-memory cache ref
   const [stats,         setStats]         = useState({ total: 0, open: 0, followUp: 0, booked: 0, today: 0, tomorrow: 0 });
-  const statsCacheRef   = useRef({ data: null, ts: 0 }); // ⚡ back-nav cache
+  const statsCacheRef   = useRef({ data: null, ts: 0 });
 
   const [search,        setSearch]        = useState('');
   const [filter,        setFilter]        = useState('All');
   const [quickLogLead,  setQuickLogLead]  = useState(null);
+  const [reassignLead,  setReassignLead]  = useState(null);
 
   const searchRef   = useRef(null);
   const listEnd     = useRef(null);
@@ -510,7 +771,7 @@ const EmployeeLeadList = () => {
   const buildQuery = useCallback((fromIndex = 0, currentFilter = filter, currentSearch = search) => {
     let q = supabase
       .from('leads')
-      .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+      .select('id,name,phone,project,status,budget,assigned_to,assigned_to_name,follow_up_date,updated_at,created_at,last_note')
       .eq('assigned_to', userId)
       .eq('is_archived', false)
       .order('updated_at', { ascending: false })
@@ -525,25 +786,16 @@ const EmployeeLeadList = () => {
     return q;
   }, [userId, filter, search]);
 
-  /* ──────────────────────────────────────────────────────────────────────────
-   * ⚡ FIX: fetchStats — single RPC call replaces 6 serial COUNT queries
-   *         + 1-min in-memory cache so back-nav is instant
-   * ──────────────────────────────────────────────────────────────────────── */
   const fetchStats = useCallback(async (force = false) => {
     if (!userId) return;
-
-    // Return cached stats if still fresh and not forced
     if (!force && statsCacheRef.current.data && Date.now() - statsCacheRef.current.ts < STATS_TTL) {
       setStats(statsCacheRef.current.data);
       return;
     }
-
     try {
       const { data, error } = await supabaseAdmin
         .rpc('get_lead_stats', { p_user_id: userId });
-
       if (error) throw error;
-
       const s = {
         total:    data.total    ?? 0,
         open:     data.open     ?? 0,
@@ -569,7 +821,7 @@ const EmployeeLeadList = () => {
     try {
       let q = supabase
         .from('leads')
-        .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+        .select('id,name,phone,project,status,budget,assigned_to,assigned_to_name,follow_up_date,updated_at,created_at,last_note')
         .eq('assigned_to', userId)
         .eq('is_archived', false)
         .order('updated_at', { ascending: false })
@@ -602,7 +854,7 @@ const EmployeeLeadList = () => {
       const fromIndex = page * PAGE_SIZE;
       let q = supabase
         .from('leads')
-        .select('id,name,phone,project,status,budget,assigned_to,follow_up_date,updated_at,created_at,last_note')
+        .select('id,name,phone,project,status,budget,assigned_to,assigned_to_name,follow_up_date,updated_at,created_at,last_note')
         .eq('assigned_to', userId)
         .eq('is_archived', false)
         .order('updated_at', { ascending: false })
@@ -662,7 +914,7 @@ const EmployeeLeadList = () => {
             if (idx === -1) return [updated, ...prev];
             const next = [...prev]; next[idx] = updated; return next;
           });
-          fetchStats(true); // force-refresh stats on realtime change
+          fetchStats(true);
         }
       )
       .subscribe();
@@ -684,6 +936,12 @@ const EmployeeLeadList = () => {
     fetchStats(true);
   }, [fetchStats]);
 
+  /* ── Reassign: remove lead from list ── */
+  const handleReassigned = useCallback(leadId => {
+    setMyLeads(prev => prev.filter(l => l.id !== leadId));
+    fetchStats(true);
+  }, [fetchStats]);
+
   /* ── Infinite scroll ── */
   useEffect(() => {
     if (!listEnd.current) return;
@@ -696,7 +954,6 @@ const EmployeeLeadList = () => {
 
   const handleCardClick = useCallback(id => navigate(`/crm/lead/${id}`), [navigate]);
 
-  // convenience aliases from unified stats
   const todayCount    = stats.today;
   const tomorrowCount = stats.tomorrow;
 
@@ -882,6 +1139,7 @@ const EmployeeLeadList = () => {
                 lead={lead}
                 onClick={() => handleCardClick(lead.id)}
                 onCallLog={setQuickLogLead}
+                onReassign={setReassignLead}
               />
             ))}
 
@@ -908,6 +1166,15 @@ const EmployeeLeadList = () => {
           lead={quickLogLead}
           onClose={() => setQuickLogLead(null)}
           onSaved={handleQuickLogSaved}
+        />
+      )}
+
+      {reassignLead && (
+        <ReassignSheet
+          lead={reassignLead}
+          currentUserId={userId}
+          onClose={() => setReassignLead(null)}
+          onReassigned={handleReassigned}
         />
       )}
     </div>

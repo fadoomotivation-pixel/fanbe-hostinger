@@ -8,7 +8,7 @@ import {
   Layers, Shield, Phone, PhoneCall, TrendingUp, PieChart,
   User, CheckSquare, CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy, Clock, RefreshCw,
+  Search, Zap, Award, Trophy, Clock, RefreshCw, ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getVisibleMenuItems, ROLES } from '@/lib/permissions';
@@ -22,7 +22,7 @@ const IconMap = {
   Phone, PhoneCall, TrendingUp, PieChart, User, CheckSquare,
   CalendarCheck, IndianRupee, FolderOpen,
   Briefcase, MapPin, MessageSquare, UserCircle, Upload,
-  Search, Zap, Award, Trophy, Clock, RefreshCw,
+  Search, Zap, Award, Trophy, Clock, RefreshCw, ArrowLeftRight,
 };
 
 // Group header visual config
@@ -192,9 +192,10 @@ const CRMSidebar = ({ isOpen, onClose }) => {
           {/* ── EMPLOYEE-ONLY LINKS ── */}
           {user && EMPLOYEE_ROLES.includes(user.role) && (
             <>
-              <NavLink to="/crm/sales/site-visits"  icon={MapPin}  label="Site Visits" />
-              <NavLink to="/crm/sales/bookings"     icon={Trophy}  label="Booked" />
-              <NavLink to="/crm/sales/attendance"   icon={Clock}   label="Attendance" />
+              <NavLink to="/crm/sales/site-visits"    icon={MapPin}          label="Site Visits" />
+              <NavLink to="/crm/sales/bookings"       icon={Trophy}          label="Booked" />
+              <NavLink to="/crm/sales/attendance"     icon={Clock}           label="Attendance" />
+              <NavLink to="/crm/sales/reassign-leads" icon={ArrowLeftRight}  label="Re-assign Leads" />
             </>
           )}
 

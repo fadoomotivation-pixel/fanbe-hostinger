@@ -1,6 +1,5 @@
 // src/crm/pages/ReassignLeads.jsx
-// ✅ FIX: auto-set fromEmployee for employee roles; removed broken role filter on profiles
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -28,14 +27,15 @@ export default function ReassignLeads() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const isAdmin      = ADMIN_ROLES.includes(user?.role);
-  const isEmployee   = !isAdmin;
+  const isAdmin    = ADMIN_ROLES.includes(user?.role);
+  const isEmployee = !isAdmin;
 
-  // ── State ──────────────────────────────────────────────
-  const [employees, setEmployees]       = useState([]);
+  // ── State ──────────────────────────────────────────────────────
+  const [allEmployees, setAllEmployees] = useState([]);   // all profiles
+  const [toOptions, setToOptions]       = useState([]);   // "To" dropdown options
   const [fromEmployee, setFromEmployee] = useState('');
   const [toEmployee, setToEmployee]     = useState('');
-  const [leads, setLeads]               = useState([]);
+  const [leads, setLeads]               = useState([]);   // ALL leads for fromEmployee
   const [selectedIds, setSelectedIds]   = useState([]);
   const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -43,65 +43,89 @@ export default function ReassignLeads() {
   const [assigning, setAssigning]       = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
 
-  // ── For employees: auto-set fromEmployee = self ───────
+  // keep latest statusFilter in a ref so fetchLeads closure always reads fresh value
+  const statusFilterRef = useRef(statusFilter);
+  useEffect(() => { statusFilterRef.current = statusFilter; }, [statusFilter]);
+
+  // ── Auto-set fromEmployee for employees ────────────────────────
   useEffect(() => {
-    if (isEmployee && user?.id) {
-      setFromEmployee(user.id);
-    }
+    if (isEmployee && user?.id) setFromEmployee(user.id);
   }, [isEmployee, user?.id]);
 
-  // ── Load all profiles (no role filter — let RLS handle it) ─
+  // ── Load profiles ──────────────────────────────────────────────
+  // Fetches ALL profiles; no role filter so RLS decides what the
+  // current user can see. The "To" list excludes self.
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const load = async () => {
       const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('id, name, role, email')
         .order('name');
-      if (!error) setEmployees(data || []);
-      else console.error('[ReassignLeads] fetchEmployees error:', error.message);
+      if (error) {
+        console.error('[ReassignLeads] profiles error:', error.message);
+        return;
+      }
+      setAllEmployees(data || []);
     };
-    fetchEmployees();
+    load();
   }, []);
 
-  // ── Load leads for fromEmployee ───────────────────────
+  // ── Build "To" options whenever allEmployees or fromEmployee changes ─
+  useEffect(() => {
+    // exclude the person we are reassigning FROM
+    setToOptions(allEmployees.filter(e => e.id !== fromEmployee));
+    setToEmployee('');
+  }, [allEmployees, fromEmployee]);
+
+  // ── Fetch ALL leads for fromEmployee (no server-side status filter) ─
+  // We filter status CLIENT-SIDE so changing the dropdown is instant
+  // and doesn't need a round-trip. This also avoids the status-field
+  // mismatch issue (final_status vs status vs lead_status).
   const fetchLeads = useCallback(async () => {
     if (!fromEmployee) { setLeads([]); setSelectedIds([]); return; }
     setLoadingLeads(true);
     setSelectedIds([]);
-    let query = supabaseAdmin
+
+    const { data, error } = await supabaseAdmin
       .from('leads')
-      .select('id, full_name, phone, final_status, project, created_at')
+      .select('id, full_name, phone, final_status, status, lead_status, project, created_at')
       .eq('assigned_to', fromEmployee)
       .order('created_at', { ascending: false });
-    if (statusFilter) query = query.eq('final_status', statusFilter);
-    const { data, error } = await query;
-    if (!error) {
-      setLeads((data || []).map(l => ({
-        ...l,
-        name:             l.full_name    || '—',
-        status:           l.final_status || '—',
-        project_interest: l.project      || '—',
-      })));
-    } else {
+
+    if (error) {
       console.error('[ReassignLeads] fetchLeads error:', error.message);
+      setLeads([]);
+    } else {
+      setLeads(
+        (data || []).map(l => ({
+          ...l,
+          name:             l.full_name || '—',
+          // try all three status column names so it works regardless of schema
+          status:           l.final_status || l.status || l.lead_status || '—',
+          project_interest: l.project || '—',
+        }))
+      );
     }
     setLoadingLeads(false);
-  }, [fromEmployee, statusFilter]);
+  }, [fromEmployee]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
-  // ── Filtered leads (client-side search) ───────────────
+  // ── Client-side filter (search + status) ──────────────────────
   const filteredLeads = leads.filter(l => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
+    const matchStatus = !statusFilter ||
+      l.status?.toLowerCase() === statusFilter.toLowerCase();
+
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q ||
       l.name?.toLowerCase().includes(q) ||
       l.phone?.includes(q) ||
-      l.project_interest?.toLowerCase().includes(q)
-    );
+      l.project_interest?.toLowerCase().includes(q);
+
+    return matchStatus && matchSearch;
   });
 
-  // ── Select helpers ────────────────────────────────────
+  // ── Select helpers ─────────────────────────────────────────────
   const toggleOne = id =>
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -112,12 +136,13 @@ export default function ReassignLeads() {
     else setSelectedIds(filteredLeads.map(l => l.id));
   };
 
-  // ── Reassign ──────────────────────────────────────────
+  // ── Reassign ───────────────────────────────────────────────────
   const handleReassign = async () => {
     if (!toEmployee || selectedIds.length === 0) return;
     setAssigning(true);
-    const toEmp   = employees.find(e => e.id === toEmployee);
-    const fromEmp = employees.find(e => e.id === fromEmployee) || { name: user?.name };
+
+    const toEmp   = allEmployees.find(e => e.id === toEmployee);
+    const fromEmp = allEmployees.find(e => e.id === fromEmployee) || { name: user?.name };
 
     const { error } = await supabaseAdmin
       .from('leads')
@@ -150,20 +175,19 @@ export default function ReassignLeads() {
     }
   };
 
-  const fromEmpName  = isEmployee
+  // ── Derived ────────────────────────────────────────────────────
+  const fromEmpName = isEmployee
     ? (user?.name || 'Me')
-    : (employees.find(e => e.id === fromEmployee)?.name || '');
-  const toEmpName    = employees.find(e => e.id === toEmployee)?.name || '';
-  const allSelected  = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
+    : (allEmployees.find(e => e.id === fromEmployee)?.name || '');
+  const toEmpName   = allEmployees.find(e => e.id === toEmployee)?.name || '';
+  const allSelected = filteredLeads.length > 0 && selectedIds.length === filteredLeads.length;
   const someSelected = selectedIds.length > 0 && !allSelected;
 
-  // Employees to show in "To" dropdown — exclude the fromEmployee
-  const toOptions = employees.filter(e => e.id !== fromEmployee);
-
+  // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <div className="p-2 bg-[#0F3A5F] rounded-xl">
@@ -173,12 +197,12 @@ export default function ReassignLeads() {
         </div>
         <p className="text-sm text-gray-500 ml-11">
           {isEmployee
-            ? 'Select your leads below and reassign them to another team member.'
-            : 'Select leads from an employee and bulk-reassign them to another.'}
+            ? 'Select your leads and reassign them to another team member.'
+            : 'Pick an employee, select leads, then reassign them to another.'}
         </p>
       </div>
 
-      {/* ── Step 1: Employee selector (admin only) OR info card (employee) ── */}
+      {/* Step 1 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
           Step 1 — {isEmployee ? 'Your Details' : 'Select Employees'}
@@ -186,7 +210,7 @@ export default function ReassignLeads() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          {/* FROM — admin picks, employee sees locked card */}
+          {/* FROM */}
           {isAdmin ? (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -195,11 +219,11 @@ export default function ReassignLeads() {
               <div className="relative">
                 <select
                   value={fromEmployee}
-                  onChange={e => { setFromEmployee(e.target.value); setToEmployee(''); }}
+                  onChange={e => setFromEmployee(e.target.value)}
                   className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/30 focus:border-[#0F3A5F]"
                 >
                   <option value="">— Select employee —</option>
-                  {employees.map(e => (
+                  {allEmployees.map(e => (
                     <option key={e.id} value={e.id}>
                       {e.name} ({(e.role || '').replace(/_/g, ' ')})
                     </option>
@@ -212,13 +236,13 @@ export default function ReassignLeads() {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">From (You)</label>
               <div className="bg-[#0F3A5F]/5 border border-[#0F3A5F]/20 rounded-xl px-4 py-2.5 text-sm font-semibold text-[#0F3A5F]">
-                {user?.name || '—'}{' '}
-                <span className="text-xs font-normal text-gray-500">({(user?.role || '').replace(/_/g, ' ')})</span>
+                {user?.name || '—'}
+                <span className="text-xs font-normal text-gray-500 ml-1">({(user?.role || '').replace(/_/g, ' ')})</span>
               </div>
             </div>
           )}
 
-          {/* TO — dropdown for all roles */}
+          {/* TO */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               To Employee <span className="text-red-500">*</span>
@@ -239,26 +263,31 @@ export default function ReassignLeads() {
               </select>
               <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
+            {toOptions.length === 0 && allEmployees.length > 0 && (
+              <p className="text-xs text-amber-600 mt-1">No other employees found in your team.</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Step 2: Leads Table ── */}
+      {/* Step 2 — Leads table */}
       {fromEmployee && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-5">
           <div className="p-5 border-b border-gray-100">
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
               Step 2 — Select Leads to Reassign
+              <span className="ml-2 normal-case font-normal text-gray-400">
+                ({leads.length} total)
+              </span>
             </p>
 
-            {/* Filters row */}
             <div className="flex flex-col sm:flex-row gap-3">
               {/* Search */}
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by name, phone, project…"
+                  placeholder="Search name, phone, project…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/30 focus:border-[#0F3A5F]"
@@ -270,11 +299,11 @@ export default function ReassignLeads() {
                 )}
               </div>
 
-              {/* Status filter */}
+              {/* Status filter — client-side, instant */}
               <div className="relative">
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => { setStatusFilter(e.target.value); setSelectedIds([]); }}
                   className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-[#0F3A5F]/30 focus:border-[#0F3A5F]"
                 >
                   <option value="">All Statuses</option>
@@ -295,9 +324,31 @@ export default function ReassignLeads() {
               </button>
             </div>
 
-            {/* Selection summary */}
+            {/* Active filter pills */}
+            {(search || statusFilter) && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                {statusFilter && (
+                  <span className="flex items-center gap-1 bg-[#0F3A5F]/10 text-[#0F3A5F] text-xs px-2.5 py-1 rounded-full font-medium">
+                    Status: {statusFilter}
+                    <button onClick={() => setStatusFilter('')} className="hover:text-red-500 ml-0.5">
+                      <X size={11} />
+                    </button>
+                  </span>
+                )}
+                {search && (
+                  <span className="flex items-center gap-1 bg-gray-200 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium">
+                    "{search}"
+                    <button onClick={() => setSearch('')} className="hover:text-red-500 ml-0.5">
+                      <X size={11} />
+                    </button>
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">{filteredLeads.length} result{filteredLeads.length !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+
             {selectedIds.length > 0 && (
-              <div className="mt-3 flex items-center gap-2 text-sm">
+              <div className="mt-2 flex items-center gap-2 text-sm">
                 <span className="font-semibold text-[#0F3A5F]">
                   {selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''} selected
                 </span>
@@ -308,7 +359,7 @@ export default function ReassignLeads() {
             )}
           </div>
 
-          {/* Table body */}
+          {/* Table */}
           {loadingLeads ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 size={28} className="animate-spin text-[#0F3A5F]" />
@@ -317,7 +368,11 @@ export default function ReassignLeads() {
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Users size={40} className="mb-3 text-gray-300" />
               <p className="text-sm font-medium">No leads found</p>
-              <p className="text-xs mt-1">Try changing the filter or selecting a different employee.</p>
+              <p className="text-xs mt-1">
+                {leads.length > 0
+                  ? 'Try clearing the filter.'
+                  : 'This employee has no assigned leads.'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -325,11 +380,7 @@ export default function ReassignLeads() {
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left w-10">
-                      <button
-                        onClick={toggleAll}
-                        className="text-gray-500 hover:text-[#0F3A5F] transition-colors"
-                        aria-label="Select all"
-                      >
+                      <button onClick={toggleAll} className="text-gray-500 hover:text-[#0F3A5F]" aria-label="Select all">
                         {allSelected
                           ? <CheckSquare size={18} className="text-[#0F3A5F]" />
                           : someSelected
@@ -383,11 +434,11 @@ export default function ReassignLeads() {
             </div>
           )}
 
-          {/* Footer count */}
           {filteredLeads.length > 0 && (
             <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
               <span>
-                {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} for{' '}
+                Showing <strong className="text-gray-600">{filteredLeads.length}</strong> of{' '}
+                <strong className="text-gray-600">{leads.length}</strong> leads for{' '}
                 <strong className="text-gray-600">{fromEmpName}</strong>
               </span>
               <span>{selectedIds.length} selected</span>
@@ -396,7 +447,7 @@ export default function ReassignLeads() {
         </div>
       )}
 
-      {/* ── Step 3: Reassign CTA — shown once leads & target employee are chosen ── */}
+      {/* Step 3 — Reassign CTA */}
       {selectedIds.length > 0 && toEmployee && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">
@@ -408,8 +459,8 @@ export default function ReassignLeads() {
               <strong className="text-[#0F3A5F]">
                 {selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''}
               </strong>{' '}
-              from <strong>{fromEmpName}</strong>{' '}
-              → <strong className="text-emerald-600">{toEmpName}</strong>
+              from <strong>{fromEmpName}</strong> →{' '}
+              <strong className="text-emerald-600">{toEmpName}</strong>
             </div>
             <button
               onClick={() => setShowConfirm(true)}
@@ -422,7 +473,7 @@ export default function ReassignLeads() {
         </div>
       )}
 
-      {/* ── Confirm Modal ── */}
+      {/* Confirm Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -433,24 +484,23 @@ export default function ReassignLeads() {
               <h2 className="text-base font-bold text-gray-900">Confirm Reassignment</h2>
             </div>
             <p className="text-sm text-gray-600 mb-6">
-              You are about to reassign{' '}
-              <strong>{selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''}</strong> from{' '}
+              Reassign <strong>{selectedIds.length} lead{selectedIds.length > 1 ? 's' : ''}</strong> from{' '}
               <strong>{fromEmpName}</strong> to{' '}
-              <strong className="text-emerald-600">{toEmpName}</strong>.
+              <strong className="text-emerald-600">{toEmpName}</strong>?
               <br /><br />
-              This action <strong>cannot be undone</strong> automatically. Proceed?
+              This action <strong>cannot be undone</strong> automatically.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReassign}
                 disabled={assigning}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0F3A5F] hover:bg-[#0a2d4a] text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-60"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#0F3A5F] hover:bg-[#0a2d4a] text-white rounded-xl text-sm font-semibold disabled:opacity-60"
               >
                 {assigning ? <Loader2 size={15} className="animate-spin" /> : <UserCheck size={15} />}
                 {assigning ? 'Reassigning…' : 'Yes, Reassign'}

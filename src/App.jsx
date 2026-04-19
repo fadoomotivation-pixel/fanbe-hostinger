@@ -116,13 +116,18 @@ const EmployeeLanding = () => {
   return <Navigate to="/crm/sales/crm" replace />;
 };
 
+// Routes that should NOT show Header/Footer
+const NO_CHROME_ROUTES = ['/broker/login', '/broker/register', '/broker/portal', '/broker/admin'];
+
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location  = useLocation();
   const isMobile  = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const isNoChrome = NO_CHROME_ROUTES.some(r => location.pathname.startsWith(r));
   const isEmployeeRole = EMPLOYEE_ROLES.includes(user?.role);
 
+  // ── CRM routes: no public Header/Footer ──────────────────────────────
   if (isCRM) {
     return (
       <>
@@ -252,26 +257,33 @@ const AppRoutes = ({ onBookSiteVisit }) => {
     );
   }
 
+  // ── Public website routes: show Header + Footer except on broker auth/portal pages ──
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<HomePage onBookSiteVisit={onBookSiteVisit} />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/projects" element={<ProjectsListingPage />} />
-        <Route path="/projects/:slug" element={<ProjectDetailPage />} />
-        <Route path="/why-invest" element={<WhyInvestPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/broker/login" element={<BrokerLoginPage />} />
-        <Route path="/broker/register" element={<BrokerRegisterPage />} />
-        <Route path="/broker/portal" element={
-          <BrokerProtectedRoute>
-            <BrokerPayoutPortalPage />
-          </BrokerProtectedRoute>
-        } />
-        <Route path="/broker/admin/*" element={<BrokerAdminApp />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+    <div className="flex flex-col min-h-screen">
+      {!isNoChrome && <Header onBookSiteVisit={onBookSiteVisit} />}
+      <main className="flex-1">
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<HomePage onBookSiteVisit={onBookSiteVisit} />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/projects" element={<ProjectsListingPage />} />
+            <Route path="/projects/:slug" element={<ProjectDetailPage />} />
+            <Route path="/why-invest" element={<WhyInvestPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/broker/login" element={<BrokerLoginPage />} />
+            <Route path="/broker/register" element={<BrokerRegisterPage />} />
+            <Route path="/broker/portal" element={
+              <BrokerProtectedRoute>
+                <BrokerPayoutPortalPage />
+              </BrokerProtectedRoute>
+            } />
+            <Route path="/broker/admin/*" element={<BrokerAdminApp />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AnimatePresence>
+      </main>
+      {!isNoChrome && <Footer />}
+    </div>
   );
 };
 

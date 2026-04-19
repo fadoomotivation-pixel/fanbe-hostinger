@@ -135,16 +135,8 @@ const Footer = () => {
               >
                 🏢 Admin Portal
               </Link>
-              <Link
-                to="/broker/login"
-                className="bg-[#D4AF37] text-[#0F3A5F] px-5 py-3 rounded-xl font-bold text-sm shadow-md transition-all duration-300
-                           hover:bg-white hover:text-[#0F3A5F] hover:shadow-xl hover:-translate-y-0.5 inline-flex items-center justify-center"
-              >
-                🤝 Broker Payout Login
-              </Link>
             </div>
             <p className="text-gray-500 text-xs leading-relaxed">
-              RERA Registered | Haryana RERA<br />
               CIN: U70100HR2012PTC046893
             </p>
           </div>

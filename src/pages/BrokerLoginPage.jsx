@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { brokerLogin, isBrokerAuthenticated } from '@/lib/brokerSupabase';
-import { Eye, EyeOff, Loader2, Building2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Eye, EyeOff, Loader2, Building2, ShieldCheck } from 'lucide-react';
+
+const ADMIN_ROLES = ['admin', 'super_admin', 'finance_admin', 'broker_admin'];
 
 const BrokerLoginPage = () => {
   const navigate  = useNavigate();
@@ -14,15 +17,36 @@ const BrokerLoginPage = () => {
   const [loading,  setLoading]  = useState(false);
 
   useEffect(() => {
+    // If already authenticated as broker, send to payout
     if (isBrokerAuthenticated()) navigate('/broker/payout', { replace: true });
   }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setLoading(true);
+
     const result = await brokerLogin(email, password);
     setLoading(false);
+
     if (!result.success) { setError(result.message); return; }
+
+    // Check if user has admin role in Supabase metadata
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const role =
+        session?.user?.app_metadata?.role ||
+        session?.user?.user_metadata?.role;
+
+      if (ADMIN_ROLES.includes(role)) {
+        // Admin users go to admin panel
+        navigate('/broker/admin', { replace: true });
+        return;
+      }
+    } catch (_) {
+      // If session check fails, fall through to normal broker redirect
+    }
+
+    // Regular brokers go to payout portal
     const redirect = location.state?.from?.pathname || '/broker/payout';
     navigate(redirect, { replace: true });
   };
@@ -82,6 +106,14 @@ const BrokerLoginPage = () => {
               {loading ? 'Signing in…' : 'Login to Portal'}
             </button>
           </form>
+
+          {/* Admin hint */}
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-[#0F3A5F]/5 px-4 py-3">
+            <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#0F3A5F]/60" />
+            <p className="text-xs text-[#0F3A5F]/60">
+              Admin users are automatically redirected to the Admin Panel after login.
+            </p>
+          </div>
 
           <div className="mt-5 pt-5 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-500">

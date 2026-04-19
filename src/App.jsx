@@ -18,6 +18,7 @@ import ContactPage from './pages/ContactPage';
 import BrokerLoginPage from './pages/BrokerLoginPage';
 import BrokerRegisterPage from './pages/BrokerRegisterPage';
 import BrokerPayoutPortalPage from './pages/BrokerPayoutPortalPage';
+import BrokerAdminApp from './broker-admin/BrokerAdminApp';
 
 // CRM Imports
 import ProtectedRoute from './components/ProtectedRoute';
@@ -267,6 +268,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
             <BrokerPayoutPortalPage />
           </BrokerProtectedRoute>
         } />
+        <Route path="/broker/admin/*" element={<BrokerAdminApp />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>

@@ -49,7 +49,13 @@
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.2",
+    "@tanstack/react-table": "^8.21.3",
+    "react-hook-form": "^7.65.0",
+    "zod": "^4.1.12",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

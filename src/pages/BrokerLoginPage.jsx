@@ -1,9 +1,8 @@
 // src/pages/BrokerLoginPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { brokerLogin, isBrokerAuthenticated } from '@/lib/brokerSupabase';
-import { supabase } from '@/lib/supabase';
-import { Eye, EyeOff, Loader2, Building2, ShieldCheck, ChevronRight } from 'lucide-react';
+import { brokerLogin, isBrokerAuthenticated, getBrokerSession } from '@/lib/brokerSupabase';
+import { Eye, EyeOff, Loader2, Building2, ShieldCheck } from 'lucide-react';
 
 const ADMIN_ROLES = ['admin', 'super_admin', 'finance_admin', 'broker_admin'];
 
@@ -17,7 +16,11 @@ const BrokerLoginPage = () => {
   const [loading,  setLoading]  = useState(false);
 
   useEffect(() => {
-    if (isBrokerAuthenticated()) navigate('/broker/payout', { replace: true });
+    if (isBrokerAuthenticated()) {
+      const session = getBrokerSession();
+      const isAdmin = session?.is_admin === true || ADMIN_ROLES.includes(session?.role);
+      navigate(isAdmin ? '/broker/admin' : '/broker/portal', { replace: true });
+    }
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -27,19 +30,15 @@ const BrokerLoginPage = () => {
     setLoading(false);
     if (!result.success) { setError(result.message); return; }
 
-    // Check admin role
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const role =
-        session?.user?.app_metadata?.role ||
-        session?.user?.user_metadata?.role;
-      if (ADMIN_ROLES.includes(role)) {
-        navigate('/broker/admin', { replace: true });
-        return;
-      }
-    } catch (_) { /* fall through */ }
+    // Check admin role from broker session (not Supabase Auth)
+    const session = getBrokerSession();
+    const isAdmin = session?.is_admin === true || ADMIN_ROLES.includes(session?.role);
+    if (isAdmin) {
+      navigate('/broker/admin', { replace: true });
+      return;
+    }
 
-    const redirect = location.state?.from?.pathname || '/broker/payout';
+    const redirect = location.state?.from?.pathname || '/broker/portal';
     navigate(redirect, { replace: true });
   };
 

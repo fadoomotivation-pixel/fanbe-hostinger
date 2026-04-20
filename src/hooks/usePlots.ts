@@ -1,20 +1,14 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-
-export function usePlots(projectId?: string) {
-  const [plots, setPlots] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetch = useCallback(async () => {
-    setLoading(true)
-    let q = supabase.from('plots').select('*, projects(name)').order('created_at', { ascending: false })
-    if (projectId) q = q.eq('project_id', projectId)
-    const { data } = await q
-    setPlots(data || [])
-    setLoading(false)
-  }, [projectId])
-
-  useEffect(() => { fetch() }, [fetch])
-
-  return { plots, loading, refetch: fetch }
+import toast from 'react-hot-toast'
+export function usePlots(project_id?:string){
+  return useQuery({queryKey:['plots',project_id],queryFn:async()=>{
+    let q=supabase.from('bp_plots').select('*,bp_projects(name)').order('plot_no')
+    if(project_id)q=q.eq('project_id',project_id)
+    const{data,error}=await q;if(error)throw error;return data
+  }})
+}
+export function useUpdatePlot(){
+  const qc=useQueryClient()
+  return useMutation({mutationFn:async({id,data}:{id:string,data:any})=>{const{data:d,error}=await supabase.from('bp_plots').update({...data,updated_at:new Date().toISOString()}).eq('id',id).select().single();if(error)throw error;return d},onSuccess:()=>{qc.invalidateQueries({queryKey:['plots']});toast.success('Plot updated')},onError:(e:any)=>toast.error(e.message)})
 }

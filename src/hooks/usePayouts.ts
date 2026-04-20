@@ -1,33 +1,19 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-
-export function usePayouts() {
-  const [payouts, setPayouts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetch = useCallback(async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('payouts')
-      .select('*, brokers(name, phone), bookings(booking_number)')
-      .order('created_at', { ascending: false })
-    setPayouts(data || [])
-    setLoading(false)
-  }, [])
-
-  useEffect(() => { fetch() }, [fetch])
-
-  async function updatePayout(id: string, payload: any) {
-    const { error } = await supabase.from('payouts').update(payload).eq('id', id)
-    if (!error) fetch()
-    return { error }
-  }
-
-  async function createPayout(payload: any) {
-    const { error } = await supabase.from('payouts').insert(payload)
-    if (!error) fetch()
-    return { error }
-  }
-
-  return { payouts, loading, refetch: fetch, updatePayout, createPayout }
+import toast from 'react-hot-toast'
+export function usePayouts(filters?:any){
+  return useQuery({queryKey:['payouts',filters],queryFn:async()=>{
+    let q=supabase.from('bp_payout_transactions').select('*,brokers(name,broker_id,pan_no,tds_applicable),bp_bookings(booking_no,bp_plots(plot_no,bp_projects(name)))').order('created_at',{ascending:false})
+    if(filters?.status)q=q.eq('status',filters.status)
+    if(filters?.broker_id)q=q.eq('broker_id',filters.broker_id)
+    const{data,error}=await q;if(error)throw error;return data
+  }})
+}
+export function useUpdatePayout(){
+  const qc=useQueryClient()
+  return useMutation({mutationFn:async({id,data}:{id:string,data:any})=>{const{data:d,error}=await supabase.from('bp_payout_transactions').update({...data,updated_at:new Date().toISOString()}).eq('id',id).select().single();if(error)throw error;return d},onSuccess:()=>{qc.invalidateQueries({queryKey:['payouts']});toast.success('Payout updated')},onError:(e:any)=>toast.error(e.message)})
+}
+export function useCreatePayout(){
+  const qc=useQueryClient()
+  return useMutation({mutationFn:async(p:any)=>{const{data,error}=await supabase.from('bp_payout_transactions').insert(p).select().single();if(error)throw error;return data},onSuccess:()=>{qc.invalidateQueries({queryKey:['payouts']});toast.success('Payout created')},onError:(e:any)=>toast.error(e.message)})
 }

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Building2, Map, BookOpen, CreditCard, Settings, LogOut, ChevronLeft, ChevronRight, BarChart2, FileText, Phone } from 'lucide-react'
+import { LayoutDashboard, Building2, Map, BookOpen, CreditCard, Settings, LogOut, ChevronLeft, ChevronRight, BarChart2, FileText, Phone, Megaphone } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -14,6 +14,9 @@ const NAV = [
     {to:'/plots',icon:Map,label:'Plots'},
     {to:'/bookings',icon:BookOpen,label:'Bookings'},
     {to:'/payments',icon:CreditCard,label:'Payments'},
+  ]},
+  { group:'Sales Tools', items:[
+    {to:'/crm/sales/tools',icon:Megaphone,label:'Promo Materials'},
   ]},
   { group:'Reports', items:[
     {to:'/reports',icon:FileText,label:'Reports'},

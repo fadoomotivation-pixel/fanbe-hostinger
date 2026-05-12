@@ -198,43 +198,70 @@ export default function CallCRM() {
 
 function LeadCard({ idx, lead, onOpen }: { idx: number; lead: CrmLead; onOpen: () => void }) {
   const overdue = lead.next_follow_up_at && new Date(lead.next_follow_up_at) < new Date()
+  const waHref = `https://wa.me/${lead.phone.replace(/\D/g,'')}`
+  const telHref = `tel:${lead.phone}`
+  const copyPhone = () => { navigator.clipboard.writeText(lead.phone); toast.success('Copied') }
+
   return (
-    <div className={`rounded-xl bg-white border-l-4 ${overdue ? 'border-rose-500' : 'border-blue-500'} border border-gray-200 p-4 flex items-start justify-between gap-3 hover:shadow-sm transition-shadow`}>
-      <div className="flex items-start gap-3 min-w-0">
-        <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs flex items-center justify-center flex-shrink-0">{idx}</div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-slate-900 truncate">{lead.name}</span>
-            <Badge label={lead.status.replace('_',' ')} className={STATUS_COLOR[lead.status] ?? 'bg-gray-100 text-gray-700'}/>
-            {lead.call_attempts > 2 && <Badge label={`${lead.call_attempts} attempts`} className="bg-yellow-100 text-yellow-800"/>}
+    <div className={`rounded-xl bg-white border-l-4 ${overdue ? 'border-rose-500' : 'border-blue-500'} border border-gray-200 hover:shadow-sm transition-shadow overflow-hidden`}>
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs flex items-center justify-center flex-shrink-0">{idx}</div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-slate-900 truncate">{lead.name}</span>
+              <Badge label={lead.status.replace('_',' ')} className={STATUS_COLOR[lead.status] ?? 'bg-gray-100 text-gray-700'}/>
+              {lead.call_attempts > 2 && <Badge label={`${lead.call_attempts} attempts`} className="bg-yellow-100 text-yellow-800"/>}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+              <Clock size={11}/>
+              {lead.next_follow_up_at ? `Follow-up ${formatWhen(lead.next_follow_up_at)}` : 'Never called'}
+            </p>
+            {lead.quick_note && <p className="text-xs text-gray-600 mt-1 line-clamp-1">{lead.quick_note}</p>}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
-            <Clock size={11}/>
-            {lead.next_follow_up_at ? `Follow-up ${formatWhen(lead.next_follow_up_at)}` : 'Never called'}
-          </p>
-          {lead.quick_note && <p className="text-xs text-gray-600 mt-1 line-clamp-1">{lead.quick_note}</p>}
+        </div>
+
+        {/* Desktop / tablet: compact inline icon row */}
+        <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+          <button onClick={copyPhone} className="p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100" title="Copy phone">
+            <Copy size={14}/>
+          </button>
+          <a href={waHref} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100" title="WhatsApp">
+            <MessageCircle size={14}/>
+          </a>
+          <a href={telHref} className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title="Call">
+            <Phone size={14}/>
+          </a>
+          <button onClick={onOpen} className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100" title="Quick note">
+            <StickyNote size={14}/>
+          </button>
+          <button onClick={onOpen} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700">
+            Open
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button onClick={() => { navigator.clipboard.writeText(lead.phone); toast.success('Copied') }}
-          className="p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100" title="Copy phone">
-          <Copy size={14}/>
-        </button>
-        <a href={`https://wa.me/${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-          className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100" title="WhatsApp">
-          <MessageCircle size={14}/>
+
+      {/* Mobile: large sticky action bar pinned to the card bottom */}
+      <div className="sm:hidden grid grid-cols-4 gap-1 border-t border-gray-100 bg-gray-50/60">
+        <a href={telHref}
+           className="flex flex-col items-center justify-center gap-1 py-3 text-emerald-700 active:bg-emerald-100">
+          <Phone size={20}/>
+          <span className="text-[11px] font-medium">Call</span>
         </a>
-        <a href={`tel:${lead.phone}`}
-          className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title="Call">
-          <Phone size={14}/>
+        <a href={waHref} target="_blank" rel="noreferrer"
+           className="flex flex-col items-center justify-center gap-1 py-3 text-green-700 active:bg-green-100">
+          <MessageCircle size={20}/>
+          <span className="text-[11px] font-medium">WhatsApp</span>
         </a>
         <button onClick={onOpen}
-          className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100" title="Quick note">
-          <StickyNote size={14}/>
+           className="flex flex-col items-center justify-center gap-1 py-3 text-blue-700 active:bg-blue-100">
+          <StickyNote size={20}/>
+          <span className="text-[11px] font-medium">Note</span>
         </button>
-        <button onClick={onOpen}
-          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 hidden sm:inline">
-          Open
+        <button onClick={copyPhone}
+           className="flex flex-col items-center justify-center gap-1 py-3 text-gray-600 active:bg-gray-200">
+          <Copy size={20}/>
+          <span className="text-[11px] font-medium">Copy</span>
         </button>
       </div>
     </div>

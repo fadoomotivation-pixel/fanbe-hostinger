@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, Building2, Map, BookOpen, CreditCard, Banknote, Settings, LogOut, ChevronLeft, ChevronRight, BarChart2, FileText, UserCheck, Layers } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, Map, BookOpen, CreditCard, Banknote, Settings, LogOut, ChevronLeft, ChevronRight, BarChart2, FileText, UserCheck, Layers, Phone } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -7,6 +7,7 @@ const NAV = [
   { group:'Main', items:[
     {to:'/',icon:LayoutDashboard,label:'Dashboard'},
     {to:'/analytics',icon:BarChart2,label:'Analytics'},
+    {to:'/crm/sales/crm',icon:Phone,label:'Call CRM'},
   ]},
   { group:'Real Estate', items:[
     {to:'/projects',icon:Building2,label:'Projects'},

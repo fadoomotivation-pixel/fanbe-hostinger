@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { SmartQuickNote, SmartQuickNoteValue } from '@/components/crm/SmartQuickNote'
-import { Phone, Search, Plus, Copy, MessageCircle, Clock } from 'lucide-react'
+import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { CrmLead } from '@/types'
+import { useFollowUpNotifications } from '@/lib/useFollowUpNotifications'
 
 const STATUS_COLOR: Record<string, string> = {
   new:        'bg-blue-100 text-blue-700',
@@ -86,6 +87,8 @@ export default function CallCRM() {
     },
     onError: (e: any) => toast.error(e.message),
   })
+
+  useFollowUpNotifications(leads)
 
   const filtered = useMemo(() => {
     const now = Date.now()
@@ -217,12 +220,20 @@ function LeadCard({ idx, lead, onOpen }: { idx: number; lead: CrmLead; onOpen: (
           className="p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100" title="Copy phone">
           <Copy size={14}/>
         </button>
+        <a href={`https://wa.me/${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+          className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100" title="WhatsApp">
+          <MessageCircle size={14}/>
+        </a>
         <a href={`tel:${lead.phone}`}
           className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title="Call">
           <Phone size={14}/>
         </a>
         <button onClick={onOpen}
-          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700">
+          className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100" title="Quick note">
+          <StickyNote size={14}/>
+        </button>
+        <button onClick={onOpen}
+          className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700 hidden sm:inline">
           Open
         </button>
       </div>

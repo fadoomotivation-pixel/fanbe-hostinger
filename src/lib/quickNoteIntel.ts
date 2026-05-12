@@ -14,6 +14,9 @@ export interface SmartNoteResult {
   requiresLostReason: boolean               // true when tagged not_interested
   missingNextAction: boolean                // true if no follow-up & no terminal status
   warnings: string[]
+  urgency: 'low' | 'medium' | 'high'        // how hot is this lead right now
+  budgetLakhs: number | null                // parsed budget figure in INR lakhs
+  needsDecisionMaker: boolean               // talking to non-decision-maker
 }
 
 const TAG_KEYWORDS: Record<LeadTag, RegExp> = {
@@ -49,6 +52,29 @@ const TIME_PATTERNS: Array<[RegExp, (m: RegExpMatchArray, now: Date) => Date | n
   // "next month"
   [/next month/i, (_m, now) => {
     const d = new Date(now); d.setMonth(d.getMonth() + 1); d.setHours(11, 0, 0, 0); return d
+  }],
+  // "this evening" / "tonight"
+  [/\b(this evening|tonight)\b/i, (_m, now) => {
+    const d = new Date(now); d.setHours(19, 0, 0, 0); return d
+  }],
+  // "tomorrow morning" / "tomorrow evening"
+  [/tomorrow\s+(morning|afternoon|evening|night)/i, (m, now) => {
+    const d = new Date(now); d.setDate(d.getDate() + 1)
+    const map: Record<string, number> = { morning: 10, afternoon: 14, evening: 18, night: 20 }
+    d.setHours(map[m[1].toLowerCase()] ?? 11, 0, 0, 0); return d
+  }],
+  // "after lunch"
+  [/after\s+lunch/i, (_m, now) => {
+    const d = new Date(now); d.setHours(15, 0, 0, 0)
+    if (d.getTime() < now.getTime()) d.setDate(d.getDate() + 1)
+    return d
+  }],
+  // "monday" / "next monday"
+  [/\b(?:next\s+)?(mon|tue|wed|thu|fri|sat|sun)(?:day|sday|nesday|rsday|urday)?\b/i, (m, now) => {
+    const map: Record<string, number> = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 }
+    const target = map[m[1].slice(0,3).toLowerCase()]; if (target === undefined) return null
+    const d = new Date(now); const diff = (target - d.getDay() + 7) % 7 || 7
+    d.setDate(d.getDate() + diff); d.setHours(11, 0, 0, 0); return d
   }],
 ]
 
@@ -111,11 +137,35 @@ export function analyzeQuickNote(
   const terminal = detected.has('not_interested') || detected.has('wrong_number')
   const missingNextAction = !terminal && !suggestedFollowUp
 
+  // Budget figure: "25L", "25 lakh", "2.5 cr", "₹ 25,00,000"
+  let budgetLakhs: number | null = null
+  const lakh = t.match(/(\d+(?:\.\d+)?)\s*(l|lakh|lac)\b/i)
+  const cr   = t.match(/(\d+(?:\.\d+)?)\s*(cr|crore)\b/i)
+  const rup  = t.match(/(?:rs\.?|inr|₹)\s*([\d,]+)/i)
+  if (cr) budgetLakhs = parseFloat(cr[1]) * 100
+  else if (lakh) budgetLakhs = parseFloat(lakh[1])
+  else if (rup) {
+    const n = parseInt(rup[1].replace(/,/g, ''), 10)
+    if (!isNaN(n) && n >= 100000) budgetLakhs = +(n / 100000).toFixed(2)
+  }
+
+  const needsDecisionMaker = /\b(wife|husband|father|mother|family|brother|partner|spouse|will (ask|discuss|check) (with|my))\b/i.test(t)
+    && !/\b(i am|i'?m) the (owner|decision)\b/i.test(t)
+
   const warnings: string[] = []
   if (missingNextAction) warnings.push('No follow-up set — this lead could be forgotten.')
   if (requiresLostReason) warnings.push('Marked Not Interested — capture a reason before saving.')
-  if (detected.has('budget_issue') && !/\b\d/.test(t))
+  if (detected.has('budget_issue') && budgetLakhs === null)
     warnings.push('Budget mentioned — note exact figure to match future inventory.')
+  if (needsDecisionMaker)
+    warnings.push('Decision-maker not on call — schedule a callback when both are available.')
+  if (detected.has('site_visit') && !parsed)
+    warnings.push('Site visit discussed — confirm exact date & time before saving.')
+
+  let urgency: 'low' | 'medium' | 'high' = 'low'
+  if (detected.has('interested') || detected.has('site_visit')) urgency = 'high'
+  else if (detected.has('callback_requested') || detected.has('call_later')) urgency = 'medium'
+  if (detected.has('not_interested') || detected.has('wrong_number')) urgency = 'low'
 
   return {
     suggestedTags: Array.from(detected),
@@ -124,6 +174,9 @@ export function analyzeQuickNote(
     requiresLostReason,
     missingNextAction,
     warnings,
+    urgency,
+    budgetLakhs,
+    needsDecisionMaker,
   }
 }
 

@@ -1,0 +1,22 @@
+
+added 377 packages in 8s
+
+> fanbe-website@1.0.0 build
+> node scripts/build.mjs
+
+🔖 Build ID: 1776412294747-2gizcq
+vite v5.4.21 building for production...
+transforming...
+✓ 3065 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/.vite/manifest.json                                          1.70 kB │ gzip:   0.34 kB
+dist/index.html                                                   3.94 kB │ gzip:   1.24 kB
+dist/assets/index-BZR4lhu8-1776412294747-2gizcq.css             129.30 kB │ gzip:  19.13 kB
+dist/assets/vendor-ui-radix-C1UOHDlP-1776412294747-2gizcq.js    144.09 kB │ gzip:  44.55 kB
+dist/assets/vendor-react-FegD70ro-1776412294747-2gizcq.js       164.69 kB │ gzip:  53.75 kB
+dist/assets/vendor-supabase-B0BXtjjr-1776412294747-2gizcq.js    172.65 kB │ gzip:  45.43 kB
+dist/assets/vendor-charts-B4EcMEeU-1776412294747-2gizcq.js      421.75 kB │ gzip: 111.99 kB
+dist/assets/vendor-utils-vpZh_REq-1776412294747-2gizcq.js       940.84 kB │ gzip: 289.12 kB
+dist/assets/index-BeOgU-D4-1776412294747-2gizcq.js            1,187.03 kB │ gzip: 276.54 kB
+✓ built in 11.14s

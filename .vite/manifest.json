@@ -1,0 +1,51 @@
+{
+  "_vendor-charts-B3U88uBE-1776612329727-ttzx17.js": {
+    "file": "assets/vendor-charts-B3U88uBE-1776612329727-ttzx17.js",
+    "name": "vendor-charts",
+    "imports": [
+      "_vendor-utils-D_d-wjep-1776612329727-ttzx17.js",
+      "_vendor-react-BqX5QeF_-1776612329727-ttzx17.js"
+    ]
+  },
+  "_vendor-react-BqX5QeF_-1776612329727-ttzx17.js": {
+    "file": "assets/vendor-react-BqX5QeF_-1776612329727-ttzx17.js",
+    "name": "vendor-react"
+  },
+  "_vendor-supabase-DIkXY-fX-1776612329727-ttzx17.js": {
+    "file": "assets/vendor-supabase-DIkXY-fX-1776612329727-ttzx17.js",
+    "name": "vendor-supabase",
+    "imports": [
+      "_vendor-ui-radix-Bav-UZaa-1776612329727-ttzx17.js"
+    ]
+  },
+  "_vendor-ui-radix-Bav-UZaa-1776612329727-ttzx17.js": {
+    "file": "assets/vendor-ui-radix-Bav-UZaa-1776612329727-ttzx17.js",
+    "name": "vendor-ui-radix",
+    "imports": [
+      "_vendor-react-BqX5QeF_-1776612329727-ttzx17.js"
+    ]
+  },
+  "_vendor-utils-D_d-wjep-1776612329727-ttzx17.js": {
+    "file": "assets/vendor-utils-D_d-wjep-1776612329727-ttzx17.js",
+    "name": "vendor-utils",
+    "imports": [
+      "_vendor-react-BqX5QeF_-1776612329727-ttzx17.js"
+    ]
+  },
+  "index.html": {
+    "file": "assets/index-CEzJ4Bo2-1776612329727-ttzx17.js",
+    "name": "index",
+    "src": "index.html",
+    "isEntry": true,
+    "imports": [
+      "_vendor-ui-radix-Bav-UZaa-1776612329727-ttzx17.js",
+      "_vendor-react-BqX5QeF_-1776612329727-ttzx17.js",
+      "_vendor-utils-D_d-wjep-1776612329727-ttzx17.js",
+      "_vendor-charts-B3U88uBE-1776612329727-ttzx17.js",
+      "_vendor-supabase-DIkXY-fX-1776612329727-ttzx17.js"
+    ],
+    "css": [
+      "assets/index-guAo1alz-1776612329727-ttzx17.css"
+    ]
+  }
+}

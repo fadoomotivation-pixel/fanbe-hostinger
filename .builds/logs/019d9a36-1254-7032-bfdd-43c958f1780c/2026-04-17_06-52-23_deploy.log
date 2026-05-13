@@ -1,0 +1,22 @@
+
+added 377 packages in 8s
+
+> fanbe-website@1.0.0 build
+> node scripts/build.mjs
+
+🔖 Build ID: 1776408752367-455wgr
+vite v5.4.21 building for production...
+transforming...
+✓ 3065 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/.vite/manifest.json                                          1.70 kB │ gzip:   0.35 kB
+dist/index.html                                                   3.94 kB │ gzip:   1.24 kB
+dist/assets/index-BkRw-7hL-1776408752367-455wgr.css             129.09 kB │ gzip:  19.10 kB
+dist/assets/vendor-ui-radix-CJvglwDF-1776408752367-455wgr.js    144.09 kB │ gzip:  44.56 kB
+dist/assets/vendor-react-FegD70ro-1776408752367-455wgr.js       164.69 kB │ gzip:  53.75 kB
+dist/assets/vendor-supabase-BphqWrcE-1776408752367-455wgr.js    172.65 kB │ gzip:  45.43 kB
+dist/assets/vendor-charts-BUYlLHo7-1776408752367-455wgr.js      421.75 kB │ gzip: 111.99 kB
+dist/assets/vendor-utils-DPB7V2x3-1776408752367-455wgr.js       940.84 kB │ gzip: 289.12 kB
+dist/assets/index-opOh7we_-1776408752367-455wgr.js            1,184.58 kB │ gzip: 275.99 kB
+✓ built in 11.12s

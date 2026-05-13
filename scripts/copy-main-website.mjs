@@ -26,7 +26,7 @@ function copyRecursive(src, dest) {
 copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
-// Patch sidebar nav labels in the compiled admin CRM bundle
+// Patch 1: sidebar nav labels in the compiled admin CRM bundle
 const assetsDir = path.join(DEST, 'assets')
 if (existsSync(assetsDir)) {
   for (const file of readdirSync(assetsDir)) {
@@ -42,4 +42,29 @@ if (existsSync(assetsDir)) {
       console.log(`🔧 Patched sidebar label: Dashboard → Control in ${file}`)
     }
   }
+}
+
+// Patch 2: inject navigation interceptor into dist/index.html so that
+// clicking "Call CRM" (or any /crm/sales/* link) inside the admin CRM SPA
+// triggers a full page reload — this hands control to the Vite-built
+// Sales CRM which has smart notes and browser notifications.
+const indexPath = path.join(DEST, 'index.html')
+if (existsSync(indexPath)) {
+  let html = readFileSync(indexPath, 'utf8')
+  const interceptScript = `<script>
+(function(){
+  var _push = history.pushState.bind(history);
+  var _replace = history.replaceState.bind(history);
+  function intercept(url) {
+    if (!url) return false;
+    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/crm/sales/')) { location.href = p; return true; } } catch(e) {}
+    return false;
+  }
+  history.pushState = function(s,t,url){ if(intercept(url)) return; return _push(s,t,url); };
+  history.replaceState = function(s,t,url){ if(intercept(url)) return; return _replace(s,t,url); };
+})();
+</script>`
+  html = html.replace('</head>', interceptScript + '\n</head>')
+  writeFileSync(indexPath, html, 'utf8')
+  console.log('🔧 Injected /crm/sales/* navigation interceptor into dist/index.html')
 }

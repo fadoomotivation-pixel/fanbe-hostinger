@@ -5,8 +5,5 @@
     { "source": "/crm/assets/:path*", "destination": "/crm/assets/:path*" },
     { "source": "/crm/:path*", "destination": "/crm/index.html" }
   ],
-  "redirects": [
-    { "source": "/", "destination": "/crm/", "permanent": false }
-  ],
   "cleanUrls": true
 }

@@ -9,7 +9,7 @@ const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120000, ret
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={qc}>
-      <BrowserRouter basename="/sales">
+      <BrowserRouter basename="/crm/sales">
         <App />
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       </BrowserRouter>

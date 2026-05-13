@@ -27,14 +27,12 @@ copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
 // Patch 1: rename dist/sales/index.html → dist/sales/app.html
-// Vercel serves dist/sales/index.html as a static directory index for /sales
-// before any routing rules fire. Renaming it removes the conflict so that
-// /sales/* → /sales/app.html rewrites fire correctly.
+// Avoids Vercel serving it as a directory index before rewrites fire.
 const salesCrmIndex = path.join(DEST, 'sales', 'index.html')
 const salesCrmApp   = path.join(DEST, 'sales', 'app.html')
 if (existsSync(salesCrmIndex)) {
   renameSync(salesCrmIndex, salesCrmApp)
-  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html (avoids directory-index conflict)')
+  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html')
 }
 
 // Patch 2: sidebar nav labels in the compiled admin CRM bundle
@@ -55,10 +53,9 @@ if (existsSync(assetsDir)) {
   }
 }
 
-// Patch 3: inject navigation interceptor into dist/index.html so that
-// clicking "Call CRM" (or any /sales/* link) inside the admin CRM SPA
-// triggers a full page reload — this hands control to the Vite-built
-// Sales CRM.
+// Patch 3: inject navigation interceptor into dist/index.html
+// When a link inside the full app navigates to /crm/sales/* we force a full
+// page reload so Vercel's rewrite can serve our Vite-built Sales CRM.
 const indexPath = path.join(DEST, 'index.html')
 if (existsSync(indexPath)) {
   let html = readFileSync(indexPath, 'utf8')
@@ -68,7 +65,7 @@ if (existsSync(indexPath)) {
   var _replace = history.replaceState.bind(history);
   function intercept(url) {
     if (!url) return false;
-    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/sales/')) { location.href = p; return true; } } catch(e) {}
+    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/crm/sales/') || p === '/crm/sales') { location.href = p; return true; } } catch(e) {}
     return false;
   }
   history.pushState = function(s,t,url){ if(intercept(url)) return; return _push(s,t,url); };
@@ -77,5 +74,5 @@ if (existsSync(indexPath)) {
 </script>`
   html = html.replace('</head>', interceptScript + '\n</head>')
   writeFileSync(indexPath, html, 'utf8')
-  console.log('🔧 Injected /sales/* navigation interceptor into dist/index.html')
+  console.log('🔧 Injected /crm/sales/* navigation interceptor into dist/index.html')
 }

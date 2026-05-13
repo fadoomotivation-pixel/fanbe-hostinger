@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, readFileSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const SRC = 'main-website'
@@ -25,3 +25,21 @@ function copyRecursive(src, dest) {
 
 copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
+
+// Patch sidebar nav labels in the compiled admin CRM bundle
+const assetsDir = path.join(DEST, 'assets')
+if (existsSync(assetsDir)) {
+  for (const file of readdirSync(assetsDir)) {
+    if (!file.endsWith('.js')) continue
+    const filePath = path.join(assetsDir, file)
+    let content = readFileSync(filePath, 'utf8')
+    const patched = content.replaceAll(
+      'label:"Dashboard",path:"/crm/admin/dashboard"',
+      'label:"Control",path:"/crm/admin/dashboard"'
+    )
+    if (patched !== content) {
+      writeFileSync(filePath, patched, 'utf8')
+      console.log(`🔧 Patched sidebar label: Dashboard → Control in ${file}`)
+    }
+  }
+}

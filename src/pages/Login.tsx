@@ -28,7 +28,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">F</div>
           <h1 className="text-2xl font-bold text-gray-900">Fanbe Group</h1>
-          <p className="text-gray-500 text-sm mt-1">Payout Admin Portal</p>
+          <p className="text-gray-500 text-sm mt-1">Employee Sales CRM</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 const NAV = [
   { group:'Main', items:[
-    {to:'/',icon:LayoutDashboard,label:'Dashboard'},
+    {to:'/',icon:LayoutDashboard,label:'rashboard'},
     {to:'/analytics',icon:BarChart2,label:'Analytics'},
     {to:'/sales/crm',icon:Phone,label:'Call CRM'},
   ]},

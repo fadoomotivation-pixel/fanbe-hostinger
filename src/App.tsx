@@ -33,8 +33,8 @@ export default function App(){
       <Route element={<Guard><AppLayout/></Guard>}>
         <Route path="/" element={<Dashboard/>}/>
         <Route path="/analytics" element={<Analytics/>}/>
-        <Route path="/crm/sales/crm" element={<CallCRM/>}/>
-        <Route path="/crm/sales/tools" element={<PromotionMaterials/>}/>
+        <Route path="/sales/crm" element={<CallCRM/>}/>
+        <Route path="/sales/tools" element={<PromotionMaterials/>}/>
         <Route path="/projects" element={<Projects/>}/>
         <Route path="/plots" element={<Plots/>}/>
         <Route path="/bookings" element={<Bookings/>}/>

@@ -32,9 +32,9 @@ jobs:
       - name: Verify Supabase URL in build
         run: |
           if grep -r 'mfgjzkaabyltscgrkhdz.supabase.co' dist/assets/*.js; then
-            echo "✅ Supabase URL found in build output"
+            echo "Supabase URL found in build output"
           else
-            echo "❌ Supabase URL NOT found in build - check secrets"
+            echo "Supabase URL NOT found in build - check secrets"
             exit 1
           fi
 
@@ -46,4 +46,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: /public_html/crm/
-          dangerous-clean-slate: true
+          dangerous-clean-slate: false

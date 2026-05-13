@@ -26,15 +26,15 @@ function copyRecursive(src, dest) {
 copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
-// Patch 1: rename dist/crm/index.html → dist/crm/app.html
-// Vercel serves dist/crm/index.html as a static directory index for /crm
+// Patch 1: rename dist/sales/index.html → dist/sales/app.html
+// Vercel serves dist/sales/index.html as a static directory index for /sales
 // before any routing rules fire. Renaming it removes the conflict so that
-// the /crm → /index.html rewrite can serve the admin CRM correctly.
-const salesCrmIndex = path.join(DEST, 'crm', 'index.html')
-const salesCrmApp   = path.join(DEST, 'crm', 'app.html')
+// /sales/* → /sales/app.html rewrites fire correctly.
+const salesCrmIndex = path.join(DEST, 'sales', 'index.html')
+const salesCrmApp   = path.join(DEST, 'sales', 'app.html')
 if (existsSync(salesCrmIndex)) {
   renameSync(salesCrmIndex, salesCrmApp)
-  console.log('🔧 Renamed dist/crm/index.html → dist/crm/app.html (avoids directory-index conflict)')
+  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html (avoids directory-index conflict)')
 }
 
 // Patch 2: sidebar nav labels in the compiled admin CRM bundle
@@ -56,9 +56,9 @@ if (existsSync(assetsDir)) {
 }
 
 // Patch 3: inject navigation interceptor into dist/index.html so that
-// clicking "Call CRM" (or any /crm/sales/* link) inside the admin CRM SPA
+// clicking "Call CRM" (or any /sales/* link) inside the admin CRM SPA
 // triggers a full page reload — this hands control to the Vite-built
-// Sales CRM which has smart notes and browser notifications.
+// Sales CRM.
 const indexPath = path.join(DEST, 'index.html')
 if (existsSync(indexPath)) {
   let html = readFileSync(indexPath, 'utf8')
@@ -68,7 +68,7 @@ if (existsSync(indexPath)) {
   var _replace = history.replaceState.bind(history);
   function intercept(url) {
     if (!url) return false;
-    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/crm/sales/')) { location.href = p; return true; } } catch(e) {}
+    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/sales/')) { location.href = p; return true; } } catch(e) {}
     return false;
   }
   history.pushState = function(s,t,url){ if(intercept(url)) return; return _push(s,t,url); };
@@ -77,5 +77,5 @@ if (existsSync(indexPath)) {
 </script>`
   html = html.replace('</head>', interceptScript + '\n</head>')
   writeFileSync(indexPath, html, 'utf8')
-  console.log('🔧 Injected /crm/sales/* navigation interceptor into dist/index.html')
+  console.log('🔧 Injected /sales/* navigation interceptor into dist/index.html')
 }

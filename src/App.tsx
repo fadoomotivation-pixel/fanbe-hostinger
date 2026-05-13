@@ -22,19 +22,19 @@ function Guard({children}:{children:any}){
   const[session,setSession]=useState<any>(undefined)
   useEffect(()=>{supabase.auth.getSession().then(({data})=>setSession(data.session));const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>setSession(s));return()=>subscription.unsubscribe()},[]);
   if(session===undefined)return<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
-  if(!session)return<Navigate to="/sales/login" replace/>
+  if(!session)return<Navigate to="/login" replace/>
   return children
 }
 
 export default function App(){
   return(
     <Routes>
-      <Route path="/sales/login" element={<Login/>}/>
+      <Route path="/login" element={<Login/>}/>
       <Route element={<Guard><AppLayout/></Guard>}>
         <Route path="/" element={<Dashboard/>}/>
         <Route path="/analytics" element={<Analytics/>}/>
-        <Route path="/sales/crm" element={<CallCRM/>}/>
-        <Route path="/sales/tools" element={<PromotionMaterials/>}/>
+        <Route path="/crm" element={<CallCRM/>}/>
+        <Route path="/tools" element={<PromotionMaterials/>}/>
         <Route path="/projects" element={<Projects/>}/>
         <Route path="/plots" element={<Plots/>}/>
         <Route path="/bookings" element={<Bookings/>}/>

@@ -7,7 +7,7 @@ const NAV = [
   { group:'Main', items:[
     {to:'/',icon:LayoutDashboard,label:'rashboard'},
     {to:'/analytics',icon:BarChart2,label:'Analytics'},
-    {to:'/sales/crm',icon:Phone,label:'Call CRM'},
+    {to:'/crm',icon:Phone,label:'Call CRM'},
   ]},
   { group:'Real Estate', items:[
     {to:'/projects',icon:Building2,label:'Projects'},
@@ -16,7 +16,7 @@ const NAV = [
     {to:'/payments',icon:CreditCard,label:'Payments'},
   ]},
   { group:'Sales Tools', items:[
-    {to:'/sales/tools',icon:Megaphone,label:'Promo Materials'},
+    {to:'/tools',icon:Megaphone,label:'Promo Materials'},
   ]},
   { group:'Reports', items:[
     {to:'/reports',icon:FileText,label:'Reports'},

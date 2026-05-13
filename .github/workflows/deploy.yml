@@ -46,4 +46,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/crm/
           server-dir: crm/
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true

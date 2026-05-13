@@ -1,12 +1,10 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/crm/assets/:path*", "destination": "/crm/assets/:path*" },
-    { "source": "/crm/sales/:path*", "destination": "/crm/index.html" },
-    { "source": "/crm/sales", "destination": "/crm/index.html" },
-    { "source": "/crm", "destination": "/index.html" },
-    { "source": "/crm/", "destination": "/index.html" },
-    { "source": "/crm/:path*", "destination": "/index.html" }
+  "routes": [
+    { "src": "/crm/assets/(.*)", "dest": "/crm/assets/$1" },
+    { "src": "/crm/sales(/.*)?", "dest": "/crm/index.html" },
+    { "src": "/crm(/.*)?", "dest": "/index.html" },
+    { "handle": "filesystem" }
   ]
 }

@@ -2,8 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/crm/assets/:path*", "destination": "/crm/assets/:path*" },
-    { "source": "/crm", "destination": "/crm/index.html" },
-    { "source": "/crm/:path*", "destination": "/crm/index.html" }
+    { "source": "/crm", "destination": "/index.html" },
+    { "source": "/crm/:path*", "destination": "/index.html" }
   ]
 }

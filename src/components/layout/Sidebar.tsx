@@ -31,7 +31,7 @@ export function Sidebar() {
     <aside className={`relative flex flex-col bg-[#0f172a] border-r border-[#1e293b] transition-all duration-300 ${collapsed?'w-16':'w-60'} min-h-screen z-20`}>
       <div className="flex items-center gap-3 px-4 py-5 border-b border-[#1e293b]">
         <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">F</div>
-        {!collapsed&&<div><p className="text-sm font-semibold text-white">Fanbe Group</p><p className="text-xs text-slate-400">Sales CRM</p></div>}
+        {!collapsed&&<div><p className="text-sm font-semibold text-white">Fanbe Group</p><p className="text-xs text-slate-400">Control</p></div>}
       </div>
       <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin">
         {NAV.map(g=>(

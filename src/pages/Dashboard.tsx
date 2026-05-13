@@ -14,14 +14,14 @@ export default function Dashboard() {
         supabase.from('brokers').select('id',{count:'exact',head:true}),
         supabase.from('projects').select('id',{count:'exact',head:true}),
         supabase.from('bookings').select('id',{count:'exact',head:true}),
-        supabase.from('payouts').select('id,amount,status').eq('status','pending'),
+        supabase.from('bp_payout_transactions').select('id,amount,status').eq('status','pending'),
         supabase.from('brokers').select('id',{count:'exact',head:true}).eq('kyc_status','pending'),
       ])
-      const totalRevenue = await supabase.from('payments').select('amount').eq('status','paid')
+      const totalRevenue = await supabase.from('bp_payments').select('amount')
       const rev = totalRevenue.data?.reduce((s:number,r:any)=>s+(Number(r.amount)||0),0)||0
       const pendingAmt = py.data?.reduce((s:number,r:any)=>s+(Number(r.amount)||0),0)||0
       setStats({ brokers:b.count||0, projects:p.count||0, bookings:bk.count||0, pendingPayouts:pendingAmt, totalRevenue:rev, pendingKYC:kyc.count||0 })
-      const recent = await supabase.from('payouts').select('id,amount,status,created_at,broker_id,brokers(name)').order('created_at',{ascending:false}).limit(5)
+      const recent = await supabase.from('bp_payout_transactions').select('id,amount,status,created_at,broker_id,brokers(name)').order('created_at',{ascending:false}).limit(5)
       setRecentPayouts(recent.data||[])
       setLoading(false)
     }

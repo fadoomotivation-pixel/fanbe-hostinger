@@ -27,7 +27,6 @@ copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
 // Patch 1: rename dist/sales/index.html → dist/sales/app.html
-// Avoids Vercel serving it as a directory index before rewrites fire.
 const salesCrmIndex = path.join(DEST, 'sales', 'index.html')
 const salesCrmApp   = path.join(DEST, 'sales', 'app.html')
 if (existsSync(salesCrmIndex)) {
@@ -53,37 +52,50 @@ if (existsSync(assetsDir)) {
   }
 }
 
-// Patch 3: inject scripts into dist/index.html
+// Patch 3: inject CONDITIONAL redirect + pushState interceptor into
+// dist/index.html (the admin/full-app shell).
 //
-// a) LOAD-TIME REDIRECT: if the browser lands directly on /crm/sales/crm
-//    we immediately redirect to our improved Vite-built telecaller CRM at
-//    /sales/crm, before the pre-built React bundle even initialises.
+// Behaviour at /crm/sales/crm:
+//   - If a Supabase session is already in localStorage → redirect to our
+//     improved Vite-built CRM at /sales/crm (user sees enhanced UX).
+//   - If NO session in localStorage → do nothing. Let the pre-built app
+//     handle its native login flow. Once logged in there, returning to
+//     /crm/sales/crm will be redirected (because a session now exists).
 //
-// b) PUSHSTATE INTERCEPT: when the admin SPA's React Router tries to navigate
-//    to any /crm/sales/* path we force a full page reload so Vercel can serve
-//    the right app (our Vite CRM for /crm/sales/crm, pre-built for others).
+// This prevents bouncing unlogged users through our /sales/login.
 const indexPath = path.join(DEST, 'index.html')
 if (existsSync(indexPath)) {
   let html = readFileSync(indexPath, 'utf8')
   const interceptScript = `<script>
 (function(){
-  // a) On initial page load redirect /crm/sales/crm → our improved Vite CRM
-  if (location.pathname === '/crm/sales/crm') {
+  function hasSupabaseSession() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('sb-mfgjzkaabyltscgrkhdz') === 0) {
+          var v = localStorage.getItem(k);
+          if (v && v.length > 50) return true;
+        }
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  // a) Initial-load conditional redirect for /crm/sales/crm
+  if (location.pathname === '/crm/sales/crm' && hasSupabaseSession()) {
     location.replace('/sales/crm');
     return;
   }
 
-  // b) Intercept React Router pushState/replaceState so navigating to
-  //    /crm/sales/* inside the admin SPA causes a full page load.
-  //    /crm/sales/crm is sent to our improved Vite CRM; all other
-  //    /crm/sales/* paths reload normally (served by the pre-built bundle).
+  // b) Intercept pushState/replaceState navigation to /crm/sales/*
+  //    so that the in-app navigation also routes correctly.
   var _push = history.pushState.bind(history);
   var _replace = history.replaceState.bind(history);
   function intercept(url) {
     if (!url) return false;
     try {
       var p = new URL(String(url), location.href).pathname;
-      if (p === '/crm/sales/crm') { location.href = '/sales/crm'; return true; }
+      if (p === '/crm/sales/crm' && hasSupabaseSession()) { location.href = '/sales/crm'; return true; }
       if (p.startsWith('/crm/sales/') || p === '/crm/sales') { location.href = p; return true; }
     } catch(e) {}
     return false;
@@ -94,5 +106,5 @@ if (existsSync(indexPath)) {
 </script>`
   html = html.replace('</head>', interceptScript + '\n</head>')
   writeFileSync(indexPath, html, 'utf8')
-  console.log('🔧 Injected telecaller redirect + /crm/sales/* interceptor into dist/index.html')
+  console.log('🔧 Injected conditional telecaller redirect into dist/index.html')
 }

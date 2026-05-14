@@ -54,6 +54,16 @@ export default function CallCRM() {
   // Track notification permission so we can show/hide the banner reactively
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>(getNotifPerm)
 
+  // Re-check permission when the tab regains focus — covers the case where the user
+  // changes the setting via the browser's lock-icon UI (no event fires for that).
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') setNotifPerm(getNotifPerm())
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
+
   // Browsers REQUIRE a direct user gesture to show the permission prompt.
   // Calling requestPermission() in useEffect silently fails in Chrome/Firefox.
   // We show a banner instead and only call requestPermission() on button click.
@@ -202,11 +212,24 @@ export default function CallCRM() {
             className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 active:bg-blue-800">
             Enable
           </button>
+        </div>
+      )}
+
+      {/* Denied: telecaller is stuck — give them recovery instructions + a re-check button */}
+      {notifPerm === 'denied' && (
+        <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl">
+          <BellOff size={18} className="flex-shrink-0 text-amber-600 mt-0.5" />
+          <div className="text-sm flex-1">
+            <p className="font-semibold mb-0.5">Notifications are blocked</p>
+            <p className="text-xs text-amber-800 leading-snug">
+              You won&apos;t get new-lead or callback alerts. To enable: tap the lock / info icon next to the URL &rarr; Permissions &rarr; Notifications &rarr; Allow. Then tap Re-check.
+            </p>
+          </div>
           <button
-            onClick={() => setNotifPerm('denied')}
-            className="flex-shrink-0 p-1.5 rounded-lg text-blue-400 hover:text-blue-700 hover:bg-blue-100"
-            title="Dismiss">
-            <BellOff size={15} />
+            onClick={() => setNotifPerm(getNotifPerm())}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium hover:bg-amber-700 active:bg-amber-800"
+            title="Re-check after enabling in browser settings">
+            Re-check
           </button>
         </div>
       )}

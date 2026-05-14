@@ -18,35 +18,63 @@ import Settings from '@/pages/Settings'
 import CallCRM from '@/pages/CallCRM'
 import PromotionMaterials from '@/pages/PromotionMaterials'
 
-function Guard({children}:{children:any}){
-  const[session,setSession]=useState<any>(undefined)
-  useEffect(()=>{supabase.auth.getSession().then(({data})=>setSession(data.session));const{data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>setSession(s));return()=>subscription.unsubscribe()},[]);
-  if(session===undefined)return<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/></div>
-  if(!session)return<Navigate to="/login" replace/>
+function Guard({ children }: { children: any }) {
+  const [session, setSession] = useState<any>(undefined)
+  const [tries, setTries] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setSession(data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => {
+      if (!cancelled) setSession(s)
+    })
+    return () => { cancelled = true; subscription.unsubscribe() }
+  }, [])
+
+  // If the session lookup returns null on the very first attempt right after
+  // a hard redirect from /sales/login, retry once after a short delay — the
+  // Supabase localStorage write occasionally lags the page navigation.
+  useEffect(() => {
+    if (session === null && tries < 3) {
+      const t = setTimeout(async () => {
+        const { data } = await supabase.auth.getSession()
+        setSession(data.session)
+        setTries(n => n + 1)
+      }, 250)
+      return () => clearTimeout(t)
+    }
+  }, [session, tries])
+
+  if (session === undefined || (session === null && tries < 3)) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>
+  }
+  if (!session) return <Navigate to="/login" replace />
   return children
 }
 
-export default function App(){
-  return(
+export default function App() {
+  return (
     <Routes>
-      <Route path="/login" element={<Login/>}/>
-      <Route element={<Guard><AppLayout/></Guard>}>
-        <Route path="/" element={<Dashboard/>}/>
-        <Route path="/analytics" element={<Analytics/>}/>
-        <Route path="/crm" element={<CallCRM/>}/>
-        <Route path="/tools" element={<PromotionMaterials/>}/>
-        <Route path="/projects" element={<Projects/>}/>
-        <Route path="/plots" element={<Plots/>}/>
-        <Route path="/bookings" element={<Bookings/>}/>
-        <Route path="/payments" element={<Payments/>}/>
-        <Route path="/brokers" element={<Brokers/>}/>
-        <Route path="/kyc" element={<KYC/>}/>
-        <Route path="/payouts" element={<Payouts/>}/>
-        <Route path="/commission" element={<Commission/>}/>
-        <Route path="/reports" element={<Reports/>}/>
-        <Route path="/settings" element={<Settings/>}/>
+      <Route path="/login" element={<Login />} />
+      <Route element={<Guard><AppLayout /></Guard>}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/analytics" element={<Analytics />} />
+        <Route path="/crm" element={<CallCRM />} />
+        <Route path="/tools" element={<PromotionMaterials />} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/plots" element={<Plots />} />
+        <Route path="/bookings" element={<Bookings />} />
+        <Route path="/payments" element={<Payments />} />
+        <Route path="/brokers" element={<Brokers />} />
+        <Route path="/kyc" element={<KYC />} />
+        <Route path="/payouts" element={<Payouts />} />
+        <Route path="/commission" element={<Commission />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace/>}/>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

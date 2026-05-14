@@ -10,6 +10,7 @@ import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote, BellRing }
 import toast from 'react-hot-toast'
 import type { CrmLead } from '@/types'
 import { useFollowUpNotifications } from '@/lib/useFollowUpNotifications'
+import { useNewLeadNotifications } from '@/lib/useNewLeadNotifications'
 
 const STATUS_COLOR: Record<string, string> = {
   new:        'bg-blue-100 text-blue-700',
@@ -32,12 +33,12 @@ function followUpISO(hoursLater: number): string {
 const QUICK_LOGS: Record<QuickLogType, {
   note: string; tags: string[]; pickupStatus: string; hoursLater: number | null; status: string; msg: string
 }> = {
-  no_answer:        { note: 'No pickup',                          tags: [],                      pickupStatus: 'not_picked',   hoursLater: 3,    status: 'follow_up', msg: 'No pickup — next call in 3 hrs' },
-  busy:             { note: 'Busy, will call back',               tags: ['callback_requested'],  pickupStatus: 'picked',       hoursLater: 2,    status: 'follow_up', msg: 'Busy — callback in 2 hrs' },
-  switched_off:     { note: 'Phone switched off',                 tags: ['switched_off'],        pickupStatus: 'switched_off', hoursLater: 4,    status: 'follow_up', msg: 'Switched off — retry in 4 hrs' },
-  wrong_number:     { note: 'Wrong number',                       tags: ['wrong_number'],        pickupStatus: 'not_picked',   hoursLater: null, status: 'lost',      msg: 'Marked as wrong number' },
-  brochure_sent:    { note: 'Asked for brochure — sent',          tags: ['interested'],          pickupStatus: 'picked',       hoursLater: 24,   status: 'follow_up', msg: 'Brochure sent — follow-up in 24 hrs' },
-  site_visit_booked:{ note: 'Site visit booked',                  tags: ['interested','site_visit'], pickupStatus: 'picked',   hoursLater: 12,   status: 'hot',       msg: 'Site visit booked 🏘️' },
+  no_answer:         { note: 'No pickup',                              tags: [],                            pickupStatus: 'not_picked',   hoursLater: 3,    status: 'follow_up', msg: 'No pickup — next call in 3 hrs' },
+  busy:              { note: 'Busy, will call back',                   tags: ['callback_requested'],        pickupStatus: 'picked',       hoursLater: 2,    status: 'follow_up', msg: 'Busy — callback in 2 hrs' },
+  switched_off:      { note: 'Phone switched off',                     tags: ['switched_off'],              pickupStatus: 'switched_off', hoursLater: 4,    status: 'follow_up', msg: 'Switched off — retry in 4 hrs' },
+  wrong_number:      { note: 'Wrong number',                           tags: ['wrong_number'],              pickupStatus: 'not_picked',   hoursLater: null, status: 'lost',      msg: 'Marked as wrong number' },
+  brochure_sent:     { note: 'Asked for brochure — sent',              tags: ['interested'],                pickupStatus: 'picked',       hoursLater: 24,   status: 'follow_up', msg: 'Brochure sent — follow-up in 24 hrs' },
+  site_visit_booked: { note: 'Site visit booked',                      tags: ['interested', 'site_visit'],  pickupStatus: 'picked',       hoursLater: 12,   status: 'hot',       msg: 'Site visit booked 🏘️' },
 }
 
 export default function CallCRM() {
@@ -130,7 +131,21 @@ export default function CallCRM() {
     onError: (e: any) => toast.error(e.message),
   })
 
+  // ── Notifications ──────────────────────────────────────────────────────────
+  // 1. Follow-up timers: fires when a scheduled follow-up becomes due (+ 15 min pre-warn)
   useFollowUpNotifications(leads)
+
+  // 2. Realtime new-lead: fires instantly when any INSERT lands on crm_leads.
+  //    Also invalidates the React Query cache so the new lead appears in the list.
+  useNewLeadNotifications((newLead) => {
+    qc.invalidateQueries({ queryKey: ['crm_leads'] })
+    // Show an in-app toast as well so telecallers get feedback even on
+    // browsers that block Notification API (e.g. iOS Safari)
+    toast(`🆕 New lead: ${newLead.name ?? 'Unknown'} · ${newLead.phone ?? ''}`, {
+      duration: 6000,
+      icon: '📋',
+    })
+  })
 
   const filtered = useMemo(() => {
     const now = Date.now()
@@ -270,12 +285,12 @@ export default function CallCRM() {
 
 // Quick-log chips shown inline on each card (no modal needed)
 const INLINE_CHIPS: { type: QuickLogType; emoji: string; label: string; color: string; activeColor: string }[] = [
-  { type: 'no_answer',         emoji: '📵', label: 'No Answer',    color: 'text-rose-600',   activeColor: 'active:bg-rose-50' },
-  { type: 'busy',              emoji: '🔄', label: 'Busy / CB',    color: 'text-amber-600',  activeColor: 'active:bg-amber-50' },
-  { type: 'switched_off',      emoji: '🔕', label: 'Switched Off', color: 'text-orange-600', activeColor: 'active:bg-orange-50' },
-  { type: 'wrong_number',      emoji: '❌', label: 'Wrong No.',    color: 'text-gray-600',   activeColor: 'active:bg-gray-100' },
-  { type: 'brochure_sent',     emoji: '📄', label: 'Brochure',     color: 'text-blue-600',   activeColor: 'active:bg-blue-50' },
-  { type: 'site_visit_booked', emoji: '🏘️', label: 'Site Visit',   color: 'text-emerald-700',activeColor: 'active:bg-emerald-50' },
+  { type: 'no_answer',         emoji: '📵', label: 'No Answer',    color: 'text-rose-600',    activeColor: 'active:bg-rose-50' },
+  { type: 'busy',              emoji: '🔄', label: 'Busy / CB',    color: 'text-amber-600',   activeColor: 'active:bg-amber-50' },
+  { type: 'switched_off',      emoji: '🔕', label: 'Switched Off', color: 'text-orange-600',  activeColor: 'active:bg-orange-50' },
+  { type: 'wrong_number',      emoji: '❌', label: 'Wrong No.',    color: 'text-gray-600',    activeColor: 'active:bg-gray-100' },
+  { type: 'brochure_sent',     emoji: '📄', label: 'Brochure',     color: 'text-blue-600',    activeColor: 'active:bg-blue-50' },
+  { type: 'site_visit_booked', emoji: '🏘️', label: 'Site Visit',   color: 'text-emerald-700', activeColor: 'active:bg-emerald-50' },
 ]
 
 function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
@@ -348,7 +363,7 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
           </a>
         </div>
 
-        {/* Row 2 — Quick-log outcome chips (6 chips, no modal needed) */}
+        {/* Row 2 — Quick-log outcome chips: No Answer / Busy / Switched Off */}
         <div className="grid grid-cols-3 border-t border-gray-100 bg-gray-50/50">
           {INLINE_CHIPS.slice(0, 3).map(chip => (
             <button
@@ -365,7 +380,7 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
           ))}
         </div>
 
-        {/* Row 3 — Secondary chips + full note */}
+        {/* Row 3 — Secondary chips: Wrong No. / Brochure / Site Visit + Full Note */}
         <div className="grid grid-cols-4 border-t border-gray-100 bg-white">
           {INLINE_CHIPS.slice(3).map(chip => (
             <button

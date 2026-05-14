@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -15,11 +13,13 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       toast.error(error.message)
+      setLoading(false)
     } else {
       toast.success('Welcome back!')
-      navigate('/crm')
+      // Hard redirect — bypasses React Router basename ambiguity so we
+      // always land on /sales/crm (our Vite CRM), not /crm (admin app).
+      window.location.href = '/sales/crm'
     }
-    setLoading(false)
   }
 
   return (

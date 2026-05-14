@@ -16,20 +16,16 @@ import type { CrmLead } from '@/types'
  */
 export function useRealtimeLeads() {
   const qc = useQueryClient()
-  // Track notification permission across re-renders without causing re-renders
   const permRef = useRef<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
   )
 
   useEffect(() => {
-    // Keep permRef in sync if the user grants/denies while on the page
     const syncPerm = () => {
       if (typeof Notification !== 'undefined') {
         permRef.current = Notification.permission
       }
     }
-    // Browsers fire 'permissionchange' on the Notification object (non-standard
-    // but widely supported). We also sync on visibility change as a fallback.
     document.addEventListener('visibilitychange', syncPerm)
 
     const channel = supabase
@@ -38,27 +34,27 @@ export function useRealtimeLeads() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'crm_leads' },
         (payload) => {
-          // 1. Invalidate query so LeadCard list refreshes immediately
           qc.invalidateQueries({ queryKey: ['crm_leads'] })
           qc.invalidateQueries({ queryKey: ['crm_overdue_count'] })
 
-          // 2. Browser push notification
           if (permRef.current === 'granted') {
             const lead = payload.new as Partial<CrmLead>
             const name  = lead.name  ?? 'Unknown'
             const phone = lead.phone ?? ''
             const src   = (lead as any).source ?? ''
             try {
-              const n = new Notification('🔔 New Lead — FanBe CRM', {
+              // Cast to any — `renotify` is valid at runtime but missing from
+              // some older @types/web / lib.dom.d.ts versions in this project.
+              const opts: any = {
                 body: `${name}${phone ? ' · ' + phone : ''}${src ? ' · via ' + src : ''}`,
                 icon: '/crm/favicon.ico',
                 tag: `new-lead-${(lead as any).id ?? Date.now()}`,
                 renotify: false,
-              })
-              // Auto-close after 8 s so it doesn't stack up
+              }
+              const n = new Notification('🔔 New Lead — FanBe CRM', opts)
               setTimeout(() => n.close(), 8000)
             } catch {
-              // Notification API can throw in some environments (iframe, private)
+              // Notification API can throw in sandboxed / private contexts
             }
           }
         }

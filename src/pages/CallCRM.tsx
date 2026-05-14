@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { SmartQuickNote, SmartQuickNoteValue } from '@/components/crm/SmartQuickNote'
-import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote, BellRing } from 'lucide-react'
+import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote, BellRing, BellOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { CrmLead } from '@/types'
 import { useFollowUpNotifications } from '@/lib/useFollowUpNotifications'
@@ -38,12 +38,10 @@ const QUICK_LOGS: Record<QuickLogType, {
   switched_off: { note: 'Phone switched off',     tags: ['switched_off'],       pickupStatus: 'switched_off', hoursLater: 4, status: 'follow_up', msg: 'Switched off \u2014 retry in 4 hrs' },
 }
 
-/** Request browser notification permission once per session. */
-function requestNotifPermission() {
-  if (typeof Notification === 'undefined') return
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().catch(() => { /* user dismissed */ })
-  }
+/** Returns current notification permission state, or 'unsupported' */
+function getNotifPerm(): NotificationPermission | 'unsupported' {
+  if (typeof Notification === 'undefined') return 'unsupported'
+  return Notification.permission
 }
 
 export default function CallCRM() {
@@ -53,8 +51,28 @@ export default function CallCRM() {
   const [activeLead, setActiveLead] = useState<CrmLead | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
-  // Request notification permission once when the CRM opens
-  useEffect(() => { requestNotifPermission() }, [])
+  // Track notification permission so we can show/hide the banner reactively
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>(getNotifPerm)
+
+  // Browsers REQUIRE a direct user gesture to show the permission prompt.
+  // Calling requestPermission() in useEffect silently fails in Chrome/Firefox.
+  // We show a banner instead and only call requestPermission() on button click.
+  const handleEnableNotifs = async () => {
+    if (typeof Notification === 'undefined') return
+    try {
+      const result = await Notification.requestPermission()
+      setNotifPerm(result)
+      if (result === 'granted') {
+        toast.success('\ud83d\udd14 Notifications enabled!')
+        // Fire a test notification so the user sees it works
+        new Notification('\ud83d\udd14 FanBe CRM', { body: 'You will now get alerts for new leads & callbacks.', icon: '/crm/favicon.ico' })
+      } else {
+        toast.error('Notifications blocked — you can enable them in browser settings.')
+      }
+    } catch {
+      toast.error('Could not request notification permission.')
+    }
+  }
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['crm_leads'],
@@ -171,6 +189,27 @@ export default function CallCRM() {
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
+
+      {/* Notification permission banner — only show when permission is 'default' (not yet decided) */}
+      {notifPerm === 'default' && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl">
+          <BellRing size={18} className="flex-shrink-0 text-blue-600" />
+          <p className="text-sm flex-1">
+            <span className="font-semibold">Enable notifications</span> to get alerts for new leads &amp; callback reminders.
+          </p>
+          <button
+            onClick={handleEnableNotifs}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 active:bg-blue-800">
+            Enable
+          </button>
+          <button
+            onClick={() => setNotifPerm('denied')}
+            className="flex-shrink-0 p-1.5 rounded-lg text-blue-400 hover:text-blue-700 hover:bg-blue-100"
+            title="Dismiss">
+            <BellOff size={15} />
+          </button>
+        </div>
+      )}
 
       {counts.overdue > 0 && (
         <div className="flex items-center gap-3 px-4 py-3 bg-rose-600 text-white rounded-xl">
@@ -309,7 +348,7 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
 
       {/* Mobile: phone-first action layout */}
       <div className="sm:hidden border-t border-gray-100">
-        {/* Row 1: Primary \u2014 big Call + WhatsApp */}
+        {/* Row 1: Primary — big Call + WhatsApp */}
         <div className="grid grid-cols-2">
           <a href={telHref}
              className="flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white font-semibold text-base active:bg-emerald-700">

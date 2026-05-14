@@ -17,7 +17,7 @@ export default function Login() {
       toast.error(error.message)
     } else {
       toast.success('Welcome back!')
-      navigate('/')
+      navigate('/crm')
     }
     setLoading(false)
   }
@@ -35,13 +35,13 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="admin@fanbegroup.com" />
+              placeholder="admin@fanbegroup.com" autoComplete="email" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••" />
+              placeholder="••••••••" autoComplete="current-password" />
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">

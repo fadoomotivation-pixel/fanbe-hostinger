@@ -14,21 +14,23 @@ export interface SmartQuickNoteValue {
 
 // One-tap outcome presets — fills note + tags + follow-up automatically
 const QUICK_PRESETS = [
-  { key: 'no_pickup',      emoji: '📵', label: 'No Pickup',    note: 'No pickup',                       tags: [] as LeadTag[],                          hoursLater: 3 },
-  { key: 'busy',           emoji: '🔄', label: 'Busy',         note: 'Busy, will call back',              tags: ['callback_requested'] as LeadTag[],      hoursLater: 2 },
-  { key: 'interested',     emoji: '✅', label: 'Interested',   note: 'Interested, wants more details',    tags: ['interested'] as LeadTag[],              daysLater: 1, atHour: 10 },
-  { key: 'site_visit',     emoji: '🏘️', label: 'Site Visit',   note: 'Site visit to be arranged',        tags: ['interested', 'site_visit'] as LeadTag[], daysLater: 1, atHour: 10 },
-  { key: 'call_later',     emoji: '📅', label: 'Call Later',   note: 'Asked to call later',              tags: ['call_later'] as LeadTag[],              daysLater: 1, atHour: 11 },
-  { key: 'not_interested', emoji: '❌', label: 'Not Int.',     note: 'Not interested',                   tags: ['not_interested'] as LeadTag[],          hoursLater: null },
+  { key: 'no_pickup',        emoji: '📵', label: 'No Pickup',     note: 'No pickup',                         tags: [] as LeadTag[],                              hoursLater: 3    },
+  { key: 'busy',             emoji: '🔄', label: 'Busy',          note: 'Busy, will call back',               tags: ['callback_requested'] as LeadTag[],          hoursLater: 2    },
+  { key: 'interested',       emoji: '✅', label: 'Interested',    note: 'Interested, wants more details',     tags: ['interested'] as LeadTag[],                  daysLater: 1, atHour: 10 },
+  { key: 'site_visit',       emoji: '🏘️', label: 'Site Visit',    note: 'Site visit to be arranged',          tags: ['interested', 'site_visit'] as LeadTag[],    daysLater: 1, atHour: 10 },
+  { key: 'call_later',       emoji: '📅', label: 'Call Later',    note: 'Asked to call later',                tags: ['call_later'] as LeadTag[],                  daysLater: 1, atHour: 11 },
+  { key: 'not_interested',   emoji: '❌', label: 'Not Int.',      note: 'Not interested',                    tags: ['not_interested'] as LeadTag[],              hoursLater: null },
+  { key: 'wrong_number',     emoji: '🚫', label: 'Wrong No.',     note: 'Wrong number',                      tags: ['wrong_number'] as LeadTag[],                hoursLater: null },
+  { key: 'brochure_sent',    emoji: '📄', label: 'Brochure Sent', note: 'Asked for brochure — sent',          tags: ['interested'] as LeadTag[],                  hoursLater: 24   },
 ] as const
 
 // Quick time chips for follow-up picker
 const TIME_CHIPS = [
-  { label: '+1 hr',       get: () => { const d = new Date(); d.setHours(d.getHours()+1); return d } },
-  { label: '+3 hr',       get: () => { const d = new Date(); d.setHours(d.getHours()+3); return d } },
-  { label: 'Tmrw 10am',  get: () => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0); return d } },
-  { label: 'Tmrw 5pm',   get: () => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(17,0,0,0); return d } },
-  { label: 'Next Mon',   get: () => { const d = new Date(); const diff = (8-d.getDay())%7||7; d.setDate(d.getDate()+diff); d.setHours(10,0,0,0); return d } },
+  { label: '+1 hr',      get: () => { const d = new Date(); d.setHours(d.getHours()+1); return d } },
+  { label: '+3 hr',      get: () => { const d = new Date(); d.setHours(d.getHours()+3); return d } },
+  { label: 'Tmrw 10am', get: () => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(10,0,0,0); return d } },
+  { label: 'Tmrw 5pm',  get: () => { const d = new Date(); d.setDate(d.getDate()+1); d.setHours(17,0,0,0); return d } },
+  { label: 'Next Mon',  get: () => { const d = new Date(); const diff = (8-d.getDay())%7||7; d.setDate(d.getDate()+diff); d.setHours(10,0,0,0); return d } },
 ]
 
 export function SmartQuickNote({
@@ -95,10 +97,10 @@ export function SmartQuickNote({
   return (
     <div className="space-y-3">
 
-      {/* Quick outcome presets */}
+      {/* Quick outcome presets — 4 cols on mobile so all 8 fit without scroll */}
       <div>
         <p className="text-xs font-medium text-gray-500 mb-1.5">Quick outcome — tap to fill</p>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
           {QUICK_PRESETS.map(p => (
             <button
               key={p.key}
@@ -140,7 +142,9 @@ export function SmartQuickNote({
               type="button"
               onClick={() => toggleTag(tag)}
               className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                on ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400'
+                on
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400'
               }`}
               title={auto ? 'Auto-detected from note' : ''}
             >

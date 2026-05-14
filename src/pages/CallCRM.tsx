@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Modal } from '@/components/ui/Modal'
@@ -10,6 +10,7 @@ import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote, BellRing }
 import toast from 'react-hot-toast'
 import type { CrmLead } from '@/types'
 import { useFollowUpNotifications } from '@/lib/useFollowUpNotifications'
+import { useRealtimeLeads } from '@/lib/useRealtimeLeads'
 
 const STATUS_COLOR: Record<string, string> = {
   new:        'bg-blue-100 text-blue-700',
@@ -32,9 +33,17 @@ function followUpISO(hoursLater: number): string {
 const QUICK_LOGS: Record<QuickLogType, {
   note: string; tags: string[]; pickupStatus: string; hoursLater: number; status: string; msg: string
 }> = {
-  no_answer:    { note: 'No pickup',                   tags: [],                    pickupStatus: 'not_picked',   hoursLater: 3, status: 'follow_up', msg: 'No pickup — next call in 3 hrs' },
-  busy:         { note: 'Busy, will call back',         tags: ['callback_requested'], pickupStatus: 'picked',       hoursLater: 2, status: 'follow_up', msg: 'Busy — callback in 2 hrs' },
-  switched_off: { note: 'Phone switched off',          tags: ['switched_off'],      pickupStatus: 'switched_off', hoursLater: 4, status: 'follow_up', msg: 'Switched off — retry in 4 hrs' },
+  no_answer:    { note: 'No pickup',              tags: [],                     pickupStatus: 'not_picked',   hoursLater: 3, status: 'follow_up', msg: 'No pickup \u2014 next call in 3 hrs' },
+  busy:         { note: 'Busy, will call back',   tags: ['callback_requested'], pickupStatus: 'picked',       hoursLater: 2, status: 'follow_up', msg: 'Busy \u2014 callback in 2 hrs' },
+  switched_off: { note: 'Phone switched off',     tags: ['switched_off'],       pickupStatus: 'switched_off', hoursLater: 4, status: 'follow_up', msg: 'Switched off \u2014 retry in 4 hrs' },
+}
+
+/** Request browser notification permission once per session. */
+function requestNotifPermission() {
+  if (typeof Notification === 'undefined') return
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => { /* user dismissed */ })
+  }
 }
 
 export default function CallCRM() {
@@ -43,6 +52,9 @@ export default function CallCRM() {
   const [q, setQ] = useState('')
   const [activeLead, setActiveLead] = useState<CrmLead | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+
+  // Request notification permission once when the CRM opens
+  useEffect(() => { requestNotifPermission() }, [])
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['crm_leads'],
@@ -82,7 +94,7 @@ export default function CallCRM() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm_leads'] })
       qc.invalidateQueries({ queryKey: ['crm_overdue_count'] })
-      toast.success('Note saved — follow-up scheduled')
+      toast.success('Note saved \u2014 follow-up scheduled')
       setActiveLead(null)
     },
     onError: (e: any) => toast.error(e.message),
@@ -127,6 +139,8 @@ export default function CallCRM() {
     onError: (e: any) => toast.error(e.message),
   })
 
+  // Supabase Realtime — auto-refresh list + fire browser notification on new INSERT
+  useRealtimeLeads()
   useFollowUpNotifications(leads)
 
   const filtered = useMemo(() => {
@@ -162,7 +176,7 @@ export default function CallCRM() {
         <div className="flex items-center gap-3 px-4 py-3 bg-rose-600 text-white rounded-xl">
           <BellRing size={18} className="flex-shrink-0 animate-pulse"/>
           <p className="text-sm font-medium flex-1">
-            {counts.overdue} overdue call{counts.overdue > 1 ? 's' : ''} — start from the top of the list
+            {counts.overdue} overdue call{counts.overdue > 1 ? 's' : ''} \u2014 start from the top of the list
           </p>
           <button onClick={() => setTab('call_now')} className="text-xs underline whitespace-nowrap">View</button>
         </div>
@@ -176,7 +190,7 @@ export default function CallCRM() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
-            <Input value={q} onChange={(e: any) => setQ(e.target.value)} placeholder="Search leads…" className="pl-7 w-56"/>
+            <Input value={q} onChange={(e: any) => setQ(e.target.value)} placeholder="Search leads\u2026" className="pl-7 w-56"/>
           </div>
           <Button onClick={() => setAddOpen(true)}><Plus size={14}/>Add lead</Button>
         </div>
@@ -199,7 +213,7 @@ export default function CallCRM() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-gray-500 py-10 text-center">Loading…</p>
+        <p className="text-sm text-gray-500 py-10 text-center">Loading\u2026</p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-gray-500 py-10 text-center">No leads in this view.</p>
       ) : (
@@ -217,7 +231,7 @@ export default function CallCRM() {
         </div>
       )}
 
-      <Modal open={!!activeLead} onClose={() => setActiveLead(null)} title={activeLead ? `${activeLead.name} · ${activeLead.phone}` : ''}>
+      <Modal open={!!activeLead} onClose={() => setActiveLead(null)} title={activeLead ? `${activeLead.name} \u00b7 ${activeLead.phone}` : ''}>
         {activeLead && (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
@@ -295,7 +309,7 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
 
       {/* Mobile: phone-first action layout */}
       <div className="sm:hidden border-t border-gray-100">
-        {/* Row 1: Primary — big Call + WhatsApp */}
+        {/* Row 1: Primary \u2014 big Call + WhatsApp */}
         <div className="grid grid-cols-2">
           <a href={telHref}
              className="flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white font-semibold text-base active:bg-emerald-700">
@@ -312,14 +326,14 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
             onClick={() => onQuickLog('no_answer')}
             disabled={quickLogging}
             className="flex flex-col items-center gap-0.5 py-3 text-rose-600 active:bg-rose-50 disabled:opacity-50">
-            <span className="text-xl">📵</span>
+            <span className="text-xl">\ud83d\udcf5</span>
             <span className="text-[11px] font-medium">No Answer</span>
           </button>
           <button
             onClick={() => onQuickLog('busy')}
             disabled={quickLogging}
             className="flex flex-col items-center gap-0.5 py-3 text-amber-600 active:bg-amber-50 disabled:opacity-50 border-x border-gray-100">
-            <span className="text-xl">🔄</span>
+            <span className="text-xl">\ud83d\udd04</span>
             <span className="text-[11px] font-medium">Busy / CB</span>
           </button>
           <button

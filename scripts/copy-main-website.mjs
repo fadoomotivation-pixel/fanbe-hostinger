@@ -27,14 +27,12 @@ copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
 // Patch 1: rename dist/sales/index.html → dist/sales/app.html
-// Vercel serves dist/sales/index.html as a static directory index for /sales
-// before any routing rules fire. Renaming it removes the conflict so that
-// /sales/* → /sales/app.html rewrites fire correctly.
+// Avoids Vercel serving it as a directory index before rewrites fire.
 const salesCrmIndex = path.join(DEST, 'sales', 'index.html')
 const salesCrmApp   = path.join(DEST, 'sales', 'app.html')
 if (existsSync(salesCrmIndex)) {
   renameSync(salesCrmIndex, salesCrmApp)
-  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html (avoids directory-index conflict)')
+  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html')
 }
 
 // Patch 2: sidebar nav labels in the compiled admin CRM bundle
@@ -55,20 +53,39 @@ if (existsSync(assetsDir)) {
   }
 }
 
-// Patch 3: inject navigation interceptor into dist/index.html so that
-// clicking "Call CRM" (or any /sales/* link) inside the admin CRM SPA
-// triggers a full page reload — this hands control to the Vite-built
-// Sales CRM.
+// Patch 3: inject scripts into dist/index.html
+//
+// a) LOAD-TIME REDIRECT: if the browser lands directly on /crm/sales/crm
+//    we immediately redirect to our improved Vite-built telecaller CRM at
+//    /sales/crm, before the pre-built React bundle even initialises.
+//
+// b) PUSHSTATE INTERCEPT: when the admin SPA's React Router tries to navigate
+//    to any /crm/sales/* path we force a full page reload so Vercel can serve
+//    the right app (our Vite CRM for /crm/sales/crm, pre-built for others).
 const indexPath = path.join(DEST, 'index.html')
 if (existsSync(indexPath)) {
   let html = readFileSync(indexPath, 'utf8')
   const interceptScript = `<script>
 (function(){
+  // a) On initial page load redirect /crm/sales/crm → our improved Vite CRM
+  if (location.pathname === '/crm/sales/crm') {
+    location.replace('/sales/crm');
+    return;
+  }
+
+  // b) Intercept React Router pushState/replaceState so navigating to
+  //    /crm/sales/* inside the admin SPA causes a full page load.
+  //    /crm/sales/crm is sent to our improved Vite CRM; all other
+  //    /crm/sales/* paths reload normally (served by the pre-built bundle).
   var _push = history.pushState.bind(history);
   var _replace = history.replaceState.bind(history);
   function intercept(url) {
     if (!url) return false;
-    try { var p = new URL(String(url), location.href).pathname; if (p.startsWith('/sales/')) { location.href = p; return true; } } catch(e) {}
+    try {
+      var p = new URL(String(url), location.href).pathname;
+      if (p === '/crm/sales/crm') { location.href = '/sales/crm'; return true; }
+      if (p.startsWith('/crm/sales/') || p === '/crm/sales') { location.href = p; return true; }
+    } catch(e) {}
     return false;
   }
   history.pushState = function(s,t,url){ if(intercept(url)) return; return _push(s,t,url); };
@@ -77,5 +94,5 @@ if (existsSync(indexPath)) {
 </script>`
   html = html.replace('</head>', interceptScript + '\n</head>')
   writeFileSync(indexPath, html, 'utf8')
-  console.log('🔧 Injected /sales/* navigation interceptor into dist/index.html')
+  console.log('🔧 Injected telecaller redirect + /crm/sales/* interceptor into dist/index.html')
 }

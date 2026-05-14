@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { SmartQuickNote, SmartQuickNoteValue } from '@/components/crm/SmartQuickNote'
-import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote } from 'lucide-react'
+import { Phone, Search, Plus, Copy, MessageCircle, Clock, StickyNote, BellRing } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { CrmLead } from '@/types'
 import { useFollowUpNotifications } from '@/lib/useFollowUpNotifications'
@@ -21,6 +21,21 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 type Tab = 'call_now' | 'follow_up' | 'all'
+type QuickLogType = 'no_answer' | 'busy' | 'switched_off'
+
+function followUpISO(hoursLater: number): string {
+  const d = new Date()
+  d.setHours(d.getHours() + hoursLater)
+  return d.toISOString()
+}
+
+const QUICK_LOGS: Record<QuickLogType, {
+  note: string; tags: string[]; pickupStatus: string; hoursLater: number; status: string; msg: string
+}> = {
+  no_answer:    { note: 'No pickup',                   tags: [],                    pickupStatus: 'not_picked',   hoursLater: 3, status: 'follow_up', msg: 'No pickup — next call in 3 hrs' },
+  busy:         { note: 'Busy, will call back',         tags: ['callback_requested'], pickupStatus: 'picked',       hoursLater: 2, status: 'follow_up', msg: 'Busy — callback in 2 hrs' },
+  switched_off: { note: 'Phone switched off',          tags: ['switched_off'],      pickupStatus: 'switched_off', hoursLater: 4, status: 'follow_up', msg: 'Switched off — retry in 4 hrs' },
+}
 
 export default function CallCRM() {
   const qc = useQueryClient()
@@ -59,19 +74,43 @@ export default function CallCRM() {
       const { error: e1 } = await supabase.from('crm_leads').update(patch).eq('id', lead.id)
       if (e1) throw e1
       const { error: e2 } = await supabase.from('crm_lead_interactions').insert({
-        lead_id: lead.id,
-        kind: 'note',
-        note: v.note,
-        tags: v.tags,
-        pickup_status: v.pickupStatus,
-        next_follow_up_at: v.nextFollowUpAt,
+        lead_id: lead.id, kind: 'note', note: v.note, tags: v.tags,
+        pickup_status: v.pickupStatus, next_follow_up_at: v.nextFollowUpAt,
       })
       if (e2) throw e2
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm_leads'] })
+      qc.invalidateQueries({ queryKey: ['crm_overdue_count'] })
       toast.success('Note saved — follow-up scheduled')
       setActiveLead(null)
+    },
+    onError: (e: any) => toast.error(e.message),
+  })
+
+  const quickLog = useMutation({
+    mutationFn: async ({ lead, type }: { lead: CrmLead; type: QuickLogType }) => {
+      const cfg = QUICK_LOGS[type]
+      const followUpAt = followUpISO(cfg.hoursLater)
+      const patch = {
+        quick_note: cfg.note, tags: cfg.tags, pickup_status: cfg.pickupStatus,
+        next_follow_up_at: followUpAt, last_called_at: new Date().toISOString(),
+        call_attempts: (lead.call_attempts ?? 0) + 1, status: cfg.status,
+        updated_at: new Date().toISOString(),
+      }
+      const { error: e1 } = await supabase.from('crm_leads').update(patch).eq('id', lead.id)
+      if (e1) throw e1
+      const { error: e2 } = await supabase.from('crm_lead_interactions').insert({
+        lead_id: lead.id, kind: 'note', note: cfg.note, tags: cfg.tags,
+        pickup_status: cfg.pickupStatus, next_follow_up_at: followUpAt,
+      })
+      if (e2) throw e2
+      return cfg.msg
+    },
+    onSuccess: (msg) => {
+      qc.invalidateQueries({ queryKey: ['crm_leads'] })
+      qc.invalidateQueries({ queryKey: ['crm_overdue_count'] })
+      toast.success(msg)
     },
     onError: (e: any) => toast.error(e.message),
   })
@@ -110,14 +149,25 @@ export default function CallCRM() {
   const counts = useMemo(() => {
     const now = Date.now()
     const overdue = leads.filter(l => l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() < now && l.status !== 'lost' && l.status !== 'booked').length
-    const today = leads.filter(l => l.next_follow_up_at && sameDay(new Date(l.next_follow_up_at), new Date())).length
-    const fresh = leads.filter(l => l.status === 'new').length
-    const hot = leads.filter(l => l.status === 'hot').length
+    const today   = leads.filter(l => l.next_follow_up_at && sameDay(new Date(l.next_follow_up_at), new Date())).length
+    const fresh   = leads.filter(l => l.status === 'new').length
+    const hot     = leads.filter(l => l.status === 'hot').length
     return { overdue, today, fresh, hot }
   }, [leads])
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
+
+      {counts.overdue > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-rose-600 text-white rounded-xl">
+          <BellRing size={18} className="flex-shrink-0 animate-pulse"/>
+          <p className="text-sm font-medium flex-1">
+            {counts.overdue} overdue call{counts.overdue > 1 ? 's' : ''} — start from the top of the list
+          </p>
+          <button onClick={() => setTab('call_now')} className="text-xs underline whitespace-nowrap">View</button>
+        </div>
+      )}
+
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Sales Dashboard</h1>
@@ -133,9 +183,9 @@ export default function CallCRM() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Pill color="bg-rose-50 text-rose-700 border-rose-200"  label={`${counts.overdue} Overdue`}/>
+        <Pill color="bg-rose-50 text-rose-700 border-rose-200"    label={`${counts.overdue} Overdue`}/>
         <Pill color="bg-amber-50 text-amber-700 border-amber-200" label={`${counts.today} Due Today`}/>
-        <Pill color="bg-blue-50 text-blue-700 border-blue-200"   label={`${counts.fresh} New`}/>
+        <Pill color="bg-blue-50 text-blue-700 border-blue-200"    label={`${counts.fresh} New`}/>
         <Pill color="bg-orange-50 text-orange-700 border-orange-200" label={`${counts.hot} Hot`}/>
       </div>
 
@@ -154,7 +204,16 @@ export default function CallCRM() {
         <p className="text-sm text-gray-500 py-10 text-center">No leads in this view.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((l, i) => <LeadCard key={l.id} idx={i+1} lead={l} onOpen={() => setActiveLead(l)} />)}
+          {filtered.map((l, i) => (
+            <LeadCard
+              key={l.id}
+              idx={i+1}
+              lead={l}
+              onOpen={() => setActiveLead(l)}
+              onQuickLog={(type) => quickLog.mutate({ lead: l, type })}
+              quickLogging={quickLog.isPending}
+            />
+          ))}
         </div>
       )}
 
@@ -162,19 +221,16 @@ export default function CallCRM() {
         {activeLead && (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <a href={`tel:${activeLead.phone}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700">
-                <Phone size={14}/> Call
+              <a href={`tel:${activeLead.phone}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
+                <Phone size={15}/> Call
               </a>
               <a href={`https://wa.me/${activeLead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 text-green-800 text-sm hover:bg-green-200">
-                <MessageCircle size={14}/> WhatsApp
-              </a>
-              <a href={`sms:${activeLead.phone}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm hover:bg-slate-200">
-                <MessageCircle size={14}/> SMS
+                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-100 text-green-800 text-sm font-medium hover:bg-green-200">
+                <MessageCircle size={15}/> WhatsApp
               </a>
               <button onClick={() => { navigator.clipboard.writeText(activeLead.phone); toast.success('Copied') }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
-                <Copy size={14}/> Copy
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                <Copy size={15}/> Copy
               </button>
             </div>
             <SmartQuickNote
@@ -196,9 +252,15 @@ export default function CallCRM() {
   )
 }
 
-function LeadCard({ idx, lead, onOpen }: { idx: number; lead: CrmLead; onOpen: () => void }) {
+function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
+  idx: number
+  lead: CrmLead
+  onOpen: () => void
+  onQuickLog: (type: QuickLogType) => void
+  quickLogging: boolean
+}) {
   const overdue = lead.next_follow_up_at && new Date(lead.next_follow_up_at) < new Date()
-  const waHref = `https://wa.me/${lead.phone.replace(/\D/g,'')}`
+  const waHref  = `https://wa.me/${lead.phone.replace(/\D/g,'')}`
   const telHref = `tel:${lead.phone}`
   const copyPhone = () => { navigator.clipboard.writeText(lead.phone); toast.success('Copied') }
 
@@ -211,58 +273,62 @@ function LeadCard({ idx, lead, onOpen }: { idx: number; lead: CrmLead; onOpen: (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-slate-900 truncate">{lead.name}</span>
               <Badge label={lead.status.replace('_',' ')} className={STATUS_COLOR[lead.status] ?? 'bg-gray-100 text-gray-700'}/>
-              {lead.call_attempts > 2 && <Badge label={`${lead.call_attempts} attempts`} className="bg-yellow-100 text-yellow-800"/>}
+              {lead.call_attempts > 2 && <Badge label={`${lead.call_attempts}x`} className="bg-yellow-100 text-yellow-800"/>}
             </div>
             <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
               <Clock size={11}/>
               {lead.next_follow_up_at ? `Follow-up ${formatWhen(lead.next_follow_up_at)}` : 'Never called'}
             </p>
-            {lead.quick_note && <p className="text-xs text-gray-600 mt-1 line-clamp-1">{lead.quick_note}</p>}
+            {lead.quick_note && <p className="text-xs text-gray-600 mt-1 line-clamp-1 italic">{lead.quick_note}</p>}
           </div>
         </div>
 
-        {/* Desktop / tablet: compact inline icon row */}
+        {/* Desktop row */}
         <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-          <button onClick={copyPhone} className="p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100" title="Copy phone">
-            <Copy size={14}/>
-          </button>
-          <a href={waHref} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100" title="WhatsApp">
-            <MessageCircle size={14}/>
-          </a>
-          <a href={telHref} className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title="Call">
-            <Phone size={14}/>
-          </a>
-          <button onClick={onOpen} className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100" title="Quick note">
-            <StickyNote size={14}/>
-          </button>
-          <button onClick={onOpen} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700">
-            Open
-          </button>
+          <button onClick={copyPhone} className="p-2 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100" title="Copy phone"><Copy size={14}/></button>
+          <a href={waHref} target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100" title="WhatsApp"><MessageCircle size={14}/></a>
+          <a href={telHref} className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100" title="Call"><Phone size={14}/></a>
+          <button onClick={onOpen} className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100" title="Note"><StickyNote size={14}/></button>
+          <button onClick={onOpen} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700">Open</button>
         </div>
       </div>
 
-      {/* Mobile: large sticky action bar pinned to the card bottom */}
-      <div className="sm:hidden grid grid-cols-4 gap-1 border-t border-gray-100 bg-gray-50/60">
-        <a href={telHref}
-           className="flex flex-col items-center justify-center gap-1 py-3 text-emerald-700 active:bg-emerald-100">
-          <Phone size={20}/>
-          <span className="text-[11px] font-medium">Call</span>
-        </a>
-        <a href={waHref} target="_blank" rel="noreferrer"
-           className="flex flex-col items-center justify-center gap-1 py-3 text-green-700 active:bg-green-100">
-          <MessageCircle size={20}/>
-          <span className="text-[11px] font-medium">WhatsApp</span>
-        </a>
-        <button onClick={onOpen}
-           className="flex flex-col items-center justify-center gap-1 py-3 text-blue-700 active:bg-blue-100">
-          <StickyNote size={20}/>
-          <span className="text-[11px] font-medium">Note</span>
-        </button>
-        <button onClick={copyPhone}
-           className="flex flex-col items-center justify-center gap-1 py-3 text-gray-600 active:bg-gray-200">
-          <Copy size={20}/>
-          <span className="text-[11px] font-medium">Copy</span>
-        </button>
+      {/* Mobile: phone-first action layout */}
+      <div className="sm:hidden border-t border-gray-100">
+        {/* Row 1: Primary — big Call + WhatsApp */}
+        <div className="grid grid-cols-2">
+          <a href={telHref}
+             className="flex items-center justify-center gap-2 py-4 bg-emerald-600 text-white font-semibold text-base active:bg-emerald-700">
+            <Phone size={20}/> Call
+          </a>
+          <a href={waHref} target="_blank" rel="noreferrer"
+             className="flex items-center justify-center gap-2 py-4 bg-green-100 text-green-800 font-semibold text-base active:bg-green-200">
+            <MessageCircle size={20}/> WhatsApp
+          </a>
+        </div>
+        {/* Row 2: Quick-log outcomes (one tap, no modal) */}
+        <div className="grid grid-cols-3 border-t border-gray-100 bg-gray-50/50">
+          <button
+            onClick={() => onQuickLog('no_answer')}
+            disabled={quickLogging}
+            className="flex flex-col items-center gap-0.5 py-3 text-rose-600 active:bg-rose-50 disabled:opacity-50">
+            <span className="text-xl">📵</span>
+            <span className="text-[11px] font-medium">No Answer</span>
+          </button>
+          <button
+            onClick={() => onQuickLog('busy')}
+            disabled={quickLogging}
+            className="flex flex-col items-center gap-0.5 py-3 text-amber-600 active:bg-amber-50 disabled:opacity-50 border-x border-gray-100">
+            <span className="text-xl">🔄</span>
+            <span className="text-[11px] font-medium">Busy / CB</span>
+          </button>
+          <button
+            onClick={onOpen}
+            className="flex flex-col items-center gap-0.5 py-3 text-blue-700 active:bg-blue-50">
+            <StickyNote size={20}/>
+            <span className="text-[11px] font-medium">Full Note</span>
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -272,13 +338,17 @@ function Pill({ label, color }: { label: string; color: string }) {
   return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${color}`}>{label}</span>
 }
 
-function AddLeadModal({ open, onClose, onSubmit, saving }: { open: boolean; onClose: () => void; onSubmit: (p: { name: string; phone: string; source?: string }) => void; saving: boolean }) {
+function AddLeadModal({ open, onClose, onSubmit, saving }: {
+  open: boolean; onClose: () => void
+  onSubmit: (p: { name: string; phone: string; source?: string }) => void
+  saving: boolean
+}) {
   const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [source, setSource] = useState('')
   return (
     <Modal open={open} onClose={onClose} title="Add lead">
       <div className="space-y-3">
         <Input label="Name" value={name} onChange={(e: any) => setName(e.target.value)}/>
-        <Input label="Phone" value={phone} onChange={(e: any) => setPhone(e.target.value)}/>
+        <Input label="Phone" value={phone} onChange={(e: any) => setPhone(e.target.value)} type="tel"/>
         <Input label="Source (optional)" value={source} onChange={(e: any) => setSource(e.target.value)} placeholder="e.g. FB Ad, Walk-in"/>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>

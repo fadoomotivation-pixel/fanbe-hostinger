@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -6,6 +6,23 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // If already signed in (e.g. returning visitor), skip the form entirely.
+  // Also redirects right after sign-in via the SIGNED_IN auth event — this
+  // fires AFTER the session is persisted to localStorage, avoiding a race
+  // where the destination page's Guard reads localStorage too early and
+  // bounces back to /sales/login.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = '/sales/crm'
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+        window.location.href = '/sales/crm'
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -16,9 +33,8 @@ export default function Login() {
       setLoading(false)
     } else {
       toast.success('Welcome back!')
-      // Hard redirect — bypasses React Router basename ambiguity so we
-      // always land on /sales/crm (our Vite CRM), not /crm (admin app).
-      window.location.href = '/sales/crm'
+      // The onAuthStateChange listener above will redirect once the session
+      // is fully persisted. Keep `loading` true so the button stays disabled.
     }
   }
 

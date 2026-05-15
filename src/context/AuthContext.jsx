@@ -1,124 +1,155 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { initializeData } from '@/lib/dataInitializer';
-import { initializeUserDatabase, findUser, verifyPassword } from '@/lib/authUtils';
-import { logLoginAttempt } from '@/lib/loginLogger';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider — real Supabase auth (replaces the old localStorage-only
+ * `authUtils` flow). Session is persisted to localStorage by Supabase
+ * itself under the `fanbe-crm-auth` key. We map the auth user → public.profiles
+ * row to recover {role, name, username, etc.} that the rest of the app expects.
+ *
+ * Login accepts username OR email. If the input contains '@' we use it as
+ * email directly; otherwise we look up the email from profiles by username.
+ */
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(null);   // raw supabase.auth.User
+  const [profile, setProfile]   = useState(null);   // public.profiles row
+  const [loading, setLoading]   = useState(true);
 
-  // Initialize Data & Load Session
-  useEffect(() => {
-    // Ensure basic data exists
-    initializeData();
-    // Ensure user DB exists
-    initializeUserDatabase();
-
-    // Restore session from localStorage
-    const storedUser = localStorage.getItem('crm_user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        // Verify token validity or session expiry here if needed
-        // For now, assume stored user is valid
-        setUser(parsedUser);
-      } catch (e) {
-        console.error("Failed to parse stored user", e);
-        localStorage.removeItem('crm_user');
-      }
+  const loadProfile = useCallback(async (userId) => {
+    if (!userId) {
+      setProfile(null);
+      return null;
     }
-    setLoading(false);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, email, name, role, phone, department, status, permissions, last_login, metrics')
+      .eq('id', userId)
+      .single();
+    if (error) {
+      console.warn('[Auth] Failed to load profile:', error.message);
+      setProfile(null);
+      return null;
+    }
+    setProfile(data);
+    return data;
   }, []);
 
-  // Session Timeout Logic
   useEffect(() => {
-    if (!user) return;
+    let cancelled = false;
 
+    // Initial session restore
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (cancelled) return;
+      const u = data.session?.user ?? null;
+      setAuthUser(u);
+      if (u) await loadProfile(u.id);
+      setLoading(false);
+    });
+
+    // Subscribe to auth state changes (login, logout, refresh)
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (cancelled) return;
+      const u = session?.user ?? null;
+      setAuthUser(u);
+      if (u) await loadProfile(u.id);
+      else setProfile(null);
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [loadProfile]);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setAuthUser(null);
+    setProfile(null);
+    window.location.href = '/crm/login';
+  }, []);
+
+  // Idle-timeout — 30 min, matches previous behavior
+  useEffect(() => {
+    if (!authUser) return;
     let timeoutId;
-    const timeoutDuration = 30 * 60 * 1000; // 30 minutes
-
-    const resetTimer = () => {
+    const reset = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         alert('Session expired due to inactivity');
         logout();
-      }, timeoutDuration);
+      }, 30 * 60 * 1000);
     };
-
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    events.forEach(event => document.addEventListener(event, resetTimer));
-    resetTimer();
-
+    events.forEach(e => document.addEventListener(e, reset));
+    reset();
     return () => {
       clearTimeout(timeoutId);
-      events.forEach(event => document.removeEventListener(event, resetTimer));
+      events.forEach(e => document.removeEventListener(e, reset));
     };
-  }, [user]);
+  }, [authUser, logout]);
 
-  const login = (usernameOrId, password) => {
-    console.log(`[Auth] Attempting login for: ${usernameOrId}`);
-    
-    // 1. Normalize input
-    const cleanInput = usernameOrId.trim();
+  const login = async (usernameOrEmail, password) => {
+    const input = (usernameOrEmail || '').trim();
+    if (!input) return { success: false, message: 'Enter your username or email' };
+    if (!password) return { success: false, message: 'Enter your password' };
 
-    // 2. Find employee
-    const employee = findUser(cleanInput);
-
-    // 3. Validate
-    if (!employee) {
-      console.warn(`[Auth] Login failed: User ${cleanInput} not found.`);
-      logLoginAttempt({ username: cleanInput, status: 'Failed', reason: 'User not found' });
-      return { success: false, message: 'Username/ID not found.' };
+    // Resolve to an email — Supabase auth signs in by email
+    let email = input;
+    if (!input.includes('@')) {
+      const { data: prof, error } = await supabase
+        .from('profiles')
+        .select('email, status')
+        .eq('username', input)
+        .maybeSingle();
+      if (error || !prof) {
+        return { success: false, message: 'Username/ID not found.' };
+      }
+      if (prof.status && prof.status !== 'Active') {
+        return { success: false, message: 'Account Suspended. Contact Admin.' };
+      }
+      email = prof.email;
     }
 
-    // 4. Verify Password
-    if (!verifyPassword(password, employee.password)) {
-      console.warn(`[Auth] Login failed: Incorrect password for ${cleanInput}.`);
-      logLoginAttempt({ username: cleanInput, status: 'Failed', reason: 'Incorrect Password' });
-      return { success: false, message: 'Incorrect password' };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return {
+        success: false,
+        message: error.message.includes('Invalid') ? 'Incorrect password' : error.message,
+      };
     }
 
-    if (employee.status !== 'Active') {
-       console.warn(`[Auth] Login failed: User ${cleanInput} is suspended.`);
-       logLoginAttempt({ username: cleanInput, status: 'Failed', reason: 'Account Suspended' });
-       return { success: false, message: 'Account Suspended. Contact Admin.' };
+    if (data.user) {
+      const prof = await loadProfile(data.user.id);
+      // Best-effort last_login update (RLS allows users to update own profile)
+      supabase.from('profiles')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', data.user.id)
+        .then(({ error: e }) => e && console.warn('[Auth] last_login update:', e.message));
+      return { success: true, role: prof?.role };
     }
-
-    // 5. Create Session
-    const sessionUser = {
-      id: employee.id,
-      username: employee.username,
-      name: employee.name,
-      email: employee.email,
-      role: employee.role,
-      lastLogin: new Date().toISOString(),
-      permissions: employee.role === 'super_admin' ? ['all'] : ['limited'] 
-    };
-
-    // Store in localStorage for persistence
-    localStorage.setItem('crm_user', JSON.stringify(sessionUser));
-    
-    // Update State
-    setUser(sessionUser);
-    
-    logLoginAttempt({ username: cleanInput, status: 'Success' });
-    console.log(`[Auth] Login successful for ${sessionUser.name} (${sessionUser.role})`);
-    
-    return { success: true, role: employee.role };
+    return { success: true };
   };
 
-  const logout = () => {
-    console.log('[Auth] Logging out user');
-    localStorage.removeItem('crm_user');
-    setUser(null);
-    window.location.href = '/crm/login';
-  };
+  // Compose the `user` shape that the rest of the app expects.
+  // Old shape: { id, username, name, email, role, lastLogin, permissions }
+  const user = authUser && profile
+    ? {
+        id: profile.id,
+        username: profile.username,
+        name: profile.name,
+        email: profile.email || authUser.email,
+        role: profile.role,
+        phone: profile.phone,
+        department: profile.department,
+        permissions: profile.permissions || (profile.role === 'super_admin' ? ['all'] : ['limited']),
+        lastLogin: profile.last_login,
+      }
+    : null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!authUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

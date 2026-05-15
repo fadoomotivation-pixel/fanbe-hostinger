@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 /**
  * useNewLeadNotifications
  * ───────────────────────
- * Subscribes to `INSERT` events on `crm_leads` via Supabase Realtime.
+ * Subscribes to `INSERT` events on `public.leads` via Supabase Realtime.
  * Fires a browser notification (if permission granted) and calls onNewLead
  * so the parent can refetch / show a toast / play a sound.
  *
@@ -31,10 +31,10 @@ export function useNewLeadNotifications(onNewLead) {
     document.addEventListener('visibilitychange', syncPerm);
 
     const channel = supabase
-      .channel('crm_leads_realtime')
+      .channel('leads_realtime')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'crm_leads' },
+        { event: 'INSERT', schema: 'public', table: 'leads' },
         (payload) => {
           const lead = payload.new || {};
           cbRef.current?.(lead);

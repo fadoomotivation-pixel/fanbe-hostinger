@@ -1,23 +1,38 @@
-
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Edit2, Trash2, Save, X, MessageSquare, Clock } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { Edit2, Trash2, MessageSquare, Clock } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import SmartQuickNotePanel from './SmartQuickNotePanel';
 
-const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNote }) => {
-  const [newNote, setNewNote] = useState('');
+/**
+ * NotesModal
+ * ──────────
+ * Shows all notes for a lead and provides a Smart Quick Note panel for
+ * adding new ones — outcome presets, intent detection, auto follow-up,
+ * guardrails, decision-maker / budget / urgency intel.
+ *
+ * Backwards-compatible API:
+ * - `onAddNote(text)` is still called with a flat string for callers that
+ *   only handle strings (the snapshot's `useCRMData` does this today).
+ * - When the smart panel returns structured data, we ALSO call
+ *   `onAddStructuredNote?.(value)` if the parent provides it. Production
+ *   should wire that to persist `tags`, `pickup_status`, `next_follow_up_at`,
+ *   `lost_reason` columns on `crm_leads` + a row in `crm_lead_interactions`.
+ */
+const NotesModal = ({
+  isOpen,
+  onClose,
+  lead,
+  onAddNote,
+  onAddStructuredNote,
+  onUpdateNote,
+  onDeleteNote,
+}) => {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editText, setEditText] = useState('');
-  const { user } = useAuth();
-
-  const handleAdd = () => {
-    if (!newNote.trim()) return;
-    onAddNote(newNote);
-    setNewNote('');
-  };
 
   const startEditing = (note) => {
     setEditingNoteId(note.id);
@@ -42,11 +57,45 @@ const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNo
     }
   };
 
+  // Compose the rich note text from structured fields and persist via the
+  // simple string API. If the parent also accepts structured data, send it.
+  const handleSave = (value) => {
+    const parts = [value.note];
+    if (value.tags?.length) parts.push(`Tags: ${value.tags.join(', ')}`);
+    if (value.nextFollowUpAt) {
+      const d = new Date(value.nextFollowUpAt);
+      parts.push(`Follow-up: ${d.toLocaleString()}`);
+    }
+    if (value.lostReason) parts.push(`Lost reason: ${value.lostReason}`);
+    if (value.budgetLakhs != null) parts.push(`Budget: ₹${value.budgetLakhs}L`);
+    const composed = parts.join(' · ');
+
+    onAddNote(composed);
+    onAddStructuredNote?.(value);
+
+    // Auto-feedback: confirm what was scheduled.
+    if (value.nextFollowUpAt) {
+      const d = new Date(value.nextFollowUpAt);
+      const dateStr = d.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+      toast({
+        title: '📞 Follow-up scheduled',
+        description: `${lead?.name || 'Lead'} — ${dateStr}`,
+      });
+    } else if (value.tags?.includes('not_interested')) {
+      toast({
+        title: '❌ Marked Not Interested',
+        description: value.lostReason ? `Reason: ${value.lostReason}` : '',
+      });
+    } else {
+      toast({ title: 'Note saved' });
+    }
+  };
+
   const sortedNotes = lead?.notes ? [...lead.notes].reverse() : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#0F3A5F]">
             <MessageSquare className="h-5 w-5" />
@@ -60,19 +109,8 @@ const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNo
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col gap-4">
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2 border">
-            <Textarea 
-              placeholder="Type a new note here..."
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              className="min-h-[80px] bg-white resize-none"
-            />
-            <div className="flex justify-end">
-              <Button size="sm" onClick={handleAdd} disabled={!newNote.trim()} className="bg-[#0F3A5F]">
-                Add Note
-              </Button>
-            </div>
-          </div>
+          {/* Smart Quick Note entry — replaces the old textarea+Add button */}
+          <SmartQuickNotePanel onSave={handleSave} />
 
           <ScrollArea className="flex-1 pr-4 -mr-4">
             <div className="space-y-4 pb-4">
@@ -89,15 +127,14 @@ const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNo
                           {new Date(note.timestamp).toLocaleString()}
                         </span>
                       </div>
-                      
-                      {/* Actions */}
+
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {editingNoteId !== note.id && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => startEditing(note)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEditing(note)} aria-label="Edit note">
                               <Edit2 size={12} className="text-blue-500" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDelete(note.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(note.id)} aria-label="Delete note">
                               <Trash2 size={12} className="text-red-500" />
                             </Button>
                           </>
@@ -107,14 +144,14 @@ const NotesModal = ({ isOpen, onClose, lead, onAddNote, onUpdateNote, onDeleteNo
 
                     {editingNoteId === note.id ? (
                       <div className="space-y-2">
-                        <Textarea 
+                        <Textarea
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
                           className="min-h-[60px] text-sm"
                         />
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={cancelEdit} className="h-7 text-xs">Cancel</Button>
-                          <Button size="sm" onClick={() => saveEdit(note.id)} className="h-7 text-xs bg-green-600 hover:bg-green-700">Save</Button>
+                          <Button variant="ghost" size="sm" onClick={cancelEdit} className="h-8 text-xs">Cancel</Button>
+                          <Button size="sm" onClick={() => saveEdit(note.id)} className="h-8 text-xs bg-green-600 hover:bg-green-700">Save</Button>
                         </div>
                       </div>
                     ) : (

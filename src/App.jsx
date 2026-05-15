@@ -192,6 +192,9 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                    {/* Sales Routes */}
                    <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
+                   {/* `sales/crm` is the production telecaller URL (fanbegroup.com/crm/sales/crm).
+                       Alias it to MyLeads so the live link doesn't 404. */}
+                   <Route path="sales/crm" element={<MyLeads />} />
                    {/* Fallback to desktop dash if not mobile */}
                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
                    

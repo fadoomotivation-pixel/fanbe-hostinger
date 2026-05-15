@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCRMData } from '@/crm/hooks/useCRMData';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Search, Plus, Filter, Phone, MessageCircle } from 'lucide-react';
 import projects from '@/data/projects';
+import NotificationPermissionBanner from '@/crm/components/NotificationPermissionBanner';
+import { useFollowUpNotifications } from '@/crm/hooks/useFollowUpNotifications';
+import { useNewLeadNotifications } from '@/crm/hooks/useNewLeadNotifications';
 
 const MyLeads = () => {
   const { user } = useAuth();
@@ -17,6 +20,24 @@ const MyLeads = () => {
   const [projectFilter, setProjectFilter] = useState('all');
 
   const myLeads = leads.filter(l => l.assignedTo === user?.id);
+
+  // Telecaller alerts: reminders fire when next_follow_up_at is due; a
+  // notification fires when a new lead lands in crm_leads via Realtime.
+  // The follow-up hook expects { id, name, phone, nextFollowUpAt, status, quickNote }
+  // — map our snapshot's `followUpDate` / `lastNote` shape into that.
+  const leadsForReminders = useMemo(() =>
+    myLeads.map(l => ({
+      id: l.id,
+      name: l.name,
+      phone: l.phone,
+      nextFollowUpAt: l.followUpDate ?? l.nextFollowUpAt ?? null,
+      status: l.status,
+      quickNote: l.notes?.[l.notes.length - 1]?.text,
+    })),
+    [myLeads]
+  );
+  useFollowUpNotifications(leadsForReminders);
+  useNewLeadNotifications();
 
   const filteredLeads = myLeads.filter(l => {
     const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) || l.phone.includes(searchTerm);
@@ -35,13 +56,16 @@ const MyLeads = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-         <div>
+    <div className="space-y-6 pb-20">
+      <NotificationPermissionBanner />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4">
+         <div className="min-w-0">
             <h1 className="text-2xl font-bold text-[#0F3A5F]">My Leads</h1>
-            <p className="text-gray-500">Manage and track your potential clients</p>
+            <p className="text-sm text-gray-500">Manage and track your potential clients</p>
          </div>
-         <Button><Plus className="mr-2 h-4 w-4" /> Add New Lead</Button>
+         <Button className="w-full md:w-auto min-h-[44px]">
+           <Plus className="mr-2 h-4 w-4" /> Add New Lead
+         </Button>
       </div>
 
       <Card>

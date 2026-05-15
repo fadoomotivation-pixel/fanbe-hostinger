@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, readFileSync, writeFileSync, renameSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, statSync, copyFileSync, readFileSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const SRC = 'main-website'
 const DEST = 'dist'
 
 if (!existsSync(SRC)) {
-  console.log(`⚠️  main-website/ folder not found — skipping copy. CRM-only build.`)
-  process.exit(0)
+  console.error(`❌ main-website/ folder not found — nothing to build.`)
+  process.exit(1)
 }
 
 function copyRecursive(src, dest) {
@@ -26,21 +26,13 @@ function copyRecursive(src, dest) {
 copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
-// Patch 1: rename dist/sales/index.html → dist/sales/app.html
-const salesCrmIndex = path.join(DEST, 'sales', 'index.html')
-const salesCrmApp   = path.join(DEST, 'sales', 'app.html')
-if (existsSync(salesCrmIndex)) {
-  renameSync(salesCrmIndex, salesCrmApp)
-  console.log('🔧 Renamed dist/sales/index.html → dist/sales/app.html')
-}
-
-// Patch 2: sidebar nav labels in the compiled admin CRM bundle
+// Sidebar nav label patch in the compiled admin CRM bundle: "Dashboard" → "Control".
 const assetsDir = path.join(DEST, 'assets')
 if (existsSync(assetsDir)) {
   for (const file of readdirSync(assetsDir)) {
     if (!file.endsWith('.js')) continue
     const filePath = path.join(assetsDir, file)
-    let content = readFileSync(filePath, 'utf8')
+    const content = readFileSync(filePath, 'utf8')
     const patched = content.replaceAll(
       'label:"Dashboard",path:"/crm/admin/dashboard"',
       'label:"Control",path:"/crm/admin/dashboard"'

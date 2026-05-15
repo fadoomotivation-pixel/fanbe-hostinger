@@ -84,6 +84,26 @@ export default function CallCRM() {
     }
   }
 
+  // Click handler for the always-visible notification status pill.
+  // Behaviour adapts to the current permission state so the telecaller has one obvious thing to tap.
+  const handleNotifPillClick = () => {
+    if (notifPerm === 'default') return handleEnableNotifs()
+    if (notifPerm === 'granted') {
+      try {
+        new Notification('🔔 FanBe CRM test', { body: 'Notifications are working. You will get alerts for new leads & callbacks.', icon: '/crm/favicon.ico' })
+        toast.success('Test notification sent — check your screen')
+      } catch {
+        toast.error('Could not fire a test notification')
+      }
+      return
+    }
+    if (notifPerm === 'denied') {
+      toast.error('Blocked. Tap the lock icon next to the URL → Permissions → Notifications → Allow, then come back.', { duration: 7000 })
+      return
+    }
+    toast.error('This browser does not support notifications')
+  }
+
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['crm_leads'],
     queryFn: async () => {
@@ -250,6 +270,7 @@ export default function CallCRM() {
           <p className="text-sm text-gray-500">{greeting()}, telecaller</p>
         </div>
         <div className="flex items-center gap-2">
+          <NotifStatusPill state={notifPerm} onClick={handleNotifPillClick} />
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
             <Input value={q} onChange={(e: any) => setQ(e.target.value)} placeholder="Search leads\u2026" className="pl-7 w-56"/>
@@ -412,6 +433,29 @@ function LeadCard({ idx, lead, onOpen, onQuickLog, quickLogging }: {
 
 function Pill({ label, color }: { label: string; color: string }) {
   return <span className={`px-3 py-1 rounded-full text-xs font-medium border ${color}`}>{label}</span>
+}
+
+function NotifStatusPill({ state, onClick }: {
+  state: NotificationPermission | 'unsupported'
+  onClick: () => void
+}) {
+  const cfg = {
+    granted:     { Icon: BellRing, label: 'Alerts on',      cls: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',         title: 'Tap to fire a test notification' },
+    default:     { Icon: BellRing, label: 'Enable alerts',  cls: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 animate-pulse',        title: 'Tap to enable notifications' },
+    denied:      { Icon: BellOff,  label: 'Alerts blocked', cls: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',                  title: 'Tap for instructions to unblock' },
+    unsupported: { Icon: BellOff,  label: 'No alerts',      cls: 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed',                    title: 'Notifications are not supported in this browser' },
+  }[state]
+  const { Icon, label, cls, title } = cfg
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${cls}`}>
+      <Icon size={14} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  )
 }
 
 function AddLeadModal({ open, onClose, onSubmit, saving }: {

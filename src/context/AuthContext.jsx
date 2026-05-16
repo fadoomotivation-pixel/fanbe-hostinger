@@ -32,7 +32,7 @@ const AuthContext = createContext(null);
 // Survives React re-renders and prevents double DB call
 const _profileCache = new Map();
 
-const getSessionWithTimeout = (ms = 4000) => {
+const getSessionWithTimeout = (ms = 15000) => {
   const sessionPromise = supabase.auth.getSession();
   const timeoutPromise = new Promise((resolve) =>
     setTimeout(() => resolve({ data: { session: null }, error: new Error('timeout') }), ms)
@@ -59,14 +59,18 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
 
-    // ── Step 1: check existing session (4s timeout) ─────────────────────
-    getSessionWithTimeout(4000).then(async ({ data: { session }, error }) => {
+    // ── Step 1: check existing session (15s timeout) ────────────────────
+    getSessionWithTimeout(15000).then(async ({ data: { session }, error }) => {
       if (!isMounted) return;
 
       if (error?.message === 'timeout') {
-        console.warn('[Auth] Supabase timed out — cannot reach server');
-        setConnectionError(true);
+        // Supabase didn't respond in 15s — likely slow network, NOT a paused
+        // project. Don't block the app on this. Treat as "no session" and
+        // let the user land on /login normally; AuthStateChange will pick
+        // them up once the SDK eventually resolves.
+        console.warn('[Auth] Supabase getSession timed out after 15s — continuing with no session');
         setLoading(false);
+        initializeData();
         return;
       }
 

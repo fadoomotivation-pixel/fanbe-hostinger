@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
           if (userRef.current) return; // already have user — skip
         }
 
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           const uid = session.user.id;
           try {
             // FIX: use cache — SIGNED_IN fires right after getSessionWithTimeout

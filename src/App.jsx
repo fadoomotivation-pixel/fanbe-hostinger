@@ -192,6 +192,12 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
                    {/* Sales Routes */}
                    <Route path="sales/dashboard" element={<SalesExecutiveDashboard />} />
+                   {/* `sales/crm` is the production telecaller URL
+                       (fanbegroup.com/crm/sales/crm). Alias to MyLeads so the
+                       live link doesn't 404 — MyLeads is also where the new
+                       Supabase-powered paginated list + smart quick-note +
+                       notifications are wired. */}
+                   <Route path="sales/crm" element={<MyLeads />} />
                    {/* Fallback to desktop dash if not mobile */}
                    {!isMobile && <Route path="employee-dashboard" element={<EmployeeDashboard />} />}
                    

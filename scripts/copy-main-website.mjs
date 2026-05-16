@@ -26,20 +26,26 @@ function copyRecursive(src, dest) {
 copyRecursive(SRC, DEST)
 console.log('✅ Main website files copied into dist/')
 
-// Sidebar nav label patch in the compiled admin CRM bundle: "Dashboard" → "Control".
+// Compiled CRM bundle label patches.
+//   - "Dashboard" → "Control" in the admin sidebar
+//   - "Call CRM" → "My CRM" in the employee bottom-nav (covers all 3 string
+//     forms in the bundle: emoji label, plain label, and page header text)
 const assetsDir = path.join(DEST, 'assets')
 if (existsSync(assetsDir)) {
   for (const file of readdirSync(assetsDir)) {
     if (!file.endsWith('.js')) continue
     const filePath = path.join(assetsDir, file)
     const content = readFileSync(filePath, 'utf8')
-    const patched = content.replaceAll(
-      'label:"Dashboard",path:"/crm/admin/dashboard"',
-      'label:"Control",path:"/crm/admin/dashboard"'
-    )
+    const patched = content
+      .replaceAll(
+        'label:"Dashboard",path:"/crm/admin/dashboard"',
+        'label:"Control",path:"/crm/admin/dashboard"'
+      )
+      .replaceAll('"📞 Call CRM"', '"📞 My CRM"')
+      .replaceAll('"Call CRM"', '"My CRM"')
     if (patched !== content) {
       writeFileSync(filePath, patched, 'utf8')
-      console.log(`🔧 Patched sidebar label: Dashboard → Control in ${file}`)
+      console.log(`🔧 Patched labels (Dashboard → Control, Call CRM → My CRM) in ${file}`)
     }
   }
 }

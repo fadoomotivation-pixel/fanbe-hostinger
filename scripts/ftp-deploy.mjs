@@ -1,83 +1,134 @@
-import FTP from 'basic-ftp'
-import { readdirSync, statSync } from 'fs'
-import path from 'path'
-import { config as dotenv } from 'dotenv'
+import * as ftp from 'basic-ftp';
+import { resolve, join } from 'node:path';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 
-dotenv({ path: '.env.deploy' })
-
-const { FTP_HOST, FTP_USER, FTP_PASS, FTP_REMOTE = '/public_html' } = process.env
-
-if (!FTP_HOST || !FTP_USER || !FTP_PASS) {
-  console.error('❌ Missing FTP credentials in .env.deploy')
-  process.exit(1)
-}
-
-const LOCAL_DIST = './dist'
-
-async function uploadDir(client, localDir, remoteDir) {
-  await client.ensureDir(remoteDir)
-  const entries = readdirSync(localDir)
-  for (const entry of entries) {
-    const localPath = path.join(localDir, entry)
-    const remotePath = `${remoteDir}/${entry}`
-    if (statSync(localPath).isDirectory()) {
-      await uploadDir(client, localPath, remotePath)
-    } else {
-      await client.uploadFrom(localPath, remotePath)
-      console.log(`✓ ${remotePath}`)
-    }
+// ── Load .env.deploy manually ──────────────────────────────────────────────
+if (existsSync('.env.deploy')) {
+  const lines = readFileSync('.env.deploy', 'utf8').split('\n');
+  for (const line of lines) {
+    const [k, ...v] = line.split('=');
+    if (k && v.length) process.env[k.trim()] = v.join('=').trim();
   }
 }
 
-const client = new FTP.Client()
-client.ftp.verbose = false
+const FTP_HOST   = process.env.FTP_HOST   || 'ftp.fanbegroup.com';
+const FTP_USER   = process.env.FTP_USER   || 'u709132965';
+const FTP_PASS   = process.env.FTP_PASS;
+const FTP_REMOTE = process.env.FTP_REMOTE || '/public_html';
+const LOCAL_DIR  = resolve('dist');
 
-// Try FTPS (explicit TLS) first — required by Hostinger
-async function tryConnect(secure, port) {
-  await client.access({
-    host: FTP_HOST,
-    user: FTP_USER,
-    password: FTP_PASS,
-    secure,
-    port,
-    secureOptions: { rejectUnauthorized: false }
-  })
+if (!FTP_PASS) {
+  console.error('\n❌  Missing FTP_PASS in .env.deploy file.');
+  console.error('    Add: FTP_PASS=your_ftp_password\n');
+  process.exit(1);
 }
 
-try {
-  let connected = false
+const MAX_RETRIES = 3;
 
-  // Attempt 1: FTPS explicit TLS on port 21
+async function connectWithRetry(client, attempt = 1) {
   try {
-    console.log('🔌 Trying FTPS (explicit TLS) on port 21...')
-    await tryConnect('implicit' === 'explicit' ? true : 'control', 21)
-    connected = true
-  } catch (e1) {
-    console.log('⚠️  Attempt 1 failed, trying plain FTP on port 21...')
-    // Attempt 2: Plain FTP port 21
-    try {
-      await tryConnect(false, 21)
-      connected = true
-    } catch (e2) {
-      console.log('⚠️  Attempt 2 failed, trying FTPS on port 990...')
-      // Attempt 3: FTPS implicit port 990
-      await tryConnect(true, 990)
-      connected = true
+    console.log(`\n🔌  Connecting to ${FTP_HOST}:21 FTPS (attempt ${attempt}/${MAX_RETRIES})...`);
+    await client.access({
+      host: FTP_HOST,
+      user: FTP_USER,
+      password: FTP_PASS,
+      port: 21,
+      secure: 'implicit',   // FTPS implicit (Hostinger supports this)
+      secureOptions: { rejectUnauthorized: false },
+      timeout: 60000,
+    });
+    client.ftp.socket.setKeepAlive(true, 10000);
+    client.ftp.socket.setTimeout(120000);
+    console.log('✅  Connected!');
+  } catch (err) {
+    // fallback: try explicit TLS on port 21
+    if (attempt === 1) {
+      try {
+        console.warn(`⚠️   Implicit FTPS failed, trying explicit TLS...`);
+        await client.access({
+          host: FTP_HOST,
+          user: FTP_USER,
+          password: FTP_PASS,
+          port: 21,
+          secure: true,
+          secureOptions: { rejectUnauthorized: false },
+          timeout: 60000,
+        });
+        client.ftp.socket.setKeepAlive(true, 10000);
+        client.ftp.socket.setTimeout(120000);
+        console.log('✅  Connected via explicit TLS!');
+        return;
+      } catch (e2) {
+        console.warn(`⚠️   Explicit TLS also failed (${e2.message}), trying plain FTP...`);
+      }
+    }
+    // fallback: plain FTP
+    if (attempt < MAX_RETRIES) {
+      try {
+        await client.access({
+          host: FTP_HOST,
+          user: FTP_USER,
+          password: FTP_PASS,
+          port: 21,
+          secure: false,
+          timeout: 60000,
+        });
+        client.ftp.socket.setKeepAlive(true, 10000);
+        console.log('✅  Connected via plain FTP!');
+        return;
+      } catch (e3) {
+        console.warn(`⚠️   Plain FTP failed (${e3.message}), retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
+        return connectWithRetry(client, attempt + 1);
+      }
+    }
+    throw err;
+  }
+}
+
+// Recursively upload local dir to remote, overwriting files
+async function uploadDir(client, localDir, remoteDir) {
+  await client.ensureDir(remoteDir);
+  const entries = readdirSync(localDir);
+  let count = 0;
+  for (const entry of entries) {
+    const localPath  = join(localDir, entry);
+    const remotePath = `${remoteDir}/${entry}`;
+    const stat = statSync(localPath);
+    if (stat.isDirectory()) {
+      count += await uploadDir(client, localPath, remotePath);
+    } else {
+      process.stdout.write(`   ↑ ${entry}\n`);
+      await client.uploadFrom(localPath, remotePath);
+      count++;
     }
   }
-
-  if (connected) {
-    console.log('🔗 Connected to FTP:', FTP_HOST)
-    await uploadDir(client, LOCAL_DIST, FTP_REMOTE)
-    console.log('✅ Deploy complete!')
-  }
-} catch (err) {
-  console.error('❌ FTP Error:', err.message)
-  console.error('\n💡 Troubleshooting:')
-  console.error('   1. Check FTP credentials in .env.deploy')
-  console.error('   2. Hostinger FTP user format: u709132965.fanbegroup.com')
-  console.error('   3. Try uploading manually via hPanel → Files → File Manager')
-  process.exit(1)
-} finally {
-  client.close()
+  return count;
 }
+
+async function deploy() {
+  const client = new ftp.Client();
+  client.ftp.verbose = false;
+
+  try {
+    await connectWithRetry(client);
+
+    console.log(`\n📁  Uploading dist/ → ${FTP_REMOTE}`);
+    console.log('    Overwriting files...');
+    console.log('    This may take 2-5 minutes...\n');
+
+    const count = await uploadDir(client, LOCAL_DIR, FTP_REMOTE);
+
+    console.log(`\n✅  Deploy complete! ${count} files uploaded.`);
+    console.log('🌐  Live at https://fanbegroup.com\n');
+  } catch (err) {
+    console.error('\n❌  FTP deploy failed:', err.message);
+    console.error('\n📄  Manual fallback — use FileZilla:');
+    console.error(`    Host: ${FTP_HOST}  User: ${FTP_USER}  Port: 21  Remote: ${FTP_REMOTE}\n`);
+    process.exit(1);
+  } finally {
+    client.close();
+  }
+}
+
+deploy();

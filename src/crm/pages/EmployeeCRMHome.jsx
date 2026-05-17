@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useMyLeads } from '@/crm/hooks/useMyLeads';
+import { useFollowUpNotifications } from '@/crm/hooks/useFollowUpNotifications';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SmartDateInput from '@/crm/components/SmartDateInput';
+import SmartNotesInput from '@/crm/components/SmartNotesInput';
 import {
   Phone, PhoneOff, PhoneMissed, PhoneIncoming, Clock, Calendar,
   AlertCircle, Search, ChevronRight, MessageCircle, X, Check,
@@ -263,6 +265,20 @@ const EmployeeCRMHome = () => {
 
   const myLeads = leads;
   const myCalls = calls || [];
+
+  // Ask once for browser notification permission so useFollowUpNotifications
+  // below can fire a desktop notification at each lead's follow-up time
+  // (and a 15-min pre-warning) even if the CRM tab is in the background.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  // Schedule the follow-up + pre-warning timers. Re-runs whenever
+  // myLeads changes (new lead, status change, follow-up reschedule).
+  useFollowUpNotifications(myLeads);
 
   const today = new Date().toISOString().split('T')[0];
   const todayStats = useMemo(() => {
@@ -833,8 +849,13 @@ const EmployeeCRMHome = () => {
                       </button>
                     ))}
                   </div>
-                  <Textarea placeholder="Quick note (optional)..." value={callNote}
-                    onChange={e => setCallNote(e.target.value)} rows={2} className="text-sm resize-none rounded-xl" />
+                  <SmartNotesInput
+                    value={callNote}
+                    onChange={setCallNote}
+                    placeholder="Quick note — try 'call back tomorrow', 'interested in 2BHK', 'not picking'..."
+                    rows={2}
+                    className="text-sm rounded-xl"
+                  />
                 </div>
               )}
 
@@ -903,8 +924,13 @@ const EmployeeCRMHome = () => {
                       {followUpDate && parseLocalDate(followUpDate) ? format(parseLocalDate(followUpDate), 'EEE, MMM dd') : 'Today'}
                     </p>
                   </div>
-                  <Textarea placeholder="Notes for next call..." value={callNote}
-                    onChange={e => setCallNote(e.target.value)} rows={2} className="text-sm resize-none rounded-xl" />
+                  <SmartNotesInput
+                    value={callNote}
+                    onChange={setCallNote}
+                    placeholder="Notes for next call — try 'send brochure', 'site visit Sunday', 'budget 30L'..."
+                    rows={2}
+                    className="text-sm rounded-xl"
+                  />
                   <Button onClick={handleSaveFollowUp} disabled={saving}
                     className="w-full bg-[#0F3A5F] hover:bg-[#0a2d4f] h-11 rounded-xl">
                     {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : <Check size={16} className="mr-2" />}

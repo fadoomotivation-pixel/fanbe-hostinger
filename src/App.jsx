@@ -252,24 +252,27 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<HomePage onBookSiteVisit={onBookSiteVisit} />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/projects" element={<ProjectsListingPage />} />
-        <Route path="/projects/:slug" element={<ProjectDetailPage />} />
-        <Route path="/why-invest" element={<WhyInvestPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/broker/login" element={<BrokerLoginPage />} />
-        <Route path="/broker/register" element={<BrokerRegisterPage />} />
-        <Route path="/broker/portal" element={
-          <BrokerProtectedRoute>
-            <BrokerPayoutPortalPage />
-          </BrokerProtectedRoute>
-        } />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+    <>
+      <Header onBookSiteVisit={onBookSiteVisit} />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<HomePage onBookSiteVisit={onBookSiteVisit} />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/projects" element={<ProjectsListingPage />} />
+          <Route path="/projects/:slug" element={<ProjectDetailPage />} />
+          <Route path="/why-invest" element={<WhyInvestPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/broker/login" element={<BrokerLoginPage />} />
+          <Route path="/broker/register" element={<BrokerRegisterPage />} />
+          <Route path="/broker/portal" element={
+            <BrokerProtectedRoute>
+              <BrokerPayoutPortalPage />
+            </BrokerProtectedRoute>
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 };
 

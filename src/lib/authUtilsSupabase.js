@@ -11,8 +11,13 @@ export const login = async (usernameOrEmail, password) => {
   try {
     let email = usernameOrEmail;
 
+    // Step 1: username → email lookup. Uses the ANON client (not admin)
+    // because the RLS policy "Enable username to email lookup for login"
+    // already grants anon SELECT on profiles for exactly this query.
+    // Intentionally avoids VITE_SUPABASE_SERVICE_ROLE_KEY — a malformed
+    // service-role key was breaking login here.
     if (!usernameOrEmail.includes('@')) {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('profiles')
         .select('email')
         .eq('username', usernameOrEmail.toLowerCase())
@@ -39,7 +44,10 @@ export const login = async (usernameOrEmail, password) => {
       return { success: false, message: authError.message };
     }
 
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // After signInWithPassword the SDK has a session, so `supabase` is now
+    // an authenticated client — the "Authenticated users read own profile"
+    // RLS policy allows this. No admin client needed.
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id,username,name,email,role,permissions,status,last_login')
       .eq('id', authData.user.id)
@@ -56,7 +64,7 @@ export const login = async (usernameOrEmail, password) => {
     }
 
     // Fire-and-forget: don't await last_login update — not critical path
-    supabaseAdmin
+    supabase
       .from('profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', authData.user.id)

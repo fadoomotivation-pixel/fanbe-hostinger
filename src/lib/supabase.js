@@ -1,25 +1,40 @@
 // src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
-// Set these in Hostinger → Advanced → Environment Variables:
+// Env vars must be set in Vercel → Settings → Environment Variables:
 //   VITE_SUPABASE_URL
 //   VITE_SUPABASE_ANON_KEY
-//   VITE_SUPABASE_SERVICE_ROLE_KEY
-const supabaseUrl            = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey        = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+//   VITE_SUPABASE_SERVICE_ROLE_KEY  (optional — admin-only ops)
+//
+// `.trim()` guards against a pasted-with-whitespace value: when env vars
+// have stray newlines/tabs, fetch() in the SDK throws "Invalid value"
+// trying to use them as a Bearer header — extremely opaque error.
+const cleanEnv = (v) => (typeof v === 'string' ? v.trim() : '');
+
+const supabaseUrl            = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
+const supabaseAnonKey        = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY);
+const rawServiceRoleKey      = cleanEnv(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
+// JWT keys are always 3 base64-url segments separated by '.' — reject
+// anything else (empty, "undefined" string, partially-pasted, etc.)
+// and fall back to the anon key so the app still boots.
+const isValidJwt = (k) => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(k);
+const supabaseServiceRoleKey = isValidJwt(rawServiceRoleKey) ? rawServiceRoleKey : supabaseAnonKey;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error(
-    '[Supabase] CRITICAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
-    'Set them in Hostinger env settings.'
+    '[Supabase] CRITICAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in build env.'
   );
 }
 
-if (!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
+if (rawServiceRoleKey && !isValidJwt(rawServiceRoleKey)) {
+  console.warn(
+    '[Supabase] WARNING: VITE_SUPABASE_SERVICE_ROLE_KEY is set but does not look like a JWT. ' +
+    'Falling back to anon key. Check Vercel env var for stray whitespace or wrong value.'
+  );
+} else if (!rawServiceRoleKey) {
   console.warn(
     '[Supabase] WARNING: VITE_SUPABASE_SERVICE_ROLE_KEY not set. ' +
-    'Falling back to anon key for admin client — some admin operations may be restricted by RLS.'
+    'Falling back to anon key for admin client — some admin ops will be RLS-restricted.'
   );
 }
 

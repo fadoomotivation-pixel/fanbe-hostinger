@@ -12,7 +12,7 @@
 //        a duplicate fetchLeads() on initial page load (Chromium fires the event
 //        immediately when the page first becomes visible, which previously caused
 //        req#1 and req#2 to both apply 2084 leads and trigger a 300ms forced reflow).
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { supabaseAdmin } from '@/lib/supabase';
 import { addCall, getCalls, addSiteVisit, getSiteVisits, addBooking, getBookings } from '@/lib/crmSupabase';
 import {
@@ -93,24 +93,32 @@ export const useCRMData = () => {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ✅ SUPABASE REALTIME SUBSCRIPTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Append a per-mount unique suffix to every channel name. The Supabase
+  // JS client caches channels by name internally — if a component re-mounts
+  // (admin nav, hot-reload, etc.) and tries to create a channel with the
+  // same static name as before, the SDK returns the existing already-
+  // subscribed channel and `.on('postgres_changes', ...)` throws
+  // "cannot add postgres_changes callbacks for ... after subscribe()".
+  // Unique names per mount eliminate that collision entirely.
+  const channelSuffix = useId().replace(/:/g, '');
   useEffect(() => {
     const leadsChannel = supabaseAdmin
-      .channel('realtime:leads')
+      .channel(`realtime:leads:${channelSuffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads())
       .subscribe();
 
     const visitsChannel = supabaseAdmin
-      .channel('realtime:site_visits')
+      .channel(`realtime:site_visits:${channelSuffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => fetchSiteVisits())
       .subscribe();
 
     const callsChannel = supabaseAdmin
-      .channel('realtime:calls')
+      .channel(`realtime:calls:${channelSuffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => fetchCalls())
       .subscribe();
 
     const bookingsChannel = supabaseAdmin
-      .channel('realtime:bookings')
+      .channel(`realtime:bookings:${channelSuffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
       .subscribe();
 

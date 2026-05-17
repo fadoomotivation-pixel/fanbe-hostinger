@@ -20,6 +20,34 @@ import {
   samplePayments, sampleSettings, sampleWhatsAppTemplates
 } from '../data/sampleData';
 
+// Explicit column list for fetchLeads — replaces SELECT * which was pulling
+// every column on the row (including large text fields and unused metadata).
+// Add a column here if a renderer needs it; do NOT switch back to '*'.
+const LEAD_COLUMNS = [
+  'id', 'full_name', 'phone', 'email', 'source', 'final_status', 'status',
+  'budget', 'interest_level', 'notes', 'call_attempt', 'call_status',
+  'site_visit_status', 'assigned_to', 'assigned_to_name', 'created_by',
+  'created_at', 'updated_at', 'project', 'next_followup_date',
+  'token_amount', 'booking_amount', 'partial_payment', 'payment_mode',
+  'unit_number', 'is_vip', 'assigned_at', 'prev_assigned_to',
+  'prev_assigned_to_name', 'prev_assigned_at',
+].join(',');
+
+// Debounce realtime-triggered refetches. Each table's realtime channel
+// fires postgres_changes events on every INSERT/UPDATE/DELETE — without
+// coalescing, a batch of writes turned into N back-to-back full-table
+// re-fetches (each costing 5 round-trips + a heavy normalize loop).
+// 800ms is short enough that the UI still feels live, long enough to
+// fold a burst of updates into a single fetch.
+const REALTIME_REFETCH_DEBOUNCE_MS = 800;
+function makeDebounced(fn, ms) {
+  let t = null;
+  return () => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => { t = null; fn(); }, ms);
+  };
+}
+
 const STORAGE_KEYS = {
   CUSTOMERS:       'crm_customers',
   INVOICES:        'crm_invoices',
@@ -102,24 +130,31 @@ export const useCRMData = () => {
   // Unique names per mount eliminate that collision entirely.
   const channelSuffix = useId().replace(/:/g, '');
   useEffect(() => {
+    // Coalesce realtime-triggered refetches per-table — a burst of writes
+    // shouldn't trigger a flurry of independent full-table reloads.
+    const debouncedFetchLeads      = makeDebounced(fetchLeads,      REALTIME_REFETCH_DEBOUNCE_MS);
+    const debouncedFetchSiteVisits = makeDebounced(fetchSiteVisits, REALTIME_REFETCH_DEBOUNCE_MS);
+    const debouncedFetchCalls      = makeDebounced(fetchCalls,      REALTIME_REFETCH_DEBOUNCE_MS);
+    const debouncedFetchBookings   = makeDebounced(fetchBookings,   REALTIME_REFETCH_DEBOUNCE_MS);
+
     const leadsChannel = supabaseAdmin
       .channel(`realtime:leads:${channelSuffix}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, debouncedFetchLeads)
       .subscribe();
 
     const visitsChannel = supabaseAdmin
       .channel(`realtime:site_visits:${channelSuffix}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, () => fetchSiteVisits())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_visits' }, debouncedFetchSiteVisits)
       .subscribe();
 
     const callsChannel = supabaseAdmin
       .channel(`realtime:calls:${channelSuffix}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => fetchCalls())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, debouncedFetchCalls)
       .subscribe();
 
     const bookingsChannel = supabaseAdmin
       .channel(`realtime:bookings:${channelSuffix}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, debouncedFetchBookings)
       .subscribe();
 
     // ✅ FIX: Only refetch when the tab returns from being hidden.
@@ -193,7 +228,7 @@ export const useCRMData = () => {
       let allData = [], from = 0, keepGoing = true;
       while (keepGoing) {
         const { data, error } = await supabaseAdmin
-          .from('leads').select('*').order('created_at', { ascending: false })
+          .from('leads').select(LEAD_COLUMNS).order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
         if (error) {
           console.error('[Leads] Fetch error:', error.message);

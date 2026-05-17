@@ -968,6 +968,11 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
             {lead.project && <span className="text-[10px] text-gray-400 truncate max-w-[100px]">{lead.project}</span>}
+            {lead.budget && (
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded">
+                💰 {typeof lead.budget === 'number' ? `₹${Number(lead.budget).toLocaleString('en-IN')}` : lead.budget}
+              </span>
+            )}
             {getCallBadge()} {getStatusBadge()}
             {lead._callCount > 0 && <span className="text-[9px] text-gray-400">{lead._callCount} calls</span>}
             {lead._daysUntilFollowUp !== null && lead._daysUntilFollowUp <= 1 && (
@@ -1028,6 +1033,11 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
               <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 {lead.project && <span className="text-[10px] text-gray-400">{lead.project}</span>}
+                {lead.budget && (
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded">
+                    💰 {typeof lead.budget === 'number' ? `₹${Number(lead.budget).toLocaleString('en-IN')}` : lead.budget}
+                  </span>
+                )}
                 {lead._daysUntilFollowUp !== null && (
                   <span className={`text-[9px] font-bold ${
                     lead._daysUntilFollowUp < 0 ? 'text-red-600' : lead._daysUntilFollowUp === 0 ? 'text-amber-600' : 'text-blue-600'

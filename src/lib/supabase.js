@@ -1,41 +1,46 @@
 // src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
-// Env vars must be set in Vercel → Settings → Environment Variables:
-//   VITE_SUPABASE_URL
-//   VITE_SUPABASE_ANON_KEY
-//   VITE_SUPABASE_SERVICE_ROLE_KEY  (optional — admin-only ops)
+// Hardcoded constants for URL + anon key are SAFE: both are public values
+// (the anon key is specifically designed to ship in the client bundle and
+// is enforced by RLS server-side). They serve as a fallback whenever the
+// Vite-injected env vars are missing, empty, or malformed — that has
+// historically caused opaque "fetch Invalid value" errors at runtime
+// because the Supabase SDK builds Bearer headers from whatever string
+// it gets, and HTTP Headers reject whitespace/newlines.
 //
-// `.trim()` guards against a pasted-with-whitespace value: when env vars
-// have stray newlines/tabs, fetch() in the SDK throws "Invalid value"
-// trying to use them as a Bearer header — extremely opaque error.
+// Service role key (admin client) is NEVER hardcoded — it stays env-only.
+const HARDCODED_URL      = 'https://mfgjzkaabyltscgrkhdz.supabase.co';
+const HARDCODED_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mZ2p6a2FhYnlsdHNjZ3JraGR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDAzNjQsImV4cCI6MjA4NjkxNjM2NH0.V6uWBH72rgp0UEFdB9aT8qrG4YFYhnERWZO1t976_tM';
+
+// Trim guards against a pasted-with-whitespace env value.
 const cleanEnv = (v) => (typeof v === 'string' ? v.trim() : '');
-
-const supabaseUrl            = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
-const supabaseAnonKey        = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY);
-const rawServiceRoleKey      = cleanEnv(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
-// JWT keys are always 3 base64-url segments separated by '.' — reject
-// anything else (empty, "undefined" string, partially-pasted, etc.)
-// and fall back to the anon key so the app still boots.
+// JWT format check: 3 base64url segments separated by `.`
 const isValidJwt = (k) => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(k);
-const supabaseServiceRoleKey = isValidJwt(rawServiceRoleKey) ? rawServiceRoleKey : supabaseAnonKey;
+// URL format check: must be https://*.supabase.co (no spaces, no newlines)
+const isValidUrl = (u) => /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(u);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    '[Supabase] CRITICAL: Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in build env.'
-  );
+const envUrl     = cleanEnv(import.meta.env.VITE_SUPABASE_URL);
+const envAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY);
+const envSrvKey  = cleanEnv(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
+
+const supabaseUrl            = isValidUrl(envUrl) ? envUrl : HARDCODED_URL;
+const supabaseAnonKey        = isValidJwt(envAnonKey) ? envAnonKey : HARDCODED_ANON_KEY;
+const supabaseServiceRoleKey = isValidJwt(envSrvKey) ? envSrvKey : supabaseAnonKey;
+
+if (envUrl && !isValidUrl(envUrl)) {
+  console.warn('[Supabase] VITE_SUPABASE_URL malformed; using hardcoded fallback.');
 }
-
-if (rawServiceRoleKey && !isValidJwt(rawServiceRoleKey)) {
+if (envAnonKey && !isValidJwt(envAnonKey)) {
+  console.warn('[Supabase] VITE_SUPABASE_ANON_KEY malformed; using hardcoded fallback.');
+}
+if (envSrvKey && !isValidJwt(envSrvKey)) {
   console.warn(
-    '[Supabase] WARNING: VITE_SUPABASE_SERVICE_ROLE_KEY is set but does not look like a JWT. ' +
-    'Falling back to anon key. Check Vercel env var for stray whitespace or wrong value.'
+    '[Supabase] VITE_SUPABASE_SERVICE_ROLE_KEY malformed; admin client will use anon key. ' +
+    'Re-paste the value in Vercel (check for leading/trailing whitespace or newline).'
   );
-} else if (!rawServiceRoleKey) {
-  console.warn(
-    '[Supabase] WARNING: VITE_SUPABASE_SERVICE_ROLE_KEY not set. ' +
-    'Falling back to anon key for admin client — some admin ops will be RLS-restricted.'
-  );
+} else if (!envSrvKey) {
+  console.warn('[Supabase] VITE_SUPABASE_SERVICE_ROLE_KEY not set; admin client using anon key.');
 }
 
 console.log('[Supabase] URL:', supabaseUrl);

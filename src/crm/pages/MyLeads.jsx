@@ -579,6 +579,13 @@ const MyLeads = () => {
                                 {isTD&&!isOD && <span style={{ fontSize:10,fontWeight:800,color:'#D97706',background:'#FFFBEB',padding:'2px 6px',borderRadius:999,flexShrink:0 }}>⏰</span>}
                               </div>
                               {lead.project && <div style={S.project}>🏢 {lead.project}</div>}
+                              {(lead.budget || lead.budget_range) && (
+                                <div style={{ fontSize:11, fontWeight:700, color:'#92400E', background:'#FEF3C7', padding:'2px 8px', borderRadius:6, display:'inline-block', marginTop:2 }}>
+                                  💰 {typeof (lead.budget || lead.budget_range) === 'number'
+                                    ? `₹${Number(lead.budget || lead.budget_range).toLocaleString('en-IN')}`
+                                    : (lead.budget || lead.budget_range)}
+                                </div>
+                              )}
                               <div style={S.metaRow}>
                                 {lead.phone && <span style={S.phone}>{formatPhone(lead.phone)}</span>}
                                 {fuDate && <span style={S.fuChip(urgency)}>📅 {format(fuDate,'dd MMM')}</span>}

@@ -278,6 +278,11 @@ const AppRoutes = ({ onBookSiteVisit }) => {
 
 function App() {
   const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
+  // Booking social-proof toast is a public-marketing nudge — suppress it
+  // on /crm/* so employees don't see "X just booked!" pop-ups while they
+  // are working their lead list.
+  const { pathname } = useLocation();
+  const isCRM = pathname.startsWith('/crm');
   return (
     <>
       <ScrollToTop />
@@ -287,7 +292,7 @@ function App() {
         onClose={() => setShowSiteVisitModal(false)}
       />
       <FloatingWhatsAppButton />
-      <SocialProofToast />
+      {!isCRM && <SocialProofToast />}
       <Toaster />
     </>
   );

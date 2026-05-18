@@ -199,7 +199,7 @@ export const useCRMData = ({ enabled = true } = {}) => {
       supabaseAdmin.removeChannel(bookingsChannel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [enabled]);
 
   // Compute workLogs from real Supabase data
   useEffect(() => {

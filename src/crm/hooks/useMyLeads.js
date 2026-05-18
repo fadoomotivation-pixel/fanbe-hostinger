@@ -103,12 +103,17 @@ const LEAD_COLUMNS = [
 // HOOK
 // ═══════════════════════════════════════════════════════════════════════════════
 export const useMyLeads = (userId) => {
-  const leadsKey = userId ? `my_leads_${userId}` : null;
-  const callsKey = userId ? `my_calls_${userId}` : null;
+  // Cache version suffix. Bump this whenever the cached lead/call object
+  // shape changes — old caches become unreachable so existing-session
+  // users get fresh data instead of a renderer crash when an old field
+  // is missing/restructured.
+  //   v2: post-restore from PR #98, slim-column normalize step in PR #105
+  const leadsKey = userId ? `my_leads_v2_${userId}` : null;
+  const callsKey = userId ? `my_calls_v2_${userId}` : null;
 
-  const [leads, setLeads]               = useState(() => (userId ? readCache(`my_leads_${userId}`, LEADS_TTL) || [] : []));
-  const [leadsLoading, setLeadsLoading] = useState(() => !(userId && readCache(`my_leads_${userId}`, LEADS_TTL)));
-  const [calls, setCalls]               = useState(() => (userId ? readCache(`my_calls_${userId}`, CALLS_TTL) || [] : []));
+  const [leads, setLeads]               = useState(() => (leadsKey ? readCache(leadsKey, LEADS_TTL) || [] : []));
+  const [leadsLoading, setLeadsLoading] = useState(() => !(leadsKey && readCache(leadsKey, LEADS_TTL)));
+  const [calls, setCalls]               = useState(() => (callsKey ? readCache(callsKey, CALLS_TTL) || [] : []));
 
   const leadsReqId  = useRef(0);
   const callsReqId  = useRef(0);

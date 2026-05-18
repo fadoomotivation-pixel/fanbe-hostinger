@@ -60,13 +60,19 @@ const STORAGE_KEYS = {
   AUDIT_LOGS:      'crm_audit_logs',
 };
 
-export const useCRMData = () => {
+// Pass `{ enabled: false }` to skip the heavy initial fetches and realtime
+// subscriptions. Use this for non-admin users where the consumer only needs
+// mutator functions (addLead, updateLead, etc.) but not the cached list of
+// 4948 leads — calling this hook unconditionally inside CRMLayout was
+// causing every employee page-load to fetch the full leads table 5×
+// paginated, which is what made the CRM feel slow.
+export const useCRMData = ({ enabled = true } = {}) => {
   const [leads, setLeads]                         = useState([]);
-  const [leadsLoading, setLeadsLoading]           = useState(true);
+  const [leadsLoading, setLeadsLoading]           = useState(enabled);
   const [employees, setEmployees]                 = useState([]);
-  const [employeesLoading, setEmployeesLoading]   = useState(true);
+  const [employeesLoading, setEmployeesLoading]   = useState(enabled);
   const [calls, setCalls]                         = useState([]);
-  const [callsLoading, setCallsLoading]           = useState(true);
+  const [callsLoading, setCallsLoading]           = useState(enabled);
   const [siteVisits, setSiteVisits]               = useState([]);
   const [siteVisitsLoading, setSiteVisitsLoading] = useState(true);
   const [bookings, setBookings]                   = useState([]);
@@ -109,14 +115,24 @@ export const useCRMData = () => {
     setAuditLogs(get(STORAGE_KEYS.AUDIT_LOGS, []));
   }, []);
 
-  // Initial fetch
+  // Initial fetch — only when enabled. Non-admin callers (e.g. CRMLayout
+  // for an employee role) pass enabled:false and get the mutator-only API
+  // without the 5-round-trip paginated leads load.
   useEffect(() => {
+    if (!enabled) {
+      setLeadsLoading(false);
+      setEmployeesLoading(false);
+      setCallsLoading(false);
+      setSiteVisitsLoading(false);
+      setBookingsLoading(false);
+      return;
+    }
     fetchLeads();
     fetchEmployees();
     fetchCalls();
     fetchSiteVisits();
     fetchBookings();
-  }, []);
+  }, [enabled]);
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // ✅ SUPABASE REALTIME SUBSCRIPTIONS
@@ -130,6 +146,9 @@ export const useCRMData = () => {
   // Unique names per mount eliminate that collision entirely.
   const channelSuffix = useId().replace(/:/g, '');
   useEffect(() => {
+    // Skip realtime subscriptions when disabled — non-admin callers don't
+    // need them and they're expensive (4 channels × postgres_changes).
+    if (!enabled) return;
     // Coalesce realtime-triggered refetches per-table — a burst of writes
     // shouldn't trigger a flurry of independent full-table reloads.
     const debouncedFetchLeads      = makeDebounced(fetchLeads,      REALTIME_REFETCH_DEBOUNCE_MS);
@@ -180,7 +199,7 @@ export const useCRMData = () => {
       supabaseAdmin.removeChannel(bookingsChannel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [enabled]);
 
   // Compute workLogs from real Supabase data
   useEffect(() => {

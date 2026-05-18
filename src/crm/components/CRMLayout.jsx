@@ -18,14 +18,18 @@ const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SUB_ADMIN, ROLES.HR_MANAGER];
 
 const CRMLayout = ({ children }) => {
   const { user } = useAuth();
-  const { leads, employees } = useCRMData();
+  // PERF: only super_admin actually needs { leads, employees } here (for the
+  // daily-digest check). Pass enabled:false for everyone else so non-admin
+  // page-loads don't fetch the full 4948-row leads table 5× paginated.
+  const needsCRMData = user?.role === ROLES.SUPER_ADMIN;
+  const { leads, employees } = useCRMData({ enabled: needsCRMData });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (user?.role === ROLES.SUPER_ADMIN) {
+    if (needsCRMData) {
       checkDailyDigest(leads, employees);
     }
-  }, [user, leads, employees]);
+  }, [needsCRMData, leads, employees]);
 
   if (!user) {
     return (

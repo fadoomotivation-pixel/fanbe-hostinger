@@ -2,7 +2,11 @@
 // Employee attendance page — GPS-verified punch in/out with selfie capture
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { supabaseAdmin } from '@/lib/supabase';
+// Use the regular (authenticated) supabase client — NOT supabase.
+// The attendance RLS policies allow `authenticated` role only; supabase
+// is created with persistSession:false so its requests go as anon, which RLS
+// blocks. Net effect was: INSERT/UPDATE on attendance silently failed.
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -120,7 +124,7 @@ const Attendance = () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const { data: today } = await supabaseAdmin
+      const { data: today } = await supabase
         .from('attendance')
         .select('*')
         .eq('employee_id', userId)
@@ -128,7 +132,7 @@ const Attendance = () => {
         .maybeSingle();
       setTodayRecord(today || null);
 
-      const { data: hist } = await supabaseAdmin
+      const { data: hist } = await supabase
         .from('attendance')
         .select('*')
         .eq('employee_id', userId)
@@ -180,7 +184,7 @@ const Attendance = () => {
     try {
       if (!todayRecord) {
         // First punch = clock IN
-        const { error } = await supabaseAdmin.from('attendance').insert({
+        const { error } = await supabase.from('attendance').insert({
           employee_id:       userId,
           employee_name:     user?.name || user?.username || 'Employee',
           date:              todayStr,
@@ -197,7 +201,7 @@ const Attendance = () => {
         // Clock OUT
         const mins = differenceInMinutes(now, parseISO(todayRecord.punch_in));
         const status = mins >= 480 ? 'present' : mins >= 240 ? 'half_day' : 'present';
-        const { error } = await supabaseAdmin.from('attendance').update({
+        const { error } = await supabase.from('attendance').update({
           punch_out:          nowISO,
           punch_out_lat:      gpsData.lat,
           punch_out_lng:      gpsData.lng,

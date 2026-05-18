@@ -29,9 +29,30 @@ function leadDueAt(lead) {
   return Number.isFinite(t) ? t : null;
 }
 
+// Mobile Chrome/Brave throw "Illegal constructor" when `new Notification()`
+// is called directly — they only support notifications via a Service Worker
+// registration. Wrap construction in try/catch and disable subsequent
+// attempts after the first failure so the app keeps working instead of
+// throwing up to the React ErrorBoundary and rendering "Something went
+// wrong". `supportsDirectNotification.current = false` is sticky for the
+// session.
+function safeNotify(title, options, supportRef) {
+  if (!supportRef.current) return null;
+  if (typeof Notification === 'undefined') return null;
+  if (Notification.permission !== 'granted') return null;
+  try {
+    return new Notification(title, options);
+  } catch (err) {
+    console.warn('[useFollowUpNotifications] Direct Notification not supported here — disabling for this session.', err && err.message);
+    supportRef.current = false;
+    return null;
+  }
+}
+
 export function useFollowUpNotifications(leads) {
   const fired  = useRef(new Set());
   const timers = useRef([]);
+  const supportsDirectNotification = useRef(true); // optimistic; flips false on first throw
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -50,13 +71,12 @@ export function useFollowUpNotifications(leads) {
       const fireDue = () => {
         if (fired.current.has(key)) return;
         fired.current.add(key);
-        if (Notification.permission !== 'granted') return;
         const note = l.quickNote || l.last_note || '';
-        const n = new Notification(`📞 Follow up: ${l.name || 'Lead'}`, {
+        const n = safeNotify(`📞 Follow up: ${l.name || 'Lead'}`, {
           body: `${l.phone || ''}${note ? ' · ' + note : ''}`,
           tag: String(l.id),
-        });
-        n.onclick = () => { window.focus(); n.close(); };
+        }, supportsDirectNotification);
+        if (n) n.onclick = () => { window.focus(); n.close(); };
       };
 
       if (!fired.current.has(key)) {
@@ -75,12 +95,11 @@ export function useFollowUpNotifications(leads) {
           timers.current.push(window.setTimeout(() => {
             if (fired.current.has(warnKey)) return;
             fired.current.add(warnKey);
-            if (Notification.permission !== 'granted') return;
             const note = l.quickNote || l.last_note || '';
-            new Notification(`⏰ Call in 15 min: ${l.name || 'Lead'}`, {
+            safeNotify(`⏰ Call in 15 min: ${l.name || 'Lead'}`, {
               body: `${l.phone || ''}${note ? ' · ' + note : ''}`,
               tag: `${l.id}:warn`,
-            });
+            }, supportsDirectNotification);
           }, warnDelay));
         }
       }

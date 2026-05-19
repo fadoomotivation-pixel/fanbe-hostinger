@@ -329,6 +329,25 @@ const EmployeeCRMHome = () => {
       const callScore  = callStatus === 'never_called' ? 100 : callStatus === 'needs_retry' ? 80 : callStatus === 'recently_unanswered' ? 40 : 10;
       const fuScore    = followUpPriority <= 2 ? 50 : followUpPriority === 3 ? 30 : 0;
       const assignedAt = lead.assignmentDate || lead.assignment_date || lead.assignedAt || lead.assigned_at || lead.createdAt || lead.created_at || null;
+      // Per ops feedback: when admin reassigns a lead to an employee it
+      // should be treated as a new lead — surface to top of the list so
+      // the employee calls it first. The admin reassign flow already
+      // updates `assigned_at` to NOW, so any lead with assigned_at
+      // within the last 48h gets a big freshness bonus regardless of
+      // its carried-over status / follow-up date / interest level.
+      // Also flags _isFreshAssignment so the lead card can show a NEW
+      // badge.
+      let freshBonus = 0;
+      let isFreshAssignment = false;
+      if (assignedAt) {
+        try {
+          const hoursSinceAssigned = differenceInHours(now, new Date(assignedAt));
+          if (hoursSinceAssigned >= 0 && hoursSinceAssigned <= 48) {
+            isFreshAssignment = true;
+            freshBonus = 200; // larger than max baseline score so fresh leads pin to top
+          }
+        } catch { /* ignore */ }
+      }
       return {
         ...lead,
         _callStatus: callStatus,
@@ -339,7 +358,8 @@ const EmployeeCRMHome = () => {
         _daysUntilFollowUp: daysUntilFollowUp,
         _interest: interest,
         _normalizedStatus: status,
-        _score: callScore + fuScore + tempScore,
+        _score: callScore + fuScore + tempScore + freshBonus,
+        _isFreshAssignment: isFreshAssignment,
         _assignedAt: assignedAt,
       };
     });
@@ -993,6 +1013,11 @@ const LeadCallCard = React.memo(({ lead, rank, onAction, onNavigate, compact, on
             {getInterestDot()}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {lead._isFreshAssignment && (
+              <span className="text-[9px] font-extrabold text-white bg-emerald-500 px-1.5 py-0.5 rounded animate-pulse">
+                ✨ NEW
+              </span>
+            )}
             {lead.project && <span className="text-[10px] text-gray-400 truncate max-w-[100px]">{lead.project}</span>}
             {lead.budget && (
               <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded">

@@ -1,0 +1,50 @@
+{
+  "name": "Fanbe CRM",
+  "short_name": "Fanbe CRM",
+  "description": "Fanbe Group — Sales CRM. Lead management, calls, attendance and follow-ups for the Fanbe team.",
+  "start_url": "/crm/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F3A5F",
+  "theme_color": "#0F3A5F",
+  "lang": "en-IN",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My CRM",
+      "short_name": "My CRM",
+      "description": "Today's call list",
+      "url": "/crm/sales/crm",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Attendance",
+      "short_name": "Attendance",
+      "description": "Punch in / out",
+      "url": "/crm/sales/attendance",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "My Leads",
+      "short_name": "My Leads",
+      "description": "All assigned leads",
+      "url": "/crm/sales/my-leads",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

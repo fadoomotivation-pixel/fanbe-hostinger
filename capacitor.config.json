@@ -2,11 +2,6 @@
   "appId": "com.fanbegroup.crm",
   "appName": "Fanbe CRM",
   "webDir": "dist",
-  "server": {
-    "url": "https://fanbegroup.com/crm/login",
-    "cleartext": false,
-    "androidScheme": "https"
-  },
   "android": {
     "allowMixedContent": false,
     "backgroundColor": "#0F3A5F",

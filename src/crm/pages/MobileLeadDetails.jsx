@@ -167,7 +167,8 @@ const MobileLeadDetails = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const lead = leads.find(l => l.id === leadId);
+  // `lead` is now provided by the useState above (fetched directly from
+  // Supabase by id), not by leads.find from useCRMData's bulk array.
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(lead?.name || '');
   const [isAddingPhone, setIsAddingPhone] = useState(false);

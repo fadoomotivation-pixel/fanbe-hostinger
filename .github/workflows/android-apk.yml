@@ -87,10 +87,41 @@ jobs:
           echo "Found APK at: $APK_PATH"
           ls -lah "$APK_PATH"
 
-      - name: Upload APK artifact
+      - name: Upload APK artifact (login-only)
         uses: actions/upload-artifact@v4
         with:
           name: fanbe-crm-debug-apk
           path: ${{ steps.locate.outputs.apk_path }}
           retention-days: 30
           if-no-files-found: error
+
+      # Public, shareable download URL via a rolling GitHub Release.
+      # Permanent path:
+      #   https://github.com/<owner>/<repo>/releases/download/latest-android/app-debug.apk
+      # The release is overwritten on every push to main, so the URL is
+      # stable but always points at the newest build. Only runs on main
+      # pushes (skipped on PRs).
+      - name: Stage APK with stable filename for release upload
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p release-staging
+          cp "${{ steps.locate.outputs.apk_path }}" release-staging/app-debug.apk
+
+      - name: Publish to rolling 'latest-android' release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-android
+          name: Latest Android APK (auto-built)
+          body: |
+            Auto-built APK from commit ${{ github.sha }}.
+
+            Direct download (always points at the newest build):
+            https://github.com/${{ github.repository }}/releases/download/latest-android/app-debug.apk
+
+            Build timestamp: ${{ github.event.head_commit.timestamp }}
+          files: release-staging/app-debug.apk
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -44,7 +44,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          # No `cache: 'npm'` — repo's .gitignore excludes package-lock.json,
+          # so the cache step would always fail with "Dependencies lock file
+          # is not found". Slightly slower installs, but the rest of the
+          # toolchain (Android SDK, Gradle deps) dominates wall time anyway.
 
       - name: Setup Java 21 (Android Gradle Plugin 8.x requirement)
         uses: actions/setup-java@v4

@@ -4,6 +4,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="manifest" href="/manifest.webmanifest" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		
 		<!-- Cache Control & Build Version -->
@@ -39,10 +40,14 @@
 		<meta name="twitter:image" content="https://fanbegroup.com/og-image.jpg" />
 		<meta name="twitter:image:alt" content="Fanbe Developer - Premier Real Estate Since 2012" />
 
-		<!-- Mobile App Meta -->
-		<meta name="apple-mobile-web-app-title" content="Fanbe Group" />
-		<meta name="application-name" content="Fanbe Group" />
+		<!-- Mobile App / PWA Meta -->
+		<meta name="apple-mobile-web-app-title" content="Fanbe CRM" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="application-name" content="Fanbe CRM" />
 		<meta name="theme-color" content="#0F3A5F" />
+		<link rel="apple-touch-icon" href="/favicon.svg" />
 
         <!-- Structured Data -->
         <script type="application/ld+json">
@@ -68,5 +73,16 @@
 	<body>
 		<div id="root"></div>
 		<script type="module" src="/src/main.jsx"></script>
+		<script>
+			// Register the PWA service worker once the page is parsed. The SW
+			// itself lives at /sw.js (public/sw.js). Failures are intentionally
+			// swallowed — PWA install eligibility is a nice-to-have, not a
+			// critical-path feature.
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', function () {
+					navigator.serviceWorker.register('/sw.js').catch(function () {});
+				});
+			}
+		</script>
 	</body>
 </html>

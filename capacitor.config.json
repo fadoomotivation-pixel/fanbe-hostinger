@@ -1,0 +1,25 @@
+{
+  "appId": "com.fanbegroup.crm",
+  "appName": "Fanbe CRM",
+  "webDir": "dist",
+  "server": {
+    "url": "https://fanbegroup.com/crm/login",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0F3A5F",
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#0F3A5F",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    }
+  }
+}

@@ -2,6 +2,7 @@
   "name": "Fanbe CRM",
   "short_name": "Fanbe CRM",
   "description": "Fanbe Group — Sales CRM. Lead management, calls, attendance and follow-ups for the Fanbe team.",
+  "id": "com.fanbegroup.crm",
   "start_url": "/crm/login",
   "scope": "/",
   "display": "standalone",
@@ -12,15 +13,21 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "192x192 512x512 any",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.svg",
-      "sizes": "192x192 512x512 any",
-      "type": "image/svg+xml",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
@@ -30,21 +37,21 @@
       "short_name": "My CRM",
       "description": "Today's call list",
       "url": "/crm/sales/crm",
-      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Attendance",
       "short_name": "Attendance",
       "description": "Punch in / out",
       "url": "/crm/sales/attendance",
-      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "My Leads",
       "short_name": "My Leads",
       "description": "All assigned leads",
       "url": "/crm/sales/my-leads",
-      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

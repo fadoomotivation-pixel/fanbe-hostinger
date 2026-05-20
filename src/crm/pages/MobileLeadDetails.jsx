@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCRMData } from '@/crm/hooks/useCRMData';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,11 +108,67 @@ const MobileLeadDetails = () => {
   const { leadId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { leads, leadsLoading, updateLead, addLeadNote } = useCRMData();
+  // PERF: previously called useCRMData() (no args) which triggers a full
+  // 5-table admin payload fetch (~4900 leads × all columns × 5 round-trips)
+  // just to find ONE lead by id. Every lead-tap blocked behind that load.
+  // Now: pass {enabled:false} to skip the bulk fetches, keep only the
+  // mutators (updateLead, addLeadNote), and fetch THIS lead directly
+  // from Supabase — one row, sub-second.
+  const { updateLead, addLeadNote } = useCRMData({ enabled: false });
+  const [lead, setLead] = useState(null);
+  const [leadsLoading, setLeadsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!leadId) return;
+    let cancelled = false;
+    setLeadsLoading(true);
+    supabase
+      .from('leads')
+      .select('*')
+      .eq('id', leadId)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn('[MobileLeadDetails] fetch error:', error.message);
+        } else if (data) {
+          // Normalize to the shape the rest of this component expects
+          // (other pages get this via useCRMData's normalize step).
+          setLead({
+            id:                 data.id,
+            name:               data.full_name || '',
+            phone:              data.phone || '',
+            email:              data.email || '',
+            project:            data.project || '',
+            status:             data.final_status || data.status || 'FollowUp',
+            finalStatus:        data.final_status || 'FollowUp',
+            budget:             data.budget || '',
+            interestLevel:      data.interest_level || 'Cold',
+            interest_level:     data.interest_level || 'Cold',
+            assignedTo:         data.assigned_to || null,
+            assigned_to:        data.assigned_to || null,
+            assignedToName:     data.assigned_to_name || null,
+            notes:              data.notes || '',
+            siteVisitStatus:    data.site_visit_status || '',
+            followUpDate:       data.next_followup_date || null,
+            follow_up_date:     data.next_followup_date || null,
+            next_followup_date: data.next_followup_date || null,
+            createdAt:          data.created_at,
+            created_at:         data.created_at,
+            assignedAt:         data.assigned_at || null,
+            assigned_at:        data.assigned_at || null,
+          });
+        }
+        setLeadsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [leadId]);
+
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const lead = leads.find(l => l.id === leadId);
+  // `lead` is now provided by the useState above (fetched directly from
+  // Supabase by id), not by leads.find from useCRMData's bulk array.
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(lead?.name || '');
   const [isAddingPhone, setIsAddingPhone] = useState(false);

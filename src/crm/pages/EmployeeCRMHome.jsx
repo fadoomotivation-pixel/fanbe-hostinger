@@ -5,6 +5,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '@/context/AuthContext';
 import { useMyLeads } from '@/crm/hooks/useMyLeads';
 import { useFollowUpNotifications } from '@/crm/hooks/useFollowUpNotifications';
+import { useNewLeadNotifications } from '@/crm/hooks/useNewLeadNotifications';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -280,6 +281,17 @@ const EmployeeCRMHome = () => {
   // Schedule the follow-up + pre-warning timers. Re-runs whenever
   // myLeads changes (new lead, status change, follow-up reschedule).
   useFollowUpNotifications(myLeads);
+
+  // Fire a browser Notification + in-app toast when admin assigns a
+  // fresh lead to this employee (Supabase Realtime detects the INSERT
+  // or UPDATE where assigned_to=me + assigned_at is within last 60s).
+  useNewLeadNotifications((lead) => {
+    toast({
+      title: `🎯 New lead assigned: ${lead.full_name || 'Lead'}`,
+      description: `${lead.phone || ''}${lead.project ? ' · ' + lead.project : ''}`,
+      duration: 8000,
+    });
+  });
 
   const today = new Date().toISOString().split('T')[0];
   const todayStats = useMemo(() => {

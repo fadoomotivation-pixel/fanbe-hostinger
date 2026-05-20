@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import SmartDateInput from '@/crm/components/SmartDateInput';
 import SmartNotesInput from '@/crm/components/SmartNotesInput';
+import MissedFollowupsBanner from '@/crm/components/MissedFollowupsBanner';
 import {
   Phone, PhoneOff, PhoneMissed, PhoneIncoming, Clock, Calendar,
   AlertCircle, Search, ChevronRight, MessageCircle, X, Check,
@@ -656,6 +657,12 @@ const EmployeeCRMHome = () => {
           ))}
         </div>
       </div>
+
+      {/* ─── MISSED FOLLOW-UPS REMINDER ───────────── */}
+      {/* Calls the missed_followups_for_employee Supabase RPC on mount.
+          Auto-hides if there are none. Each row has a one-tap Call button
+          that goes straight to the dialer. */}
+      <MissedFollowupsBanner />
 
       {/* ─── TAB CONTENT ───────────────────────────── */}
       <div className="px-3 pt-3">

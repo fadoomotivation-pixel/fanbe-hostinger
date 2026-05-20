@@ -30,3 +30,16 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# Capacitor / Android build artifacts (the source android/ scaffold IS
+# committed, but build outputs + IDE files + downloaded toolchains stay
+# local / per-CI-run)
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+android/.idea/
+android/local.properties
+android/app/release/
+*.apk
+*.aab

@@ -1,6 +1,6 @@
 {
-  "buildId": "1779008143865-66ebo4",
-  "buildTimestamp": "2026-05-17T08:55:43.865Z",
-  "gitCommit": "87e7a39",
-  "gitBranch": "restore/crm-source-stage1"
+  "buildId": "1779271449843-yk7g8b",
+  "buildTimestamp": "2026-05-20T10:04:09.842Z",
+  "gitCommit": "180312b",
+  "gitBranch": "feat/capacitor-android-apk"
 }

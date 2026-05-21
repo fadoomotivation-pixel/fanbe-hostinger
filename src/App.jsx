@@ -1,6 +1,7 @@
 // src/App.jsx
-import React, { useState } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from '@/components/ui/toaster';
 import ScrollToTop from './components/ScrollToTop';
@@ -117,10 +118,23 @@ const EmployeeLanding = () => {
 
 const AppRoutes = ({ onBookSiteVisit }) => {
   const location  = useLocation();
+  const navigate  = useNavigate();
   const isMobile  = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
   const isEmployeeRole = EMPLOYEE_ROLES.includes(user?.role);
+
+  // When the Capacitor-wrapped APK boots, Capacitor serves the bundled
+  // dist/index.html at path "/" — which would render the marketing
+  // HomePage inside the CRM app. Detect native platforms and bounce to
+  // /crm/login on first mount. Web users continue to see the marketing
+  // site at fanbegroup.com/ as before.
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && location.pathname === '/') {
+      navigate('/crm/login', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isCRM) {
     return (

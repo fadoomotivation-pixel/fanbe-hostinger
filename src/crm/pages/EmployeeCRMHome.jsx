@@ -691,7 +691,7 @@ const EmployeeCRMHome = () => {
             )}
             {callNowLeads.map((lead, idx) => (
               <LeadCallCard key={lead.id} lead={lead} rank={idx + 1} onAction={() => openAction(lead)}
-                onNavigate={() => navigate(`/crm/sales/lead/${lead.id}`)} onCopy={copyPhone} copiedId={copiedId} />
+                onNavigate={() => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} onCopy={copyPhone} copiedId={copiedId} />
             ))}
             {callNowLeads.length === 0 && <EmptyState message="All leads are contacted! Great job!" icon={CheckCircle} />}
           </div>
@@ -786,7 +786,7 @@ const EmployeeCRMHome = () => {
             <div className="space-y-2">
               {allLeadsFiltered.map(lead => (
                 <LeadCallCard key={lead.id} lead={lead} onAction={() => openAction(lead)}
-                  onNavigate={() => navigate(`/crm/sales/lead/${lead.id}`)} compact onCopy={copyPhone} copiedId={copiedId} />
+                  onNavigate={() => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} compact onCopy={copyPhone} copiedId={copiedId} />
               ))}
               {allLeadsFiltered.length === 0 && <EmptyState message="No leads match your search." icon={Search} />}
             </div>

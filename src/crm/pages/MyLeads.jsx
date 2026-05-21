@@ -567,7 +567,7 @@ const MyLeads = () => {
                       <div style={S.cardLeft(urgency)} />
                       <div style={S.cardRight}>
                         {/* Tap card body → detail page */}
-                        <div style={S.cardBody} onClick={()=>navigate(`/crm/sales/lead/${lead.id}`)}>
+                        <div style={S.cardBody} onClick={()=>navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })}>
                           <div style={{ display:'flex', alignItems:'flex-start', gap:10, overflow:'hidden' }}>
                             <div style={S.avatar(lead.name)}>{initials(lead.name)}</div>
                             {/* info col — minWidth:0 allows truncation */}

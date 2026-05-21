@@ -115,8 +115,15 @@ const MobileLeadDetails = () => {
   // mutators (updateLead, addLeadNote), and fetch THIS lead directly
   // from Supabase — one row, sub-second.
   const { updateLead, addLeadNote } = useCRMData({ enabled: false });
-  const [lead, setLead] = useState(null);
-  const [leadsLoading, setLeadsLoading] = useState(true);
+  // Seed lead state from navigation state (the lead list passes the lead
+  // object via navigate(url, { state: { lead } })) so the detail page
+  // renders instantly with the data the list already had — no spinner
+  // while the single-row Supabase fetch is in-flight. The fetch still
+  // runs in the background to refresh with the latest server-side data
+  // (notes, status, etc. that may have changed since the list was rendered).
+  const seededLead = location.state?.lead || null;
+  const [lead, setLead] = useState(seededLead);
+  const [leadsLoading, setLeadsLoading] = useState(!seededLead);
 
   useEffect(() => {
     if (!leadId) return;

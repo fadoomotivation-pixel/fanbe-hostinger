@@ -35,6 +35,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Default GITHUB_TOKEN scope is read-only. Need `contents: write` so the
+    # softprops/action-gh-release step below can create/update the rolling
+    # `latest-android` release. Without this, that step fails with HTTP 403
+    # "Resource not accessible by integration" — APK still builds + uploads
+    # as a (login-only) artifact, but the public download URL never appears.
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo

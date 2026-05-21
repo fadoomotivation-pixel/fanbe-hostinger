@@ -414,7 +414,7 @@ const MobileLeadList = () => {
                     isToday ? 'border-yellow-200 border-l-4 border-l-yellow-500' :
                     'border-gray-100 hover:border-gray-200 hover:shadow-md'
                   }`}
-                  onClick={() => navigate(`/crm/lead/${lead.id}`)}
+                  onClick={() => navigate(`/crm/lead/${lead.id}`, { state: { lead } })}
                 >
                   <div className="px-4 pt-3.5 pb-1.5 flex items-start justify-between">
                     <div className="flex-1 min-w-0">

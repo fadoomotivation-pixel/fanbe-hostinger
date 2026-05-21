@@ -197,7 +197,7 @@ const GlobalSearchOverlay = ({ leads, onClose, onNavigate }) => {
                 return (
                   <div
                     key={lead.id}
-                    onClick={() => { onNavigate(lead.id); onClose(); }}
+                    onClick={() => { onNavigate(lead); onClose(); }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '11px 16px', cursor: 'pointer',
@@ -702,32 +702,32 @@ const EmployeeCRMHome = () => {
             {followUpCounts.overdue > 0 && (
               <FollowUpSection title="Overdue" icon={<AlertCircle size={14} className="text-red-600" />}
                 leads={followUpLeads.overdue} color="border-red-200 bg-red-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpCounts.yesterday > 0 && (
               <FollowUpSection title="Yesterday" icon={<Clock size={14} className="text-orange-600" />}
                 leads={followUpLeads.yesterday} color="border-orange-200 bg-orange-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpCounts.today > 0 && (
               <FollowUpSection title="Today" icon={<Clock size={14} className="text-amber-600" />}
                 leads={followUpLeads.today} color="border-amber-200 bg-amber-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpCounts.tomorrow > 0 && (
               <FollowUpSection title="Tomorrow" icon={<Calendar size={14} className="text-blue-600" />}
                 leads={followUpLeads.tomorrow} color="border-blue-200 bg-blue-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpCounts.thisWeek > 0 && (
               <FollowUpSection title="This Week" icon={<Calendar size={14} className="text-indigo-600" />}
                 leads={followUpLeads.thisWeek} color="border-indigo-200 bg-indigo-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpLeads.noDate.length > 0 && (
               <FollowUpSection title="No Date Set" icon={<Calendar size={14} className="text-gray-400" />}
                 leads={followUpLeads.noDate} color="border-gray-200 bg-gray-50" onAction={openAction}
-                onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)} />
+                onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })} />
             )}
             {followUpCounts.total === 0 && followUpLeads.noDate.length === 0 && (
               <EmptyState message="No follow-ups scheduled. You're all caught up!" icon={Check} />
@@ -820,7 +820,7 @@ const EmployeeCRMHome = () => {
         <GlobalSearchOverlay
           leads={myLeads}
           onClose={() => setGlobalSearchOpen(false)}
-          onNavigate={(id) => navigate(`/crm/sales/lead/${id}`)}
+          onNavigate={(lead) => navigate(`/crm/sales/lead/${lead.id}`, { state: { lead } })}
         />
       )}
 
@@ -1099,7 +1099,7 @@ const FollowUpSection = React.memo(({ title, icon, leads, color, onAction, onNav
         const latestNote = getLatestNote(lead.notes);
         return (
           <div key={lead.id} className="flex items-center gap-2 px-3 py-2.5">
-            <div className="flex-1 min-w-0" onClick={() => onNavigate(lead.id)}>
+            <div className="flex-1 min-w-0" onClick={() => onNavigate(lead)}>
               <p className="font-semibold text-sm text-gray-800 truncate">{lead.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 {lead.project && <span className="text-[10px] text-gray-400">{lead.project}</span>}

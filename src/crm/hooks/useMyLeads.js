@@ -186,13 +186,27 @@ export const useMyLeads = (userId) => {
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Realtime subscription ─────────────────────────────────────────────────
+  // Debounce the realtime callback so a burst of admin writes (e.g. bulk
+  // reassign 50 leads to this employee) collapses into ONE refetch instead
+  // of 50 back-to-back full-table reloads. Telecallers reported the list
+  // "reloading a lot" — each in-flight refetch causes a setLeads → render
+  // that visibly disrupts the UI mid-call. 800ms trailing edge means the
+  // employee still sees fresh data within a second, but uncoordinated
+  // rapid writes get batched. Same pattern useCRMData uses (PR #105).
+  const REALTIME_DEBOUNCE_MS = 800;
   useEffect(() => {
     if (!userId) return;
+
+    let debounceTimer = null;
+    const scheduleRefetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { debounceTimer = null; fetchLeads(true); }, REALTIME_DEBOUNCE_MS);
+    };
 
     const channel = supabaseAdmin
       .channel(`my_leads_rt_${userId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads', filter: `assigned_to=eq.${userId}` },
-        () => fetchLeads(true))
+        scheduleRefetch)
       .subscribe();
 
     const handleVisibility = () => {
@@ -200,13 +214,14 @@ export const useMyLeads = (userId) => {
         tabWasHidden.current = true;
       } else if (document.visibilityState === 'visible' && tabWasHidden.current) {
         tabWasHidden.current = false;
-        fetchLeads(true);
+        scheduleRefetch();
         fetchCalls(true);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabaseAdmin.removeChannel(channel);
       document.removeEventListener('visibilitychange', handleVisibility);
     };

@@ -118,6 +118,13 @@ export const useMyLeads = (userId) => {
   const leadsReqId  = useRef(0);
   const callsReqId  = useRef(0);
   const tabWasHidden = useRef(false);
+  // Timestamp of last local write (updateLead / addCallLog). Used to
+  // suppress the postgres_changes ECHO of our own write — without this,
+  // every Quick Log save triggers a full fetchLeads roundtrip 800ms
+  // later, which causes the list to re-render and visibly "reload"
+  // even though our optimistic state is already correct.
+  const lastSelfWriteAt = useRef(0);
+  const SELF_WRITE_ECHO_MS = 3000;
 
   // ─── fetchLeads — slim columns, no SELECT * ────────────────────────────────
   const fetchLeads = useCallback(async (background = false) => {
@@ -200,7 +207,15 @@ export const useMyLeads = (userId) => {
     let debounceTimer = null;
     const scheduleRefetch = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => { debounceTimer = null; fetchLeads(true); }, REALTIME_DEBOUNCE_MS);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        // Skip the refetch if it's the echo of a write we just made
+        // ourselves — local optimistic state is already correct, and
+        // refetching just causes a redundant re-render that telecallers
+        // perceive as "the page reloaded".
+        if (Date.now() - lastSelfWriteAt.current < SELF_WRITE_ECHO_MS) return;
+        fetchLeads(true);
+      }, REALTIME_DEBOUNCE_MS);
     };
 
     const channel = supabaseAdmin
@@ -242,6 +257,13 @@ export const useMyLeads = (userId) => {
     if ('follow_up_date' in updates && updates.follow_up_date === null) dbUpdates.next_followup_date = null;
     if ('followUpDate'   in updates && updates.followUpDate   === null) dbUpdates.next_followup_date = null;
 
+    // `last_activity` is the telecaller's "I touched this lead" stamp.
+    // It bumps updated_at on the row and locally signals that the
+    // lead is no longer "new" to this telecaller (the My Leads "New"
+    // tab uses it as a secondary check against assignedAt).
+    const nowIso = (updates.last_activity != null) ? updates.last_activity : new Date().toISOString();
+    if (updates.last_activity != null) dbUpdates.updated_at = nowIso;
+
     setLeads(prev => prev.map(l => {
       if (l.id !== leadId) return l;
       return {
@@ -252,10 +274,12 @@ export const useMyLeads = (userId) => {
         ...(dbUpdates.notes              != null ? { notes: dbUpdates.notes } : {}),
         ...(dbUpdates.interest_level     != null ? { interestLevel: dbUpdates.interest_level } : {}),
         ...(dbUpdates.site_visit_status  != null ? { siteVisitStatus: dbUpdates.site_visit_status } : {}),
+        ...(updates.last_activity        != null ? { lastActivity: nowIso, updatedAt: nowIso } : {}),
       };
     }));
     burstCache(leadsKey);
 
+    lastSelfWriteAt.current = Date.now();
     const { error } = await supabaseAdmin
       .from('leads')
       .update(dbUpdates)
@@ -297,6 +321,7 @@ export const useMyLeads = (userId) => {
     const normalized = normalizeCall(data);
     setCalls(prev => [normalized, ...prev]);
     burstCache(callsKey);
+    lastSelfWriteAt.current = Date.now();
 
     return data;
   }, [userId, callsKey]);

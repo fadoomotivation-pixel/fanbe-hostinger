@@ -235,11 +235,18 @@ const MyLeads = () => {
       // fresh telecaller can retry — those must surface in New, not All.
       const NEW_TAB_TERMINAL = ['Lost','Booked'];
       arr = arr.filter(l => {
+        const assignedT = new Date(l.assignedAt || l.assigned_at || 0).getTime();
+        // Once the telecaller has logged a call AFTER (re)assignment, the lead
+        // has been contacted — drop it from "New" so it doesn't keep nagging
+        // them. It still appears in All / FollowUp / today etc. as appropriate.
+        if (assignedT && l._lastCall) {
+          const lastCallT = new Date(l._lastCall.timestamp || 0).getTime();
+          if (lastCallT >= assignedT) return false;
+        }
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
         if (NEW_TAB_TERMINAL.includes(l.status)) return false;
-        const t = new Date(l.assignedAt || l.assigned_at || 0).getTime();
-        if (!t) return false;
-        const hoursSinceAssigned = (now - t) / (1000 * 60 * 60);
+        if (!assignedT) return false;
+        const hoursSinceAssigned = (now - assignedT) / (1000 * 60 * 60);
         return hoursSinceAssigned >= 0 && hoursSinceAssigned <= FRESH_HOURS;
       });
       arr = [...arr].sort((a,b) => new Date(b.assignedAt||b.createdAt||0) - new Date(a.assignedAt||a.createdAt||0));

@@ -190,12 +190,31 @@ const MyLeads = () => {
   }, [calls]);
 
   const myLeads = useMemo(() => {
+    // Precompute sort/filter keys ONCE per lead so the O(n log n) sort
+    // doesn't re-parse dates / re-run urgencyScore on every comparison.
+    // For ~1000 leads this drops sort cost from ~10k date parses to
+    // ~1k, which telecallers feel as a perceptibly smoother list on
+    // mobile.
     return leads
-      .map(l => ({ ...l, _callCount:(myCallsMap.get(l.id)||[]).length, _lastCall:myCallsMap.get(l.id)?.[0] }))
+      .map(l => {
+        const bucket = myCallsMap.get(l.id);
+        return {
+          ...l,
+          _callCount:   bucket ? bucket.length : 0,
+          _lastCall:    bucket ? bucket[0] : undefined,
+          _urgency:     urgencyScore(l),
+          _updatedAtT:  new Date(l.updatedAt || 0).getTime(),
+          _assignedT:   new Date(l.assignedAt || l.assigned_at || 0).getTime(),
+          _lastActT:    new Date(l.lastActivity || l.updatedAt || 0).getTime(),
+          // Precomputed lowercase search key — avoids re-lowercasing
+          // name/project on EVERY keystroke across EVERY lead.
+          _searchKey:   `${(l.name||'').toLowerCase()}|${l.phone||''}|${(l.project||'').toLowerCase()}`,
+        };
+      })
       .sort((a,b) => {
         if (sortBy==='name')   return (a.name||'').localeCompare(b.name||'');
-        if (sortBy==='recent') return new Date(b.updatedAt||0)-new Date(a.updatedAt||0);
-        return urgencyScore(b)-urgencyScore(a);
+        if (sortBy==='recent') return b._updatedAtT - a._updatedAtT;
+        return b._urgency - a._urgency;
       });
   }, [leads, myCallsMap, sortBy]);
 
@@ -221,46 +240,38 @@ const MyLeads = () => {
     else if (tab==='tomorrow')  arr=arr.filter(l=>{ if(TERMINAL.includes(l.status))return false; const d=parseLocalDate(l.follow_up_date||l.followUpDate); return d&&isTomorrow(d); });
     else if (tab==='followup')  arr=arr.filter(l=>l.status==='FollowUp'||l.status==='CallBackLater');
     else if (tab==='new')       {
-      // "New" tab includes genuinely new leads (status New/Open/empty) AND any
-      // lead freshly assigned to this telecaller within the last 48h —
-      // even if the lead's STATUS is carried over (NotInterested, FollowUp,
-      // etc.) from a previous owner via admin reassignment. Admin reassigns
-      // because they want this person to try again; the receiving telecaller
-      // shouldn't have to dig through the "All" tab to find their newly-
-      // handed leads. Matches the 48h freshBonus window from PR #109.
-      const FRESH_HOURS = 48;
+      // "New" tab includes:
+      //   1. Genuinely new leads (status New/Open/empty)
+      //   2. Reassigned NotInterested leads within 48h — admin reassigns
+      //      these so a fresh telecaller can retry; they wouldn't be
+      //      caught by any other tab.
+      // FollowUp / CallBackLater are EXCLUDED — they already have an
+      // explicit follow-up date and belong in the FollowUp tab. Showing
+      // them in New too was confusing telecallers who had to dig through
+      // the New tab looking for actually-new leads.
+      const FRESH_MS = 48 * 60 * 60 * 1000;
       const now = Date.now();
-      // Only Booked/Lost are truly terminal for the "New" tab. NotInterested is
-      // explicitly NOT excluded here: admin reassigns NotInterested leads so a
-      // fresh telecaller can retry — those must surface in New, not All.
-      const NEW_TAB_TERMINAL = ['Lost','Booked'];
       arr = arr.filter(l => {
-        const assignedT = new Date(l.assignedAt || l.assigned_at || 0).getTime();
-        // Once the telecaller has touched the lead AFTER (re)assignment,
-        // it's no longer "new" to them — drop it. Two signals, either
-        // suffices:
-        //   1. lastActivity (bumped by updateLead on Quick Log save —
-        //      bulletproof since it's set locally in the same tick)
-        //   2. _lastCall.timestamp (from the calls table; survives a
-        //      page reload, which lastActivity won't if state is reset)
+        const assignedT = l._assignedT;
+        // Touched-since-(re)assignment → drop. Two signals, either suffices.
         if (assignedT) {
-          const lastActivityT = new Date(l.lastActivity || l.updatedAt || 0).getTime();
-          if (lastActivityT > assignedT) return false;
+          if (l._lastActT > assignedT) return false;
           if (l._lastCall) {
             const lastCallT = new Date(l._lastCall.timestamp || 0).getTime();
             if (lastCallT >= assignedT) return false;
           }
         }
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
-        if (NEW_TAB_TERMINAL.includes(l.status)) return false;
-        if (!assignedT) return false;
-        const hoursSinceAssigned = (now - assignedT) / (1000 * 60 * 60);
-        return hoursSinceAssigned >= 0 && hoursSinceAssigned <= FRESH_HOURS;
+        if (l.status === 'NotInterested' && assignedT) {
+          const msSinceAssigned = now - assignedT;
+          return msSinceAssigned >= 0 && msSinceAssigned <= FRESH_MS;
+        }
+        return false;
       });
-      arr = [...arr].sort((a,b) => new Date(b.assignedAt||b.createdAt||0) - new Date(a.assignedAt||a.createdAt||0));
+      arr = [...arr].sort((a,b) => b._assignedT - a._assignedT);
     }
     else if (tab==='booked')    arr=arr.filter(l=>l.status==='Booked');
-    if (search.trim()) { const q=search.toLowerCase(); arr=arr.filter(l=>l.name?.toLowerCase().includes(q)||l.phone?.includes(q)||l.project?.toLowerCase().includes(q)); }
+    if (search.trim()) { const q=search.toLowerCase(); arr=arr.filter(l => l._searchKey.includes(q)); }
     if (dateFilter) arr=arr.filter(l=>{ const fu=l.follow_up_date||l.followUpDate; const cr=(l.createdAt||'').split('T')[0]; const as=(l.assignedAt||'').split('T')[0]; return fu===dateFilter||cr===dateFilter||as===dateFilter; });
     return arr;
   }, [myLeads, tab, search, dateFilter]);

@@ -220,7 +220,26 @@ const MyLeads = () => {
     else if (tab==='today')     arr=arr.filter(l=>{ if(TERMINAL.includes(l.status))return false; const d=parseLocalDate(l.follow_up_date||l.followUpDate); return d&&isToday(d); });
     else if (tab==='tomorrow')  arr=arr.filter(l=>{ if(TERMINAL.includes(l.status))return false; const d=parseLocalDate(l.follow_up_date||l.followUpDate); return d&&isTomorrow(d); });
     else if (tab==='followup')  arr=arr.filter(l=>l.status==='FollowUp'||l.status==='CallBackLater');
-    else if (tab==='new')       { arr=arr.filter(l=>l.status==='New'||l.status==='Open'||!l.status); arr=[...arr].sort((a,b)=>new Date(b.assignedAt||b.createdAt||0)-new Date(a.assignedAt||a.createdAt||0)); }
+    else if (tab==='new')       {
+      // "New" tab includes genuinely new leads (status New/Open/empty) AND any
+      // lead freshly assigned to this telecaller within the last 48h —
+      // even if the lead's STATUS is carried over (NotInterested, FollowUp,
+      // etc.) from a previous owner via admin reassignment. Admin reassigns
+      // because they want this person to try again; the receiving telecaller
+      // shouldn't have to dig through the "All" tab to find their newly-
+      // handed leads. Matches the 48h freshBonus window from PR #109.
+      const FRESH_HOURS = 48;
+      const now = Date.now();
+      arr = arr.filter(l => {
+        if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
+        if (TERMINAL.includes(l.status)) return false; // Booked / Lost don't belong even if reassigned
+        const t = new Date(l.assignedAt || l.assigned_at || 0).getTime();
+        if (!t) return false;
+        const hoursSinceAssigned = (now - t) / (1000 * 60 * 60);
+        return hoursSinceAssigned >= 0 && hoursSinceAssigned <= FRESH_HOURS;
+      });
+      arr = [...arr].sort((a,b) => new Date(b.assignedAt||b.createdAt||0) - new Date(a.assignedAt||a.createdAt||0));
+    }
     else if (tab==='booked')    arr=arr.filter(l=>l.status==='Booked');
     if (search.trim()) { const q=search.toLowerCase(); arr=arr.filter(l=>l.name?.toLowerCase().includes(q)||l.phone?.includes(q)||l.project?.toLowerCase().includes(q)); }
     if (dateFilter) arr=arr.filter(l=>{ const fu=l.follow_up_date||l.followUpDate; const cr=(l.createdAt||'').split('T')[0]; const as=(l.assignedAt||'').split('T')[0]; return fu===dateFilter||cr===dateFilter||as===dateFilter; });

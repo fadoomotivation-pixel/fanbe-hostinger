@@ -236,12 +236,20 @@ const MyLeads = () => {
       const NEW_TAB_TERMINAL = ['Lost','Booked'];
       arr = arr.filter(l => {
         const assignedT = new Date(l.assignedAt || l.assigned_at || 0).getTime();
-        // Once the telecaller has logged a call AFTER (re)assignment, the lead
-        // has been contacted — drop it from "New" so it doesn't keep nagging
-        // them. It still appears in All / FollowUp / today etc. as appropriate.
-        if (assignedT && l._lastCall) {
-          const lastCallT = new Date(l._lastCall.timestamp || 0).getTime();
-          if (lastCallT >= assignedT) return false;
+        // Once the telecaller has touched the lead AFTER (re)assignment,
+        // it's no longer "new" to them — drop it. Two signals, either
+        // suffices:
+        //   1. lastActivity (bumped by updateLead on Quick Log save —
+        //      bulletproof since it's set locally in the same tick)
+        //   2. _lastCall.timestamp (from the calls table; survives a
+        //      page reload, which lastActivity won't if state is reset)
+        if (assignedT) {
+          const lastActivityT = new Date(l.lastActivity || l.updatedAt || 0).getTime();
+          if (lastActivityT > assignedT) return false;
+          if (l._lastCall) {
+            const lastCallT = new Date(l._lastCall.timestamp || 0).getTime();
+            if (lastCallT >= assignedT) return false;
+          }
         }
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
         if (NEW_TAB_TERMINAL.includes(l.status)) return false;

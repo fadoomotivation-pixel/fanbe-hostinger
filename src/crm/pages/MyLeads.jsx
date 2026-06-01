@@ -230,9 +230,13 @@ const MyLeads = () => {
       // handed leads. Matches the 48h freshBonus window from PR #109.
       const FRESH_HOURS = 48;
       const now = Date.now();
+      // Only Booked/Lost are truly terminal for the "New" tab. NotInterested is
+      // explicitly NOT excluded here: admin reassigns NotInterested leads so a
+      // fresh telecaller can retry — those must surface in New, not All.
+      const NEW_TAB_TERMINAL = ['Lost','Booked'];
       arr = arr.filter(l => {
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
-        if (TERMINAL.includes(l.status)) return false; // Booked / Lost don't belong even if reassigned
+        if (NEW_TAB_TERMINAL.includes(l.status)) return false;
         const t = new Date(l.assignedAt || l.assigned_at || 0).getTime();
         if (!t) return false;
         const hoursSinceAssigned = (now - t) / (1000 * 60 * 60);

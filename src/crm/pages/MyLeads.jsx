@@ -249,15 +249,22 @@ const MyLeads = () => {
       //      since-assignment check drops it from New into its proper bucket.
       // Booked/Lost are excluded — they're truly done.
       const FRESH_MS = 48 * 60 * 60 * 1000;
+      // Reassignment sets assigned_at and updated_at to the same `now`,
+      // but Postgres updated_at triggers commonly bump updated_at by a
+      // few microseconds AFTER the explicit value — making _lastActT
+      // very slightly > _assignedT even though the telecaller never
+      // touched the lead. Tolerate up to 60s of "trigger noise"
+      // before treating it as a real telecaller touch. A genuine
+      // call/save happens minutes later, far outside this window.
+      const TOUCH_TOLERANCE_MS = 60 * 1000;
       const now = Date.now();
       arr = arr.filter(l => {
         const assignedT = l._assignedT;
-        // Touched-since-(re)assignment → drop. Either signal suffices.
         if (assignedT) {
-          if (l._lastActT > assignedT) return false;
+          if (l._lastActT - assignedT > TOUCH_TOLERANCE_MS) return false;
           if (l._lastCall) {
             const lastCallT = new Date(l._lastCall.timestamp || 0).getTime();
-            if (lastCallT >= assignedT) return false;
+            if (lastCallT - assignedT > TOUCH_TOLERANCE_MS) return false;
           }
         }
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;

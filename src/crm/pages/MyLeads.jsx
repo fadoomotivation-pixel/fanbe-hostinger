@@ -240,20 +240,19 @@ const MyLeads = () => {
     else if (tab==='tomorrow')  arr=arr.filter(l=>{ if(TERMINAL.includes(l.status))return false; const d=parseLocalDate(l.follow_up_date||l.followUpDate); return d&&isTomorrow(d); });
     else if (tab==='followup')  arr=arr.filter(l=>l.status==='FollowUp'||l.status==='CallBackLater');
     else if (tab==='new')       {
-      // "New" tab includes:
-      //   1. Genuinely new leads (status New/Open/empty)
-      //   2. Reassigned NotInterested leads within 48h — admin reassigns
-      //      these so a fresh telecaller can retry; they wouldn't be
-      //      caught by any other tab.
-      // FollowUp / CallBackLater are EXCLUDED — they already have an
-      // explicit follow-up date and belong in the FollowUp tab. Showing
-      // them in New too was confusing telecallers who had to dig through
-      // the New tab looking for actually-new leads.
+      // "New" tab shows leads that are NEW TO THIS TELECALLER and not yet
+      // contacted by them. That means:
+      //   1. Always: status New/Open/empty
+      //   2. Reassigned within 48h AND not touched since assignment
+      //      (regardless of carried-over status like FollowUp/NotInterested/
+      //      Interested) — once the telecaller calls/saves, the touched-
+      //      since-assignment check drops it from New into its proper bucket.
+      // Booked/Lost are excluded — they're truly done.
       const FRESH_MS = 48 * 60 * 60 * 1000;
       const now = Date.now();
       arr = arr.filter(l => {
         const assignedT = l._assignedT;
-        // Touched-since-(re)assignment → drop. Two signals, either suffices.
+        // Touched-since-(re)assignment → drop. Either signal suffices.
         if (assignedT) {
           if (l._lastActT > assignedT) return false;
           if (l._lastCall) {
@@ -262,11 +261,10 @@ const MyLeads = () => {
           }
         }
         if (l.status === 'New' || l.status === 'Open' || !l.status) return true;
-        if (l.status === 'NotInterested' && assignedT) {
-          const msSinceAssigned = now - assignedT;
-          return msSinceAssigned >= 0 && msSinceAssigned <= FRESH_MS;
-        }
-        return false;
+        if (l.status === 'Lost' || l.status === 'Booked') return false;
+        if (!assignedT) return false;
+        const msSinceAssigned = now - assignedT;
+        return msSinceAssigned >= 0 && msSinceAssigned <= FRESH_MS;
       });
       arr = [...arr].sort((a,b) => b._assignedT - a._assignedT);
     }

@@ -472,8 +472,28 @@ const KunjBihariLanding = () => {
       <StickyTitleSection
         kicker="Plot Sizes & Pricing"
         title="Choose your plot."
-        lede="Launch pricing of ₹7,525 per square yard. 10% booking · 35% registry · 60 months 0% EMI."
+        lede="10% booking · 35% registry · 60 months 0% interest EMI."
       >
+        {/* Launch price card — was ₹9,725 / now ₹7,525 */}
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.5 }}
+          className="mb-5 p-5 bg-white border border-stone-200 rounded-xl flex items-baseline justify-between"
+        >
+          <div>
+            <p className="text-[10px] tracking-[0.3em] uppercase font-bold text-stone-500 mb-1">Per sq yd · Launch price</p>
+            <div className="flex items-baseline gap-3">
+              <span className="text-[15px] text-stone-400 line-through font-semibold tabular-nums">₹9,725</span>
+              <span className="text-[28px] font-bold text-stone-900 tabular-nums">₹7,525</span>
+            </div>
+          </div>
+          <div className="text-right text-[11px] text-stone-500 leading-tight">
+            Limited<br/>inventory
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}

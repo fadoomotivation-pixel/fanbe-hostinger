@@ -83,14 +83,11 @@ const TRUST = [
 ];
 
 const PLOTS = [
-  { size: 250, total: 1881250, emi: 28219 },
-  { size: 200, total: 1505000, emi: 22575 },
-  { size: 150, total: 1128750, emi: 16931 },
-  { size: 120, total:  903000, emi: 13545 },
-  { size: 100, total:  752500, emi: 11287, popular: true },
-  { size:  80, total:  602000, emi: 9030  },
-  { size:  60, total:  451500, emi: 6772  },
   { size:  50, total:  376250, emi: 5644  },
+  { size:  80, total:  602000, emi: 9030  },
+  { size: 100, total:  752500, emi: 11287, popular: true },
+  { size: 150, total: 1128750, emi: 16931 },
+  { size: 250, total: 1881250, emi: 28219 },
 ];
 
 const APPRECIATION = [
@@ -132,10 +129,10 @@ const Particles = ({ count = 30 }) => {
   );
 };
 
-const Counter = ({ to, suffix = '', duration = 1.4 }) => {
+const Counter = ({ to, from = 0, suffix = '', duration = 1.4 }) => {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-50px' });
-  const [val, setVal] = useState(0);
+  const [val, setVal] = useState(from);
   useEffect(() => {
     if (!inView) return;
     const start = performance.now();
@@ -143,12 +140,12 @@ const Counter = ({ to, suffix = '', duration = 1.4 }) => {
     const tick = (t) => {
       const p = Math.min(1, (t - start) / (duration * 1000));
       const eased = 1 - Math.pow(1 - p, 4);
-      setVal(Math.round(to * eased));
+      setVal(Math.round(from + (to - from) * eased));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inView, to, duration]);
+  }, [inView, to, from, duration]);
   return <span ref={ref}>{val.toLocaleString('en-IN')}{suffix}</span>;
 };
 
@@ -211,7 +208,6 @@ const KunjBihariLanding = () => {
         <meta property="og:image" content={HERO} />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <style>{`
-          @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
           @keyframes pulseRing { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
           @keyframes shine { 0% { transform: translateX(-150%); } 60%, 100% { transform: translateX(150%); } }
           .gold-text {
@@ -403,7 +399,7 @@ const KunjBihariLanding = () => {
           {LANDMARKS.map((l, i) => (
             <motion.div
               key={l.name}
-              initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
               transition={{ delay: i * 0.04 }}
               className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]"
             >
@@ -577,27 +573,9 @@ const KunjBihariLanding = () => {
           ))}
         </div>
 
-        {/* Marquee strip */}
-        <div className="relative overflow-hidden">
-          <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-[#030509] to-transparent z-10 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[#030509] to-transparent z-10 pointer-events-none" />
-          <div className="flex gap-2.5" style={{ width: 'max-content' }}>
-            <div className="flex gap-2.5 shrink-0" style={{ animation: 'marquee 28s linear infinite' }}>
-              {[...BRANDS, ...BRANDS].map((b, i) => (
-                <div key={i} className="shrink-0 h-12 px-4 rounded-xl bg-white flex items-center gap-2">
-                  <img
-                    src={`https://logo.clearbit.com/${b.domain}`}
-                    alt={b.name}
-                    className="max-h-6 max-w-[40px] object-contain"
-                    loading="lazy"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <span className="text-[10px] font-bold text-gray-800">{b.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <p className="px-5 max-w-md mx-auto text-center text-[11px] text-white/50 mt-4">
+          Plants of <span className="text-amber-400 font-bold">{BRANDS.length}+</span> global manufacturers within the corridor
+        </p>
       </section>
 
       {/* ════════════════════════════════════════════════════════════════════ */}
@@ -646,7 +624,7 @@ const KunjBihariLanding = () => {
           {APPRECIATION.map((a, i) => (
             <motion.div
               key={a.label}
-              initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
               className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20"
             >
@@ -674,18 +652,38 @@ const KunjBihariLanding = () => {
               }}
             />
             <div className="relative p-6 text-[#030509]">
-              <p className="text-[11px] font-bold tracking-[0.25em] uppercase opacity-70 mb-1">Largest plot starts at</p>
-              <div className="flex items-baseline gap-1 mb-5">
+              <p className="text-[11px] font-bold tracking-[0.25em] uppercase opacity-70 mb-2">Now at corridor entry price</p>
+
+              {/* Strike-through old price */}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-bold opacity-50 line-through decoration-2">₹12,525</span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-black/20 text-[#030509] tracking-wider">SAVE 40%</span>
+              </div>
+
+              {/* Animated discount price */}
+              <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-xs font-black opacity-80">₹</span>
-                <span className="text-5xl font-black tracking-tight"><Counter to={18.81} suffix="L" duration={1.4} /></span>
-                <span className="text-[11px] font-bold opacity-70 ml-1">/ 250 sq yd</span>
+                <span className="text-6xl font-black tracking-tight tabular-nums">
+                  <Counter to={7525} from={12525} duration={2.2} />
+                </span>
+              </div>
+              <p className="text-sm font-bold opacity-80 mb-5">per square yard · launch pricing</p>
+
+              {/* Entry plot */}
+              <div className="p-3 rounded-2xl bg-black/15 mb-4">
+                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-0.5">Smallest plot · 50 sq yd</div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-black tracking-tight">₹3.76L</span>
+                  <span className="text-[11px] font-bold opacity-70">total</span>
+                  <span className="ml-auto text-[11px] font-bold">EMI ₹5,644/mo</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[
-                  { v: 10, label: 'Booking', sfx: '%' },
+                  { v: 10, label: 'Booking',  sfx: '%' },
                   { v: 35, label: 'Registry', sfx: '%' },
-                  { v: 60, label: 'Mo EMI',  sfx: '' },
+                  { v: 60, label: 'Mo EMI',   sfx: '' },
                 ].map(x => (
                   <div key={x.label} className="text-center py-3 bg-black/15 rounded-xl">
                     <div className="text-xl font-black"><Counter to={x.v} />{x.sfx}</div>

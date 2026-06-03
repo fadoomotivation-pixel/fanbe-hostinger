@@ -221,43 +221,23 @@ const KunjBihariLanding = () => {
           </motion.div>
 
           <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
             className="text-[44px] sm:text-[52px] leading-[0.95] font-black tracking-tighter mb-3"
-            initial="hidden" animate="visible"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.04, delayChildren: 0.4 } } }}
           >
-            {'Shree Kunj Bihari'.split('').map((ch, i) => (
-              <motion.span
-                key={`a-${i}`}
-                className="inline-block gold-text"
-                variants={{
-                  hidden: { opacity: 0, y: 30, rotateX: -90 },
-                  visible: { opacity: 1, y: 0, rotateX: 0, transition: { type: 'spring', damping: 12 } },
-                }}
-                style={{ transformOrigin: 'center bottom' }}
-              >{ch === ' ' ? ' ' : ch}</motion.span>
-            ))}
-            <br/>
-            {'Enclave'.split('').map((ch, i) => (
-              <motion.span
-                key={`b-${i}`}
-                className="inline-block bg-gradient-to-br from-white via-amber-100 to-amber-300 bg-clip-text text-transparent"
-                variants={{
-                  hidden: { opacity: 0, y: 30, rotateX: -90 },
-                  visible: { opacity: 1, y: 0, rotateX: 0, transition: { type: 'spring', damping: 12 } },
-                }}
-                style={{ transformOrigin: 'center bottom' }}
-              >{ch}</motion.span>
-            ))}
+            <span className="block gold-text">Shree Kunj Bihari</span>
+            <span className="block bg-gradient-to-br from-white via-amber-100 to-amber-300 bg-clip-text text-transparent">Enclave</span>
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.4 }}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0 }}
             className="text-amber-200/90 text-[13px] font-bold tracking-[0.3em] uppercase mb-4"
           >
             कोसी · मथुरा · NH-2
           </motion.p>
           <motion.p
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
             className="text-white/70 text-[15px] leading-relaxed mb-10 px-3"
           >
             Premium gated plots beside India's most legendary highway —
@@ -265,7 +245,7 @@ const KunjBihariLanding = () => {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.9 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.4 }}
             className="flex flex-col items-center gap-2"
           >
             <motion.div
@@ -287,12 +267,11 @@ const KunjBihariLanding = () => {
           {STATS.map((s, i) => (
             <motion.div
               key={s.label}
-              initial={{ opacity: 0, rotateY: -90 }}
-              whileInView={{ opacity: 1, rotateY: 0 }}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-30px' }}
-              transition={{ delay: i * 0.1, type: 'spring', damping: 14 }}
+              transition={{ duration: 0.4 }}
               className="p-4 rounded-2xl bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/15 backdrop-blur-xl"
-              style={{ transformStyle: 'preserve-3d' }}
             >
               <s.icon className="w-5 h-5 mb-2" style={{ color: s.accent }} />
               <div className="flex items-baseline gap-1">
@@ -380,7 +359,7 @@ const KunjBihariLanding = () => {
             <motion.div
               key={l.name}
               initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ delay: i * 0.04 }}
+              transition={{ duration: 0.4 }}
               className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]"
             >
               <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-lg flex-shrink-0">{l.emoji}</div>
@@ -418,7 +397,7 @@ const KunjBihariLanding = () => {
               <motion.div
                 key={c.name}
                 initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
+                transition={{ duration: 0.4 }}
                 className="relative grid grid-cols-2 items-center gap-2 h-10"
               >
                 {c.side === 'left' && (
@@ -499,12 +478,11 @@ const KunjBihariLanding = () => {
           {INFRA.map((f, i) => (
             <motion.div
               key={f.title}
-              initial={{ opacity: 0, y: 20, rotateY: -8 }}
-              whileInView={{ opacity: 1, y: 0, rotateY: 0 }}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}
+              transition={{ duration: 0.4 }}
               className="p-4 rounded-2xl bg-white/[0.04] border border-white/10"
-              style={{ transformStyle: 'preserve-3d' }}
             >
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-amber-500/15 border border-amber-500/30">
                 <f.icon className="w-5 h-5 text-amber-400" />
@@ -538,7 +516,7 @@ const KunjBihariLanding = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ duration: 0.4 }}
               className="aspect-square rounded-2xl bg-white border border-white/10 flex flex-col items-center justify-center p-2 gap-1 shadow-lg"
             >
               <img
@@ -605,7 +583,7 @@ const KunjBihariLanding = () => {
             <motion.div
               key={a.label}
               initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
+              transition={{ duration: 0.4 }}
               className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20"
             >
               <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
@@ -688,7 +666,7 @@ const KunjBihariLanding = () => {
             <motion.div
               key={p.size}
               initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-              transition={{ delay: i * 0.04 }}
+              transition={{ duration: 0.4 }}
               className={`grid grid-cols-3 px-4 py-3 items-center border-t border-white/5 ${p.popular ? 'bg-amber-500/10' : ''}`}
             >
               <div className="flex items-center gap-2">
@@ -709,7 +687,7 @@ const KunjBihariLanding = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.07 }}
+              transition={{ duration: 0.4 }}
               className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-white/[0.02] border border-amber-500/30 text-center"
             >
               <t.icon className="w-6 h-6 mx-auto text-amber-400 mb-2" />

@@ -171,6 +171,121 @@ const Divider = ({ idx, total = 6 }) => (
 );
 
 // ────────────────────────────────────────────────────────────────────────────
+// CONNECTIVITY — horizontal scroll-jack: the investor scrolls VERTICALLY and
+// the page pans HORIZONTALLY through NH-2 stations from Delhi → KOSI → Mathura.
+// This is the distinctive scroll mechanic — pinned vertical lock + horizontal
+// translate driven by scroll progress. Each city is a full-screen card; the
+// KOSI card breaks pattern to anchor attention on the property's location.
+
+const STATIONS = [
+  { name: 'Delhi NCR', km: '110 km', drive: '90 min',  kind: 'start',  emoji: '🏙️', tag: 'Origin' },
+  { name: 'Palwal',    km: '60 km',  drive: '55 min',  kind: 'pass',   emoji: '🛣️', tag: 'NH-2' },
+  { name: 'Hodal',     km: '30 km',  drive: '30 min',  kind: 'pass',   emoji: '🛣️', tag: 'NH-2' },
+  { name: 'KOSI',      km: '0 km',   drive: 'HERE',    kind: 'enclave', emoji: '★',  tag: 'Shree Kunj Bihari Enclave' },
+  { name: 'Chhata',    km: '10 km',  drive: '10 min',  kind: 'pass',   emoji: '🛣️', tag: 'NH-2' },
+  { name: 'Vrindavan', km: '30 km',  drive: '25 min',  kind: 'sacred', emoji: '🛕', tag: 'Spiritual' },
+  { name: 'Mathura',   km: '24 km',  drive: '20 min',  kind: 'sacred', emoji: '🛕', tag: 'Spiritual' },
+];
+
+const ConnectivitySection = () => {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
+  // Pan the horizontal track. With 7 stations and a window of 1 station wide,
+  // we need to translate by (n-1)/n of the total track length.
+  const x = useTransform(scrollYProgress, [0, 1], ['0vw', `-${(STATIONS.length - 1) * 90}vw`]);
+  // Track which station is centered for the floating progress chip
+  const [activeI, setActiveI] = useState(0);
+  useEffect(() => {
+    return scrollYProgress.on('change', (v) => {
+      const i = Math.min(STATIONS.length - 1, Math.round(v * (STATIONS.length - 1)));
+      setActiveI(i);
+    });
+  }, [scrollYProgress]);
+
+  return (
+    <section
+      data-section="2"
+      ref={ref}
+      className="relative bg-gradient-to-b from-[#030509] via-[#0A0F1C] to-[#030509]"
+      style={{ height: `${STATIONS.length * 100}vh` }}
+    >
+      {/* Sticky viewport */}
+      <div className="sticky top-0 h-screen overflow-hidden flex flex-col">
+        {/* Top header */}
+        <div className="px-5 pt-8 pb-4 text-center relative z-20">
+          <p className="text-amber-400 text-[10px] font-bold tracking-[0.35em] uppercase mb-2">② Connectivity · NH-2 Drive</p>
+          <h2 className="text-2xl font-black leading-tight">
+            Delhi → <span className="gold-text">Kosi</span> → Mathura
+          </h2>
+          <p className="text-white/50 text-[11px] mt-2 tracking-wider">SCROLL TO DRIVE THE CORRIDOR ↓</p>
+        </div>
+
+        {/* Horizontal track */}
+        <div className="flex-1 relative flex items-center overflow-hidden">
+          {/* Highway centerline horizon */}
+          <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-px"
+               style={{ backgroundImage: 'linear-gradient(to right, transparent 0%, rgba(252,211,77,0.5) 50%, transparent 100%)' }} />
+          <div className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-px"
+               style={{ backgroundImage: 'linear-gradient(to right, rgba(252,211,77,0.7) 50%, transparent 50%)', backgroundSize: '20px 2px', opacity: 0.35 }} />
+
+          <motion.div style={{ x }} className="flex items-center gap-0 will-change-transform">
+            {STATIONS.map((s, i) => (
+              <div
+                key={s.name}
+                className="shrink-0 flex items-center justify-center"
+                style={{ width: '90vw' }}
+              >
+                {s.kind === 'enclave' ? (
+                  // KOSI — the focal point, breaks pattern
+                  <motion.div
+                    initial={{ scale: 0.85 }}
+                    animate={{ scale: activeI === i ? 1 : 0.85 }}
+                    transition={{ type: 'spring', damping: 18 }}
+                    className="relative max-w-xs"
+                  >
+                    <div className="absolute -inset-8 rounded-[2.5rem]"
+                         style={{ animation: 'pulseRing 2s infinite ease-out', background: 'radial-gradient(circle, rgba(252,211,77,0.4), transparent 70%)' }} />
+                    <div className="relative rounded-[2rem] bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 p-7 text-[#030509] shadow-2xl shadow-amber-500/50">
+                      <div className="text-[10px] font-black tracking-[0.3em] uppercase opacity-70 mb-2">★ Destination ★</div>
+                      <div className="text-5xl font-black leading-none mb-2">KOSI</div>
+                      <div className="text-[12px] font-bold tracking-wider mb-4">Shree Kunj Bihari Enclave</div>
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/15 inline-flex">
+                        <Compass className="w-4 h-4" />
+                        <span className="text-[11px] font-black">You are here</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
+                  // Generic city card
+                  <div className="relative max-w-xs text-center">
+                    <div className="text-6xl mb-3 opacity-60">{s.emoji}</div>
+                    <div className="text-[10px] font-black text-amber-400/70 tracking-[0.3em] uppercase mb-1">{s.tag}</div>
+                    <div className="text-4xl font-black mb-2">{s.name}</div>
+                    <div className="text-white/50 text-[13px] tracking-wider">{s.km} · {s.drive} from KOSI</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Bottom progress + station list */}
+        <div className="px-5 pb-6 pt-2 relative z-20">
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            {STATIONS.map((_, i) => (
+              <div key={i} className={`h-1 rounded-full transition-all duration-300 ${activeI === i ? 'w-6 bg-amber-400' : 'w-1.5 bg-white/20'}`} />
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-[10px] font-bold tracking-wider text-white/60 max-w-md mx-auto">
+            <span>{STATIONS[0].name}</span>
+            <span className="text-amber-400">{STATIONS[activeI].name}</span>
+            <span>{STATIONS[STATIONS.length - 1].name}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const KunjBihariLanding = () => {
   const heroRef = useRef(null);
@@ -421,72 +536,10 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       <Divider idx={1} />
 
-      <section data-section="2" className="px-5 pt-16 pb-10 max-w-md mx-auto">
-        <SectionLabel>② Connectivity</SectionLabel>
-        <h2 className="text-3xl font-black leading-tight mb-2">
-          On the spine of <span className="gold-text">NH-2</span>
-        </h2>
-        <p className="text-white/60 text-[14px] leading-relaxed mb-6">
-          The Delhi-Agra national corridor runs past your front gate.
-        </p>
+      {/* CONNECTIVITY — horizontal scroll-jack "highway drive" */}
+      <ConnectivitySection />
 
-        {/* Compact NH-2 corridor */}
-        <div className="relative rounded-3xl border border-white/10 bg-gradient-to-b from-[#070A12] to-[#080B14] p-5 overflow-hidden mb-5">
-          <div className="absolute left-1/2 top-8 bottom-6 w-1 -ml-0.5 bg-gradient-to-b from-amber-400/0 via-amber-400/30 to-amber-400/0" />
-          <div className="absolute left-1/2 top-8 bottom-6 w-px -ml-px"
-               style={{ backgroundImage: 'linear-gradient(to bottom, rgba(252,211,77,0.7) 50%, transparent 50%)', backgroundSize: '4px 14px' }} />
-          <div className="absolute left-1/2 top-1.5 -translate-x-1/2 text-[9px] font-black tracking-[0.3em] text-amber-400/80 bg-[#080B14] px-2">NH-2</div>
-
-          <div className="relative flex flex-col gap-3">
-            {CORRIDOR.map((c, i) => (
-              <motion.div
-                key={c.name}
-                initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-                transition={{ duration: 0.4 }}
-                className="relative grid grid-cols-2 items-center gap-2 h-10"
-              >
-                {c.side === 'left' && (
-                  <>
-                    <div className="text-right pr-4">
-                      <div className="font-bold text-[12px]">{c.name}</div>
-                      <div className="text-[9px] text-white/40">{c.km} · {c.drive}</div>
-                    </div>
-                    <div />
-                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-amber-400/50 border border-amber-400/70" />
-                  </>
-                )}
-                {c.side === 'right' && (
-                  <>
-                    <div />
-                    <div className="text-left pl-4">
-                      <div className="font-bold text-[12px]">{c.name}</div>
-                      <div className="text-[9px] text-white/40">{c.km} · {c.drive}</div>
-                    </div>
-                    <div className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-amber-400/50 border border-amber-400/70" />
-                  </>
-                )}
-                {c.side === 'pin' && (
-                  <div className="col-span-2 flex items-center justify-center">
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ type: 'spring', damping: 12 }}
-                      className="relative"
-                    >
-                      <div className="absolute inset-0 -m-3 rounded-full"
-                           style={{ animation: 'pulseRing 1.6s infinite ease-out', background: 'radial-gradient(circle, rgba(252,211,77,0.7), transparent 70%)' }} />
-                      <div className="relative px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-[#030509] text-[10px] font-black tracking-widest shadow-lg shadow-amber-500/50">
-                        ★ KOSI · YOU ARE HERE ★
-                      </div>
-                    </motion.div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
+      <section className="px-5 pt-6 pb-10 max-w-md mx-auto">
         {/* Connectivity table */}
         <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-amber-500/5 to-transparent p-1">
           <div className="rounded-[1.4rem] bg-[#0A0F1C]/60 backdrop-blur p-4">

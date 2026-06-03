@@ -189,13 +189,10 @@ const KunjBihariLanding = () => {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
         <style>{`
           @keyframes pulseRing { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
-          @keyframes shine { 0% { transform: translateX(-150%); } 60%, 100% { transform: translateX(150%); } }
           .gold-text {
-            background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 35%, #FCD34D 50%, #F59E0B 65%, #FCD34D 100%);
-            background-size: 200% 200%;
+            background: linear-gradient(135deg, #FCD34D 0%, #F59E0B 50%, #FCD34D 100%);
             -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: shine 5s ease-in-out infinite;
           }
         `}</style>
       </Helmet>
@@ -602,13 +599,6 @@ const KunjBihariLanding = () => {
           <div className="relative rounded-[2rem] overflow-hidden shadow-2xl shadow-amber-500/30">
             <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_55%)]" />
-            <span
-              className="absolute -inset-px opacity-50 pointer-events-none"
-              style={{
-                background: 'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)',
-                backgroundSize: '200% 100%', animation: 'shine 4s infinite',
-              }}
-            />
             <div className="relative p-6 text-[#030509]">
               <p className="text-[11px] font-bold tracking-[0.25em] uppercase opacity-70 mb-2">Now at corridor entry price</p>
 

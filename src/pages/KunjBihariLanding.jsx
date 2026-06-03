@@ -10,11 +10,12 @@ import {
 
 // ────────────────────────────────────────────────────────────────────────────
 const HERO = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images/projects/shree-kunj-bihari/hero.jpg';
-const LAT = 27.7910;
-const LNG = 77.4385;
+// Place-name search — Google finds the actual location instead of us
+// guessing coordinates that don't match the real plot.
+const PLACE_QUERY = encodeURIComponent('Shree Kunj Bihari Enclave, Kosi Kalan, Mathura');
 const MAPS_LINK = 'https://maps.app.goo.gl/AdZxBk4tLRGceHAn8';
-const SATELLITE_EMBED = `https://maps.google.com/maps?q=${LAT},${LNG}&t=k&z=16&ie=UTF8&iwloc=&output=embed`;
-const HYBRID_EMBED    = `https://maps.google.com/maps?q=${LAT},${LNG}&t=h&z=15&ie=UTF8&iwloc=&output=embed`;
+const SATELLITE_EMBED = `https://maps.google.com/maps?q=${PLACE_QUERY}&t=k&z=16&ie=UTF8&iwloc=&output=embed`;
+const HYBRID_EMBED    = `https://maps.google.com/maps?q=${PLACE_QUERY}&t=h&z=15&ie=UTF8&iwloc=&output=embed`;
 
 const CORRIDOR = [
   { name: 'Delhi NCR',  km: '110 km', drive: '90 min', side: 'left'  },
@@ -311,7 +312,7 @@ const KunjBihariLanding = () => {
           </div>
           <div className="absolute top-3 right-3 z-10 px-2.5 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-emerald-400/30 flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[9px] font-mono font-bold text-emerald-300 tracking-wider">27.79°N 77.44°E</span>
+            <span className="text-[9px] font-mono font-bold text-emerald-300 tracking-wider">KOSI · NH-2</span>
           </div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <div className="relative w-16 h-16">

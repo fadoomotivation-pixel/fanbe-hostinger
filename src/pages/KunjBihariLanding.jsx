@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform, useSpring, useInView, useMotionValue } from 'framer-motion';
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
 import { Helmet } from 'react-helmet';
 import {
   MapPin, Train, Building2, Shield, Zap, Droplet, Trees, Car,
@@ -127,26 +127,6 @@ const Particles = ({ count = 30 }) => {
       ))}
     </div>
   );
-};
-
-const Counter = ({ to, from = 0, suffix = '', duration = 1.4 }) => {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: '-50px' });
-  const [val, setVal] = useState(from);
-  useEffect(() => {
-    if (!inView) return;
-    const start = performance.now();
-    let raf;
-    const tick = (t) => {
-      const p = Math.min(1, (t - start) / (duration * 1000));
-      const eased = 1 - Math.pow(1 - p, 4);
-      setVal(Math.round(from + (to - from) * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [inView, to, from, duration]);
-  return <span ref={ref}>{val.toLocaleString('en-IN')}{suffix}</span>;
 };
 
 const Tilt3D = ({ children, intensity = 6, className = '' }) => {
@@ -664,7 +644,7 @@ const KunjBihariLanding = () => {
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-xs font-black opacity-80">₹</span>
                 <span className="text-6xl font-black tracking-tight tabular-nums">
-                  <Counter to={7525} from={12525} duration={2.2} />
+                  7,525
                 </span>
               </div>
               <p className="text-sm font-bold opacity-80 mb-5">per square yard · launch pricing</p>
@@ -686,7 +666,7 @@ const KunjBihariLanding = () => {
                   { v: 60, label: 'Mo EMI',   sfx: '' },
                 ].map(x => (
                   <div key={x.label} className="text-center py-3 bg-black/15 rounded-xl">
-                    <div className="text-xl font-black"><Counter to={x.v} />{x.sfx}</div>
+                    <div className="text-xl font-black">{x.v}{x.sfx}</div>
                     <div className="text-[10px] font-bold uppercase opacity-70">{x.label}</div>
                   </div>
                 ))}

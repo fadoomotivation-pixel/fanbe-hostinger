@@ -1,34 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet';
 import {
-  ArrowDown, Compass, Layers, Mountain, FileCheck, CheckCircle2, Shield, TrendingUp
+  MapPin, Compass, Layers, Mountain, FileCheck, CheckCircle2,
+  Shield, Phone, Zap, Droplet, Trees, Car, Building2, Train, Clock
 } from 'lucide-react';
 
-// ────────────────────────────────────────────────────────────────────────────
 const HERO = 'https://mfgjzkaabyltscgrkhdz.supabase.co/storage/v1/object/public/project-images/projects/shree-kunj-bihari/hero.jpg';
 const PLACE_QUERY = encodeURIComponent('Shree Kunj Bihari Enclave, Kosi Kalan, Mathura');
 const MAPS_LINK = 'https://maps.app.goo.gl/AdZxBk4tLRGceHAn8';
 const SATELLITE_EMBED = `https://maps.google.com/maps?q=${PLACE_QUERY}&t=k&z=16&ie=UTF8&iwloc=&output=embed`;
 const HYBRID_EMBED    = `https://maps.google.com/maps?q=${PLACE_QUERY}&t=h&z=15&ie=UTF8&iwloc=&output=embed`;
 
-// Krishna / ISKCON-inspired palette (peacock blue, saffron, gold, ivory)
-//   bg              #050818  Krishna midnight (deep blue-violet)
-//   peacock         #14B8A6  Peacock feather teal
-//   peacock-2       #22D3EE  Bright cyan rim
-//   saffron         #F59E0B  Sacred saffron / marigold
-//   saffron-2       #FB923C  Warm marigold
-//   gold            #FCD34D  Soft gold ornament
-//   ivory           #FEF3C7  Soft cream
+const HIGHLIGHTS = [
+  { icon: Train,    title: '5 Min',  sub: 'to NH-2 Highway' },
+  { icon: MapPin,   title: '5 Min',  sub: 'to Kosi Railway' },
+  { icon: Shield,   title: '24×7',   sub: 'Gated Security' },
+  { icon: FileCheck, title: '0% EMI', sub: 'Interest Free' },
+];
 
-const STATIONS = [
-  { name: 'Delhi NCR', meta: '110 km · 90 min' },
-  { name: 'Palwal',    meta: '60 km · 55 min' },
-  { name: 'Hodal',     meta: '30 km · 30 min' },
-  { name: 'Kosi',      meta: 'The Enclave', anchor: true },
-  { name: 'Chhata',    meta: '10 km · 10 min' },
-  { name: 'Vrindavan', meta: '30 km · 25 min' },
-  { name: 'Mathura',   meta: '24 km · 20 min' },
+const PROJECT_INFO = [
+  ['Project Type',    'Residential Plots'],
+  ['Plot Sizes',      '50 – 250 sq yd'],
+  ['Possession',      'Immediate'],
+  ['Booking Amount',  '10% of Total'],
+  ['Registry',        '35% of Total'],
+  ['EMI Tenure',      '60 Months · 0% Interest'],
 ];
 
 const LANDMARKS = [
@@ -51,6 +48,15 @@ const DRIVES = [
   { p: 'Agra',       t: '90 min', k: '70 km' },
 ];
 
+const AMENITIES = [
+  { icon: Building2, title: 'Grand Entrance',     desc: 'With dedicated guard room' },
+  { icon: Car,       title: 'Wide Damar Roads',   desc: 'Blacktop internal roads' },
+  { icon: Zap,       title: 'Electricity',        desc: 'Full power infrastructure' },
+  { icon: Droplet,   title: 'Water Supply',       desc: 'Dependable 24×7 utility' },
+  { icon: Trees,     title: 'Green Belt',         desc: 'Planned greenery zones' },
+  { icon: Shield,    title: 'Gated Boundary',     desc: 'Closed perimeter walls' },
+];
+
 const BRANDS = [
   { name: 'Maruti Suzuki', domain: 'marutisuzuki.com' },
   { name: 'Reliance',      domain: 'ril.com' },
@@ -63,557 +69,365 @@ const BRANDS = [
   { name: 'UFLEX',         domain: 'uflexltd.com' },
 ];
 
-const INFRA = [
-  ['Grand Entrance',     'Dedicated guard room at single access'],
-  ['Wide Damar Roads',   'Blacktop internal roads, planned grid'],
-  ['Electricity',        'Full power-supply infrastructure'],
-  ['Water Supply',       'Dependable 24×7 utility'],
-  ['Green Belt',         'Pollution-free planned greenery'],
-  ['Gated Boundary',     'Closed perimeter, single entry'],
-];
-
-const APPRECIATION = [
-  { stat: '22%',  copy: 'YoY land-price growth on this NH-2 belt' },
-  { stat: '35%',  copy: 'YoY tourism rise in Braj Bhoomi' },
-  { stat: '5+',   copy: 'Active MNC plants in the immediate corridor' },
-  { stat: 'NH-2', copy: 'Delhi-Agra national corridor frontage' },
-];
-
 const PLOTS = [
   { size: 50,  total: '₹3,76,250',  emi: '₹5,644' },
+  { size: 60,  total: '₹4,51,500',  emi: '₹6,772' },
   { size: 80,  total: '₹6,02,000',  emi: '₹9,030' },
   { size: 100, total: '₹7,52,500',  emi: '₹11,287', tag: 'Popular' },
+  { size: 120, total: '₹9,03,000',  emi: '₹13,545' },
   { size: 150, total: '₹11,28,750', emi: '₹16,931' },
+  { size: 200, total: '₹15,05,000', emi: '₹22,575' },
   { size: 250, total: '₹18,81,250', emi: '₹28,219' },
 ];
 
+const WHY_INVEST = [
+  '22% YoY land-price growth on the NH-2 corridor',
+  '5+ active multinational manufacturing plants nearby',
+  'Mathura-Vrindavan-Govardhan religious tourism circuit',
+  'Direct Delhi-Agra national highway frontage',
+];
+
 const TRUST = [
-  { l: 'Immediate Registry',  i: FileCheck },
-  { l: 'Mutation in Hand',    i: CheckCircle2 },
-  { l: 'No Hidden Charges',   i: Shield },
-  { l: '0% Interest EMI',     i: TrendingUp },
+  '100% Clear Title with immediate mutation',
+  'Immediate Registry on 35% payment',
+  'No hidden charges, transparent pricing',
+  '0% interest EMI for 60 months',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Typographic primitives — back to bold sans, Krishna palette
 
-const Eyebrow = ({ children }) => (
-  <p className="text-[11px] tracking-[0.35em] uppercase font-bold mb-3"
-     style={{ color: '#22D3EE' }}>{children}</p>
-);
-
-const Display = ({ children, className = '' }) => (
-  <h2 className={`text-3xl font-black leading-[1.08] tracking-tight text-white ${className}`}>
-    {children}
-  </h2>
-);
-
-const Lede = ({ children }) => (
-  <p className="text-slate-400 text-[15px] leading-[1.65] mt-3 max-w-md">{children}</p>
-);
-
-const Row = ({ left, right, sub }) => (
-  <div className="flex items-baseline justify-between py-3.5 border-b border-white/[0.07]">
-    <div className="flex-1 min-w-0">
-      <div className="font-semibold text-[14px] text-white truncate">{left}</div>
-      {sub && <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">{sub}</div>}
-    </div>
-    <div className="text-[13px] font-black tabular-nums" style={{ color: '#FCD34D' }}>{right}</div>
-  </div>
-);
-
-const Rule = () => (
-  <div className="max-w-md mx-auto px-6">
-    <div className="h-px my-10"
-         style={{ background: 'linear-gradient(to right, transparent, rgba(34,211,238,0.25), rgba(245,158,11,0.25), transparent)' }} />
-  </div>
-);
-
-// Subtle peacock glow blob — Krishna ambient
-const PeacockGlow = ({ x = '50%', y = '50%', size = 600, opacity = 0.25 }) => (
-  <div className="absolute pointer-events-none" style={{ inset: 0 }}>
-    <div className="absolute rounded-full"
-         style={{
-           left: x, top: y, width: size, height: size,
-           transform: 'translate(-50%, -50%)',
-           background: `radial-gradient(circle, rgba(20,184,166,${opacity * 0.7}) 0%, rgba(34,211,238,${opacity * 0.4}) 35%, transparent 70%)`,
-           filter: 'blur(40px)',
-         }} />
-  </div>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Horizontal scroll-jack — drive down NH-2 as you scroll
-
-const HighwayDrive = () => {
-  const ref = useRef(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
-  const x = useTransform(scrollYProgress, [0, 1], ['0vw', `-${(STATIONS.length - 1) * 90}vw`]);
-  const [i, setI] = useState(0);
-  useEffect(() => scrollYProgress.on('change', v => {
-    setI(Math.min(STATIONS.length - 1, Math.round(v * (STATIONS.length - 1))));
-  }), [scrollYProgress]);
-
-  return (
-    <section ref={ref} className="relative" style={{ height: `${STATIONS.length * 100}vh` }}>
-      <div className="sticky top-0 h-screen overflow-hidden flex flex-col" style={{ background: '#050818' }}>
-        <PeacockGlow x="50%" y="55%" size={700} opacity={0.4} />
-
-        <div className="px-6 pt-10 pb-2 text-center relative z-10">
-          <Eyebrow>② Connectivity · The NH-2 corridor</Eyebrow>
-          <Display>Drive the highway.</Display>
-          <p className="text-[10px] tracking-[0.3em] uppercase text-slate-500 mt-4">Scroll to advance ↓</p>
-        </div>
-
-        <div className="flex-1 relative flex items-center overflow-hidden z-10">
-          <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-px"
-               style={{ background: 'linear-gradient(to right, transparent 0%, rgba(252,211,77,0.5) 50%, transparent 100%)' }} />
-          <motion.div style={{ x }} className="flex items-center will-change-transform">
-            {STATIONS.map((s) => (
-              <div key={s.name} className="shrink-0 flex items-center justify-center" style={{ width: '90vw' }}>
-                {s.anchor ? (
-                  <div className="text-center relative">
-                    <div className="absolute inset-0 -m-12 rounded-full" style={{
-                      background: 'radial-gradient(circle, rgba(245,158,11,0.35) 0%, rgba(20,184,166,0.2) 40%, transparent 70%)',
-                      filter: 'blur(30px)'
-                    }} />
-                    <p className="relative text-[11px] tracking-[0.4em] uppercase font-bold mb-3"
-                       style={{ color: '#FCD34D' }}>★ The Enclave ★</p>
-                    <h3 className="relative text-[88px] font-black leading-none tracking-tighter mb-4"
-                        style={{
-                          background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 50%, #F59E0B 100%)',
-                          WebkitBackgroundClip: 'text', backgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                        }}>
-                      KOSI
-                    </h3>
-                    <p className="relative text-[12px] text-cyan-200/80 tracking-[0.3em] uppercase font-bold">Shree Kunj Bihari Enclave</p>
-                  </div>
-                ) : (
-                  <div className="text-center opacity-90">
-                    <p className="text-[10px] tracking-[0.4em] uppercase font-bold mb-3 text-slate-500">Station</p>
-                    <h3 className="text-[64px] font-black leading-none tracking-tighter mb-3 text-white">
-                      {s.name}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 tracking-wider">{s.meta}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </motion.div>
-        </div>
-
-        <div className="px-6 pb-8 relative z-10">
-          <div className="flex items-center justify-center gap-1.5 mb-3">
-            {STATIONS.map((_, j) => (
-              <div key={j} className="h-px transition-all duration-300"
-                   style={{
-                     width: j === i ? '40px' : '16px',
-                     background: j === i ? '#FCD34D' : 'rgba(255,255,255,0.15)',
-                   }} />
-            ))}
-          </div>
-          <p className="text-[10px] tracking-[0.3em] uppercase text-slate-500 text-center">
-            {STATIONS[0].name} <span className="mx-2 opacity-30">·</span>
-            <span style={{ color: '#22D3EE' }}>{STATIONS[i].name}</span>
-            <span className="mx-2 opacity-30">·</span> {STATIONS[STATIONS.length - 1].name}
-          </p>
-        </div>
-      </div>
-    </section>
-  );
+const fadeUp = {
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-30px' },
+  transition: { duration: 0.5, ease: 'easeOut' },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
+const Section = ({ children, className = '', kicker, title, lede }) => (
+  <section className={`max-w-4xl mx-auto px-6 ${className}`}>
+    {kicker && <p className="text-[11px] tracking-[0.3em] uppercase font-bold text-stone-500 mb-3">{kicker}</p>}
+    {title && <h2 className="text-[28px] sm:text-[34px] leading-tight font-bold text-stone-900 mb-3 tracking-tight">{title}</h2>}
+    {lede && <p className="text-stone-600 text-[15px] leading-relaxed mb-8 max-w-xl">{lede}</p>}
+    {children}
+  </section>
+);
 
 const KunjBihariLanding = () => {
-  const heroRef = useRef(null);
-  const { scrollYProgress: hp } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const heroY  = useTransform(hp, [0, 1], [0, 120]);
-  const heroSc = useTransform(hp, [0, 1], [1.05, 1.15]);
-  const heroOp = useTransform(hp, [0, 0.8, 1], [1, 0.4, 0]);
-  const titleY = useTransform(hp, [0, 1], [0, -30]);
-
   const [mapType, setMapType] = useState('satellite');
   const mapSrc = mapType === 'satellite' ? SATELLITE_EMBED : HYBRID_EMBED;
 
   return (
-    <div className="min-h-screen text-white antialiased relative overflow-hidden"
-         style={{ backgroundColor: '#050818' }}>
+    <div className="min-h-screen bg-[#FAF7F2] text-stone-900 antialiased">
       <Helmet>
-        <title>Shree Kunj Bihari Enclave — Plots near Mathura NH-2 | Fanbe Group</title>
-        <meta name="description" content="Gated plots beside NH-2, near Kosi-Mathura. Immediate registry, industrial corridor, spiritual heritage." />
-        <meta property="og:title" content="Shree Kunj Bihari Enclave — Plots near Mathura NH-2" />
-        <meta property="og:description" content="Gated plots beside the National Highway, Kosi-Mathura. By Fanbe Group." />
+        <title>Shree Kunj Bihari Enclave — Premium Plots near Mathura NH-2 | Fanbe Group</title>
+        <meta name="description" content="Residential gated plots beside National Highway 2, near Kosi-Mathura. Immediate registry, 0% interest EMI, 100% clear title. A Fanbe Group project." />
+        <meta property="og:title" content="Shree Kunj Bihari Enclave — Premium Plots near Mathura NH-2" />
+        <meta property="og:description" content="Residential gated plots beside the National Highway, Kosi-Mathura. By Fanbe Group." />
         <meta property="og:image" content={HERO} />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-        <style>{`
-          @keyframes pulseRing { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
-        `}</style>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </Helmet>
 
-      {/* Ambient peacock background — deep Krishna midnight glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <PeacockGlow x="20%" y="30%" size={600} opacity={0.18} />
-        <PeacockGlow x="80%" y="70%" size={700} opacity={0.12} />
-      </div>
+      {/* ════════ TOP BAR ════════ */}
+      <header className="border-b border-stone-200 bg-white/95 backdrop-blur sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] tracking-[0.3em] uppercase font-bold text-stone-500">Fanbe Group</div>
+            <div className="text-[13px] font-bold text-stone-900">Shree Kunj Bihari Enclave</div>
+          </div>
+          <div className="text-[11px] text-stone-600 hidden sm:block">Kosi Kalan · Mathura · NH-2</div>
+        </div>
+      </header>
 
       {/* ════════ HERO ════════ */}
-      <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-start justify-end text-left px-6 pb-16 overflow-hidden z-10">
-        <motion.div style={{ y: heroY, scale: heroSc, opacity: heroOp }} className="absolute inset-0 z-0">
-          <img src={HERO} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(5,8,24,0.2), rgba(5,8,24,0.65), #050818)' }} />
-          <div className="absolute inset-0" style={{
-            background: 'radial-gradient(circle at 30% 25%, rgba(20,184,166,0.18), transparent 55%), radial-gradient(circle at 75% 80%, rgba(245,158,11,0.12), transparent 60%)'
-          }} />
-        </motion.div>
+      <section className="relative">
+        <div className="relative w-full" style={{ aspectRatio: '4/3', maxHeight: '70svh' }}>
+          <img src={HERO} alt="Shree Kunj Bihari Enclave" className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(20,15,8,0) 50%, rgba(20,15,8,0.9))' }} />
+          <div className="absolute inset-x-0 bottom-0 p-6 text-white">
+            <div className="max-w-4xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur border border-white/20 mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[10px] tracking-[0.25em] uppercase font-bold">Now Booking</span>
+              </div>
+              <h1 className="text-[36px] sm:text-[48px] leading-[1.05] font-bold tracking-tight">
+                Shree Kunj Bihari Enclave
+              </h1>
+              <p className="text-white/80 text-[14px] mt-2">Kosi Kalan · Mathura, Uttar Pradesh</p>
+            </div>
+          </div>
+        </div>
 
-        <motion.div style={{ y: titleY }} className="relative z-10 max-w-md">
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 mb-6"
-          >
-            <span className="w-6 h-px" style={{ background: '#22D3EE' }} />
-            <span className="text-[10px] tracking-[0.4em] uppercase font-bold" style={{ color: '#22D3EE' }}>
-              Fanbe Group
-            </span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.3 }}
-            className="font-black leading-[0.95] tracking-tighter text-white"
-            style={{ fontSize: 'clamp(48px, 12vw, 76px)' }}
-          >
-            Shree Kunj<br/>
-            Bihari{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 60%, #F59E0B 100%)',
-              WebkitBackgroundClip: 'text', backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Enclave
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }}
-            className="text-[13px] tracking-[0.3em] uppercase font-semibold mt-5"
-            style={{ color: '#FCD34D' }}
-          >
-            कोसी · मथुरा · NH-2
-          </motion.p>
-
-          <motion.p
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }}
-            className="text-slate-300 text-[15px] leading-[1.65] mt-5 max-w-sm"
-          >
-            A gated address beside India's legendary highway —
-            where the Braj heritage of Mathura meets the corridor's
-            industrial future.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
-            className="mt-10 flex items-center gap-2 text-[10px] tracking-[0.4em] uppercase"
-            style={{ color: '#22D3EE' }}
-          >
-            <ArrowDown className="w-3 h-3" />
-            <span>The full story</span>
-          </motion.div>
-        </motion.div>
-      </section>
-
-      {/* ════════ KICKER ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-24 pb-8 relative z-10">
-        <p className="text-[28px] font-black leading-[1.2] tracking-tight text-white">
-          Of all the corridors investors quietly accumulate in,{' '}
-          <span style={{
-            background: 'linear-gradient(135deg, #22D3EE 0%, #14B8A6 100%)',
-            WebkitBackgroundClip: 'text', backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            NH-2 is the one with both heritage and growth on its side.
-          </span>
-        </p>
-      </section>
-
-      {/* ════════ ① LOCATION ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-16 pb-8 relative z-10">
-        <Eyebrow>① Location</Eyebrow>
-        <Display>The exact spot.</Display>
-        <Lede>
-          Kosi Kalan, Mathura. Beside NH-2, walking distance to Shanidev Temple
-          and Durwasha Rishi Ashram. Pinned below, live from Google.
-        </Lede>
-      </section>
-
-      <div className="max-w-md mx-auto px-6 relative z-10">
-        <div className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'rgba(34,211,238,0.2)' }}>
-          <div className="absolute top-3 left-3 z-10 flex gap-1 p-1 rounded-full bg-black/60 backdrop-blur border border-white/15">
-            {[
-              { id: 'satellite', Icon: Mountain, label: 'Satellite' },
-              { id: 'hybrid',    Icon: Layers,   label: 'Labels' },
-            ].map(t => (
-              <button key={t.id} onClick={() => setMapType(t.id)}
-                className="px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wide flex items-center gap-1 transition"
-                style={mapType === t.id
-                  ? { background: '#FCD34D', color: '#050818' }
-                  : { color: 'rgba(255,255,255,0.7)' }}
-              >
-                <t.Icon className="w-3 h-3" /> {t.label}
-              </button>
+        {/* Highlight strip */}
+        <div className="border-b border-stone-200 bg-white">
+          <div className="max-w-4xl mx-auto px-6 py-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {HIGHLIGHTS.map(h => (
+              <div key={h.sub} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0">
+                  <h.icon className="w-4 h-4 text-amber-700" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-bold text-stone-900 leading-tight">{h.title}</div>
+                  <div className="text-[11px] text-stone-500">{h.sub}</div>
+                </div>
+              </div>
             ))}
           </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-            <div className="relative w-12 h-12">
-              <div className="absolute inset-0 rounded-full border" style={{ borderColor: 'rgba(252,211,77,0.6)', animation: 'pulseRing 2s infinite ease-out' }} />
-              <div className="absolute inset-0 m-5 rounded-full shadow-lg" style={{ background: '#FCD34D', boxShadow: '0 0 16px rgba(252,211,77,0.7)' }} />
-            </div>
-          </div>
-          <iframe
-            key={mapType}
-            src={mapSrc}
-            title="Shree Kunj Bihari Enclave Location"
-            className="w-full aspect-[4/3] block"
-            style={{ border: 0, filter: 'contrast(1.05) saturate(1.15) brightness(0.92)' }}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
         </div>
-        <div className="flex items-center justify-between px-1 pt-3">
-          <div className="flex items-center gap-2 text-[12px] text-slate-400">
-            <Compass className="w-3.5 h-3.5" style={{ color: '#22D3EE' }} />
-            Kosi Kalan · Mathura, UP
-          </div>
-          <a href={MAPS_LINK} target="_blank" rel="noreferrer"
-             className="text-[11px] font-bold tracking-wide hover:opacity-80"
-             style={{ color: '#FCD34D' }}>
-            Open in Maps →
-          </a>
-        </div>
-      </div>
-
-      <div className="max-w-md mx-auto px-6 pt-12 relative z-10">
-        <p className="text-[10px] tracking-[0.3em] uppercase text-slate-500 mb-2 font-bold">Within the neighbourhood</p>
-        <div>
-          {LANDMARKS.map(l => (
-            <Row key={l.n} left={l.n} right={l.d} sub={l.k} />
-          ))}
-        </div>
-      </div>
-
-      <Rule />
-
-      {/* ════════ ② CONNECTIVITY ════════ */}
-      <HighwayDrive />
-
-      <div className="max-w-md mx-auto px-6 pt-16 relative z-10">
-        <p className="text-[10px] tracking-[0.3em] uppercase text-slate-500 mb-2 font-bold">Drive times from Kosi</p>
-        <div>
-          {DRIVES.map(d => (
-            <Row key={d.p} left={d.p} right={d.t} sub={d.k} />
-          ))}
-        </div>
-      </div>
-
-      <Rule />
-
-      {/* ════════ ③ INFRASTRUCTURE ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-8 pb-4 relative z-10">
-        <Eyebrow>③ Infrastructure</Eyebrow>
-        <Display>Built like a forever home.</Display>
-        <Lede>
-          Every utility, every margin of safety, engineered in before the first
-          plot was handed over.
-        </Lede>
       </section>
-      <div className="max-w-md mx-auto px-6 pt-6 relative z-10">
-        {INFRA.map(([t, d], i) => (
-          <div key={t} className="flex items-baseline gap-4 py-4 border-b border-white/[0.07]">
-            <span className="text-[14px] font-black tabular-nums" style={{ color: '#22D3EE' }}>
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <div className="flex-1">
-              <div className="font-bold text-[15px] text-white">{t}</div>
-              <div className="text-[12px] text-slate-500 mt-0.5">{d}</div>
-            </div>
+
+      {/* ════════ OVERVIEW ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Overview"
+          title="A gated community on India's most travelled highway."
+          lede="Shree Kunj Bihari Enclave is a planned residential plotted development beside National Highway 2, in Kosi Kalan, Mathura. Backed by Fanbe Group, the project offers a rare combination of religious heritage, industrial corridor growth, and direct highway frontage — with immediate registry on a 35% payment."
+        >
+          <div className="border-t border-stone-200">
+            {PROJECT_INFO.map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between py-3 border-b border-stone-200">
+                <div className="text-[13px] text-stone-500">{k}</div>
+                <div className="text-[14px] font-semibold text-stone-900">{v}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </Section>
+      </motion.div>
 
-      <Rule />
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
 
-      {/* ════════ ④ INDUSTRY ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-8 pb-2 relative z-10">
-        <Eyebrow>④ Industry</Eyebrow>
-        <Display>Anchored by manufacturers.</Display>
-        <Lede>
-          When companies of this scale plant their factories in a corridor,
-          land value moves alongside. Yours is already among them.
-        </Lede>
-      </section>
-      <div className="max-w-md mx-auto px-6 pt-6 grid grid-cols-3 gap-2.5 relative z-10">
-        {BRANDS.map(b => (
-          <div key={b.name}
-               className="aspect-square rounded-xl bg-white border flex flex-col items-center justify-center p-2 gap-1"
-               style={{ borderColor: 'rgba(34,211,238,0.15)' }}>
-            <img
-              src={`https://logo.clearbit.com/${b.domain}`}
-              alt={b.name}
-              className="max-h-9 max-w-full object-contain"
+      {/* ════════ LOCATION ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Location"
+          title="The exact spot."
+          lede="Kosi Kalan, Mathura. Beside NH-2. Walking distance to Shani Dev Mandir and Durwasha Rishi Ashram."
+        >
+          <div className="relative rounded-xl overflow-hidden border border-stone-200">
+            <div className="absolute top-3 left-3 z-10 flex gap-1 p-1 rounded-full bg-white/95 backdrop-blur border border-stone-200 shadow-sm">
+              {[
+                { id: 'satellite', Icon: Mountain, label: 'Satellite' },
+                { id: 'hybrid',    Icon: Layers,   label: 'Map' },
+              ].map(t => (
+                <button key={t.id} onClick={() => setMapType(t.id)}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1 transition ${mapType === t.id ? 'bg-stone-900 text-white' : 'text-stone-600'}`}>
+                  <t.Icon className="w-3 h-3" /> {t.label}
+                </button>
+              ))}
+            </div>
+            <iframe
+              key={mapType}
+              src={mapSrc}
+              title="Shree Kunj Bihari Enclave Location"
+              className="w-full aspect-[4/3] block"
+              style={{ border: 0 }}
               loading="lazy"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              referrerPolicy="no-referrer-when-downgrade"
             />
-            <span className="text-[9px] font-bold text-slate-800 text-center leading-tight">{b.name}</span>
           </div>
-        ))}
-      </div>
-      <p className="max-w-md mx-auto px-6 pt-4 text-center text-[11px] text-slate-500 relative z-10">
-        Active plants of {BRANDS.length}+ global manufacturers within the corridor.
-      </p>
-
-      <Rule />
-
-      {/* ════════ ⑤ SECURITY ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-8 pb-2 relative z-10">
-        <Eyebrow>⑤ Security</Eyebrow>
-        <Display>Leave it at the gate.</Display>
-        <Lede>
-          A closed perimeter. A single supervised entry. CCTV at the gate and
-          along access points. Authorised vehicles only.
-        </Lede>
-      </section>
-      <div className="max-w-md mx-auto px-6 pt-6 relative z-10">
-        {[
-          '24×7 trained guards',
-          'CCTV at every gate',
-          'Closed boundary wall',
-          'Authorised entry only',
-        ].map((b, i) => (
-          <div key={b} className="flex items-baseline gap-4 py-3.5 border-b border-white/[0.07]">
-            <span className="text-[14px] font-black tabular-nums" style={{ color: '#22D3EE' }}>
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <span className="text-[14px] font-semibold text-white">{b}</span>
+          <div className="flex items-center justify-between mt-3 px-1">
+            <div className="flex items-center gap-2 text-[12px] text-stone-600">
+              <Compass className="w-3.5 h-3.5 text-amber-700" />
+              Kosi Kalan · Mathura, UP
+            </div>
+            <a href={MAPS_LINK} target="_blank" rel="noreferrer" className="text-[12px] font-semibold text-amber-700 hover:underline">
+              Open in Maps →
+            </a>
           </div>
-        ))}
-      </div>
 
-      <Rule />
-
-      {/* ════════ ⑥ APPRECIATION ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-8 pb-4 relative z-10">
-        <Eyebrow>⑥ Appreciation</Eyebrow>
-        <Display>Why this corridor climbs.</Display>
-        <Lede>
-          Four forces are pulling NH-2 up at the same time, year after year.
-        </Lede>
-      </section>
-      <div className="max-w-md mx-auto px-6 pt-6 relative z-10">
-        {APPRECIATION.map((a) => (
-          <div key={a.copy} className="py-5 border-b border-white/[0.07]">
-            <div className="text-[44px] font-black leading-none tracking-tighter"
-                 style={{
-                   background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 60%, #F59E0B 100%)',
-                   WebkitBackgroundClip: 'text', backgroundClip: 'text',
-                   WebkitTextFillColor: 'transparent',
-                 }}>
-              {a.stat}
+          {/* Landmarks table */}
+          <div className="mt-10">
+            <p className="text-[11px] tracking-[0.3em] uppercase font-bold text-stone-500 mb-3">Nearby Landmarks</p>
+            <div className="border-t border-stone-200">
+              {LANDMARKS.map(l => (
+                <div key={l.n} className="flex items-baseline justify-between py-3 border-b border-stone-200">
+                  <div>
+                    <div className="text-[14px] font-semibold text-stone-900">{l.n}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-stone-500 mt-0.5">{l.k}</div>
+                  </div>
+                  <div className="text-[13px] font-semibold text-amber-700 tabular-nums">{l.d}</div>
+                </div>
+              ))}
             </div>
-            <p className="text-[13px] text-slate-400 mt-2">{a.copy}</p>
           </div>
-        ))}
-      </div>
+        </Section>
+      </motion.div>
 
-      {/* Pricing — editorial in Krishna palette */}
-      <section className="max-w-md mx-auto px-6 pt-16 relative z-10">
-        <Eyebrow>Launch pricing</Eyebrow>
-        <div className="flex items-baseline gap-3 mb-1">
-          <span className="text-slate-500 text-base line-through font-semibold">₹12,525</span>
-          <span className="text-[10px] font-black tracking-[0.25em] uppercase px-2 py-0.5 rounded-full"
-                style={{ color: '#FCD34D', background: 'rgba(252,211,77,0.1)', border: '1px solid rgba(252,211,77,0.3)' }}>
-            Save 40%
-          </span>
-        </div>
-        <div className="flex items-baseline gap-2 mb-2">
-          <span className="text-[88px] font-black leading-none tracking-tighter text-white">
-            ₹7,525
-          </span>
-        </div>
-        <p className="text-slate-500 text-[13px]">per square yard · today's corridor entry price</p>
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
 
-        <div className="grid grid-cols-3 gap-6 mt-10 pb-6 border-b border-white/[0.07]">
-          {[
-            ['10', '%', 'Booking'],
-            ['35', '%', 'Registry'],
-            ['60', '',  'Mo EMI'],
-          ].map(([v, sfx, l]) => (
-            <div key={l}>
-              <div className="text-[34px] font-black leading-none tracking-tighter text-white">
-                {v}<span style={{ color: '#22D3EE' }}>{sfx}</span>
+      {/* ════════ CONNECTIVITY ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Connectivity"
+          title="Reach the Braj Bhoomi · Reach Delhi."
+          lede="Direct frontage on National Highway 2 connects the project to every major destination in the corridor."
+        >
+          <div className="border-t border-stone-200">
+            {DRIVES.map(d => (
+              <div key={d.p} className="flex items-center justify-between py-3 border-b border-stone-200">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-stone-400" />
+                  <span className="text-[14px] font-semibold text-stone-900">{d.p}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-[14px] font-bold text-stone-900 tabular-nums">{d.t}</div>
+                  <div className="text-[11px] text-stone-500">{d.k}</div>
+                </div>
               </div>
-              <div className="text-[10px] tracking-[0.25em] uppercase text-slate-500 mt-2 font-bold">{l}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Section>
+      </motion.div>
 
-        <p className="text-[10px] tracking-[0.3em] uppercase text-slate-500 mt-10 mb-3 font-bold">All plot sizes</p>
-        <div>
-          {PLOTS.map(p => (
-            <div key={p.size} className="flex items-baseline justify-between gap-3 py-4 border-b border-white/[0.07]">
-              <div className="flex items-baseline gap-3">
-                <span className="text-[20px] font-black tabular-nums text-white">
-                  {p.size}
-                </span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">sq yd</span>
-                {p.tag && (
-                  <span className="text-[9px] tracking-widest uppercase font-black"
-                        style={{ color: '#FCD34D' }}>★ {p.tag}</span>
-                )}
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
+
+      {/* ════════ AMENITIES ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Amenities"
+          title="Built like a forever home."
+          lede="Every utility and margin of safety, engineered in before the first plot was handed over."
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {AMENITIES.map(a => (
+              <div key={a.title} className="p-4 bg-white border border-stone-200 rounded-xl">
+                <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mb-3">
+                  <a.icon className="w-4 h-4 text-amber-700" />
+                </div>
+                <div className="text-[14px] font-bold text-stone-900 mb-1">{a.title}</div>
+                <div className="text-[12px] text-stone-500 leading-relaxed">{a.desc}</div>
               </div>
-              <div className="text-right">
-                <div className="text-[14px] font-bold text-white tabular-nums">{p.total}</div>
-                <div className="text-[11px] tabular-nums" style={{ color: '#22D3EE' }}>{p.emi} / mo</div>
+            ))}
+          </div>
+        </Section>
+      </motion.div>
+
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
+
+      {/* ════════ INDUSTRY ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Industry"
+          title="Anchored by global manufacturers."
+          lede="When companies of this scale plant their factories in a corridor, land value follows. Yours is already among them."
+        >
+          <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
+            {BRANDS.map(b => (
+              <div key={b.name} className="aspect-square rounded-lg bg-white border border-stone-200 flex flex-col items-center justify-center p-3 gap-1.5">
+                <img
+                  src={`https://logo.clearbit.com/${b.domain}`}
+                  alt={b.name}
+                  className="max-h-10 max-w-full object-contain"
+                  loading="lazy"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <span className="text-[10px] font-semibold text-stone-700 text-center leading-tight">{b.name}</span>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <p className="mt-4 text-[12px] text-stone-500 text-center">
+            Active plants of {BRANDS.length}+ global manufacturers within the corridor.
+          </p>
+        </Section>
+      </motion.div>
 
-        <div className="grid grid-cols-2 gap-3 mt-10">
-          {TRUST.map(t => (
-            <div key={t.l} className="flex items-center gap-2.5 py-2">
-              <t.i className="w-4 h-4 flex-shrink-0" style={{ color: '#FCD34D' }} />
-              <span className="text-[12px] text-slate-300 font-semibold">{t.l}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
 
-      {/* ════════ FINALE ════════ */}
-      <section className="max-w-md mx-auto px-6 pt-28 pb-32 text-center relative z-10">
-        <div className="inline-flex items-center gap-2 mb-6">
-          <span className="w-8 h-px" style={{ background: '#22D3EE' }} />
-          <span className="text-[10px] tracking-[0.4em] uppercase font-bold" style={{ color: '#FCD34D' }}>श्री</span>
-          <span className="w-8 h-px" style={{ background: '#22D3EE' }} />
+      {/* ════════ PRICING / PLOTS ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Plot Sizes & Pricing"
+          title="Choose your plot."
+          lede="Launch pricing of ₹7,525 per square yard. 10% booking, 35% registry, 60-month interest-free EMI."
+        >
+          <div className="overflow-hidden border border-stone-200 rounded-xl">
+            <div className="grid grid-cols-4 px-4 py-3 bg-stone-100 text-[11px] font-bold uppercase tracking-wider text-stone-500">
+              <span>Plot Size</span>
+              <span className="text-right col-span-1">Per sq yd</span>
+              <span className="text-right">Total</span>
+              <span className="text-right">EMI/mo</span>
+            </div>
+            {PLOTS.map(p => (
+              <div key={p.size} className={`grid grid-cols-4 px-4 py-3 items-center text-[13px] border-t border-stone-200 ${p.tag ? 'bg-amber-50' : 'bg-white'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-stone-900">{p.size} sq yd</span>
+                  {p.tag && (
+                    <span className="text-[9px] tracking-widest uppercase font-bold text-amber-700 px-1.5 py-0.5 bg-amber-100 rounded">
+                      {p.tag}
+                    </span>
+                  )}
+                </div>
+                <span className="text-right text-stone-600 tabular-nums">₹7,525</span>
+                <span className="text-right font-semibold text-stone-900 tabular-nums">{p.total}</span>
+                <span className="text-right font-semibold text-amber-700 tabular-nums">{p.emi}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </motion.div>
+
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
+
+      {/* ════════ WHY INVEST ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Why Invest"
+          title="Four forces pulling NH-2 up."
+        >
+          <div className="space-y-3">
+            {WHY_INVEST.map(r => (
+              <div key={r} className="flex items-start gap-3 p-4 bg-white border border-stone-200 rounded-xl">
+                <CheckCircle2 className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <span className="text-[14px] text-stone-800 leading-relaxed">{r}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </motion.div>
+
+      <div className="h-px bg-stone-200 max-w-4xl mx-auto" />
+
+      {/* ════════ TRUST ════════ */}
+      <motion.div {...fadeUp}>
+        <Section
+          className="py-14"
+          kicker="Promises"
+          title="What we put in writing."
+        >
+          <div className="grid sm:grid-cols-2 gap-3">
+            {TRUST.map(t => (
+              <div key={t} className="flex items-start gap-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
+                <FileCheck className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <span className="text-[14px] text-stone-800 leading-relaxed">{t}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </motion.div>
+
+      {/* ════════ FOOTER ════════ */}
+      <footer className="bg-stone-900 text-stone-300 mt-10">
+        <div className="max-w-4xl mx-auto px-6 py-14 text-center">
+          <p className="text-[10px] tracking-[0.3em] uppercase font-bold text-amber-400 mb-3">A Fanbe Group Project</p>
+          <h3 className="text-[24px] font-bold text-white mb-2">Shree Kunj Bihari Enclave</h3>
+          <p className="text-stone-400 text-[13px] mb-6">Kosi Kalan · Mathura · Uttar Pradesh</p>
+          <div className="max-w-md mx-auto p-4 bg-stone-800 border border-stone-700 rounded-xl">
+            <p className="text-[13px] text-stone-300 leading-relaxed">
+              For plot availability, pricing and site visit scheduling, please continue with the
+              <span className="text-amber-300 font-semibold"> advisor who shared this page</span> with you.
+            </p>
+          </div>
+          <p className="mt-10 text-[10px] text-stone-500 tracking-wider">
+            © Fanbe Developers · Information subject to change without notice
+          </p>
         </div>
-        <h2 className="font-black leading-[1.05] tracking-tighter text-white"
-            style={{ fontSize: 'clamp(40px, 10vw, 60px)' }}>
-          Your plot.<br/>
-          <span style={{
-            background: 'linear-gradient(135deg, #FCD34D 0%, #FB923C 60%, #F59E0B 100%)',
-            WebkitBackgroundClip: 'text', backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>Your legacy.</span>
-        </h2>
-        <p className="text-slate-400 text-[14px] leading-[1.65] mt-6 max-w-sm mx-auto">
-          Inventory on the front rows of NH-2 is finite. Continue the
-          conversation with the advisor who shared this page with you.
-        </p>
-        <p className="text-slate-600 text-[10px] tracking-[0.3em] uppercase font-bold mt-16">
-          Shree Kunj Bihari Enclave · Kosi Kalan · Mathura, UP<br/>
-          <span style={{ color: '#FCD34D' }}>A Fanbe Group Development</span>
-        </p>
-      </section>
+      </footer>
     </div>
   );
 };

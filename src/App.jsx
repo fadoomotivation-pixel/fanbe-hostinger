@@ -303,6 +303,10 @@ function App() {
   // are working their lead list.
   const { pathname } = useLocation();
   const isCRM = pathname.startsWith('/crm');
+  // Telecaller-shared landing pages must NOT show the head-office WhatsApp
+  // bubble — if the investor taps it the lead routes to admin and gets
+  // snatched from the rep who shared the link.
+  const isLanding = pathname === '/kunj-bihari';
   return (
     <>
       <ScrollToTop />
@@ -311,8 +315,8 @@ function App() {
         isOpen={showSiteVisitModal}
         onClose={() => setShowSiteVisitModal(false)}
       />
-      <FloatingWhatsAppButton />
-      {!isCRM && <SocialProofToast />}
+      {!isLanding && <FloatingWhatsAppButton />}
+      {!isCRM && !isLanding && <SocialProofToast />}
       <Toaster />
     </>
   );

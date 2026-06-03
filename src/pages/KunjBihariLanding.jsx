@@ -159,6 +159,17 @@ const SectionLabel = ({ children }) => (
   <p className="text-amber-400 text-[11px] font-bold tracking-[0.3em] uppercase mb-3">{children}</p>
 );
 
+// Cinematic divider between sections — luxury-brochure detail
+const Divider = ({ idx, total = 6 }) => (
+  <div className="px-5 py-8 max-w-md mx-auto flex items-center gap-3 opacity-60">
+    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+    <span className="text-[10px] font-bold tracking-[0.3em] text-amber-400">
+      {String(idx).padStart(2,'0')} / {String(total).padStart(2,'0')}
+    </span>
+    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
+  </div>
+);
+
 // ────────────────────────────────────────────────────────────────────────────
 
 const KunjBihariLanding = () => {
@@ -169,12 +180,27 @@ const KunjBihariLanding = () => {
   const heroOpac    = useTransform(heroProg, [0, 0.7, 1], [1, 0.6, 0]);
   const heroTitleY  = useTransform(heroProg, [0, 1], [0, -40]);
 
+  // Page-level scroll progress drives the top progress rail + section beacons
+  const { scrollYProgress: pageProg } = useScroll();
+  const pageProgPct = useSpring(pageProg, { stiffness: 80, damping: 22, mass: 0.5 });
+
   const [mapType, setMapType] = useState('satellite');
   const mapSrc = mapType === 'satellite' ? SATELLITE_EMBED : HYBRID_EMBED;
 
   const [showTopBtn, setShowTopBtn] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => {
-    const onScroll = () => setShowTopBtn(window.scrollY > 600);
+    const onScroll = () => {
+      setShowTopBtn(window.scrollY > 600);
+      // section beacons follow scroll percentage of the document
+      const sections = document.querySelectorAll('[data-section]');
+      let i = 0;
+      sections.forEach((el, k) => {
+        const t = el.getBoundingClientRect().top;
+        if (t < window.innerHeight * 0.4) i = k;
+      });
+      setActiveIdx(i);
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -197,6 +223,25 @@ const KunjBihariLanding = () => {
           }
         `}</style>
       </Helmet>
+
+      {/* Top gold scroll-progress rail — luxury micro-detail */}
+      <motion.div
+        style={{ scaleX: pageProgPct, transformOrigin: '0% 50%' }}
+        className="fixed top-0 left-0 right-0 h-[2px] z-[60] bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.6)] pointer-events-none"
+      />
+
+      {/* Right-edge section beacons — investors feel the page is a journey */}
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-50 hidden sm:flex flex-col gap-3 pointer-events-none">
+        {['Location','Connectivity','Infrastructure','Industry','Security','Appreciation'].map((s, i) => (
+          <div key={s} className="flex items-center gap-2 transition-all duration-500"
+               style={{ opacity: activeIdx === i + 1 ? 1 : 0.35 }}>
+            <span className="text-[9px] font-bold tracking-widest text-amber-300 uppercase whitespace-nowrap">
+              {activeIdx === i + 1 ? s : ''}
+            </span>
+            <div className={`w-2 h-2 rounded-full transition-all duration-500 ${activeIdx === i + 1 ? 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.8)] scale-150' : 'bg-white/30'}`} />
+          </div>
+        ))}
+      </div>
 
       {/* ════════ HERO ════════ */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center text-center px-5 overflow-hidden">
@@ -285,7 +330,7 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ① LOCATION                                                            */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="px-5 pt-24 pb-10 max-w-md mx-auto">
+      <section data-section="1" className="px-5 pt-24 pb-10 max-w-md mx-auto">
         <SectionLabel>① Location</SectionLabel>
         <h2 className="text-3xl font-black leading-tight mb-2">
           The exact <span className="gold-text">spot</span>
@@ -374,7 +419,9 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ② CONNECTIVITY                                                       */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="px-5 pt-16 pb-10 max-w-md mx-auto">
+      <Divider idx={1} />
+
+      <section data-section="2" className="px-5 pt-16 pb-10 max-w-md mx-auto">
         <SectionLabel>② Connectivity</SectionLabel>
         <h2 className="text-3xl font-black leading-tight mb-2">
           On the spine of <span className="gold-text">NH-2</span>
@@ -463,7 +510,9 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ③ INFRASTRUCTURE                                                     */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="px-5 pt-16 pb-10 max-w-md mx-auto">
+      <Divider idx={2} />
+
+      <section data-section="3" className="px-5 pt-16 pb-10 max-w-md mx-auto">
         <SectionLabel>③ Infrastructure</SectionLabel>
         <h2 className="text-3xl font-black leading-tight mb-2">
           Built like a <span className="gold-text">forever home</span>
@@ -495,7 +544,9 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ④ INDUSTRY — with real logos                                         */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="pt-16 pb-10">
+      <Divider idx={3} />
+
+      <section data-section="4" className="pt-16 pb-10">
         <div className="px-5 max-w-md mx-auto mb-6">
           <SectionLabel>④ Industry</SectionLabel>
           <h2 className="text-3xl font-black leading-tight mb-2">
@@ -537,7 +588,9 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ⑤ SECURITY                                                            */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="px-5 pt-16 pb-10 max-w-md mx-auto">
+      <Divider idx={4} />
+
+      <section data-section="5" className="px-5 pt-16 pb-10 max-w-md mx-auto">
         <SectionLabel>⑤ Security</SectionLabel>
         <h2 className="text-3xl font-black leading-tight mb-6">
           A community you can <span className="text-blue-400">leave at the gate</span>
@@ -567,7 +620,9 @@ const KunjBihariLanding = () => {
       {/* ════════════════════════════════════════════════════════════════════ */}
       {/* ⑥ APPRECIATION                                                       */}
       {/* ════════════════════════════════════════════════════════════════════ */}
-      <section className="px-5 pt-16 pb-10 max-w-md mx-auto">
+      <Divider idx={5} />
+
+      <section data-section="6" className="px-5 pt-16 pb-10 max-w-md mx-auto">
         <SectionLabel>⑥ Appreciation</SectionLabel>
         <h2 className="text-3xl font-black leading-tight mb-2">
           Why prices <span className="gold-text">keep climbing here</span>

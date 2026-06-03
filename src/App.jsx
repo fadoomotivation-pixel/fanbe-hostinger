@@ -19,6 +19,7 @@ import ContactPage from './pages/ContactPage';
 import BrokerLoginPage from './pages/BrokerLoginPage';
 import BrokerRegisterPage from './pages/BrokerRegisterPage';
 import BrokerPayoutPortalPage from './pages/BrokerPayoutPortalPage';
+import KunjBihariLanding from './pages/KunjBihariLanding';
 
 // CRM Imports
 import ProtectedRoute from './components/ProtectedRoute';
@@ -122,6 +123,7 @@ const AppRoutes = ({ onBookSiteVisit }) => {
   const isMobile  = useMobile();
   const { user }  = useAuth();
   const isCRM     = location.pathname.startsWith('/crm') || location.pathname === '/forgot-password';
+  const isLanding = location.pathname === '/kunj-bihari';
   const isEmployeeRole = EMPLOYEE_ROLES.includes(user?.role);
 
   // When the Capacitor-wrapped APK boots, Capacitor serves the bundled
@@ -135,6 +137,10 @@ const AppRoutes = ({ onBookSiteVisit }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (isLanding) {
+    return <KunjBihariLanding />;
+  }
 
   if (isCRM) {
     return (

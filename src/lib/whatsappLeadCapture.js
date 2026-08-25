@@ -116,6 +116,83 @@ const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enqui
   return lines.join('\n');
 };
 
+// ── EMAIL TO THE OWNER ──────────────────────────────────────────────────────
+// Sends the lead straight to the owner's inbox, in parallel with the CRM
+// write and independent of it — if Supabase is having a bad day the enquiry
+// still lands somewhere a human will see it.
+//
+// Goes through Web3Forms so there is no server to run and nothing to deploy.
+// Its access key is designed to be public (it only lets a form post to the
+// one inbox it was issued for), so it ships in the bundle the way the
+// Supabase anon key already does. Set VITE_WEB3FORMS_KEY to switch this on;
+// with no key we skip the email and the CRM write is unaffected.
+const WEB3FORMS_KEY = (import.meta.env.VITE_WEB3FORMS_KEY || '').trim();
+const NOTIFIED_KEY  = 'fanbe_wa_notified';
+const NOTIFY_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+// One tap opens WhatsApp; some people tap three times. Don't mail the same
+// number more than once every six hours.
+const alreadyNotified = (phone) => {
+  try {
+    const seen = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}');
+    const last = seen[phone];
+    return !!last && (Date.now() - last) < NOTIFY_WINDOW_MS;
+  } catch { return false; }
+};
+
+const markNotified = (phone) => {
+  try {
+    const seen = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}');
+    const cutoff = Date.now() - NOTIFY_WINDOW_MS;
+    const fresh = Object.fromEntries(Object.entries(seen).filter(([, t]) => t > cutoff));
+    fresh[phone] = Date.now();
+    localStorage.setItem(NOTIFIED_KEY, JSON.stringify(fresh));
+  } catch { /* ignore */ }
+};
+
+/** Fire and forget. Never throws — the email must never put the lead at risk. */
+export const notifyLeadByEmail = async ({
+  name, phone, project, message, source = 'WhatsApp', attribution = {},
+} = {}) => {
+  if (!WEB3FORMS_KEY) return { success: false, skipped: 'no_key' };
+  if (alreadyNotified(phone)) return { success: false, skipped: 'throttled' };
+
+  const ten = toTenDigits(phone);
+  const who = String(name || '').trim() || 'Naam nahi diya';
+  markNotified(phone);
+
+  try {
+    const res = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        access_key: WEB3FORMS_KEY,
+        subject: `🟢 Nayi ${source} lead: ${who}${ten ? ` (${ten})` : ''}`,
+        from_name: 'Fanbe Website',
+        // Web3Forms mails every extra field through as a labelled row.
+        Naam:     who,
+        Phone:    ten ? `+91 ${ten}` : phone,
+        Project:  project || '—',
+        Source:   source,
+        Message:  message || '—',
+        Page:     attribution.page || '—',
+        Campaign: [attribution.utmSource, attribution.utmMedium, attribution.utmCampaign]
+          .filter(Boolean).join(' / ') || '—',
+        Ref:      attribution.ref || '—',
+        Time:     new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        Call:     ten ? `tel:+91${ten}` : '—',
+        WhatsApp: ten ? `https://wa.me/91${ten}` : '—',
+      }),
+    });
+    if (!res.ok) throw new Error(`Web3Forms responded ${res.status}`);
+    return { success: true };
+  } catch (err) {
+    console.warn('[WA Lead] email notification failed:', err && err.message);
+    return { success: false, error: err && err.message };
+  }
+};
+
 // ── WRITE PATH ──────────────────────────────────────────────────────────────
 
 // Talks to PostgREST directly instead of going through supabase-js, for two
@@ -223,6 +300,13 @@ export const captureLead = async ({
 
   const attr = attribution || collectAttribution();
   const noteLabel = label || (source === 'WhatsApp' ? 'WhatsApp enquiry' : `${source} enquiry`);
+
+  // Independent of everything below, and deliberately not awaited: the inbox
+  // copy should go out even if the CRM write then fails. Skipped on a queue
+  // retry, which is replaying a lead that was already mailed first time round.
+  if (!_fromQueue) {
+    notifyLeadByEmail({ name, phone: storedPhone, project, message, source, attribution: attr });
+  }
   const payload = {
     name, phone: storedPhone, email, project, message,
     source, label: noteLabel, interestLevel, attribution: attr,

@@ -122,10 +122,12 @@ const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enqui
 // still lands somewhere a human will see it.
 //
 // Goes through Web3Forms so there is no server to run and nothing to deploy.
-// Its access key is designed to be public (it only lets a form post to the
-// one inbox it was issued for), so it ships in the bundle the way the
-// Supabase anon key already does. Set VITE_WEB3FORMS_KEY to switch this on;
-// with no key we skip the email and the CRM write is unaffected.
+// Its access key is issued as public — it does nothing but post a form to the
+// one inbox it was created for — and being VITE_-prefixed it is inlined into
+// the client bundle at build time either way. It is kept in an env var rather
+// than in this file so the inbox can be changed, or the key rotated, without
+// a code change. With no key set the email is skipped and the CRM write is
+// unaffected, so a missing setting degrades quietly instead of breaking.
 const WEB3FORMS_KEY = (import.meta.env.VITE_WEB3FORMS_KEY || '').trim();
 const NOTIFIED_KEY  = 'fanbe_wa_notified';
 const NOTIFY_WINDOW_MS = 6 * 60 * 60 * 1000;

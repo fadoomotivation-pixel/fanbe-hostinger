@@ -7,13 +7,17 @@
 //   • Name is the only other field, and it is optional.
 //   • Submitting opens WhatsApp on that same gesture; the CRM write happens
 //     in the background and is never awaited.
-//   • "Skip" always works — we would rather have the chat than nothing.
+//
+// There is deliberately no way through this sheet to WhatsApp without a
+// number. Closing it (X, backdrop, Escape) cancels and stays on the page —
+// it must never double as a bypass, or the number becomes optional in
+// practice and the whole capture is pointless.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, ShieldCheck, X, Loader2 } from 'lucide-react';
 import { toTenDigits, isValidIndianMobile } from '@/lib/whatsappLeadCapture';
 
-const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, onSkip, project }) => {
+const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
   const [name, setName]   = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -29,13 +33,14 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, onSkip, project }) => {
     return () => clearTimeout(t);
   }, [isOpen]);
 
-  // Escape = skip, not cancel. Closing must never trap the visitor.
+  // Escape cancels — it closes the sheet and stays put. It does not hand the
+  // visitor on to WhatsApp; nothing here does without a number.
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onSkip?.(); } };
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onSkip]);
+  }, [isOpen, onClose]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,7 +65,7 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, onSkip, project }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onSkip}
+            onClick={onClose}
           />
 
           <motion.div
@@ -75,7 +80,7 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, onSkip, project }) => {
           >
             <button
               type="button"
-              onClick={onSkip}
+              onClick={onClose}
               aria-label="Close"
               className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/20 transition"
             >
@@ -166,14 +171,6 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, onSkip, project }) => {
                 <ShieldCheck size={13} className="text-green-600 shrink-0" />
                 <span>आपका नंबर सुरक्षित है — सिर्फ प्रॉपर्टी की जानकारी के लिए</span>
               </div>
-
-              <button
-                type="button"
-                onClick={onSkip}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-              >
-                बिना नंबर के सीधे WhatsApp खोलें
-              </button>
             </form>
           </motion.div>
         </div>

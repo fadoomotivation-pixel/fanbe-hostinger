@@ -28,7 +28,8 @@ import {
   collectAttribution,
 } from '@/lib/whatsappLeadCapture';
 
-const SKIP_KEY = 'fanbe_wa_skipped';
+// Where a wa.me URL is parked once it has been taken out of an href.
+const WA_HREF_ATTR = 'data-wa-href';
 
 const WhatsAppLeadContext = createContext({ openWhatsApp: () => {} });
 export const useWhatsAppLead = () => useContext(WhatsAppLeadContext);
@@ -64,13 +65,6 @@ const projectFromPath = (pathname) => {
   if (!match) return '';
   const project = projectsData.find(p => p.slug === match[1]);
   return project ? project.title : '';
-};
-
-const skippedThisSession = () => {
-  try { return sessionStorage.getItem(SKIP_KEY) === '1'; } catch { return false; }
-};
-const markSkipped = () => {
-  try { sessionStorage.setItem(SKIP_KEY, '1'); } catch { /* ignore */ }
 };
 
 export const WhatsAppLeadProvider = ({ children }) => {
@@ -136,28 +130,78 @@ export const WhatsAppLeadProvider = ({ children }) => {
       return false;
     }
 
-    // They already declined once this session — don't ask again.
-    if (skippedThisSession()) return false;
-
     setPending({ url, project, message });
     return true;
   }, []);
 
   // ── Chokepoint 1: <a href="…wa.me…"> ──────────────────────────────────────
+  //
+  // Intercepting the click alone is not enough. While the wa.me URL sits in
+  // the href, the browser offers its own ways around us that no JavaScript
+  // can veto: ctrl/cmd-click, middle-click, right-click → "Open link in new
+  // tab", "Copy link address". Each of those reaches WhatsApp with no number
+  // captured. So the URL is moved off the href into a data attribute and the
+  // element is left behaving as a button; the click handler reads it from
+  // there. Nothing the browser can act on is left in the DOM.
   useEffect(() => {
+    if (!enabled) return;   // CRM/broker links are staff tools — leave them alone
+
+    const disarm = (root) => {
+      const nodes = root.querySelectorAll
+        ? root.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp.com"]')
+        : [];
+      nodes.forEach((a) => {
+        const href = a.getAttribute('href');
+        if (!href || !isWhatsAppUrl(href)) return;
+        a.setAttribute(WA_HREF_ATTR, href);
+        a.removeAttribute('href');
+        a.removeAttribute('target');
+        a.setAttribute('role', 'button');
+        if (!a.hasAttribute('tabindex')) a.setAttribute('tabindex', '0');
+        a.style.cursor = 'pointer';
+      });
+    };
+
+    disarm(document);
+    // React re-renders put the href straight back, so keep watching.
+    const observer = new MutationObserver(() => disarm(document));
+    observer.observe(document.body, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ['href'],
+    });
+
     const onClick = (e) => {
-      if (e.defaultPrevented || e.button !== 0) return;
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;   // open-in-new-tab intent
-      const anchor = e.target?.closest?.('a[href]');
-      if (!anchor || !isWhatsAppUrl(anchor.href)) return;
-      if (handleIntent(anchor.href)) {
+      if (e.defaultPrevented) return;
+      const el = e.target?.closest?.(`[${WA_HREF_ATTR}], a[href]`);
+      if (!el) return;
+      const url = el.getAttribute(WA_HREF_ATTR) || el.getAttribute('href');
+      if (!url || !isWhatsAppUrl(url)) return;
+      if (handleIntent(url)) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
+    // Keyboard activation on a disarmed link: it is a button now, so Enter
+    // and Space should open the sheet the way a real button would.
+    const onKeyDown = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const el = e.target?.closest?.(`[${WA_HREF_ATTR}]`);
+      if (!el) return;
+      const url = el.getAttribute(WA_HREF_ATTR);
+      if (!url || !isWhatsAppUrl(url)) return;
+      if (handleIntent(url)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     document.addEventListener('click', onClick, true);
-    return () => document.removeEventListener('click', onClick, true);
-  }, [handleIntent]);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [handleIntent, enabled]);
 
   // ── Chokepoint 2: window.open('https://wa.me/…') ──────────────────────────
   useEffect(() => {
@@ -195,12 +239,10 @@ export const WhatsAppLeadProvider = ({ children }) => {
     setPending(null);
   }, [pending, openNow]);
 
-  const handleSkip = useCallback(() => {
-    const intent = pending;
-    markSkipped();
-    setPending(null);
-    if (intent) openNow(intent.url);
-  }, [pending, openNow]);
+  // Closing cancels the intent outright. It is deliberately NOT a way through
+  // to WhatsApp: if it were, one dismissal would make the number optional and
+  // the capture would be theatre.
+  const handleClose = useCallback(() => setPending(null), []);
 
   // Imperative escape hatch for new call sites: useWhatsAppLead().openWhatsApp(url)
   const openWhatsApp = useCallback((url) => {
@@ -214,8 +256,7 @@ export const WhatsAppLeadProvider = ({ children }) => {
         isOpen={!!pending}
         project={pending?.project}
         onSubmit={handleSubmit}
-        onSkip={handleSkip}
-        onClose={handleSkip}
+        onClose={handleClose}
       />
     </WhatsAppLeadContext.Provider>
   );

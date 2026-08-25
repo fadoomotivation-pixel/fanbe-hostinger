@@ -77,6 +77,13 @@ const getSupabaseAdminClient = () => {
   return _supabaseAdmin;
 };
 
+// Resolved connection values. Exported so callers that must bypass the SDK
+// can build their own request — e.g. the WhatsApp lead capture, which fires
+// its insert with `fetch(..., { keepalive: true })` so the write still
+// completes after the tab is backgrounded by the WhatsApp hand-off.
+export const SUPABASE_URL      = supabaseUrl.replace(/\/$/, '');
+export const SUPABASE_ANON_KEY = supabaseAnonKey;
+
 // Primary client (anon key — respects RLS)
 export const supabase      = getSupabaseClient();
 

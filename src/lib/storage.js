@@ -1,4 +1,20 @@
+import { captureLead, collectAttribution } from './whatsappLeadCapture';
+import { projectsData } from '@/data/projectsData';
 
+// Callers are inconsistent: SiteVisitLeadModal sends a slug, SiteVisitModal
+// sends a display name. The CRM shows this string verbatim, so resolve
+// slugs to the readable title before it goes across.
+const toProjectName = (value) => {
+  if (!value) return '';
+  const match = projectsData.find(p => p.slug === value);
+  return match ? match.title : value;
+};
+
+// Local mirror of what the visitor submitted. This is NOT where the business
+// reads its leads from — that is the Supabase `leads` table, which every
+// submission below now also writes to. Historically only this line existed,
+// which meant every website enquiry lived and died in the visitor's own
+// browser and never reached the CRM.
 const LEADS_KEY = 'crm_leads'; 
 
 const getFromStorage = (key) => {
@@ -63,12 +79,31 @@ export const submitLead = async ({ name, phone, email, projectSlug, preferredCal
     
     leads.unshift(newLead);
     const saved = saveToStorage(LEADS_KEY, leads);
-    
+
+    // The write that actually matters — push it to the CRM. Not awaited so a
+    // slow network never stalls the success screen; captureLead queues and
+    // retries on its own if the request fails.
+    captureLead({
+      name,
+      phone,
+      email,
+      project:       toProjectName(projectSlug),
+      source:        leadSource,
+      label:         `${leadSource} form`,
+      interestLevel: 'Warm',
+      message:       preferredCallbackTime
+        ? `Preferred callback: ${preferredCallbackTime}`
+        : '',
+      attribution:   collectAttribution(),
+    });
+
     if (saved) {
       console.log('Lead submitted successfully:', newLead.id);
       return { success: true, data: newLead };
     }
-    throw new Error('Failed to save lead');
+    // The CRM write is already in flight, so the visitor's request is not
+    // lost even when localStorage is unavailable (private mode, quota).
+    return { success: true, data: newLead };
   } catch (error) {
     console.error('Error submitting lead:', error);
     return { success: false, error: error.message };

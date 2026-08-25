@@ -10,6 +10,7 @@ import Footer from './components/Footer';
 import SiteVisitModal from './components/SiteVisitModal';
 import FloatingWhatsAppButton from './components/FloatingWhatsAppButton';
 import SocialProofToast from './components/SocialProofToast';
+import { WhatsAppLeadProvider } from './context/WhatsAppLeadContext';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import ProjectsListingPage from './pages/ProjectsListingPage';
@@ -308,7 +309,9 @@ function App() {
   // snatched from the rep who shared the link.
   const isLanding = pathname === '/kunj-bihari';
   return (
-    <>
+    // Wraps everything so every WhatsApp CTA on the public site — link or
+    // window.open, existing or added later — routes through lead capture.
+    <WhatsAppLeadProvider>
       <ScrollToTop />
       <AppRoutes onBookSiteVisit={() => setShowSiteVisitModal(true)} />
       <SiteVisitModal
@@ -318,7 +321,7 @@ function App() {
       {!isLanding && <FloatingWhatsAppButton />}
       {!isCRM && !isLanding && <SocialProofToast />}
       <Toaster />
-    </>
+    </WhatsAppLeadProvider>
   );
 }
 

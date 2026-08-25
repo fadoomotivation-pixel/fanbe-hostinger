@@ -100,7 +100,7 @@ export const collectAttribution = () => {
   } catch { return {}; }
 };
 
-const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enquiry' }) => {
+const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enquiry', dedupeUnknown }) => {
   const lines = [];
   lines.push(repeat
     ? `🔁 Repeat ${label} from website — ${new Date().toLocaleString('en-IN')}`
@@ -112,6 +112,7 @@ const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enqui
     .filter(Boolean).join(' / ');
   if (utm)                  lines.push(`Campaign: ${utm}`);
   if (attribution.referrer) lines.push(`Referrer: ${attribution.referrer}`);
+  if (dedupeUnknown) lines.push('⚠️ Duplicate check could not run (network) — may repeat an existing lead.');
   return lines.join('\n');
 };
 
@@ -144,8 +145,10 @@ const restFetch = async (path, { method = 'GET', body, prefer, timeoutMs = 8000,
     const text = await res.text().catch(() => '');
     if (!res.ok) {
       const err = new Error(`Supabase ${method} ${path} failed (${res.status}): ${text}`);
-      // 23505 = unique violation on leads.phone. The lead is already in the
-      // CRM, which is a success for us — not something to retry.
+      // 23505 = unique violation. This table currently has no unique index on
+      // phone (only the id primary key), so this never fires today — it is
+      // here so that adding one later turns duplicates into a clean success
+      // rather than a retry loop.
       err.isDuplicate = res.status === 409 || text.includes('23505');
       throw err;
     }
@@ -173,8 +176,10 @@ const appendRepeatEnquiry = (leadId, existingNotes, noteText) => {
 
 // Returns the existing lead, null if there is none, or undefined when we
 // could not find out. Undefined deliberately falls through to an insert: a
-// slow lookup must never cost us the lead, and a genuine duplicate is caught
-// by the unique constraint on leads.phone anyway.
+// slow lookup must never cost us the lead. There is no unique index on
+// leads.phone to catch a genuine repeat in that case, so the inserted row is
+// flagged in its notes instead — a duplicate the team can see and merge is
+// still far better than a lead we never captured.
 const findExistingLead = async (storedPhone) => {
   const ten = toTenDigits(storedPhone);
   // The table has been filled by several importers over time, so the same
@@ -235,6 +240,9 @@ export const captureLead = async ({
       return { success: true, duplicate: true };
     }
 
+    // existing === undefined means the lookup itself failed, not that the
+    // number is new. Record that on the row so a possible repeat is visible.
+    const dedupeUnknown = existing === undefined;
     const now = new Date().toISOString();
     await insertLeadRow({
       // Both name columns are written because the CRM reads `full_name`
@@ -248,7 +256,7 @@ export const captureLead = async ({
       final_status:      'FollowUp',
       // Someone who reached out themselves is warmer than an imported row.
       interest_level:    interestLevel,
-      notes:             buildNotes({ message, attribution: attr, label: noteLabel }),
+      notes:             buildNotes({ message, attribution: attr, label: noteLabel, dedupeUnknown }),
       site_visit_status: 'not_planned',
       project:           project || null,
       created_at:        now,

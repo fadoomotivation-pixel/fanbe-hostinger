@@ -1,40 +1,42 @@
 // src/components/WhatsAppLeadModal.jsx
-// The "fast grab" itself: two fields, one tap, then straight into WhatsApp.
+// The lead form that stands in for every WhatsApp CTA on the site.
 //
-// Speed is the feature. The visitor already decided to chat — anything that
-// makes them wait loses both the lead AND the chat. So:
+// The visitor never gets sent to WhatsApp. They leave a number here and the
+// sales team reaches out — so this sheet is the end of the journey, not a
+// waypoint, and it has to say so plainly and then confirm that it worked.
+//
 //   • Phone is focused the moment the sheet opens (numeric keypad on mobile).
 //   • Name is the only other field, and it is optional.
-//   • Submitting opens WhatsApp on that same gesture; the CRM write happens
-//     in the background and is never awaited.
+//   • Submitting shows a confirmation; the CRM write and the notification
+//     email go out in the background and are never awaited.
 //
-// There is deliberately no way through this sheet to WhatsApp without a
-// number. Closing it (X, backdrop, Escape) cancels and stays on the page —
-// it must never double as a bypass, or the number becomes optional in
-// practice and the whole capture is pointless.
+// Closing (X, backdrop, Escape) cancels and stays on the page. Nothing here
+// leads anywhere except through the form.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, ShieldCheck, X, Loader2 } from 'lucide-react';
+import { MessageCircle, ShieldCheck, X, CheckCircle2 } from 'lucide-react';
 import { toTenDigits, isValidIndianMobile } from '@/lib/whatsappLeadCapture';
 
-const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
+const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project, knownVisitor }) => {
   const [name, setName]   = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy]   = useState(false);
+  const [sent, setSent]   = useState(false);
   const phoneRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setError('');
-    setBusy(false);
+    setSent(false);
+    // Someone who has already given their details should not retype them.
+    setName(knownVisitor?.name || '');
+    setPhone(knownVisitor?.phone || '');
     // Small delay so the entry animation doesn't fight the keyboard on mobile.
     const t = setTimeout(() => phoneRef.current?.focus(), 220);
     return () => clearTimeout(t);
-  }, [isOpen]);
+  }, [isOpen, knownVisitor]);
 
-  // Escape cancels — it closes the sheet and stays put. It does not hand the
-  // visitor on to WhatsApp; nothing here does without a number.
+  // Escape cancels — closes the sheet and stays put.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
@@ -42,18 +44,24 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
     return () => document.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
+  // Close on its own once they have read the confirmation.
+  useEffect(() => {
+    if (!sent) return;
+    const t = setTimeout(() => onClose?.(), 4000);
+    return () => clearTimeout(t);
+  }, [sent, onClose]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (sent) return;
 
     if (!isValidIndianMobile(phone)) {
       setError('कृपया 10 अंकों का सही मोबाइल नंबर डालें');
       phoneRef.current?.focus();
       return;
     }
-    setBusy(true);
-    // Synchronous by contract — onSubmit opens WhatsApp inside this gesture.
     onSubmit({ name: name.trim(), phone: toTenDigits(phone) });
+    setSent(true);
   };
 
   return (
@@ -94,17 +102,38 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
                 </div>
                 <div>
                   <h2 id="wa-grab-title" className="text-xl font-extrabold leading-tight">
-                    WhatsApp पर बात करें
+                    {sent ? 'धन्यवाद!' : 'रेट लिस्ट व डिटेल पाएं'}
                   </h2>
                   <p className="text-white/90 text-sm">
-                    {project
-                      ? `${project} — रेट लिस्ट व प्लॉट डिटेल तुरंत`
-                      : 'रेट लिस्ट व प्लॉट डिटेल तुरंत भेजेंगे'}
+                    {sent
+                      ? 'आपकी जानकारी हमें मिल गई है'
+                      : project
+                        ? `${project} — नंबर दें, हमारी टीम WhatsApp पर भेजेगी`
+                        : 'नंबर दें, हमारी टीम WhatsApp पर भेजेगी'}
                   </p>
                 </div>
               </div>
             </div>
 
+            {sent ? (
+              <div
+                className="px-6 pt-7 flex flex-col items-center text-center space-y-3"
+                style={{ paddingBottom: 'max(1.75rem, env(safe-area-inset-bottom))' }}
+                role="status"
+              >
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                  <CheckCircle2 size={34} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    हमारी टीम जल्द संपर्क करेगी
+                  </h3>
+                  <p className="text-gray-500 text-sm mt-1 max-w-xs">
+                    रेट लिस्ट, प्लॉट डिटेल और पेमेंट प्लान आपके WhatsApp नंबर पर भेज दिए जाएंगे।
+                  </p>
+                </div>
+              </div>
+            ) : (
             <form
               onSubmit={handleSubmit}
               className="px-6 pt-5 space-y-4"
@@ -157,14 +186,9 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
 
               <button
                 type="submit"
-                disabled={busy}
-                className="w-full h-14 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] active:scale-[0.99] disabled:opacity-70 text-white font-extrabold text-lg flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/30 transition-all"
+                className="w-full h-14 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] active:scale-[0.99] text-white font-extrabold text-lg flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/30 transition-all"
               >
-                {busy ? (
-                  <><Loader2 size={20} className="animate-spin" /> खुल रहा है…</>
-                ) : (
-                  <><MessageCircle size={22} fill="white" /> चैट शुरू करें</>
-                )}
+                <MessageCircle size={22} fill="white" /> जानकारी भेजें
               </button>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500">
@@ -172,6 +196,7 @@ const WhatsAppLeadModal = ({ isOpen, onClose, onSubmit, project }) => {
                 <span>आपका नंबर सुरक्षित है — सिर्फ प्रॉपर्टी की जानकारी के लिए</span>
               </div>
             </form>
+            )}
           </motion.div>
         </div>
       )}

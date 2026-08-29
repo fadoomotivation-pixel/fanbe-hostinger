@@ -1,6 +1,6 @@
 // src/context/WhatsAppLeadContext.jsx
 // ============================================================================
-// Site-wide interceptor that turns every WhatsApp CTA into a captured lead.
+// Site-wide interceptor that replaces every WhatsApp CTA with a lead form.
 // ============================================================================
 // WhatsApp CTAs are scattered across ~20 files as hardcoded `wa.me` links —
 // some as <a href>, some as onClick + window.open. Rather than editing every
@@ -10,9 +10,9 @@
 //   1. a capture-phase document click listener, for <a href="…wa.me…">
 //   2. a patched window.open, for the imperative call sites
 //
-// A first-time visitor gets the quick grab sheet; a visitor we already know
-// goes straight through, with a repeat enquiry logged in the background. The
-// hand-off to WhatsApp is never blocked on the network.
+// The visitor is never sent to WhatsApp. They leave a number, the sales team
+// contacts them — so the intercepted CTA opens the form and that is the end
+// of it. No WhatsApp URL is ever navigated to, on any path.
 // ============================================================================
 
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
@@ -31,33 +31,15 @@ import {
 // Where a wa.me URL is parked once it has been taken out of an href.
 const WA_HREF_ATTR = 'data-wa-href';
 
-const WhatsAppLeadContext = createContext({ openWhatsApp: () => {} });
+const WhatsAppLeadContext = createContext({ openLeadForm: () => {} });
 export const useWhatsAppLead = () => useContext(WhatsAppLeadContext);
 
-// Read the prefilled chat text out of a wa.me / api.whatsapp.com link so the
-// lead note records what the visitor was about to ask.
+// Read the prefilled chat text out of a wa.me / api.whatsapp.com link. The
+// visitor never sees it now, but it says which CTA they pressed, so it is
+// worth keeping on the lead note for whoever calls them back.
 const readPrefillText = (url) => {
   try { return new URL(url, window.location.origin).searchParams.get('text') || ''; }
   catch { return ''; }
-};
-
-// Sign the outgoing message so the name shows up in WhatsApp itself, not just
-// in the CRM — whoever picks up the chat sees who it is straight away.
-const signMessage = (url, name) => {
-  if (!name) return url;
-  try {
-    const u = new URL(url, window.location.origin);
-    const text = u.searchParams.get('text') || 'Hello, I am interested in Fanbe Group projects.';
-    const signed = encodeURIComponent(`${text}\n\n— ${name}`);
-    // Built by hand rather than via searchParams.set: that serialises spaces
-    // as `+`, and every other WhatsApp link on the site uses %20. Same result
-    // in WhatsApp, but keeping one encoding makes the links comparable in logs.
-    const others = [...u.searchParams.entries()]
-      .filter(([k]) => k !== 'text')
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
-    u.search = [`text=${signed}`, ...others].join('&');
-    return u.toString();
-  } catch { return url; }
 };
 
 const projectFromPath = (pathname) => {
@@ -75,8 +57,6 @@ export const WhatsAppLeadProvider = ({ children }) => {
   // hit the visitor grab sheet — their WhatsApp clicks are outbound, not leads.
   const enabled = !pathname.startsWith('/crm') && !pathname.startsWith('/broker');
 
-  const nativeOpen = useRef(null);
-  const bypass     = useRef(false);   // set while WE are the one calling open()
   // Refs, not deps: the window.open patch must be installed exactly once, so
   // it reads the current route/enabled state at call time instead of being
   // torn down and reinstalled on every navigation.
@@ -96,41 +76,17 @@ export const WhatsAppLeadProvider = ({ children }) => {
     return () => window.removeEventListener('online', onOnline);
   }, []);
 
-  const openNow = useCallback((url) => {
-    bypass.current = true;
-    try {
-      const win = nativeOpen.current ? nativeOpen.current(url, '_blank') : null;
-      // Popup blocked (common on iOS when the gesture is one frame stale) —
-      // navigate instead. Losing the tab beats losing the conversation.
-      if (!win) window.location.href = url;
-    } finally {
-      bypass.current = false;
-    }
-  }, []);
-
-  // Returns true when the navigation was swallowed and the sheet was shown.
+  // Returns true when the navigation was swallowed and the form was shown —
+  // which, on the public site, is every WhatsApp URL. A returning visitor
+  // gets the same form with their details already filled in, so they confirm
+  // rather than retype; nobody is passed through to WhatsApp.
   const handleIntent = useCallback((url) => {
-    if (!enabledRef.current || bypass.current || !isWhatsAppUrl(url)) return false;
-
-    const project = projectRef.current;
-    const message = readPrefillText(url);
-    const visitor = getSavedVisitor();
-
-    // Already known → zero friction. Log the repeat enquiry in the background
-    // and let the original click proceed untouched.
-    if (visitor) {
-      captureWhatsAppLead({
-        name: visitor.name,
-        phone: visitor.phone,
-        project,
-        message,
-        source: 'WhatsApp',
-        attribution: collectAttribution(),
-      });
-      return false;
-    }
-
-    setPending({ url, project, message });
+    if (!enabledRef.current || !isWhatsAppUrl(url)) return false;
+    setPending({
+      project: projectRef.current,
+      message: readPrefillText(url),
+      visitor: getSavedVisitor(),
+    });
     return true;
   }, []);
 
@@ -204,27 +160,27 @@ export const WhatsAppLeadProvider = ({ children }) => {
   }, [handleIntent, enabled]);
 
   // ── Chokepoint 2: window.open('https://wa.me/…') ──────────────────────────
+  // A WhatsApp URL is swallowed and never passed to the real window.open.
+  // Everything else opens as normal.
   useEffect(() => {
     const native = window.open.bind(window);
-    nativeOpen.current = native;
     window.open = (url, ...rest) => {
       if (handleIntent(url)) return null;
       return native(url, ...rest);
     };
-    return () => {
-      window.open = native;
-      nativeOpen.current = null;
-    };
+    return () => { window.open = native; };
   }, [handleIntent]);
 
   const handleSubmit = useCallback(({ name, phone }) => {
     const intent = pending;
     if (!intent) return;
 
+    // Remembered so a later enquiry comes back pre-filled.
     saveVisitor({ name, phone });
 
-    // Fire and forget — deliberately NOT awaited. The write is keepalive, so
-    // it completes even though the browser is about to switch apps.
+    // Fire and forget — deliberately NOT awaited, so the confirmation shows
+    // instantly. A failed write is queued and retried; the notification email
+    // goes out on its own path.
     captureWhatsAppLead({
       name,
       phone,
@@ -233,28 +189,22 @@ export const WhatsAppLeadProvider = ({ children }) => {
       source:  'WhatsApp',
       attribution: collectAttribution(),
     });
+  }, [pending]);
 
-    // Same user gesture → the popup is allowed.
-    openNow(signMessage(intent.url, name));
-    setPending(null);
-  }, [pending, openNow]);
-
-  // Closing cancels the intent outright. It is deliberately NOT a way through
-  // to WhatsApp: if it were, one dismissal would make the number optional and
-  // the capture would be theatre.
   const handleClose = useCallback(() => setPending(null), []);
 
-  // Imperative escape hatch for new call sites: useWhatsAppLead().openWhatsApp(url)
-  const openWhatsApp = useCallback((url) => {
-    if (!handleIntent(url)) openNow(url);
-  }, [handleIntent, openNow]);
+  // Imperative entry point for new call sites: useWhatsAppLead().openLeadForm()
+  const openLeadForm = useCallback((url = 'https://wa.me/') => {
+    handleIntent(url);
+  }, [handleIntent]);
 
   return (
-    <WhatsAppLeadContext.Provider value={{ openWhatsApp }}>
+    <WhatsAppLeadContext.Provider value={{ openLeadForm }}>
       {children}
       <WhatsAppLeadModal
         isOpen={!!pending}
         project={pending?.project}
+        knownVisitor={pending?.visitor}
         onSubmit={handleSubmit}
         onClose={handleClose}
       />

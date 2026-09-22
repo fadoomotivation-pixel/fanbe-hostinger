@@ -2,7 +2,7 @@
 // All rates, EMI months, and pricing tables updated to match official payment plans
 //
 // OFFICIAL RATES (SOURCE OF TRUTH):
-// Shree Kunj Bihari:    ₹7,525/sq yd | 60 months | 10% booking
+// Shree Kunj Bihari:    ₹8,025/sq yd | 60 months | 10% booking
 // Khatu Shyam Enclave:  ₹7,525/sq yd | 60 months | 10% booking  
 // Shree Jagannath Dham: ₹8,025/sq yd | 54 months | 10% booking
 // Gokul Vatika:         ₹10,025/sq yd | 24 months | 10% booking
@@ -57,24 +57,24 @@ export const projectsData = [
       'No hidden charges - transparent pricing'
     ],
     
-    pricePerSqYard: 7525,
+    pricePerSqYard: 8025,
     bookingPercentage: '10%',
     emiMonths: 60,
     emiInterest: '0%',
     registryPayment: '35%',
-    
+
     pricing: [
-      { size: 50, rate: 7525, total: 376250, booking: 37625, rest: 338625, emi: 5644 },
-      { size: 55, rate: 7525, total: 413875, booking: 41387, rest: 372488, emi: 6208 },
-      { size: 60, rate: 7525, total: 451500, booking: 45150, rest: 406350, emi: 6772 },
-      { size: 80, rate: 7525, total: 602000, booking: 60200, rest: 541800, emi: 9030 },
-      { size: 100, rate: 7525, total: 752500, booking: 75250, rest: 677250, emi: 11287 },
-      { size: 120, rate: 7525, total: 903000, booking: 90300, rest: 812700, emi: 13545 },
-      { size: 150, rate: 7525, total: 1128750, booking: 112875, rest: 1015875, emi: 16931 },
-      { size: 200, rate: 7525, total: 1505000, booking: 150500, rest: 1354500, emi: 22575 },
-      { size: 250, rate: 7525, total: 1881250, booking: 188125, rest: 1693125, emi: 28219 }
+      { size: 50, rate: 8025, total: 401250, booking: 40125, rest: 361125, emi: 6019 },
+      { size: 55, rate: 8025, total: 441375, booking: 44137, rest: 397238, emi: 6621 },
+      { size: 60, rate: 8025, total: 481500, booking: 48150, rest: 433350, emi: 7222 },
+      { size: 80, rate: 8025, total: 642000, booking: 64200, rest: 577800, emi: 9630 },
+      { size: 100, rate: 8025, total: 802500, booking: 80250, rest: 722250, emi: 12037 },
+      { size: 120, rate: 8025, total: 963000, booking: 96300, rest: 866700, emi: 14445 },
+      { size: 150, rate: 8025, total: 1203750, booking: 120375, rest: 1083375, emi: 18056 },
+      { size: 200, rate: 8025, total: 1605000, booking: 160500, rest: 1444500, emi: 24075 },
+      { size: 250, rate: 8025, total: 2006250, booking: 200625, rest: 1805625, emi: 30094 }
     ],
-    
+
     trustBadges: [
       { icon: 'BadgeCheck', text: '100% Clear Title' },
       { icon: 'FileCheck', text: 'Immediate Mutation' },
@@ -87,7 +87,7 @@ export const projectsData = [
     
     meta: {
       title: 'Shree Kunj Bihari Enclave - Plots in Kosi Kalan | Affordable Plots near Mathura NH2 | Fanbe Developers',
-      description: 'Buy residential plots in Kosi Kalan on EMI at ₹7,525/sq yard. Located on NH2 near Mathura with 0% interest, immediate registry. Fanbe Developers premium gated colony.',
+      description: 'Buy residential plots in Kosi Kalan on EMI at ₹8,025/sq yard. Located on NH2 near Mathura with 0% interest, immediate registry. Fanbe Developers premium gated colony.',
       keywords: 'Plots in Kosi Kalan, Land near Mathura NH2, Affordable plots in Mathura, Fanbe Developers projects, Residential plots on EMI in Kosi, Plots on National Highway, Gated colony Kosi Kalan'
     }
   },

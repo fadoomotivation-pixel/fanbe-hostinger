@@ -84,11 +84,11 @@ const TRUST = [
 ];
 
 const PLOTS = [
-  { size:  50, total:  376250, emi: 5644  },
-  { size:  80, total:  602000, emi: 9030  },
-  { size: 100, total:  752500, emi: 11287, popular: true },
-  { size: 150, total: 1128750, emi: 16931 },
-  { size: 250, total: 1881250, emi: 28219 },
+  { size:  50, total:  401250, emi: 6019  },
+  { size:  80, total:  642000, emi: 9630  },
+  { size: 100, total:  802500, emi: 12037, popular: true },
+  { size: 150, total: 1203750, emi: 18056 },
+  { size: 250, total: 2006250, emi: 30094 },
 ];
 
 const APPRECIATION = [
@@ -668,7 +668,7 @@ const KunjBihariLanding = () => {
               <div className="flex items-baseline gap-1 mb-1">
                 <span className="text-xs font-black opacity-80">₹</span>
                 <span className="text-6xl font-black tracking-tight tabular-nums">
-                  7,525
+                  8,025
                 </span>
               </div>
               <p className="text-sm font-bold opacity-80 mb-5">per square yard · launch pricing</p>
@@ -677,9 +677,9 @@ const KunjBihariLanding = () => {
               <div className="p-3 rounded-2xl bg-black/15 mb-4">
                 <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-0.5">Smallest plot · 50 sq yd</div>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black tracking-tight">₹3.76L</span>
+                  <span className="text-2xl font-black tracking-tight">₹4.01L</span>
                   <span className="text-[11px] font-bold opacity-70">total</span>
-                  <span className="ml-auto text-[11px] font-bold">EMI ₹5,644/mo</span>
+                  <span className="ml-auto text-[11px] font-bold">EMI ₹6,019/mo</span>
                 </div>
               </div>
 

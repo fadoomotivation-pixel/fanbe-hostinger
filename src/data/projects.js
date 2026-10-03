@@ -5,8 +5,8 @@
 // Project                  Rate      Booking%  EMI Duration
 // Shree Kunj Bihari        ₹8,025    10%       60 months
 // Shri Khatu Shyam         ₹7,525    10%       60 months
-// Shree Jagannath Dham     ₹8,025    10%       54 months
-// Gokul Vatika             ₹10,025   10%       24 months
+// Shree Jagannath Dham     ₹8,525    10%       54 months
+// Gokul Vatika             ₹12,525   10%       24 months
 // Brij Vatika (E Block)    ₹15,525   10%       40 months
 // Maa Semri Vatika         ₹15,525   15%       24 months
 
@@ -80,9 +80,9 @@ const projects = [
     description: 'Shree Jagannath Dham brings you closer to the divine in Mathura, the birthplace of Lord Krishna. This project combines spiritual significance with modern infrastructure for a complete living experience.',
     highlights: ['Prime Location in Mathura', 'Approved Layout Plan', 'Interest-Free Installments', 'Immediate Possession', 'Investment Opportunity', 'Peaceful Environment'],
     pricing: {
-      startingPrice: '₹4,01,250',
-      pricePerSqYd: '₹8,025',
-      pricePerSqYdNum: 8025,
+      startingPrice: '₹4,26,250',
+      pricePerSqYd: '₹8,525',
+      pricePerSqYdNum: 8525,
       bookingPct: 0.10,
       bookingPctDisplay: '10%',
       emiMonths: 54,
@@ -134,9 +134,9 @@ const projects = [
     description: 'Shree Gokul Vatika is situated in Gokul, where Lord Krishna spent his childhood. This project offers premium residential plots with world-class facilities in a spiritually rich environment.',
     highlights: ['Near Gokul Temple', 'Premium Gated Community', 'Free Site Visit with Pick-Drop', 'Best Price in Area', 'High ROI Potential', 'Transparent Pricing'],
     pricing: {
-      startingPrice: '₹5,01,250',
-      pricePerSqYd: '₹10,025',
-      pricePerSqYdNum: 10025,
+      startingPrice: '₹6,26,250',
+      pricePerSqYd: '₹12,525',
+      pricePerSqYdNum: 12525,
       bookingPct: 0.10,
       bookingPctDisplay: '10%',
       emiMonths: 24,

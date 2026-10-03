@@ -26,6 +26,7 @@ import {
   captureWhatsAppLead,
   flushLeadQueue,
   collectAttribution,
+  recordFirstTouch,
 } from '@/lib/whatsappLeadCapture';
 
 // Where a wa.me URL is parked once it has been taken out of an href.
@@ -71,6 +72,10 @@ export const WhatsAppLeadProvider = ({ children }) => {
   // Anything stranded by an earlier failed write goes out now.
   useEffect(() => {
     flushLeadQueue();
+    // Must run on the landing page, before any internal navigation drops the
+    // campaign params from the URL — otherwise a lead submitted from /contact
+    // looks sourceless even when the visit started on a Facebook ad.
+    recordFirstTouch();
     const onOnline = () => flushLeadQueue();
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);

@@ -82,37 +82,109 @@ export const forgetVisitor = () => {
 
 // ── ATTRIBUTION ─────────────────────────────────────────────────────────────
 
+const FIRST_TOUCH_KEY = 'fanbe_first_touch';
+
+// Campaign params only sit on the landing URL. The moment the visitor clicks
+// through to another page they are gone, so a lead submitted from /contact
+// used to look sourceless even when the visit started on a Facebook ad. This
+// records how the visit began, once, and keeps it for the rest of the visit.
+export const recordFirstTouch = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (sessionStorage.getItem(FIRST_TOUCH_KEY)) return;   // already captured
+    const params = new URLSearchParams(window.location.search);
+    const pick = (k) => (params.get(k) || '').slice(0, 80) || undefined;
+    const referrer = (document.referrer || '').slice(0, 200);
+    const external = referrer && !referrer.includes(window.location.host);
+    const touch = {
+      utmSource:   pick('utm_source'),
+      utmMedium:   pick('utm_medium'),
+      utmCampaign: pick('utm_campaign'),
+      ref:         pick('ref') || pick('agent'),
+      referrer:    external ? referrer : undefined,
+      landingPage: window.location.pathname + window.location.search,
+    };
+    // A plain internal visit tells us nothing worth remembering.
+    if (!touch.utmSource && !touch.utmCampaign && !touch.ref && !touch.referrer) return;
+    sessionStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(touch));
+  } catch { /* private mode — attribution degrades, capture still works */ }
+};
+
+const getFirstTouch = () => {
+  try { return JSON.parse(sessionStorage.getItem(FIRST_TOUCH_KEY) || 'null') || {}; }
+  catch { return {}; }
+};
+
+const hostOf = (url) => {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+};
+
+/**
+ * One plain line answering "where did this lead actually come from?", so the
+ * team reads a verdict instead of decoding a UTM string. Paid traffic is named
+ * as paid; a visit with neither campaign nor referrer is called out, because
+ * that is what a test submission looks like.
+ */
+export const describeSource = (attr = {}) => {
+  const src    = (attr.utmSource || '').toLowerCase();
+  const medium = (attr.utmMedium || '').toLowerCase();
+  const ref    = (attr.referrer || '').toLowerCase();
+  const paid   = /paid|cpc|ppc|ads/.test(medium);
+
+  if (src.startsWith('fb') || src.includes('facebook'))  return paid ? 'Facebook Ad (paid)'  : 'Facebook';
+  if (src.startsWith('ig') || src.includes('instagram')) return paid ? 'Instagram Ad (paid)' : 'Instagram';
+  if (src.includes('google'))                            return paid ? 'Google Ads (paid)'   : 'Google';
+  if (attr.utmSource)  return `${attr.utmSource}${paid ? ' (paid)' : ''}`;
+  if (attr.ref)        return `Telecaller/partner link (${attr.ref})`;
+
+  if (ref.includes('facebook'))   return 'Facebook (link, ad nahi)';
+  if (ref.includes('instagram'))  return 'Instagram (link, ad nahi)';
+  if (/google\.|bing\.|duckduckgo|yahoo\./.test(ref)) return 'Google/Search — organic';
+  if (ref) return `Referral: ${hostOf(attr.referrer) || 'doosri site'}`;
+
+  return '⚠️ Direct — koi ad/search nahi (test ho sakta hai)';
+};
+
 // Where did this enquiry come from? Campaign params + referrer + page, folded
-// into the notes field so the team can see it without a schema change.
+// into the notes field so the team can see it without a schema change. The
+// current URL wins; anything it does not carry falls back to how the visit
+// started.
 export const collectAttribution = () => {
   if (typeof window === 'undefined') return {};
   try {
     const params = new URLSearchParams(window.location.search);
     const pick = (k) => (params.get(k) || '').slice(0, 80) || undefined;
+    const first = getFirstTouch();
+    const referrer = (document.referrer || '').slice(0, 200) || undefined;
+    const external = referrer && !referrer.includes(window.location.host);
     return {
-      page:     window.location.pathname + window.location.search,
-      referrer: (document.referrer || '').slice(0, 200) || undefined,
-      utmSource:   pick('utm_source'),
-      utmMedium:   pick('utm_medium'),
-      utmCampaign: pick('utm_campaign'),
-      ref:         pick('ref') || pick('agent'),
+      page:        window.location.pathname + window.location.search,
+      landingPage: first.landingPage,
+      referrer:    (external ? referrer : undefined) || first.referrer,
+      utmSource:   pick('utm_source')   || first.utmSource,
+      utmMedium:   pick('utm_medium')   || first.utmMedium,
+      utmCampaign: pick('utm_campaign') || first.utmCampaign,
+      ref:         pick('ref') || pick('agent') || first.ref,
     };
   } catch { return {}; }
 };
 
-const buildNotes = ({ message, attribution = {}, repeat, label = 'WhatsApp enquiry', dedupeUnknown }) => {
+// The lines under the marker in a lead's notes. The marker itself (🟢 / 🔁
+// plus the timestamp) is added server-side by submit_website_lead, which is
+// the only thing that knows whether this phone is already in the table.
+const buildDetails = ({ message, attribution = {} }) => {
   const lines = [];
-  lines.push(repeat
-    ? `🔁 Repeat ${label} from website — ${new Date().toLocaleString('en-IN')}`
-    : `🟢 ${label} from website — ${new Date().toLocaleString('en-IN')}`);
+  lines.push(`Source: ${describeSource(attribution)}`);
   if (message)              lines.push(`Message: "${message}"`);
   if (attribution.page)     lines.push(`Page: ${attribution.page}`);
+  if (attribution.landingPage && attribution.landingPage !== attribution.page) {
+    lines.push(`Landed on: ${attribution.landingPage}`);
+  }
   if (attribution.ref)      lines.push(`Ref: ${attribution.ref}`);
   const utm = [attribution.utmSource, attribution.utmMedium, attribution.utmCampaign]
     .filter(Boolean).join(' / ');
   if (utm)                  lines.push(`Campaign: ${utm}`);
   if (attribution.referrer) lines.push(`Referrer: ${attribution.referrer}`);
-  if (dedupeUnknown) lines.push('⚠️ Duplicate check could not run (network) — may repeat an existing lead.');
   return lines.join('\n');
 };
 
@@ -175,12 +247,21 @@ export const notifyLeadByEmail = async ({
         // Web3Forms mails every extra field through as a labelled row.
         Naam:     who,
         Phone:    ten ? `+91 ${ten}` : phone,
+        // The verdict sits right under the number because it is what decides
+        // how the lead gets treated: a paid-ad lead is worth a call back, a
+        // direct one with no referrer may just be someone testing the form.
+        Kahan_se: describeSource(attribution),
         Project:  project || '—',
         Source:   source,
         Message:  message || '—',
         Page:     attribution.page || '—',
+        Landing:  attribution.landingPage && attribution.landingPage !== attribution.page
+          ? attribution.landingPage : '—',
         Campaign: [attribution.utmSource, attribution.utmMedium, attribution.utmCampaign]
           .filter(Boolean).join(' / ') || '—',
+        // Captured all along but never mailed, which is exactly what made
+        // "Google organic" and "someone testing" look identical in the inbox.
+        Referrer: attribution.referrer || '— (direct)',
         Ref:      attribution.ref || '—',
         Time:     new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
         Call:     ten ? `tel:+91${ten}` : '—',
@@ -197,11 +278,25 @@ export const notifyLeadByEmail = async ({
 
 // ── WRITE PATH ──────────────────────────────────────────────────────────────
 
-// Talks to PostgREST directly instead of going through supabase-js, for two
-// reasons that both matter on a phone mid-hand-off:
+// Everything goes through one SECURITY DEFINER function, submit_website_lead
+// (see supabase/migrations/20260928_website_lead_capture_rpc.sql).
 //
-//   • keepalive — a normal fetch is cancelled when the browser backgrounds
-//     the tab to switch into WhatsApp; a keepalive request still completes.
+// The browser used to insert into `leads` directly. That stopped working when
+// the anon GRANT and the blanket "Allow all access" policy were removed around
+// 15 Sep 2026 — correctly, because the anon key ships in this bundle and could
+// read every customer row with it. The emails kept arriving while nothing
+// reached the CRM, which is how a month of website leads went missing.
+//
+// anon now holds EXECUTE on that one function and no table grant at all: it
+// can submit a lead and cannot read, update or delete a single row. The
+// duplicate check moved server-side with it, since the browser can no longer
+// SELECT to do it itself.
+//
+// Still raw fetch rather than supabase-js, for two reasons that both matter on
+// a phone the instant after a tap:
+//
+//   • keepalive — a normal fetch is cancelled when the browser backgrounds the
+//     tab; a keepalive request still completes.
 //   • a real timeout — supabase-js does not reject promptly when the network
 //     drops (it sat pending indefinitely in testing), so the queue-and-retry
 //     fallback never got a chance to run and the lead was silently lost.
@@ -223,13 +318,7 @@ const restFetch = async (path, { method = 'GET', body, prefer, timeoutMs = 8000,
     });
     const text = await res.text().catch(() => '');
     if (!res.ok) {
-      const err = new Error(`Supabase ${method} ${path} failed (${res.status}): ${text}`);
-      // 23505 = unique violation. This table currently has no unique index on
-      // phone (only the id primary key), so this never fires today — it is
-      // here so that adding one later turns duplicates into a clean success
-      // rather than a retry loop.
-      err.isDuplicate = res.status === 409 || text.includes('23505');
-      throw err;
+      throw new Error(`Supabase ${method} ${path} failed (${res.status}): ${text}`);
     }
     return text ? JSON.parse(text) : null;
   } finally {
@@ -237,45 +326,17 @@ const restFetch = async (path, { method = 'GET', body, prefer, timeoutMs = 8000,
   }
 };
 
-const insertLeadRow = (row) =>
-  restFetch('leads', { method: 'POST', body: row, prefer: 'return=minimal', timeoutMs: 10000, keepalive: true });
-
-// Existing lead → don't touch status, assignment or the telecaller's own
-// notes ordering; just prepend the fresh enquiry and bump updated_at so the
-// lead resurfaces at the top of "recently active".
-const appendRepeatEnquiry = (leadId, existingNotes, noteText) => {
-  const merged = [noteText, existingNotes].filter(Boolean).join('\n\n');
-  return restFetch(`leads?id=eq.${encodeURIComponent(leadId)}`, {
-    method: 'PATCH',
-    body: { notes: merged.slice(0, 8000), updated_at: new Date().toISOString() },
-    prefer: 'return=minimal',
+// Resolves { ok: true } | { ok: true, duplicate: true } | { ok: false, error }.
+// The function decides which — only it can see whether the number already
+// exists — so the note's 🟢 / 🔁 marker and its timestamp are built there too,
+// off server time in IST rather than the visitor's device clock.
+const submitLeadRpc = (args) =>
+  restFetch('rpc/submit_website_lead', {
+    method: 'POST',
+    body: args,
+    timeoutMs: 10000,
     keepalive: true,
   });
-};
-
-// Returns the existing lead, null if there is none, or undefined when we
-// could not find out. Undefined deliberately falls through to an insert: a
-// slow lookup must never cost us the lead. There is no unique index on
-// leads.phone to catch a genuine repeat in that case, so the inserted row is
-// flagged in its notes instead — a duplicate the team can see and merge is
-// still far better than a lead we never captured.
-const findExistingLead = async (storedPhone) => {
-  const ten = toTenDigits(storedPhone);
-  // The table has been filled by several importers over time, so the same
-  // number may sit there in any of these shapes.
-  const variants = [...new Set([storedPhone, ten, `91${ten}`, `0${ten}`])].filter(Boolean);
-  const filter = `in.(${variants.join(',')})`;
-  try {
-    const rows = await restFetch(
-      `leads?select=id,notes&phone=${encodeURIComponent(filter)}&limit=1`,
-      { timeoutMs: 6000 }
-    );
-    return Array.isArray(rows) && rows.length ? rows[0] : null;
-  } catch (err) {
-    console.warn('[WA Lead] duplicate lookup unavailable, inserting anyway:', err && err.message);
-    return undefined;
-  }
-};
 
 /**
  * Capture a website enquiry as a CRM lead.
@@ -315,43 +376,23 @@ export const captureLead = async ({
   };
 
   try {
-    const existing = await findExistingLead(storedPhone);
-
-    if (existing) {
-      await appendRepeatEnquiry(
-        existing.id,
-        existing.notes,
-        buildNotes({ message, attribution: attr, repeat: true, label: noteLabel })
-      );
-      return { success: true, duplicate: true };
-    }
-
-    // existing === undefined means the lookup itself failed, not that the
-    // number is new. Record that on the row so a possible repeat is visible.
-    const dedupeUnknown = existing === undefined;
-    const now = new Date().toISOString();
-    await insertLeadRow({
-      // Both name columns are written because the CRM reads `full_name`
-      // while the original schema declares `name` NOT NULL.
-      name:              String(name || '').trim() || `${source} Enquiry`,
-      full_name:         String(name || '').trim() || `${source} Enquiry`,
-      phone:             storedPhone,
-      email:             email || '',
-      source,
-      status:            'Active',
-      final_status:      'FollowUp',
-      // Someone who reached out themselves is warmer than an imported row.
-      interest_level:    interestLevel,
-      notes:             buildNotes({ message, attribution: attr, label: noteLabel, dedupeUnknown }),
-      site_visit_status: 'not_planned',
-      project:           project || null,
-      created_at:        now,
-      updated_at:        now,
+    const result = await submitLeadRpc({
+      p_phone:          storedPhone,
+      p_name:           String(name || '').trim(),
+      p_email:          email || '',
+      p_project:        project || null,
+      p_source:         source,
+      p_interest_level: interestLevel,
+      p_label:          noteLabel,
+      p_details:        buildDetails({ message, attribution: attr }),
     });
 
-    return { success: true };
+    // A number the function rejects will never be accepted, so don't queue it.
+    if (result && result.ok === false) {
+      return { success: false, error: result.error || 'rejected' };
+    }
+    return { success: true, duplicate: !!(result && result.duplicate) };
   } catch (err) {
-    if (err && err.isDuplicate) return { success: true, duplicate: true };
     console.warn('[WA Lead] capture failed, queueing for retry:', err && err.message);
     if (!_fromQueue) enqueueLead(payload);
     return { success: false, queued: !_fromQueue, error: err && err.message };

@@ -4,8 +4,8 @@
 // OFFICIAL RATES (SOURCE OF TRUTH):
 // Shree Kunj Bihari:    ₹8,025/sq yd | 60 months | 10% booking
 // Khatu Shyam Enclave:  ₹7,525/sq yd | 60 months | 10% booking  
-// Shree Jagannath Dham: ₹8,025/sq yd | 54 months | 10% booking
-// Gokul Vatika:         ₹10,025/sq yd | 24 months | 10% booking
+// Shree Jagannath Dham: ₹8,525/sq yd | 54 months | 10% booking
+// Gokul Vatika:         ₹12,525/sq yd | 24 months | 10% booking
 // Brij Vatika:          ₹15,525/sq yd | 40 months | 10% booking
 // Maa Semri Vatika:     ₹15,525/sq yd | 24 months | 15% booking
 
@@ -352,22 +352,22 @@ export const projectsData = [
       'Limited availability creates urgency'
     ],
     
-    pricePerSqYard: 8025,
+    pricePerSqYard: 8525,
     bookingPercentage: '10%',
     emiMonths: 54,
     emiInterest: '0%',
     registryPayment: '30%',
-    
+
     pricing: [
-      { size: 50, rate: 8025, total: 401250, booking: 40125, rest: 361125, emi: 6687 },
-      { size: 55, rate: 8025, total: 441375, booking: 44137, rest: 397238, emi: 7356 },
-      { size: 60, rate: 8025, total: 481500, booking: 48150, rest: 433350, emi: 8025 },
-      { size: 80, rate: 8025, total: 642000, booking: 64200, rest: 577800, emi: 10700 },
-      { size: 100, rate: 8025, total: 802500, booking: 80250, rest: 722250, emi: 13375 },
-      { size: 120, rate: 8025, total: 963000, booking: 96300, rest: 866700, emi: 16050 },
-      { size: 150, rate: 8025, total: 1203750, booking: 120375, rest: 1083375, emi: 20062 },
-      { size: 200, rate: 8025, total: 1605000, booking: 160500, rest: 1444500, emi: 26750 },
-      { size: 250, rate: 8025, total: 2006250, booking: 200625, rest: 1805625, emi: 33437 }
+      { size: 50, rate: 8525, total: 426250, booking: 42625, rest: 383625, emi: 7104 },
+      { size: 55, rate: 8525, total: 468875, booking: 46887, rest: 421988, emi: 7814 },
+      { size: 60, rate: 8525, total: 511500, booking: 51150, rest: 460350, emi: 8525 },
+      { size: 80, rate: 8525, total: 682000, booking: 68200, rest: 613800, emi: 11366 },
+      { size: 100, rate: 8525, total: 852500, booking: 85250, rest: 767250, emi: 14208 },
+      { size: 120, rate: 8525, total: 1023000, booking: 102300, rest: 920700, emi: 17050 },
+      { size: 150, rate: 8525, total: 1278750, booking: 127875, rest: 1150875, emi: 21312 },
+      { size: 200, rate: 8525, total: 1705000, booking: 170500, rest: 1534500, emi: 28416 },
+      { size: 250, rate: 8525, total: 2131250, booking: 213125, rest: 1918125, emi: 35520 }
     ],
     
     trustBadges: [
@@ -458,22 +458,22 @@ export const projectsData = [
       'Perfect for long-term wealth creation'
     ],
     
-    pricePerSqYard: 10025,
+    pricePerSqYard: 12525,
     bookingPercentage: '10%',
     emiMonths: 24,
     emiInterest: '0%',
     registryPayment: '35%',
-    
+
     pricing: [
-      { size: 50, rate: 10025, total: 501250, booking: 50125, rest: 451125, emi: 18796 },
-      { size: 55, rate: 10025, total: 551375, booking: 55137, rest: 496238, emi: 20676 },
-      { size: 60, rate: 10025, total: 601500, booking: 60150, rest: 541350, emi: 22556 },
-      { size: 80, rate: 10025, total: 802000, booking: 80200, rest: 721800, emi: 30075 },
-      { size: 100, rate: 10025, total: 1002500, booking: 100250, rest: 902250, emi: 37593 },
-      { size: 120, rate: 10025, total: 1203000, booking: 120300, rest: 1082700, emi: 45112 },
-      { size: 150, rate: 10025, total: 1503750, booking: 150375, rest: 1353375, emi: 56390 },
-      { size: 200, rate: 10025, total: 2005000, booking: 200500, rest: 1804500, emi: 75187 },
-      { size: 250, rate: 10025, total: 2506250, booking: 250625, rest: 2255625, emi: 93984 }
+      { size: 50, rate: 12525, total: 626250, booking: 62625, rest: 563625, emi: 23484 },
+      { size: 55, rate: 12525, total: 688875, booking: 68887, rest: 619988, emi: 25832 },
+      { size: 60, rate: 12525, total: 751500, booking: 75150, rest: 676350, emi: 28181 },
+      { size: 80, rate: 12525, total: 1002000, booking: 100200, rest: 901800, emi: 37575 },
+      { size: 100, rate: 12525, total: 1252500, booking: 125250, rest: 1127250, emi: 46968 },
+      { size: 120, rate: 12525, total: 1503000, booking: 150300, rest: 1352700, emi: 56362 },
+      { size: 150, rate: 12525, total: 1878750, booking: 187875, rest: 1690875, emi: 70453 },
+      { size: 200, rate: 12525, total: 2505000, booking: 250500, rest: 2254500, emi: 93937 },
+      { size: 250, rate: 12525, total: 3131250, booking: 313125, rest: 2818125, emi: 117421 }
     ],
     
     trustBadges: [
